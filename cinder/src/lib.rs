@@ -1,0 +1,95 @@
+use crate::{
+    cpu_allocator::CpuAllocator, device::Device, gpu_allocator::GpuAllocator, renderer::Renderer,
+    resource_manager::ResourceManager,
+};
+
+mod cpu_allocator;
+mod device;
+mod gpu_allocator;
+mod renderer;
+mod resource_manager;
+
+pub struct Cinder {
+    device: Device,
+    renderer: Renderer,
+    resource_manage: ResourceManager,
+    gpu_allocator: GpuAllocator,
+    cpu_allocator: CpuAllocator,
+}
+
+pub enum PlatformData {
+    Windows(()),
+    MacOS(()),
+}
+
+pub enum TextureFormat {
+    Rgba8Unorm,
+    Rgba8Srgb,
+}
+
+pub struct Resolution {
+    pub format: TextureFormat,
+    pub width: u32,
+    pub height: u32,
+}
+
+pub struct InitData {
+    pub debug_enabled: bool,
+    pub profiling_enabled: bool,
+    pub platform_data: PlatformData,
+    pub backbuffer_resolution: Resolution,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct ViewId(pub u32);
+
+pub enum ColorClear {
+    None,
+    Value([u8; 4]),
+}
+
+pub enum DepthClear {
+    None,
+    Value(f32),
+}
+
+pub enum BackbufferRatio {
+    Equal,
+    Half,
+    Quarter,
+    Eighth,
+    Sixteenth,
+    Double,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct FrameNumber(usize);
+
+impl Cinder {
+    pub fn init(_init_data: InitData) -> Self {
+        Self {
+            device: Default::default(),
+            renderer: Default::default(),
+            resource_manage: Default::default(),
+            gpu_allocator: Default::default(),
+            cpu_allocator: Default::default(),
+        }
+    }
+
+    pub fn set_view_color_clear(&mut self, id: ViewId, clear_op: ColorClear) {}
+    pub fn set_view_depth_clear(&mut self, id: ViewId, clear_op: DepthClear) {}
+
+    pub fn set_view_rect(&mut self, _id: ViewId, x: u32, y: u32, width: u32, height: u32) {}
+    pub fn set_view_rect_relative_backbufer(
+        &mut self,
+        id: ViewId,
+        x: u32,
+        y: u32,
+        backbuffer_ratio: BackbufferRatio,
+    ) {
+    }
+
+    pub fn frame(&mut self) -> FrameNumber {
+        FrameNumber(0)
+    }
+}
