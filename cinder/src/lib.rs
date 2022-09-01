@@ -1,21 +1,4 @@
-use crate::{
-    cpu_allocator::CpuAllocator, device::Device, gpu_allocator::GpuAllocator, renderer::Renderer,
-    resource_manager::ResourceManager,
-};
-
-mod cpu_allocator;
-mod device;
-mod gpu_allocator;
-mod renderer;
-mod resource_manager;
-
-pub struct Cinder {
-    device: Device,
-    renderer: Renderer,
-    resource_manage: ResourceManager,
-    gpu_allocator: GpuAllocator,
-    cpu_allocator: CpuAllocator,
-}
+pub struct Cinder {}
 
 pub enum PlatformData {
     Windows(()),
@@ -67,13 +50,7 @@ pub struct FrameNumber(usize);
 
 impl Cinder {
     pub fn init(_init_data: InitData) -> Self {
-        Self {
-            device: Default::default(),
-            renderer: Default::default(),
-            resource_manage: Default::default(),
-            gpu_allocator: Default::default(),
-            cpu_allocator: Default::default(),
-        }
+        Self {}
     }
 
     pub fn set_view_color_clear(&mut self, id: ViewId, clear_op: ColorClear) {}
