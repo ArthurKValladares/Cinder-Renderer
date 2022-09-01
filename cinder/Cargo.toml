@@ -3,4 +3,11 @@ name = "cinder"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["empty"]
+empty = []
+metal = []
+vulkan = []
+
 [dependencies]
+thiserror = "1"

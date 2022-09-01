@@ -1,4 +1,11 @@
-pub struct Cinder {}
+mod backend;
+
+use crate::backend::{Api, AsContext, BackendContext, ContextError};
+use thiserror::Error;
+
+pub struct Cinder {
+    context: BackendContext,
+}
 
 pub enum PlatformData {
     Windows(()),
@@ -48,9 +55,20 @@ pub enum BackbufferRatio {
 #[derive(Debug, Clone, Copy)]
 pub struct FrameNumber(usize);
 
+#[derive(Clone, Debug, Eq, PartialEq, Error)]
+pub enum InitError {
+    #[error(transparent)]
+    Context(#[from] ContextError),
+}
+
+impl Api for Cinder {
+    type Context = BackendContext;
+}
+
 impl Cinder {
-    pub fn init(_init_data: InitData) -> Self {
-        Self {}
+    pub fn init(_init_data: InitData) -> Result<Self, InitError> {
+        let context = BackendContext::init()?;
+        Ok(Self { context })
     }
 
     pub fn set_view_color_clear(&mut self, id: ViewId, clear_op: ColorClear) {}
