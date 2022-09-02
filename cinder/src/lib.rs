@@ -31,7 +31,7 @@ pub struct InitData {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct PassId(pub u32);
+pub struct ViewId(pub u32);
 
 pub enum ColorClear {
     None,
@@ -71,13 +71,13 @@ impl Cinder {
         Ok(Self { context })
     }
 
-    pub fn set_pass_color_clear(&mut self, id: PassId, clear_op: ColorClear) {}
-    pub fn set_pass_depth_clear(&mut self, id: PassId, clear_op: DepthClear) {}
+    pub fn set_view_color_clear(&mut self, id: ViewId, clear_op: ColorClear) {}
+    pub fn set_view_depth_clear(&mut self, id: ViewId, clear_op: DepthClear) {}
 
-    pub fn set_pass_rect(&mut self, _id: PassId, x: u32, y: u32, width: u32, height: u32) {}
-    pub fn set_pass_rect_relative_backbufer(
+    pub fn set_view_rect(&mut self, _id: ViewId, x: u32, y: u32, width: u32, height: u32) {}
+    pub fn set_view_rect_relative_backbufer(
         &mut self,
-        id: PassId,
+        id: ViewId,
         x: u32,
         y: u32,
         backbuffer_ratio: BackbufferRatio,
