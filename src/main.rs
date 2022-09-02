@@ -1,5 +1,7 @@
 use cinder::{
-    BackbufferRatio, Cinder, ColorClear, InitData, PlatformData, Resolution, TextureFormat, ViewId,
+    init::{InitData, PlatformData, Resolution, TextureFormat},
+    view::{ColorClear, ViewId},
+    BackbufferRatio, Cinder,
 };
 use winit::{
     dpi::PhysicalSize,

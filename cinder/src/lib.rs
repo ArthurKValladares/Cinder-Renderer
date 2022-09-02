@@ -1,47 +1,14 @@
 mod backend;
+pub mod context;
+pub mod init;
+pub mod view;
 
-use crate::backend::{Api, AsContext, BackendContext, ContextError};
+use crate::{
+    context::{Context, ContextError},
+    init::InitData,
+    view::{Clear, ColorClear, DepthClear, ViewId},
+};
 use thiserror::Error;
-
-pub struct Cinder {
-    context: BackendContext,
-}
-
-pub enum PlatformData {
-    Windows(()),
-    MacOS(()),
-}
-
-pub enum TextureFormat {
-    Rgba8Unorm,
-    Rgba8Srgb,
-}
-
-pub struct Resolution {
-    pub format: TextureFormat,
-    pub width: u32,
-    pub height: u32,
-}
-
-pub struct InitData {
-    pub debug_enabled: bool,
-    pub profiling_enabled: bool,
-    pub platform_data: PlatformData,
-    pub backbuffer_resolution: Resolution,
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct ViewId(pub u32);
-
-pub enum ColorClear {
-    None,
-    Value([u8; 4]),
-}
-
-pub enum DepthClear {
-    None,
-    Value(f32),
-}
 
 pub enum BackbufferRatio {
     Equal,
@@ -61,20 +28,28 @@ pub enum InitError {
     Context(#[from] ContextError),
 }
 
-impl Api for Cinder {
-    type Context = BackendContext;
+pub struct Cinder {
+    context: Context,
 }
 
 impl Cinder {
-    pub fn init(_init_data: InitData) -> Result<Self, InitError> {
-        let context = BackendContext::init()?;
+    pub fn init(init_data: InitData) -> Result<Self, InitError> {
+        let context = Context::init(init_data)?;
         Ok(Self { context })
     }
 
-    pub fn set_view_color_clear(&mut self, id: ViewId, clear_op: ColorClear) {}
-    pub fn set_view_depth_clear(&mut self, id: ViewId, clear_op: DepthClear) {}
+    pub fn set_view_color_clear(&mut self, id: ViewId, clear_op: ColorClear) {
+        self.context.set_view_clear(id, Clear::Color(clear_op));
+    }
 
-    pub fn set_view_rect(&mut self, _id: ViewId, x: u32, y: u32, width: u32, height: u32) {}
+    pub fn set_view_depth_clear(&mut self, id: ViewId, clear_op: DepthClear) {
+        self.context.set_view_clear(id, Clear::Depth(clear_op));
+    }
+
+    pub fn set_view_rect(&mut self, id: ViewId, x: u32, y: u32, width: u32, height: u32) {
+        self.context.set_view_rect(id, x, y, width, height)
+    }
+
     pub fn set_view_rect_relative_backbufer(
         &mut self,
         id: ViewId,

@@ -11,3 +11,4 @@ vulkan = []
 
 [dependencies]
 thiserror = "1"
+math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
