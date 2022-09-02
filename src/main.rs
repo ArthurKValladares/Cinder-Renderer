@@ -1,5 +1,5 @@
 use cinder::{
-    BackbufferRatio, Cinder, ColorClear, InitData, PlatformData, Resolution, TextureFormat, ViewId,
+    BackbufferRatio, Cinder, ColorClear, InitData, PassId, PlatformData, Resolution, TextureFormat,
 };
 use winit::{
     dpi::PhysicalSize,
@@ -34,9 +34,9 @@ fn main() {
     };
     let mut cinder = Cinder::init(init_data).expect("Could not create cinder instance");
 
-    let view_id = ViewId(0);
-    cinder.set_view_color_clear(view_id, ColorClear::Value([255, 0, 0, 0]));
-    cinder.set_view_rect_relative_backbufer(view_id, 0, 0, BackbufferRatio::Equal);
+    let pass_id = PassId(0);
+    cinder.set_pass_color_clear(pass_id, ColorClear::Value([255, 0, 0, 0]));
+    cinder.set_pass_rect_relative_backbufer(pass_id, 0, 0, BackbufferRatio::Equal);
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
