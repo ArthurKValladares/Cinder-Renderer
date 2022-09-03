@@ -1,14 +1,18 @@
 #[cfg(feature = "metal")]
-mod metal;
+pub mod metal;
 #[cfg(feature = "metal")]
-pub use metal::*;
+pub use metal as back;
 
 #[cfg(feature = "vulkan")]
-mod vulkan;
+pub mod vulkan;
 #[cfg(feature = "vulkan")]
-pub use vulkan::*;
+pub use vulkan as back;
 
-#[cfg(feature = "empty")]
-mod empty;
-#[cfg(feature = "empty")]
-pub use empty::*;
+#[cfg(not(any(feature = "metal", feature = "vulkan")))]
+pub mod empty;
+#[cfg(not(any(feature = "metal", feature = "vulkan")))]
+pub use empty as back;
+
+pub trait AsRendererContext: Sized {
+    fn create() -> Self;
+}

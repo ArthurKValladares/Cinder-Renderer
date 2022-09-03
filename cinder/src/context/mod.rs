@@ -1,4 +1,5 @@
 use crate::{
+    backend::{back, back::RendererContext, AsRendererContext},
     init::{Init, InitData},
     view::{Clear, View, ViewId, MAX_VIEWS},
 };
@@ -12,14 +13,18 @@ pub struct ContextError;
 pub struct Context {
     init: Init,
     views: [View; MAX_VIEWS],
+    renderer_context: RendererContext,
 }
 
 impl Context {
     pub fn init(data: InitData) -> Result<Self, ContextError> {
         let views = [View::from_resolution(data.backbuffer_resolution); MAX_VIEWS];
+        let init = Init::from_data(data);
+        let renderer_context = <RendererContext as AsRendererContext>::create();
         Ok(Self {
-            init: Init::from_data(data),
+            init,
             views,
+            renderer_context,
         })
     }
 
