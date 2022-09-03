@@ -14,5 +14,6 @@ pub mod empty;
 pub use empty as back;
 
 pub trait AsRendererContext: Sized {
-    fn create() -> Self;
+    type CreateError;
+    fn create() -> Result<Self, Self::CreateError>;
 }

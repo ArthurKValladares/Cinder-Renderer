@@ -7,8 +7,11 @@ use math::{point::Point2D, rect::Rect2D, size::Size2D};
 use thiserror::Error;
 
 #[derive(Clone, Debug, Eq, PartialEq, Error)]
-#[error("Not supported")]
-pub struct ContextError;
+pub enum ContextError {
+    // TODO: Need to figure out how to make this work across backends
+    #[error("Could not create renderer context")]
+    RendererInitError,
+}
 
 pub struct Context {
     init: Init,
@@ -20,7 +23,8 @@ impl Context {
     pub fn init(data: InitData) -> Result<Self, ContextError> {
         let views = [View::from_resolution(data.backbuffer_resolution); MAX_VIEWS];
         let init = Init::from_data(data);
-        let renderer_context = <RendererContext as AsRendererContext>::create();
+        let renderer_context = <RendererContext as AsRendererContext>::create()
+            .map_err(|_| ContextError::RendererInitError)?;
         Ok(Self {
             init,
             views,

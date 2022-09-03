@@ -5,8 +5,9 @@ edition = "2021"
 
 [features]
 metal = []
-vulkan = []
+vulkan = ["ash"]
 
 [dependencies]
+ash = {version = "0.37", optional = true}
 thiserror = "1"
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
