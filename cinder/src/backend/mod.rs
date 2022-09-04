@@ -15,5 +15,5 @@ pub use empty as back;
 
 pub trait AsRendererContext: Sized {
     type CreateError;
-    fn create() -> Result<Self, Self::CreateError>;
+    fn create(window: &winit::window::Window) -> Result<Self, Self::CreateError>;
 }

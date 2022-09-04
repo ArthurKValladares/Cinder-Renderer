@@ -9,7 +9,7 @@ pub struct RendererContext {}
 impl AsRendererContext for RendererContext {
     type CreateError = RendererContextInitError;
 
-    fn create() -> Result<Self, Self::CreateError> {
+    fn create(window: &winit::window::Window) -> Result<Self, Self::CreateError> {
         Ok(RendererContext {})
     }
 }

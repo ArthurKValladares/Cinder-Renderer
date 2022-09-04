@@ -3,6 +3,7 @@ use ash::vk;
 use std::{
     borrow::Cow,
     ffi::{CStr, CString},
+    os::raw::c_char,
 };
 use thiserror::Error;
 
@@ -40,20 +41,23 @@ pub struct RendererContext {
 impl AsRendererContext for RendererContext {
     type CreateError = RendererContextInitError;
 
-    fn create() -> Result<Self, Self::CreateError> {
+    fn create(window: &winit::window::Window) -> Result<Self, Self::CreateError> {
         let entry = unsafe { ash::Entry::load()? };
 
         // TODO: Configurable layers
         let layers = layer_names();
-        let layers: Vec<*const i8> = layers.iter().map(|raw_name| raw_name.as_ptr()).collect();
-
-        // TODO: COnfigurable
-        // TODO: Need to chain with required extensions from window handle
-        let extensions = extensions();
-        let extensions: Vec<*const i8> = extensions
+        let layers = layers
             .iter()
             .map(|raw_name| raw_name.as_ptr())
-            .collect();
+            .collect::<Vec<*const c_char>>();
+
+        // TODO: Configurable
+        let window_extensions = ash_window::enumerate_required_extensions(window);
+        let extensions = extensions();
+        let extensions = extensions
+            .iter()
+            .map(|raw_name| raw_name.as_ptr())
+            .collect::<Vec<*const c_char>>();
 
         let app_info = vk::ApplicationInfo::builder().api_version(vk::make_api_version(0, 1, 3, 0)); // TODO: Configure version
         let instance_ci = vk::InstanceCreateInfo::builder()

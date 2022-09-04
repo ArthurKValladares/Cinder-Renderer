@@ -34,7 +34,7 @@ fn main() {
             height: WINDOW_HEIGHT,
         },
     };
-    let mut cinder = Cinder::init(init_data).expect("Could not create cinder instance");
+    let mut cinder = Cinder::init(&window, init_data).expect("Could not create cinder instance");
 
     let view_id = ViewId(0);
     cinder.set_view_color_clear(view_id, ColorClear::Value([255, 0, 0, 0]));

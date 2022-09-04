@@ -20,10 +20,10 @@ pub struct Context {
 }
 
 impl Context {
-    pub fn init(data: InitData) -> Result<Self, ContextError> {
+    pub fn init(window: &winit::window::Window, data: InitData) -> Result<Self, ContextError> {
         let views = [View::from_resolution(data.backbuffer_resolution); MAX_VIEWS];
         let init = Init::from_data(data);
-        let renderer_context = <RendererContext as AsRendererContext>::create()
+        let renderer_context = <RendererContext as AsRendererContext>::create(window)
             .map_err(|_| ContextError::RendererInitError)?;
         Ok(Self {
             init,

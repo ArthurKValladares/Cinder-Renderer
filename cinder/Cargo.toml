@@ -5,9 +5,11 @@ edition = "2021"
 
 [features]
 metal = []
-vulkan = ["ash"]
+vulkan = ["ash", "ash-window"]
 
 [dependencies]
 ash = {version = "0.37", optional = true}
+ash-window = {version = "0.11.0", optional = true}
+winit = "0.27"
 thiserror = "1"
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }

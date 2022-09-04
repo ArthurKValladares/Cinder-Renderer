@@ -33,8 +33,8 @@ pub struct Cinder {
 }
 
 impl Cinder {
-    pub fn init(init_data: InitData) -> Result<Self, InitError> {
-        let context = Context::init(init_data)?;
+    pub fn init(window: &winit::window::Window, init_data: InitData) -> Result<Self, InitError> {
+        let context = Context::init(window, init_data)?;
         Ok(Self { context })
     }
 
