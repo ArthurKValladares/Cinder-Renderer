@@ -1,11 +1,17 @@
+mod command_buffer;
+
 use super::AsRendererContext;
+use crate::init::InitData;
 use ash::{vk, Device};
+use command_buffer::CommandBufferPool;
 use std::{
     borrow::Cow,
     ffi::{CStr, CString},
     os::raw::c_char,
 };
 use thiserror::Error;
+
+const NUM_COMMAND_BUFFERS: u32 = 3;
 
 // TODO: This is rough for now, will be configurable later
 fn layer_names() -> Vec<CString> {
@@ -39,22 +45,42 @@ pub enum RendererContextInitError {
     FailedToCreateSurface(ash::vk::Result),
 }
 
+// TODO: Depth image
 pub struct RendererContext {
     entry: ash::Entry,
     instance: ash::Instance,
     debug_utils: ash::extensions::ext::DebugUtils,
     debug_utils_messenger: vk::DebugUtilsMessengerEXT,
+    surface_loader: ash::extensions::khr::Surface,
+    swapchain_loader: ash::extensions::khr::Swapchain,
+
     p_device: vk::PhysicalDevice,
-    queue_family_index: u32,
     p_device_properties: vk::PhysicalDeviceProperties,
     p_device_memory_properties: vk::PhysicalDeviceMemoryProperties,
     device: ash::Device,
+    queue_family_index: u32,
+
+    surface: vk::SurfaceKHR,
+    surface_format: vk::SurfaceFormatKHR,
+    surface_resolution: vk::Extent2D,
+
+    swapchain: vk::SwapchainKHR,
+    present_images: Vec<vk::Image>,
+    present_image_views: Vec<vk::ImageView>,
+
+    present_complete_semaphore: vk::Semaphore,
+    rendering_complete_semaphore: vk::Semaphore,
+
+    command_buffer_pool: CommandBufferPool,
 }
 
 impl AsRendererContext for RendererContext {
     type CreateError = RendererContextInitError;
 
-    fn create(window: &winit::window::Window) -> Result<Self, Self::CreateError> {
+    fn create(
+        window: &winit::window::Window,
+        init_data: InitData,
+    ) -> Result<Self, Self::CreateError> {
         let entry = unsafe { ash::Entry::load()? };
 
         // TODO: Configurable layers
@@ -176,16 +202,152 @@ impl AsRendererContext for RendererContext {
         let device =
             unsafe { instance.create_device(p_device, &device_create_info, None) }.unwrap();
 
+        let present_queue = unsafe { device.get_device_queue(queue_family_index, 0) };
+
+        let surface_formats =
+            unsafe { surface_loader.get_physical_device_surface_formats(p_device, surface) }
+                .unwrap();
+        let surface_format = surface_formats
+            .iter()
+            .map(|sfmt| match sfmt.format {
+                vk::Format::UNDEFINED => vk::SurfaceFormatKHR {
+                    format: vk::Format::B8G8R8_UNORM,
+                    color_space: sfmt.color_space,
+                },
+                _ => *sfmt,
+            })
+            .next()
+            .expect("Unable to find suitable surface format.");
+        let surface_capabilities =
+            unsafe { surface_loader.get_physical_device_surface_capabilities(p_device, surface) }
+                .unwrap();
+        let mut desired_image_count = {
+            let mut desired_image_count = surface_capabilities.min_image_count + 1;
+            if surface_capabilities.max_image_count > 0
+                && desired_image_count > surface_capabilities.max_image_count
+            {
+                desired_image_count = surface_capabilities.max_image_count;
+            }
+            desired_image_count
+        };
+        let surface_resolution = match surface_capabilities.current_extent.width {
+            std::u32::MAX => vk::Extent2D {
+                width: init_data.backbuffer_resolution.width,
+                height: init_data.backbuffer_resolution.height,
+            },
+            _ => surface_capabilities.current_extent,
+        };
+
+        let present_modes =
+            unsafe { surface_loader.get_physical_device_surface_present_modes(p_device, surface) }
+                .unwrap();
+        // TODO: vsyc or not vsync option
+        let present_mode_preference = if false {
+            vec![vk::PresentModeKHR::FIFO_RELAXED, vk::PresentModeKHR::FIFO]
+        } else {
+            vec![vk::PresentModeKHR::MAILBOX, vk::PresentModeKHR::IMMEDIATE]
+        };
+        let present_mode = present_mode_preference
+            .into_iter()
+            .find(|mode| present_modes.contains(mode))
+            .unwrap_or(vk::PresentModeKHR::FIFO);
+
+        let pre_transform = if surface_capabilities
+            .supported_transforms
+            .contains(vk::SurfaceTransformFlagsKHR::IDENTITY)
+        {
+            vk::SurfaceTransformFlagsKHR::IDENTITY
+        } else {
+            surface_capabilities.current_transform
+        };
+        let swapchain_loader = ash::extensions::khr::Swapchain::new(&instance, &device);
+        let swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
+            .surface(surface)
+            .min_image_count(desired_image_count)
+            .image_color_space(surface_format.color_space)
+            .image_format(surface_format.format)
+            .image_extent(surface_resolution)
+            .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
+            .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .pre_transform(pre_transform)
+            .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
+            .present_mode(present_mode)
+            .clipped(true)
+            .image_array_layers(1);
+        let swapchain =
+            unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None) }.unwrap();
+
+        let present_images = unsafe { swapchain_loader.get_swapchain_images(swapchain) }.unwrap();
+        let present_image_views: Vec<vk::ImageView> = present_images
+            .iter()
+            .map(|&image| {
+                let create_view_info = vk::ImageViewCreateInfo::builder()
+                    .view_type(vk::ImageViewType::TYPE_2D)
+                    .format(surface_format.format)
+                    .components(vk::ComponentMapping {
+                        r: vk::ComponentSwizzle::R,
+                        g: vk::ComponentSwizzle::G,
+                        b: vk::ComponentSwizzle::B,
+                        a: vk::ComponentSwizzle::A,
+                    })
+                    .subresource_range(vk::ImageSubresourceRange {
+                        aspect_mask: vk::ImageAspectFlags::COLOR,
+                        base_mip_level: 0,
+                        level_count: 1,
+                        base_array_layer: 0,
+                        layer_count: 1,
+                    })
+                    .image(image);
+                unsafe { device.create_image_view(&create_view_info, None) }.unwrap()
+            })
+            .collect();
+
+        let depth_image_create_info = vk::ImageCreateInfo::builder()
+            .image_type(vk::ImageType::TYPE_2D)
+            .format(vk::Format::D32_SFLOAT)
+            .extent(vk::Extent3D {
+                width: surface_resolution.width,
+                height: surface_resolution.height,
+                depth: 1,
+            })
+            .mip_levels(1)
+            .array_layers(1)
+            .samples(vk::SampleCountFlags::TYPE_1)
+            .tiling(vk::ImageTiling::OPTIMAL)
+            .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT | vk::ImageUsageFlags::SAMPLED)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE);
+
+        let semaphore_create_info = vk::SemaphoreCreateInfo::default();
+
+        let present_complete_semaphore =
+            unsafe { device.create_semaphore(&semaphore_create_info, None) }.unwrap();
+        let rendering_complete_semaphore =
+            unsafe { device.create_semaphore(&semaphore_create_info, None) }.unwrap();
+
+        let command_buffer_pool =
+            CommandBufferPool::new(&device, queue_family_index, NUM_COMMAND_BUFFERS);
+
         Ok(RendererContext {
             entry,
             instance,
             debug_utils,
             debug_utils_messenger,
+            surface_loader,
+            swapchain_loader,
             p_device,
-            queue_family_index,
             p_device_properties,
             p_device_memory_properties,
             device,
+            queue_family_index,
+            surface,
+            surface_format,
+            surface_resolution,
+            swapchain,
+            present_images,
+            present_image_views,
+            present_complete_semaphore,
+            rendering_complete_semaphore,
+            command_buffer_pool,
         })
     }
 }

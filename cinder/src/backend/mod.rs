@@ -13,7 +13,12 @@ pub mod empty;
 #[cfg(not(any(feature = "metal", feature = "vulkan")))]
 pub use empty as back;
 
+use crate::init::InitData;
+
 pub trait AsRendererContext: Sized {
     type CreateError;
-    fn create(window: &winit::window::Window) -> Result<Self, Self::CreateError>;
+    fn create(
+        window: &winit::window::Window,
+        init_dat: InitData,
+    ) -> Result<Self, Self::CreateError>;
 }

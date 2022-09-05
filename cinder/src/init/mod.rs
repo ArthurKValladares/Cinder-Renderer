@@ -29,7 +29,7 @@ pub struct Init {
 }
 
 impl Init {
-    pub fn from_data(data: InitData) -> Self {
+    pub fn from_data(data: &InitData) -> Self {
         Self {
             resolution: data.backbuffer_resolution,
         }
