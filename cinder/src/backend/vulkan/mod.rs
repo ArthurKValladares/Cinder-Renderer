@@ -1,5 +1,5 @@
 use super::AsRendererContext;
-use ash::vk;
+use ash::{vk, Device};
 use std::{
     borrow::Cow,
     ffi::{CStr, CString},
@@ -45,8 +45,10 @@ pub struct RendererContext {
     debug_utils: ash::extensions::ext::DebugUtils,
     debug_utils_messenger: vk::DebugUtilsMessengerEXT,
     p_device: vk::PhysicalDevice,
-    queue_family_index: usize,
+    queue_family_index: u32,
     p_device_properties: vk::PhysicalDeviceProperties,
+    p_device_memory_properties: vk::PhysicalDeviceMemoryProperties,
+    device: ash::Device,
 }
 
 impl AsRendererContext for RendererContext {
@@ -131,7 +133,7 @@ impl AsRendererContext for RendererContext {
                         if supports_graphic_and_surface {
                             let properties =
                                 unsafe { instance.get_physical_device_properties(p_device) };
-                            Some((p_device, index, properties))
+                            Some((p_device, index as u32, properties))
                         } else {
                             None
                         }
@@ -151,6 +153,29 @@ impl AsRendererContext for RendererContext {
                 },
             )
             .ok_or(RendererContextInitError::NoSupportedPhysicalDevice)?;
+
+        let p_device_memory_properties =
+            unsafe { instance.get_physical_device_memory_properties(p_device) };
+
+        let device_extension_names = [ash::extensions::khr::Swapchain::name()];
+        let device_extension_names_raw: Vec<*const i8> = device_extension_names
+            .iter()
+            .map(|raw_name| raw_name.as_ptr())
+            .collect();
+
+        let features = vk::PhysicalDeviceFeatures::builder();
+        let priorities = [1.0];
+        let queue_info = [vk::DeviceQueueCreateInfo::builder()
+            .queue_family_index(queue_family_index)
+            .queue_priorities(&priorities)
+            .build()];
+        let device_create_info = vk::DeviceCreateInfo::builder()
+            .queue_create_infos(&queue_info)
+            .enabled_extension_names(&device_extension_names_raw)
+            .enabled_features(&features);
+        let device =
+            unsafe { instance.create_device(p_device, &device_create_info, None) }.unwrap();
+
         Ok(RendererContext {
             entry,
             instance,
@@ -159,6 +184,8 @@ impl AsRendererContext for RendererContext {
             p_device,
             queue_family_index,
             p_device_properties,
+            p_device_memory_properties,
+            device,
         })
     }
 }
