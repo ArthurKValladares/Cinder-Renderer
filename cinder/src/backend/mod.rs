@@ -13,7 +13,7 @@ pub mod empty;
 #[cfg(not(any(feature = "metal", feature = "vulkan")))]
 pub use empty as back;
 
-use crate::init::InitData;
+use crate::{context::FrameNumber, init::InitData};
 
 pub trait AsRendererContext: Sized {
     type CreateError;
@@ -21,4 +21,6 @@ pub trait AsRendererContext: Sized {
         window: &winit::window::Window,
         init_dat: InitData,
     ) -> Result<Self, Self::CreateError>;
+
+    fn submit_frame(&mut self, frame_number: FrameNumber);
 }

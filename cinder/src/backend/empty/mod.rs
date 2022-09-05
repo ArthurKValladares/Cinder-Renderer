@@ -15,4 +15,6 @@ impl AsRendererContext for RendererContext {
     ) -> Result<Self, Self::CreateError> {
         Ok(RendererContext {})
     }
+
+    fn submit_frame(&mut self) {}
 }

@@ -6,6 +6,22 @@ use crate::{
 use math::{point::Point2D, rect::Rect2D, size::Size2D};
 use thiserror::Error;
 
+#[derive(Debug, Clone, Copy)]
+pub struct FrameNumber(usize);
+
+impl FrameNumber {
+    pub fn raw(&self) -> usize {
+        self.0
+    }
+
+    // Bumps and returns previous number
+    fn bump(&mut self) -> FrameNumber {
+        let prev = self.0;
+        self.0 += 1;
+        FrameNumber(prev)
+    }
+}
+
 #[derive(Clone, Debug, Eq, PartialEq, Error)]
 pub enum ContextError {
     // TODO: Need to figure out how to make this work across backends
@@ -17,6 +33,7 @@ pub struct Context {
     init: Init,
     views: [View; MAX_VIEWS],
     renderer_context: RendererContext,
+    frame_number: FrameNumber,
 }
 
 impl Context {
@@ -29,6 +46,7 @@ impl Context {
             init,
             views,
             renderer_context,
+            frame_number: FrameNumber(0),
         })
     }
 
@@ -41,5 +59,10 @@ impl Context {
             Point2D::new(x as f32, y as f32),
             Size2D::new(width as f32, height as f32),
         );
+    }
+
+    pub fn frame(&mut self) -> FrameNumber {
+        self.renderer_context.submit_frame(self.frame_number);
+        self.frame_number.bump()
     }
 }

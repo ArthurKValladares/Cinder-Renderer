@@ -1,8 +1,45 @@
 use ash::{vk, Device};
 
+use crate::context::FrameNumber;
+
 pub struct CommandBuffer {
     command_buffer: vk::CommandBuffer,
     fence: vk::Fence,
+}
+
+impl CommandBuffer {
+    pub fn raw(&self) -> vk::CommandBuffer {
+        self.command_buffer
+    }
+
+    pub fn fence(&self) -> vk::Fence {
+        self.fence
+    }
+
+    pub fn reset(&self, device: &Device) {
+        unsafe {
+            device
+                .reset_command_buffer(
+                    self.command_buffer,
+                    vk::CommandBufferResetFlags::RELEASE_RESOURCES,
+                )
+                .unwrap()
+        }
+    }
+
+    pub fn begin(&self, device: &Device) {
+        let begin_info = vk::CommandBufferBeginInfo::builder()
+            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+        unsafe {
+            device
+                .begin_command_buffer(self.command_buffer, &begin_info)
+                .unwrap()
+        }
+    }
+
+    pub fn end(&self, device: &Device) {
+        unsafe { device.end_command_buffer(self.command_buffer).unwrap() };
+    }
 }
 
 pub struct CommandBufferPool {
@@ -50,6 +87,10 @@ impl CommandBufferPool {
                 command_buffers,
             }
         }
+    }
+
+    pub fn get_command_buffer(&self, frame_number: FrameNumber) -> &CommandBuffer {
+        &self.command_buffers[frame_number.raw() & self.command_buffers.len()]
     }
 
     pub fn destroy(&self, device: &Device) {

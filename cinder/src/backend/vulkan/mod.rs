@@ -1,7 +1,7 @@
 mod command_buffer;
 
 use super::AsRendererContext;
-use crate::init::InitData;
+use crate::{context::FrameNumber, init::InitData};
 use ash::{vk, Device};
 use command_buffer::CommandBufferPool;
 use std::{
@@ -59,6 +59,7 @@ pub struct RendererContext {
     p_device_memory_properties: vk::PhysicalDeviceMemoryProperties,
     device: ash::Device,
     queue_family_index: u32,
+    present_queue: vk::Queue,
 
     surface: vk::SurfaceKHR,
     surface_format: vk::SurfaceFormatKHR,
@@ -339,6 +340,7 @@ impl AsRendererContext for RendererContext {
             p_device_memory_properties,
             device,
             queue_family_index,
+            present_queue,
             surface,
             surface_format,
             surface_resolution,
@@ -349,6 +351,77 @@ impl AsRendererContext for RendererContext {
             rendering_complete_semaphore,
             command_buffer_pool,
         })
+    }
+
+    fn submit_frame(&mut self, frame_number: FrameNumber) {
+        let (present_index, _) = unsafe {
+            self.swapchain_loader.acquire_next_image(
+                self.swapchain,
+                std::u64::MAX,
+                self.present_complete_semaphore,
+                vk::Fence::null(),
+            )
+        }
+        .unwrap();
+
+        self.record_submit_commandbuffer(
+            frame_number,
+            self.present_queue,
+            &[vk::PipelineStageFlags::BOTTOM_OF_PIPE],
+            &[self.present_complete_semaphore],
+            &[self.rendering_complete_semaphore],
+            |device, command_buffer| {},
+        );
+
+        let present_info = vk::PresentInfoKHR::builder()
+            .wait_semaphores(&[self.rendering_complete_semaphore])
+            .swapchains(&[self.swapchain])
+            .image_indices(&[present_index])
+            .build();
+        unsafe {
+            self.swapchain_loader
+                .queue_present(self.present_queue, &present_info)
+        }
+        .unwrap();
+    }
+}
+
+impl RendererContext {
+    pub fn record_submit_commandbuffer<F: FnOnce(&Device, vk::CommandBuffer)>(
+        &self,
+        frame_number: FrameNumber,
+        submit_queue: vk::Queue,
+        wait_mask: &[vk::PipelineStageFlags],
+        wait_semaphores: &[vk::Semaphore],
+        signal_semaphores: &[vk::Semaphore],
+        f: F,
+    ) {
+        let command_buffer = self.command_buffer_pool.get_command_buffer(frame_number);
+
+        unsafe {
+            self.device
+                .wait_for_fences(&[command_buffer.fence()], true, std::u64::MAX)
+                .unwrap();
+            self.device.reset_fences(&[command_buffer.fence()]).unwrap();
+        }
+
+        command_buffer.reset(&self.device);
+        command_buffer.begin(&self.device);
+        f(&self.device, command_buffer.raw());
+        command_buffer.end(&self.device);
+
+        let command_buffers = vec![command_buffer.raw()];
+        let submit_info = vk::SubmitInfo::builder()
+            .wait_semaphores(wait_semaphores)
+            .wait_dst_stage_mask(wait_mask)
+            .command_buffers(&[command_buffer.raw()])
+            .signal_semaphores(signal_semaphores)
+            .build();
+        unsafe {
+            self.device
+                .queue_submit(submit_queue, &[submit_info], command_buffer.fence())
+        }
+        .expect("queue submit failed.");
     }
 }
 

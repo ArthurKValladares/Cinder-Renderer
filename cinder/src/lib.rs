@@ -8,6 +8,7 @@ use crate::{
     init::InitData,
     view::{Clear, ColorClear, DepthClear, ViewId},
 };
+use context::FrameNumber;
 use thiserror::Error;
 
 pub enum BackbufferRatio {
@@ -18,9 +19,6 @@ pub enum BackbufferRatio {
     Sixteenth,
     Double,
 }
-
-#[derive(Debug, Clone, Copy)]
-pub struct FrameNumber(usize);
 
 #[derive(Clone, Debug, Eq, PartialEq, Error)]
 pub enum InitError {
@@ -60,6 +58,7 @@ impl Cinder {
     }
 
     pub fn frame(&mut self) -> FrameNumber {
-        FrameNumber(0)
+        // TODO: This is super barebones atm and needs a lot more work.
+        self.context.frame()
     }
 }
