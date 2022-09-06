@@ -1,6 +1,7 @@
 mod backend;
 pub mod context;
 pub mod init;
+pub mod resource_pool;
 pub mod view;
 
 use crate::{

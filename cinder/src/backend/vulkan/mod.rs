@@ -1,4 +1,5 @@
 mod command_buffer;
+mod program;
 
 use super::AsRendererContext;
 use crate::{context::FrameNumber, init::InitData};
@@ -12,6 +13,7 @@ use std::{
 use thiserror::Error;
 
 const NUM_COMMAND_BUFFERS: u32 = 3;
+const NUM_FRAMEBUFFERS: u32 = 64;
 
 // TODO: This is rough for now, will be configurable later
 fn layer_names() -> Vec<CString> {
