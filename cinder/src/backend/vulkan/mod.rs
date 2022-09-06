@@ -31,18 +31,24 @@ fn extensions() -> Vec<&'static CStr> {
 pub enum RendererContextInitError {
     #[error(transparent)]
     LoadingError(#[from] ash::LoadingError),
-    #[error("Failed to enumerate window extensions {0}")]
-    FailedToEnumerateWindowExtensions(ash::vk::Result),
-    #[error("Failed to create instance {0}")]
-    InstanceCreationFailed(ash::vk::Result),
-    #[error("Failed to create debug utils {0}")]
-    DebugUtilsCreationFailed(ash::vk::Result),
-    #[error("Failed to find a physical device {0}")]
-    NoPhysicalDevice(ash::vk::Result),
-    #[error("Failed to find a supported physical device")]
-    NoSupportedPhysicalDevice,
-    #[error("Failed to create surface {0}")]
-    FailedToCreateSurface(ash::vk::Result),
+    #[error(transparent)]
+    VulkanError(#[from] ash::vk::Result),
+    #[error("No suitable device found")]
+    NoSuitableDevice,
+}
+
+#[derive(Debug, Error)]
+pub enum RecordSubmitError {
+    #[error(transparent)]
+    VulkanError(#[from] ash::vk::Result),
+}
+
+#[derive(Debug, Error)]
+pub enum FrameSubmitError {
+    #[error(transparent)]
+    VulkanError(#[from] ash::vk::Result),
+    #[error(transparent)]
+    RecordSubmitError(#[from] RecordSubmitError),
 }
 
 // TODO: Depth image
@@ -77,6 +83,7 @@ pub struct RendererContext {
 
 impl AsRendererContext for RendererContext {
     type CreateError = RendererContextInitError;
+    type SubmitFrameError = FrameSubmitError;
 
     fn create(
         window: &winit::window::Window,
@@ -94,8 +101,7 @@ impl AsRendererContext for RendererContext {
         // TODO: Configurable
         let extensions = extensions();
         let extensions = {
-            let window_extensions = ash_window::enumerate_required_extensions(window)
-                .map_err(RendererContextInitError::FailedToEnumerateWindowExtensions)?;
+            let window_extensions = ash_window::enumerate_required_extensions(window)?;
             let mut extensions = extensions
                 .iter()
                 .map(|raw_name| raw_name.as_ptr())
@@ -110,11 +116,7 @@ impl AsRendererContext for RendererContext {
             .enabled_layer_names(&layers)
             .enabled_extension_names(&extensions);
 
-        let instance = unsafe {
-            entry
-                .create_instance(&instance_ci, None)
-                .map_err(RendererContextInitError::InstanceCreationFailed)?
-        };
+        let instance = unsafe { entry.create_instance(&instance_ci, None)? };
 
         let debug_utils = ash::extensions::ext::DebugUtils::new(&entry, &instance);
         // TODO: Configurable
@@ -128,18 +130,13 @@ impl AsRendererContext for RendererContext {
                     | vk::DebugUtilsMessageTypeFlagsEXT::VALIDATION,
             )
             .pfn_user_callback(Some(vulkan_debug_callback));
-        let debug_utils_messenger = unsafe {
-            debug_utils
-                .create_debug_utils_messenger(&debug_utils_messenger_ci, None)
-                .map_err(RendererContextInitError::DebugUtilsCreationFailed)?
-        };
+        let debug_utils_messenger =
+            unsafe { debug_utils.create_debug_utils_messenger(&debug_utils_messenger_ci, None)? };
 
         let surface_loader = ash::extensions::khr::Surface::new(&entry, &instance);
-        let surface = unsafe { ash_window::create_surface(&entry, &instance, window, None) }
-            .map_err(RendererContextInitError::FailedToCreateSurface)?;
+        let surface = unsafe { ash_window::create_surface(&entry, &instance, window, None) }?;
 
-        let p_devices = unsafe { instance.enumerate_physical_devices() }
-            .map_err(RendererContextInitError::NoPhysicalDevice)?;
+        let p_devices = unsafe { instance.enumerate_physical_devices() }?;
         let supported_device_data = p_devices
             .into_iter()
             .flat_map(|p_device| {
@@ -179,7 +176,7 @@ impl AsRendererContext for RendererContext {
                     _ => 0,
                 },
             )
-            .ok_or(RendererContextInitError::NoSupportedPhysicalDevice)?;
+            .ok_or(RendererContextInitError::NoSuitableDevice)?;
 
         let p_device_memory_properties =
             unsafe { instance.get_physical_device_memory_properties(p_device) };
@@ -200,14 +197,13 @@ impl AsRendererContext for RendererContext {
             .queue_create_infos(&queue_info)
             .enabled_extension_names(&device_extension_names_raw)
             .enabled_features(&features);
-        let device =
-            unsafe { instance.create_device(p_device, &device_create_info, None) }.unwrap();
+        let device = unsafe { instance.create_device(p_device, &device_create_info, None) }?;
 
         let present_queue = unsafe { device.get_device_queue(queue_family_index, 0) };
 
         let surface_formats =
-            unsafe { surface_loader.get_physical_device_surface_formats(p_device, surface) }
-                .unwrap();
+            unsafe { surface_loader.get_physical_device_surface_formats(p_device, surface) }?;
+
         let surface_format = surface_formats
             .iter()
             .map(|sfmt| match sfmt.format {
@@ -220,8 +216,7 @@ impl AsRendererContext for RendererContext {
             .next()
             .expect("Unable to find suitable surface format.");
         let surface_capabilities =
-            unsafe { surface_loader.get_physical_device_surface_capabilities(p_device, surface) }
-                .unwrap();
+            unsafe { surface_loader.get_physical_device_surface_capabilities(p_device, surface) }?;
         let mut desired_image_count = {
             let mut desired_image_count = surface_capabilities.min_image_count + 1;
             if surface_capabilities.max_image_count > 0
@@ -240,8 +235,7 @@ impl AsRendererContext for RendererContext {
         };
 
         let present_modes =
-            unsafe { surface_loader.get_physical_device_surface_present_modes(p_device, surface) }
-                .unwrap();
+            unsafe { surface_loader.get_physical_device_surface_present_modes(p_device, surface) }?;
         // TODO: vsyc or not vsync option
         let present_mode_preference = if false {
             vec![vk::PresentModeKHR::FIFO_RELAXED, vk::PresentModeKHR::FIFO]
@@ -275,11 +269,10 @@ impl AsRendererContext for RendererContext {
             .present_mode(present_mode)
             .clipped(true)
             .image_array_layers(1);
-        let swapchain =
-            unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None) }.unwrap();
+        let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None) }?;
 
-        let present_images = unsafe { swapchain_loader.get_swapchain_images(swapchain) }.unwrap();
-        let present_image_views: Vec<vk::ImageView> = present_images
+        let present_images = unsafe { swapchain_loader.get_swapchain_images(swapchain) }?;
+        let present_image_views = present_images
             .iter()
             .map(|&image| {
                 let create_view_info = vk::ImageViewCreateInfo::builder()
@@ -299,9 +292,9 @@ impl AsRendererContext for RendererContext {
                         layer_count: 1,
                     })
                     .image(image);
-                unsafe { device.create_image_view(&create_view_info, None) }.unwrap()
+                unsafe { device.create_image_view(&create_view_info, None) }
             })
-            .collect();
+            .collect::<Result<Vec<vk::ImageView>, ash::vk::Result>>()?;
 
         let depth_image_create_info = vk::ImageCreateInfo::builder()
             .image_type(vk::ImageType::TYPE_2D)
@@ -321,9 +314,9 @@ impl AsRendererContext for RendererContext {
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
 
         let present_complete_semaphore =
-            unsafe { device.create_semaphore(&semaphore_create_info, None) }.unwrap();
+            unsafe { device.create_semaphore(&semaphore_create_info, None) }?;
         let rendering_complete_semaphore =
-            unsafe { device.create_semaphore(&semaphore_create_info, None) }.unwrap();
+            unsafe { device.create_semaphore(&semaphore_create_info, None) }?;
 
         let command_buffer_pool =
             CommandBufferPool::new(&device, queue_family_index, NUM_COMMAND_BUFFERS);
@@ -353,7 +346,9 @@ impl AsRendererContext for RendererContext {
         })
     }
 
-    fn submit_frame(&mut self, frame_number: FrameNumber) {
+    fn submit_frame(&mut self, frame_number: FrameNumber) -> Result<(), Self::SubmitFrameError> {
+        // TODO: review syncronization
+
         let (present_index, _) = unsafe {
             self.swapchain_loader.acquire_next_image(
                 self.swapchain,
@@ -361,8 +356,7 @@ impl AsRendererContext for RendererContext {
                 self.present_complete_semaphore,
                 vk::Fence::null(),
             )
-        }
-        .unwrap();
+        }?;
 
         self.record_submit_commandbuffer(
             frame_number,
@@ -371,7 +365,7 @@ impl AsRendererContext for RendererContext {
             &[self.present_complete_semaphore],
             &[self.rendering_complete_semaphore],
             |device, command_buffer| {},
-        );
+        )?;
 
         let present_info = vk::PresentInfoKHR::builder()
             .wait_semaphores(&[self.rendering_complete_semaphore])
@@ -381,8 +375,9 @@ impl AsRendererContext for RendererContext {
         unsafe {
             self.swapchain_loader
                 .queue_present(self.present_queue, &present_info)
-        }
-        .unwrap();
+        }?;
+
+        Ok(())
     }
 }
 
@@ -395,14 +390,13 @@ impl RendererContext {
         wait_semaphores: &[vk::Semaphore],
         signal_semaphores: &[vk::Semaphore],
         f: F,
-    ) {
+    ) -> Result<(), RecordSubmitError> {
         let command_buffer = self.command_buffer_pool.get_command_buffer(frame_number);
 
         unsafe {
             self.device
-                .wait_for_fences(&[command_buffer.fence()], true, std::u64::MAX)
-                .unwrap();
-            self.device.reset_fences(&[command_buffer.fence()]).unwrap();
+                .wait_for_fences(&[command_buffer.fence()], true, std::u64::MAX)?;
+            self.device.reset_fences(&[command_buffer.fence()])?;
         }
 
         command_buffer.reset(&self.device);
@@ -420,8 +414,9 @@ impl RendererContext {
         unsafe {
             self.device
                 .queue_submit(submit_queue, &[submit_info], command_buffer.fence())
-        }
-        .expect("queue submit failed.");
+        }?;
+
+        Ok(())
     }
 }
 

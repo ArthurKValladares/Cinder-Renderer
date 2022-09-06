@@ -17,10 +17,12 @@ use crate::{context::FrameNumber, init::InitData};
 
 pub trait AsRendererContext: Sized {
     type CreateError;
+    type SubmitFrameError;
+
     fn create(
         window: &winit::window::Window,
         init_dat: InitData,
     ) -> Result<Self, Self::CreateError>;
 
-    fn submit_frame(&mut self, frame_number: FrameNumber);
+    fn submit_frame(&mut self, frame_number: FrameNumber) -> Result<(), Self::SubmitFrameError>;
 }
