@@ -46,9 +46,7 @@ fn main() {
             Event::WindowEvent {
                 event: WindowEvent::Resized(size),
                 ..
-            } => {
-                window.request_redraw();
-            }
+            } => {}
             Event::RedrawRequested(_) => {
                 let frame_index = cinder.frame();
             }
@@ -56,6 +54,9 @@ fn main() {
                 event: WindowEvent::CloseRequested,
                 ..
             } => *control_flow = ControlFlow::Exit,
+            Event::MainEventsCleared => {
+                window.request_redraw();
+            }
             _ => {}
         }
     });
