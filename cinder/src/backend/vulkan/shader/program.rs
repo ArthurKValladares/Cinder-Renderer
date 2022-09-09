@@ -1,10 +1,6 @@
+use super::shader::Shader;
 use crate::resource_pool::Handle;
 use ash::vk;
-
-struct Shader {
-    shader_module: vk::ShaderModule,
-    binding: vk::DescriptorSetLayoutBinding,
-}
 
 pub struct Program {
     // TODO: Mesh shader

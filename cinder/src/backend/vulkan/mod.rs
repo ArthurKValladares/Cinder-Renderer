@@ -1,5 +1,5 @@
 mod command_buffer;
-mod program;
+mod shader;
 
 use super::AsRendererContext;
 use crate::{context::FrameNumber, init::InitData};
