@@ -1,12 +1,16 @@
 mod command_buffer;
+mod pipeline;
 mod shader;
 
+use self::{pipeline::PipelineState, shader::Program};
+
 use super::AsRendererContext;
-use crate::{context::FrameNumber, init::InitData};
+use crate::{context::FrameNumber, init::InitData, resource_pool::Handle};
 use ash::{vk, Device};
 use command_buffer::CommandBufferPool;
 use std::{
     borrow::Cow,
+    collections::HashMap,
     ffi::{CStr, CString},
     os::raw::c_char,
 };
@@ -81,6 +85,9 @@ pub struct RendererContext {
     rendering_complete_semaphore: vk::Semaphore,
 
     command_buffer_pool: CommandBufferPool,
+
+    // TODO: better/faster cache
+    pipeline_cache: HashMap<PipelineState, vk::Pipeline>,
 }
 
 impl AsRendererContext for RendererContext {
@@ -323,6 +330,8 @@ impl AsRendererContext for RendererContext {
         let command_buffer_pool =
             CommandBufferPool::new(&device, queue_family_index, NUM_COMMAND_BUFFERS);
 
+        let pipeline_cache = Default::default();
+
         Ok(RendererContext {
             entry,
             instance,
@@ -345,6 +354,7 @@ impl AsRendererContext for RendererContext {
             present_complete_semaphore,
             rendering_complete_semaphore,
             command_buffer_pool,
+            pipeline_cache,
         })
     }
 
@@ -419,6 +429,14 @@ impl RendererContext {
         }?;
 
         Ok(())
+    }
+
+    fn get_pipeline(&mut self, program_handle: Handle<Program>) -> vk::Pipeline {
+        if let Some(pipeline) = self.pipeline_cache.get(&PipelineState { program_handle }) {
+            *pipeline
+        } else {
+            todo!()
+        }
     }
 }
 
