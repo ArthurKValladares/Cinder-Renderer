@@ -435,7 +435,96 @@ impl RendererContext {
         if let Some(pipeline) = self.pipeline_cache.get(&PipelineState { program_handle }) {
             *pipeline
         } else {
-            todo!()
+            // TODO: Pretty temp setup, just gettign something working
+            let main_function_name = CString::new("main").unwrap();
+            let vert_shader_stage = vk::PipelineShaderStageCreateInfo::builder()
+                .stage(vk::ShaderStageFlags::VERTEX)
+                //.module(vertex_shader_module)
+                .name(&main_function_name)
+                .build();
+            let frag_shader_stage = vk::PipelineShaderStageCreateInfo::builder()
+                .stage(vk::ShaderStageFlags::FRAGMENT)
+                //.module(fragment_shader_module)
+                .name(&main_function_name)
+                .build();
+            let shader_stages = [vert_shader_stage, frag_shader_stage];
+
+            let vertex_input = vk::PipelineVertexInputStateCreateInfo::builder().build();
+
+            let input_assembly = vk::PipelineInputAssemblyStateCreateInfo::builder()
+                .topology(vk::PrimitiveTopology::TRIANGLE_LIST)
+                .primitive_restart_enable(false)
+                .build();
+
+            let viewport_state = vk::PipelineViewportStateCreateInfo::builder()
+                .viewport_count(1)
+                .scissor_count(1)
+                .build();
+
+            let rasterizer = vk::PipelineRasterizationStateCreateInfo::builder()
+                .depth_clamp_enable(false)
+                .rasterizer_discard_enable(false)
+                .polygon_mode(vk::PolygonMode::FILL)
+                .line_width(1.0)
+                .cull_mode(vk::CullModeFlags::BACK)
+                .front_face(vk::FrontFace::CLOCKWISE)
+                .depth_bias_enable(false)
+                .build();
+
+            let multisampling = vk::PipelineMultisampleStateCreateInfo::builder()
+                .sample_shading_enable(false)
+                .rasterization_samples(vk::SampleCountFlags::TYPE_1)
+                .build();
+
+            let color_blend_attachment = vk::PipelineColorBlendAttachmentState::builder()
+                .color_write_mask(vk::ColorComponentFlags::RGBA)
+                .blend_enable(false)
+                .build();
+
+            let color_blending = vk::PipelineColorBlendStateCreateInfo::builder()
+                .logic_op_enable(false)
+                .logic_op(vk::LogicOp::COPY)
+                .attachments(std::slice::from_ref(&color_blend_attachment));
+
+            let dynamic_states = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
+            let dynamic_states = vk::PipelineDynamicStateCreateInfo::builder()
+                .dynamic_states(&dynamic_states)
+                .build();
+
+            let pipeline_layout_info = vk::PipelineLayoutCreateInfo::builder().build();
+
+            let pipeline_layout = unsafe {
+                self.device
+                    .create_pipeline_layout(&pipeline_layout_info, None)
+                    .unwrap()
+            };
+
+            // TODO: need more consistent naming
+            let pipeline_create_info = vk::GraphicsPipelineCreateInfo::builder()
+                .stages(&shader_stages)
+                .vertex_input_state(&vertex_input)
+                .input_assembly_state(&input_assembly)
+                .viewport_state(&viewport_state)
+                .rasterization_state(&rasterizer)
+                .multisample_state(&multisampling)
+                //.depth_stencil_state(&depth_stencil_info)
+                .color_blend_state(&color_blending)
+                .dynamic_state(&dynamic_states)
+                .layout(pipeline_layout)
+                //.render_pass(render_pass)
+                .subpass(0)
+                .build();
+
+            let pipeline = unsafe {
+                self.device.create_graphics_pipelines(
+                    vk::PipelineCache::null(),
+                    std::slice::from_ref(&pipeline_create_info),
+                    None,
+                )
+            }
+            .unwrap()[0];
+
+            pipeline
         }
     }
 }
