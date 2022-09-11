@@ -19,6 +19,8 @@ use thiserror::Error;
 const NUM_COMMAND_BUFFERS: u32 = 3;
 const NUM_FRAMEBUFFERS: u32 = 64;
 
+// TODO: definitely need a depth image, do it very soon
+
 // TODO: This is rough for now, will be configurable later
 fn layer_names() -> Vec<CString> {
     let mut layers = Vec::new();
@@ -88,6 +90,11 @@ pub struct RendererContext {
 
     // TODO: better/faster cache
     pipeline_cache: HashMap<PipelineState, vk::Pipeline>,
+
+    // TODO: We need a much better/more dynamic way to create render passes, probaby from shader data.
+    render_pass: vk::RenderPass,
+    // TODO: Framebuffers are also sloppy as hell atm
+    framebuffers: Vec<vk::Framebuffer>,
 }
 
 impl AsRendererContext for RendererContext {
@@ -332,6 +339,58 @@ impl AsRendererContext for RendererContext {
 
         let pipeline_cache = Default::default();
 
+        // TODO: Very temp stuff
+        let render_pass_attachments = [vk::AttachmentDescription::builder()
+            .format(surface_format.format)
+            .samples(vk::SampleCountFlags::TYPE_1)
+            .load_op(vk::AttachmentLoadOp::CLEAR)
+            .store_op(vk::AttachmentStoreOp::STORE)
+            .final_layout(vk::ImageLayout::PRESENT_SRC_KHR)
+            .build()];
+
+        let color_attachment_refs = [vk::AttachmentReference::builder()
+            .attachment(0)
+            .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+            .build()];
+
+        let dependencies = [vk::SubpassDependency::builder()
+            .src_subpass(vk::SUBPASS_EXTERNAL)
+            .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+            .dst_access_mask(
+                vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            )
+            .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+            .build()];
+
+        let subpasses = [vk::SubpassDescription::builder()
+            .color_attachments(&color_attachment_refs)
+            .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+            .build()];
+
+        let render_pass_create_info = vk::RenderPassCreateInfo::builder()
+            .attachments(&render_pass_attachments)
+            .subpasses(&subpasses)
+            .dependencies(&dependencies)
+            .build();
+
+        let render_pass =
+            unsafe { device.create_render_pass(&render_pass_create_info, None) }.unwrap();
+
+        let framebuffers = present_image_views
+            .iter()
+            .map(|&present_image_view| {
+                let framebuffer_attachments = [present_image_view];
+                let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
+                    .render_pass(render_pass)
+                    .attachments(&framebuffer_attachments)
+                    .width(surface_resolution.width)
+                    .height(surface_resolution.height)
+                    .layers(1);
+
+                unsafe { device.create_framebuffer(&frame_buffer_create_info, None) }.unwrap()
+            })
+            .collect::<Vec<vk::Framebuffer>>();
+
         Ok(RendererContext {
             entry,
             instance,
@@ -355,6 +414,8 @@ impl AsRendererContext for RendererContext {
             rendering_complete_semaphore,
             command_buffer_pool,
             pipeline_cache,
+            render_pass,
+            framebuffers,
         })
     }
 
@@ -376,7 +437,34 @@ impl AsRendererContext for RendererContext {
             &[vk::PipelineStageFlags::BOTTOM_OF_PIPE],
             &[self.present_complete_semaphore],
             &[self.rendering_complete_semaphore],
-            |device, command_buffer| {},
+            |device, command_buffer| {
+                let clear_values = [vk::ClearValue {
+                    color: vk::ClearColorValue {
+                        float32: [0.0, 0.0, 0.0, 0.0],
+                    },
+                }];
+
+                let render_pass_begin_info = vk::RenderPassBeginInfo::builder()
+                    .render_pass(self.render_pass)
+                    .framebuffer(self.framebuffers[present_index as usize])
+                    .render_area(vk::Rect2D {
+                        offset: vk::Offset2D { x: 0, y: 0 },
+                        extent: self.surface_resolution,
+                    })
+                    .clear_values(&clear_values);
+
+                unsafe {
+                    device.cmd_begin_render_pass(
+                        command_buffer,
+                        &render_pass_begin_info,
+                        vk::SubpassContents::INLINE,
+                    );
+                }
+
+                unsafe {
+                    device.cmd_end_render_pass(command_buffer);
+                }
+            },
         )?;
 
         let present_info = vk::PresentInfoKHR::builder()
