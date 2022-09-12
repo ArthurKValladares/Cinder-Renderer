@@ -1,3 +1,12 @@
+use cinder::{
+    context::{graphics_context::GraphicsContextDescription, Context},
+    device::Device,
+    resoruces::{
+        pipeline::PipelineDescription,
+        render_pass::{self, RenderPassDescription},
+        shader::ShaderDescription,
+    },
+};
 use winit::{
     dpi::PhysicalSize,
     event::{Event, WindowEvent},
@@ -19,6 +28,13 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
+    let device = Device {};
+    let graphics_context = device.create_graphics_context(GraphicsContextDescription {});
+    let vertex_shader = device.create_shader(ShaderDescription {});
+    let fragment_shader = device.create_shader(ShaderDescription {});
+    let render_pass = device.create_render_pass(RenderPassDescription {});
+    let pipeline = device.create_pipeline(PipelineDescription {});
+
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         match event {
@@ -26,7 +42,14 @@ fn main() {
                 event: WindowEvent::Resized(size),
                 ..
             } => {}
-            Event::RedrawRequested(_) => {}
+            Event::RedrawRequested(_) => {
+                graphics_context.begin();
+                graphics_context.set_pipeline(&pipeline);
+                graphics_context.draw();
+                graphics_context.end();
+
+                device.submit_work(&graphics_context);
+            }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
