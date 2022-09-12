@@ -1,8 +1,3 @@
-use cinder::{
-    init::{InitData, PlatformData, Resolution, TextureFormat},
-    view::{ColorClear, ViewId},
-    BackbufferRatio, Cinder,
-};
 use winit::{
     dpi::PhysicalSize,
     event::{Event, WindowEvent},
@@ -24,22 +19,6 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    let init_data = InitData {
-        debug_enabled: true,
-        profiling_enabled: true,
-        platform_data: PlatformData::Windows(()),
-        backbuffer_resolution: Resolution {
-            format: TextureFormat::Rgba8Srgb,
-            width: WINDOW_WIDTH,
-            height: WINDOW_HEIGHT,
-        },
-    };
-    let mut cinder = Cinder::init(&window, init_data).expect("Could not create cinder instance");
-
-    let view_id = ViewId(0);
-    cinder.set_view_color_clear(view_id, ColorClear::Value([255, 0, 0, 0]));
-    cinder.set_view_rect_relative_backbufer(view_id, 0, 0, BackbufferRatio::Equal);
-
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
         match event {
@@ -47,9 +26,7 @@ fn main() {
                 event: WindowEvent::Resized(size),
                 ..
             } => {}
-            Event::RedrawRequested(_) => {
-                let frame_index = cinder.frame();
-            }
+            Event::RedrawRequested(_) => {}
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
