@@ -6,6 +6,7 @@ use cinder::{
         render_pass::{self, RenderPassDescription},
         shader::ShaderDescription,
     },
+    InitData, Resolution,
 };
 use winit::{
     dpi::PhysicalSize,
@@ -28,7 +29,13 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    let device = Device {};
+    let init_data = InitData {
+        backbuffer_resolution: Resolution {
+            width: WINDOW_WIDTH,
+            height: WINDOW_HEIGHT,
+        },
+    };
+    let device = Device::new(&window, init_data).expect("could not create cinder device");
     let graphics_context = device.create_graphics_context(GraphicsContextDescription {});
     let vertex_shader = device.create_shader(ShaderDescription {});
     let fragment_shader = device.create_shader(ShaderDescription {});
