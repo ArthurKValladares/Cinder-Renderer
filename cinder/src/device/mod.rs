@@ -283,21 +283,6 @@ impl Device {
             })
             .collect::<Result<Vec<vk::ImageView>, ash::vk::Result>>()?;
 
-        let depth_image_create_info = vk::ImageCreateInfo::builder()
-            .image_type(vk::ImageType::TYPE_2D)
-            .format(vk::Format::D32_SFLOAT)
-            .extent(vk::Extent3D {
-                width: surface_resolution.width,
-                height: surface_resolution.height,
-                depth: 1,
-            })
-            .mip_levels(1)
-            .array_layers(1)
-            .samples(vk::SampleCountFlags::TYPE_1)
-            .tiling(vk::ImageTiling::OPTIMAL)
-            .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT | vk::ImageUsageFlags::SAMPLED)
-            .sharing_mode(vk::SharingMode::EXCLUSIVE);
-
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
 
         let present_complete_semaphore =
@@ -336,6 +321,10 @@ impl Device {
         })
     }
 
+    pub fn surface_format(&self) -> vk::Format {
+        self.surface_format.format
+    }
+
     pub fn create_buffer(&self, desc: BufferDescription) -> Buffer {
         Buffer {}
     }
@@ -352,8 +341,49 @@ impl Device {
         Ok(Shader { module })
     }
 
-    pub fn create_render_pass(&self, desc: RenderPassDescription) -> RenderPass {
-        RenderPass {}
+    pub fn create_render_pass<const N: usize>(&self, desc: RenderPassDescription<N>) -> RenderPass {
+        // TODO: I'm assuming some implicit passes to transition the image
+        // UNDEFINED -> COLOR_ATTACHMENT_OPTIMAL
+        // and
+        // COLOR_ATTACHMENT_OPTIMAL -> PRESENT_SRC_KHR
+        let renderpass_attachments = desc
+            .color_attachments
+            .iter()
+            .map(|a| {
+                a.compile_with_layout_transition(
+                    vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+                    vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+                )
+            })
+            .collect::<Vec<_>>();
+
+        let color_attachment_refs = (0..desc.color_attachments.len() as u32)
+            .map(|attachment| {
+                vk::AttachmentReference::builder()
+                    .attachment(attachment)
+                    .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+                    .build()
+            })
+            .collect::<Vec<_>>();
+
+        let mut subpass_description = vk::SubpassDescription::builder()
+            .color_attachments(&color_attachment_refs)
+            .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
+            .build();
+
+        // TODO: Subpass dependency stuff
+        let subpasses = [subpass_description];
+        let render_pass_create_info = vk::RenderPassCreateInfo::builder()
+            .attachments(&renderpass_attachments)
+            .subpasses(&subpasses);
+
+        let render_pass = unsafe {
+            self.device
+                .create_render_pass(&render_pass_create_info, None)
+                .unwrap()
+        };
+
+        RenderPass { render_pass }
     }
 
     pub fn create_pipeline(&self, desc: PipelineDescription) -> Pipeline {

@@ -32,6 +32,8 @@ impl Context for GraphicsContext {
     }
 
     fn end(&self, device: &Device) -> Result<()> {
+        unsafe { device.end_command_buffer(self.command_buffer)? };
+
         Ok(())
     }
 
