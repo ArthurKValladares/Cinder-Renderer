@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use cinder::{
     context::{graphics_context::GraphicsContextDescription, Context},
     device::Device,
@@ -37,8 +39,12 @@ fn main() {
     };
     let device = Device::new(&window, init_data).expect("could not create cinder device");
     let graphics_context = device.create_graphics_context(GraphicsContextDescription {});
-    let vertex_shader = device.create_shader(ShaderDescription {});
-    let fragment_shader = device.create_shader(ShaderDescription {});
+    let vertex_shader = device.create_shader(ShaderDescription {
+        path: Path::new("shaders/default.vert"),
+    });
+    let fragment_shader = device.create_shader(ShaderDescription {
+        path: Path::new("shaders/default.frag"),
+    });
     let render_pass = device.create_render_pass(RenderPassDescription {});
     let pipeline = device.create_pipeline(PipelineDescription {});
 

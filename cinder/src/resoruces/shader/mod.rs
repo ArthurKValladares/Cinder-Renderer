@@ -1,3 +1,11 @@
-pub struct ShaderDescription {}
+use std::path::Path;
 
-pub struct Shader {}
+use ash::vk;
+
+pub struct ShaderDescription {
+    pub path: &'static Path,
+}
+
+pub struct Shader {
+    pub(crate) module: vk::ShaderModule,
+}
