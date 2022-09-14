@@ -58,4 +58,5 @@ pub struct RenderPassDescription<const N: usize> {
 
 pub struct RenderPass {
     pub render_pass: vk::RenderPass,
+    pub framebuffers: Vec<vk::Framebuffer>,
 }

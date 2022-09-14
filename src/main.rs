@@ -47,11 +47,13 @@ fn main() {
     let fragment_shader = device.create_shader(ShaderDescription {
         path: Path::new("shaders/default.frag"),
     });
-    let render_pass = device.create_render_pass(RenderPassDescription {
-        color_attachments: [
-            RenderPassAttachmentDesc::with_format(device.surface_format()).clear_input(),
-        ],
-    });
+    let render_pass = device
+        .create_render_pass(RenderPassDescription {
+            color_attachments: [
+                RenderPassAttachmentDesc::with_format(device.surface_format()).clear_input(),
+            ],
+        })
+        .expect("Could not create render pass");
     let pipeline = device.create_pipeline(PipelineDescription {});
 
     event_loop.run(move |event, _, control_flow| {

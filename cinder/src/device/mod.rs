@@ -341,7 +341,10 @@ impl Device {
         Ok(Shader { module })
     }
 
-    pub fn create_render_pass<const N: usize>(&self, desc: RenderPassDescription<N>) -> RenderPass {
+    pub fn create_render_pass<const N: usize>(
+        &self,
+        desc: RenderPassDescription<N>,
+    ) -> Result<RenderPass> {
         // TODO: I'm assuming some implicit passes to transition the image
         // UNDEFINED -> COLOR_ATTACHMENT_OPTIMAL
         // and
@@ -379,11 +382,32 @@ impl Device {
 
         let render_pass = unsafe {
             self.device
-                .create_render_pass(&render_pass_create_info, None)
-                .unwrap()
+                .create_render_pass(&render_pass_create_info, None)?
         };
 
-        RenderPass { render_pass }
+        let framebuffers = self
+            .present_image_views
+            .iter()
+            .map(|&present_image_view| {
+                let framebuffer_attachments = [present_image_view];
+                let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
+                    .render_pass(render_pass)
+                    .attachments(&framebuffer_attachments)
+                    .width(self.surface_resolution.width)
+                    .height(self.surface_resolution.height)
+                    .layers(1);
+
+                unsafe {
+                    self.device
+                        .create_framebuffer(&frame_buffer_create_info, None)
+                }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(RenderPass {
+            render_pass,
+            framebuffers,
+        })
     }
 
     pub fn create_pipeline(&self, desc: PipelineDescription) -> Pipeline {
