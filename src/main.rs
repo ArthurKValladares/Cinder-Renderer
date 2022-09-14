@@ -38,7 +38,9 @@ fn main() {
         },
     };
     let device = Device::new(&window, init_data).expect("could not create cinder device");
-    let graphics_context = device.create_graphics_context(GraphicsContextDescription {});
+    let graphics_context = device
+        .create_graphics_context(GraphicsContextDescription {})
+        .expect("Could not create graphics context");
     let vertex_shader = device.create_shader(ShaderDescription {
         path: Path::new("shaders/default.vert"),
     });
@@ -56,10 +58,14 @@ fn main() {
                 ..
             } => {}
             Event::RedrawRequested(_) => {
-                graphics_context.begin();
+                graphics_context
+                    .begin(&device)
+                    .expect("Could not begin graphics context");
                 graphics_context.set_pipeline(&pipeline);
                 graphics_context.draw();
-                graphics_context.end();
+                graphics_context
+                    .end(&device)
+                    .expect("Could not end graphics context");
 
                 device.submit_work(&graphics_context);
             }

@@ -1,14 +1,22 @@
 use super::Context;
-use crate::resoruces::{buffer::Buffer, texture::Texture};
+use crate::{
+    device::Device,
+    resoruces::{buffer::Buffer, texture::Texture},
+};
+use anyhow::Result;
 
 pub struct UploadContextDescription {}
 
 pub struct UploadContext {}
 
 impl Context for UploadContext {
-    fn begin(&self) {}
+    fn begin(&self, device: &Device) -> Result<()> {
+        Ok(())
+    }
 
-    fn end(&self) {}
+    fn end(&self, device: &Device) -> Result<()> {
+        Ok(())
+    }
 
     fn resouce_barrier(&self, desc: super::BarrierDescription) {}
 }

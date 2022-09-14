@@ -19,6 +19,7 @@ use ash::vk;
 use std::{
     ffi::{CStr, CString},
     fs::File,
+    ops::Deref,
     os::raw::c_char,
 };
 use thiserror::Error;
@@ -66,7 +67,7 @@ pub struct Device {
     present_images: Vec<vk::Image>,
     present_image_views: Vec<vk::ImageView>,
 
-    commamnd_pool: vk::CommandPool,
+    command_pool: vk::CommandPool,
 
     // TODO: Probably will have better syncronization in the future
     present_complete_semaphore: vk::Semaphore,
@@ -308,7 +309,7 @@ impl Device {
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
             .queue_family_index(queue_family_index);
 
-        let commamnd_pool = unsafe { device.create_command_pool(&pool_create_info, None) }?;
+        let command_pool = unsafe { device.create_command_pool(&pool_create_info, None) }?;
 
         Ok(Self {
             entry,
@@ -331,7 +332,7 @@ impl Device {
             present_image_views,
             present_complete_semaphore,
             rendering_complete_semaphore,
-            commamnd_pool,
+            command_pool,
         })
     }
 
@@ -359,8 +360,22 @@ impl Device {
         Pipeline {}
     }
 
-    pub fn create_graphics_context(&self, desc: GraphicsContextDescription) -> GraphicsContext {
-        GraphicsContext {}
+    pub fn create_graphics_context(
+        &self,
+        desc: GraphicsContextDescription,
+    ) -> Result<GraphicsContext> {
+        // TODO: Allocate buffers in bulk, manage handing them out some way
+        let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
+            .command_buffer_count(1)
+            .command_pool(self.command_pool)
+            .level(vk::CommandBufferLevel::PRIMARY);
+
+        let command_buffer = unsafe {
+            self.device
+                .allocate_command_buffers(&command_buffer_allocate_info)?
+        }[0];
+
+        Ok(GraphicsContext::from_command_buffer(command_buffer))
     }
 
     pub fn create_upload_context(&self, desc: UploadContextDescription) -> UploadContext {
@@ -368,4 +383,12 @@ impl Device {
     }
 
     pub fn submit_work(&self, context: &dyn Context) {}
+}
+
+impl Deref for Device {
+    type Target = ash::Device;
+
+    fn deref(&self) -> &Self::Target {
+        &self.device
+    }
 }

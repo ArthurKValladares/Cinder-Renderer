@@ -1,14 +1,39 @@
 use super::Context;
-use crate::resoruces::{buffer::Buffer, pipeline::Pipeline};
+use crate::{
+    device::Device,
+    resoruces::{buffer::Buffer, pipeline::Pipeline},
+};
+use anyhow::Result;
+use ash::vk;
 
 pub struct GraphicsContextDescription {}
 
-pub struct GraphicsContext {}
+pub struct GraphicsContext {
+    command_buffer: vk::CommandBuffer,
+}
+
+impl GraphicsContext {
+    pub fn from_command_buffer(command_buffer: vk::CommandBuffer) -> Self {
+        Self { command_buffer }
+    }
+}
 
 impl Context for GraphicsContext {
-    fn begin(&self) {}
+    fn begin(&self, device: &Device) -> Result<()> {
+        unsafe {
+            device.begin_command_buffer(
+                self.command_buffer,
+                &vk::CommandBufferBeginInfo::builder()
+                    .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT),
+            )?
+        };
 
-    fn end(&self) {}
+        Ok(())
+    }
+
+    fn end(&self, device: &Device) -> Result<()> {
+        Ok(())
+    }
 
     fn resouce_barrier(&self, desc: super::BarrierDescription) {}
 }
