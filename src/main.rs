@@ -44,13 +44,13 @@ fn main() {
     let vertex_shader = device
         .create_shader(ShaderDescription {
             stage: ShaderStage::Vertex,
-            path: Path::new("shaders/default.vert"),
+            path: Path::new("shaders/spv/default.vert.spv"),
         })
         .expect("Could not create vertex shader");
     let fragment_shader = device
         .create_shader(ShaderDescription {
             stage: ShaderStage::Fragment,
-            path: Path::new("shaders/default.frag"),
+            path: Path::new("shaders/spv/default.frag.spv"),
         })
         .expect("Could not create fragment shader");
     let render_pass = device
