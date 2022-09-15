@@ -490,6 +490,12 @@ impl Device {
         Ok(RenderPass {
             render_pass,
             framebuffers,
+            render_area: self.surface_resolution.into(),
+            clear_values: vec![vk::ClearValue {
+                color: vk::ClearColorValue {
+                    float32: [1.0, 1.0, 1.0, 1.0],
+                },
+            }],
         })
     }
 

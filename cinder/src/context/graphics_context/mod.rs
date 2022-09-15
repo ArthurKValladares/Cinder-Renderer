@@ -1,15 +1,15 @@
 use super::Context;
 use crate::{
     device::Device,
-    resoruces::{buffer::Buffer, pipeline::GraphicsPipeline},
+    resoruces::{buffer::Buffer, pipeline::GraphicsPipeline, render_pass::RenderPass},
 };
 use anyhow::Result;
-use ash::vk;
+use ash::vk::{self};
 
 pub struct GraphicsContextDescription {}
 
 pub struct GraphicsContext {
-    command_buffer: vk::CommandBuffer,
+    pub command_buffer: vk::CommandBuffer,
 }
 
 impl GraphicsContext {
@@ -41,6 +41,27 @@ impl Context for GraphicsContext {
 }
 
 impl GraphicsContext {
+    pub fn begin_render_pass(
+        &self,
+        device: &Device,
+        render_pass: &RenderPass,
+        present_index: usize,
+    ) {
+        let create_info = vk::RenderPassBeginInfo::builder()
+            .render_pass(render_pass.render_pass)
+            .framebuffer(render_pass.framebuffers[present_index])
+            .render_area(render_pass.render_area)
+            .clear_values(&render_pass.clear_values);
+
+        unsafe {
+            device.cmd_begin_render_pass(
+                self.command_buffer,
+                &create_info,
+                vk::SubpassContents::INLINE,
+            )
+        }
+    }
+
     pub fn set_graphics_pipeline(&self, pipeline: &GraphicsPipeline) {}
 
     pub fn set_vertex_buffer(&self, buffer: Buffer) {}

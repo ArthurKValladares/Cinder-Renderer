@@ -64,7 +64,7 @@ fn main() {
         .create_graphics_pipeline(GraphicsPipelineDescription {
             vertex_shader,
             fragment_shader,
-            render_pass,
+            render_pass: &render_pass,
         })
         .expect("Could not create graphics pipeline");
 
@@ -79,6 +79,7 @@ fn main() {
                 graphics_context
                     .begin(&device)
                     .expect("Could not begin graphics context");
+                graphics_context.begin_render_pass(&device, &render_pass, 0);
                 graphics_context.set_graphics_pipeline(&pipeline);
                 graphics_context.draw();
                 graphics_context

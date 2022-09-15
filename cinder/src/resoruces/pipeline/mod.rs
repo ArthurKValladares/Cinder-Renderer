@@ -1,10 +1,11 @@
 use super::{render_pass::RenderPass, shader::Shader};
 use ash::vk;
 
-pub struct GraphicsPipelineDescription {
+// TODO: This lifetime is annoying
+pub struct GraphicsPipelineDescription<'a> {
     pub vertex_shader: Shader,
     pub fragment_shader: Shader,
-    pub render_pass: RenderPass,
+    pub render_pass: &'a RenderPass,
 }
 
 pub struct PipelineCommon {

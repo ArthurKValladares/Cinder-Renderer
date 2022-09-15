@@ -59,4 +59,7 @@ pub struct RenderPassDescription<const N: usize> {
 pub struct RenderPass {
     pub render_pass: vk::RenderPass,
     pub framebuffers: Vec<vk::Framebuffer>,
+    // TODO: Should this be here? Might make caching worse
+    pub clear_values: Vec<vk::ClearValue>,
+    pub render_area: vk::Rect2D,
 }
