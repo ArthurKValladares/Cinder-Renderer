@@ -4,9 +4,9 @@ use cinder::{
     context::{graphics_context::GraphicsContextDescription, Context},
     device::Device,
     resoruces::{
-        pipeline::PipelineDescription,
+        pipeline::GraphicsPipelineDescription,
         render_pass::{self, RenderPassAttachmentDesc, RenderPassDescription},
-        shader::ShaderDescription,
+        shader::{ShaderDescription, ShaderStage},
     },
     InitData, Resolution,
 };
@@ -41,12 +41,18 @@ fn main() {
     let graphics_context = device
         .create_graphics_context(GraphicsContextDescription {})
         .expect("Could not create graphics context");
-    let vertex_shader = device.create_shader(ShaderDescription {
-        path: Path::new("shaders/default.vert"),
-    });
-    let fragment_shader = device.create_shader(ShaderDescription {
-        path: Path::new("shaders/default.frag"),
-    });
+    let vertex_shader = device
+        .create_shader(ShaderDescription {
+            stage: ShaderStage::Vertex,
+            path: Path::new("shaders/default.vert"),
+        })
+        .expect("Could not create vertex shader");
+    let fragment_shader = device
+        .create_shader(ShaderDescription {
+            stage: ShaderStage::Fragment,
+            path: Path::new("shaders/default.frag"),
+        })
+        .expect("Could not create fragment shader");
     let render_pass = device
         .create_render_pass(RenderPassDescription {
             color_attachments: [
@@ -54,7 +60,13 @@ fn main() {
             ],
         })
         .expect("Could not create render pass");
-    let pipeline = device.create_pipeline(PipelineDescription {});
+    let pipeline = device
+        .create_graphics_pipeline(GraphicsPipelineDescription {
+            vertex_shader,
+            fragment_shader,
+            render_pass,
+        })
+        .expect("Could not create graphics pipeline");
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -67,7 +79,7 @@ fn main() {
                 graphics_context
                     .begin(&device)
                     .expect("Could not begin graphics context");
-                graphics_context.set_pipeline(&pipeline);
+                graphics_context.set_graphics_pipeline(&pipeline);
                 graphics_context.draw();
                 graphics_context
                     .end(&device)

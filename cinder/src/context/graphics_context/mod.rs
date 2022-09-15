@@ -1,7 +1,7 @@
 use super::Context;
 use crate::{
     device::Device,
-    resoruces::{buffer::Buffer, pipeline::Pipeline},
+    resoruces::{buffer::Buffer, pipeline::GraphicsPipeline},
 };
 use anyhow::Result;
 use ash::vk;
@@ -41,7 +41,7 @@ impl Context for GraphicsContext {
 }
 
 impl GraphicsContext {
-    pub fn set_pipeline(&self, pipeline: &Pipeline) {}
+    pub fn set_graphics_pipeline(&self, pipeline: &GraphicsPipeline) {}
 
     pub fn set_vertex_buffer(&self, buffer: Buffer) {}
 

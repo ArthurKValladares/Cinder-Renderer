@@ -11,3 +11,4 @@ ash-window = {version = "0.11.0"}
 winit = "0.27"
 thiserror = "1"
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
+util = { path = "../util" }
