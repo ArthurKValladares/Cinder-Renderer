@@ -16,6 +16,10 @@ use crate::{
 };
 use anyhow::Result;
 use ash::vk;
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+use ash::vk::{
+    KhrGetPhysicalDeviceProperties2Fn, KhrPortabilityEnumerationFn, KhrPortabilitySubsetFn,
+};
 use std::{
     ffi::{CStr, CString},
     fs::File,
@@ -33,13 +37,19 @@ pub enum DeviceInitError {
 // TODO: This is rough for now, will be configurable later
 fn layer_names() -> Vec<CString> {
     let mut layers = Vec::new();
-    layers.push(CString::new("VK_LAYER_KHRONOS_validation").unwrap());
+    //layers.push(CString::new("VK_LAYER_KHRONOS_validation").unwrap());
     layers
 }
 
 fn extensions() -> Vec<&'static CStr> {
     let mut extensions = Vec::new();
     extensions.push(ash::extensions::ext::DebugUtils::name());
+    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    {
+        extensions.push(KhrPortabilityEnumerationFn::name());
+        // Enabling this extension is a requirement when using `VK_KHR_portability_subset`
+        extensions.push(KhrGetPhysicalDeviceProperties2Fn::name());
+    }
     extensions
 }
 
@@ -97,11 +107,18 @@ impl Device {
             extensions
         };
 
-        let app_info = vk::ApplicationInfo::builder().api_version(vk::make_api_version(0, 1, 3, 0)); // TODO: Configure version
+        // TODO: Configurable
+        let app_info = vk::ApplicationInfo::builder().api_version(vk::make_api_version(0, 1, 3, 0));
+        let create_flags = if cfg!(any(target_os = "macos", target_os = "ios")) {
+            vk::InstanceCreateFlags::ENUMERATE_PORTABILITY_KHR
+        } else {
+            vk::InstanceCreateFlags::default()
+        };
         let instance_ci = vk::InstanceCreateInfo::builder()
             .application_info(&app_info)
             .enabled_layer_names(&layers)
-            .enabled_extension_names(&extensions);
+            .enabled_extension_names(&extensions)
+            .flags(create_flags);
 
         let instance = unsafe { entry.create_instance(&instance_ci, None)? };
 
@@ -168,7 +185,11 @@ impl Device {
         let p_device_memory_properties =
             unsafe { instance.get_physical_device_memory_properties(p_device) };
 
-        let device_extension_names = [ash::extensions::khr::Swapchain::name()];
+        let device_extension_names = [
+            ash::extensions::khr::Swapchain::name(),
+            #[cfg(any(target_os = "macos", target_os = "ios"))]
+            KhrPortabilitySubsetFn::name(),
+        ];
         let device_extension_names_raw: Vec<*const i8> = device_extension_names
             .iter()
             .map(|raw_name| raw_name.as_ptr())
