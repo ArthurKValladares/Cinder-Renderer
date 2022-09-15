@@ -37,7 +37,7 @@ pub enum DeviceInitError {
 // TODO: This is rough for now, will be configurable later
 fn layer_names() -> Vec<CString> {
     let mut layers = Vec::new();
-    //layers.push(CString::new("VK_LAYER_KHRONOS_validation").unwrap());
+    layers.push(CString::new("VK_LAYER_KHRONOS_validation").unwrap());
     layers
 }
 
