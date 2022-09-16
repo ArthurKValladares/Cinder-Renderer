@@ -21,12 +21,22 @@ impl GraphicsContext {
 impl Context for GraphicsContext {
     fn begin(&self, device: &Device) -> Result<()> {
         unsafe {
-            device.begin_command_buffer(
+            device.wait_for_fences(&[device.draw_commands_reuse_fence], true, std::u64::MAX)
+        }?;
+
+        unsafe { device.reset_fences(&[device.draw_commands_reuse_fence]) }?;
+
+        unsafe {
+            device.reset_command_buffer(
                 self.command_buffer,
-                &vk::CommandBufferBeginInfo::builder()
-                    .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT),
-            )?
-        };
+                vk::CommandBufferResetFlags::RELEASE_RESOURCES,
+            )
+        }?;
+
+        let ci = vk::CommandBufferBeginInfo::builder()
+            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
+
+        unsafe { device.begin_command_buffer(self.command_buffer, &ci)? };
 
         Ok(())
     }

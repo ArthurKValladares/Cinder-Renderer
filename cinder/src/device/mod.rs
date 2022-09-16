@@ -97,8 +97,8 @@ pub struct Device {
     present_complete_semaphore: vk::Semaphore,
     rendering_complete_semaphore: vk::Semaphore,
 
-    draw_commands_reuse_fence: vk::Fence,
-    setup_commands_reuse_fence: vk::Fence,
+    pub draw_commands_reuse_fence: vk::Fence,
+    pub setup_commands_reuse_fence: vk::Fence,
 }
 
 impl Device {
