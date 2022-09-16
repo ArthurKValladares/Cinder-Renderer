@@ -41,15 +41,10 @@ impl Context for GraphicsContext {
 }
 
 impl GraphicsContext {
-    pub fn begin_render_pass(
-        &self,
-        device: &Device,
-        render_pass: &RenderPass,
-        present_index: usize,
-    ) {
+    pub fn begin_render_pass(&self, device: &Device, render_pass: &RenderPass, present_index: u32) {
         let create_info = vk::RenderPassBeginInfo::builder()
             .render_pass(render_pass.render_pass)
-            .framebuffer(render_pass.framebuffers[present_index])
+            .framebuffer(render_pass.framebuffers[present_index as usize])
             .render_area(render_pass.render_area)
             .clear_values(&render_pass.clear_values);
 

@@ -76,18 +76,27 @@ fn main() {
                 ..
             } => {}
             Event::RedrawRequested(_) => {
+                let present_index = device
+                    .acquire_next_image()
+                    .expect("Could not acquire swapchain image");
+
                 graphics_context
                     .begin(&device)
                     .expect("Could not begin graphics context");
-                graphics_context.begin_render_pass(&device, &render_pass, 0);
-                graphics_context.set_graphics_pipeline(&pipeline);
-                graphics_context.end_render_pass(&device, &render_pass);
-                graphics_context.draw();
+                {
+                    graphics_context.begin_render_pass(&device, &render_pass, present_index);
+                    {
+                        graphics_context.set_graphics_pipeline(&pipeline);
+                    }
+                    graphics_context.end_render_pass(&device, &render_pass);
+                }
                 graphics_context
                     .end(&device)
                     .expect("Could not end graphics context");
 
-                device.submit_work(&graphics_context);
+                device
+                    .submit_graphics_work(&graphics_context, present_index)
+                    .expect("Could not submit graphics work");
             }
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,

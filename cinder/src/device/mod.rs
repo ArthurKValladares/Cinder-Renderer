@@ -96,6 +96,9 @@ pub struct Device {
     // TODO: Probably will have better syncronization in the future
     present_complete_semaphore: vk::Semaphore,
     rendering_complete_semaphore: vk::Semaphore,
+
+    draw_commands_reuse_fence: vk::Fence,
+    setup_commands_reuse_fence: vk::Fence,
 }
 
 impl Device {
@@ -325,6 +328,12 @@ impl Device {
         let rendering_complete_semaphore =
             unsafe { device.create_semaphore(&semaphore_create_info, None) }?;
 
+        let fence_create_info =
+            vk::FenceCreateInfo::builder().flags(vk::FenceCreateFlags::SIGNALED);
+
+        let draw_commands_reuse_fence = unsafe { device.create_fence(&fence_create_info, None) }?;
+        let setup_commands_reuse_fence = unsafe { device.create_fence(&fence_create_info, None) }?;
+
         let pool_create_info = vk::CommandPoolCreateInfo::builder()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
             .queue_family_index(queue_family_index);
@@ -397,6 +406,8 @@ impl Device {
             present_image_views,
             present_complete_semaphore,
             rendering_complete_semaphore,
+            draw_commands_reuse_fence,
+            setup_commands_reuse_fence,
             command_pool,
             descriptor_pool,
             desc_set_layouts,
@@ -670,7 +681,57 @@ impl Device {
         UploadContext {}
     }
 
-    pub fn submit_work(&self, context: &dyn Context) {}
+    pub fn submit_graphics_work(
+        &self,
+        context: &GraphicsContext,
+        present_index: u32,
+    ) -> Result<bool> {
+        let command_buffers = vec![context.command_buffer];
+
+        let submit_info = vk::SubmitInfo::builder()
+            .wait_semaphores(std::slice::from_ref(&self.present_complete_semaphore))
+            .wait_dst_stage_mask(std::slice::from_ref(
+                &vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+            ))
+            .command_buffers(&command_buffers)
+            .signal_semaphores(std::slice::from_ref(&self.rendering_complete_semaphore))
+            .build();
+
+        unsafe {
+            self.device.queue_submit(
+                self.present_queue,
+                &[submit_info],
+                self.draw_commands_reuse_fence,
+            )
+        }?;
+
+        let wait_semaphors = [self.rendering_complete_semaphore];
+        let swapchains = [self.swapchain];
+        let image_indices = [present_index];
+        let present_info = vk::PresentInfoKHR::builder()
+            .wait_semaphores(&wait_semaphors)
+            .swapchains(&swapchains)
+            .image_indices(&image_indices);
+
+        let is_suboptimal = unsafe {
+            self.swapchain_loader
+                .queue_present(self.present_queue, &present_info)
+        }?;
+        Ok(is_suboptimal)
+    }
+
+    // TODO: probably should totally abstract this from user code
+    pub fn acquire_next_image(&self) -> Result<u32> {
+        let (present_index, _) = unsafe {
+            self.swapchain_loader.acquire_next_image(
+                self.swapchain,
+                std::u64::MAX,
+                self.present_complete_semaphore,
+                vk::Fence::null(),
+            )
+        }?;
+        Ok(present_index)
+    }
 }
 
 impl Deref for Device {
