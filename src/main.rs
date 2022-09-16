@@ -81,6 +81,7 @@ fn main() {
                     .expect("Could not begin graphics context");
                 graphics_context.begin_render_pass(&device, &render_pass, 0);
                 graphics_context.set_graphics_pipeline(&pipeline);
+                graphics_context.end_render_pass(&device, &render_pass);
                 graphics_context.draw();
                 graphics_context
                     .end(&device)

@@ -62,6 +62,10 @@ impl GraphicsContext {
         }
     }
 
+    pub fn end_render_pass(&self, device: &Device, render_pass: &RenderPass) {
+        unsafe { device.cmd_end_render_pass(self.command_buffer) }
+    }
+
     pub fn set_graphics_pipeline(&self, pipeline: &GraphicsPipeline) {}
 
     pub fn set_vertex_buffer(&self, buffer: Buffer) {}
