@@ -439,17 +439,15 @@ impl Device {
         &self,
         desc: RenderPassDescription<N>,
     ) -> Result<RenderPass> {
-        // TODO: I'm assuming some implicit passes to transition the image
-        // UNDEFINED -> COLOR_ATTACHMENT_OPTIMAL
-        // and
-        // COLOR_ATTACHMENT_OPTIMAL -> PRESENT_SRC_KHR
+        // TODO: image transitions should be determined automatically.
+        // Might be easier to always ahve it go from `COLOR_ATTACHMENT_OPTIMAL` to `COLOR_ATTACHMENT_OPTIMAL`
         let renderpass_attachments = desc
             .color_attachments
             .iter()
             .map(|a| {
                 a.compile_with_layout_transition(
-                    vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-                    vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+                    vk::ImageLayout::UNDEFINED,
+                    vk::ImageLayout::PRESENT_SRC_KHR,
                 )
             })
             .collect::<Vec<_>>();
