@@ -2,7 +2,6 @@ use crate::{
     context::{
         graphics_context::{GraphicsContext, GraphicsContextDescription},
         upload_context::{UploadContext, UploadContextDescription},
-        Context,
     },
     debug::vulkan_debug_callback,
     resoruces::{
@@ -28,6 +27,28 @@ use std::{
 };
 use thiserror::Error;
 use util::*;
+
+fn submit_work(
+    device: &ash::Device,
+    command_buffer: vk::CommandBuffer,
+    command_buffer_reuse_fence: vk::Fence,
+    submit_queue: vk::Queue,
+    wait_mask: &[vk::PipelineStageFlags],
+    wait_semaphores: &[vk::Semaphore],
+    signal_semaphores: &[vk::Semaphore],
+) -> Result<()> {
+    let command_buffers = vec![command_buffer];
+
+    let submit_info = vk::SubmitInfo::builder()
+        .wait_semaphores(wait_semaphores)
+        .wait_dst_stage_mask(wait_mask)
+        .command_buffers(&command_buffers)
+        .signal_semaphores(signal_semaphores)
+        .build();
+
+    unsafe { device.queue_submit(submit_queue, &[submit_info], command_buffer_reuse_fence) }?;
+    Ok(())
+}
 
 // TODO: Get this from the shader later on
 #[derive(Clone, Debug, Copy)]
@@ -675,8 +696,19 @@ impl Device {
         Ok(GraphicsContext::from_command_buffer(command_buffer))
     }
 
-    pub fn create_upload_context(&self, desc: UploadContextDescription) -> UploadContext {
-        UploadContext {}
+    pub fn create_upload_context(&self, desc: UploadContextDescription) -> Result<UploadContext> {
+        // TODO: Allocate buffers in bulk, manage handing them out some way
+        let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
+            .command_buffer_count(1)
+            .command_pool(self.command_pool)
+            .level(vk::CommandBufferLevel::PRIMARY);
+
+        let command_buffer = unsafe {
+            self.device
+                .allocate_command_buffers(&command_buffer_allocate_info)?
+        }[0];
+
+        Ok(UploadContext::from_command_buffer(command_buffer))
     }
 
     pub fn submit_graphics_work(
@@ -684,24 +716,15 @@ impl Device {
         context: &GraphicsContext,
         present_index: u32,
     ) -> Result<bool> {
-        let command_buffers = vec![context.command_buffer];
-
-        let submit_info = vk::SubmitInfo::builder()
-            .wait_semaphores(std::slice::from_ref(&self.present_complete_semaphore))
-            .wait_dst_stage_mask(std::slice::from_ref(
-                &vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-            ))
-            .command_buffers(&command_buffers)
-            .signal_semaphores(std::slice::from_ref(&self.rendering_complete_semaphore))
-            .build();
-
-        unsafe {
-            self.device.queue_submit(
-                self.present_queue,
-                &[submit_info],
-                self.draw_commands_reuse_fence,
-            )
-        }?;
+        submit_work(
+            &self.device,
+            context.shared.command_buffer,
+            self.draw_commands_reuse_fence,
+            self.present_queue,
+            std::slice::from_ref(&vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT),
+            std::slice::from_ref(&self.present_complete_semaphore),
+            std::slice::from_ref(&self.rendering_complete_semaphore),
+        )?;
 
         let wait_semaphors = [self.rendering_complete_semaphore];
         let swapchains = [self.swapchain];

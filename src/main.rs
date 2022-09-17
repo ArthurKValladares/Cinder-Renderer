@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use cinder::{
-    context::{graphics_context::GraphicsContextDescription, Context},
+    context::graphics_context::GraphicsContextDescription,
     device::Device,
     resoruces::{
         pipeline::GraphicsPipelineDescription,

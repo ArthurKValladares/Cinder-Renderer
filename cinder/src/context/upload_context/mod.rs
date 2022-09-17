@@ -1,28 +1,21 @@
-use super::Context;
+use super::ContextShared;
 use crate::{
     device::Device,
     resoruces::{buffer::Buffer, texture::Texture},
 };
 use anyhow::Result;
+use ash::vk;
 
 pub struct UploadContextDescription {}
 
-pub struct UploadContext {}
-
-impl Context for UploadContext {
-    fn begin(&self, device: &Device) -> Result<()> {
-        Ok(())
-    }
-
-    fn end(&self, device: &Device) -> Result<()> {
-        Ok(())
-    }
-
-    fn resouce_barrier(&self, desc: super::BarrierDescription) {}
+pub struct UploadContext {
+    pub shared: ContextShared,
 }
 
 impl UploadContext {
-    pub fn upload_buffer(&self, buffer: Buffer) {}
-
-    pub fn upload_texture(&self, texture: Texture) {}
+    pub fn from_command_buffer(command_buffer: vk::CommandBuffer) -> Self {
+        Self {
+            shared: ContextShared::from_command_buffer(command_buffer),
+        }
+    }
 }

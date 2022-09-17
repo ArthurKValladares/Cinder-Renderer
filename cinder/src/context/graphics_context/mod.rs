@@ -1,4 +1,4 @@
-use super::Context;
+use super::ContextShared;
 use crate::{
     device::Device,
     resoruces::{buffer::Buffer, pipeline::GraphicsPipeline, render_pass::RenderPass},
@@ -9,48 +9,24 @@ use ash::vk::{self};
 pub struct GraphicsContextDescription {}
 
 pub struct GraphicsContext {
-    pub command_buffer: vk::CommandBuffer,
+    pub shared: ContextShared,
 }
 
 impl GraphicsContext {
     pub fn from_command_buffer(command_buffer: vk::CommandBuffer) -> Self {
-        Self { command_buffer }
-    }
-}
-
-impl Context for GraphicsContext {
-    fn begin(&self, device: &Device) -> Result<()> {
-        unsafe {
-            device.wait_for_fences(&[device.draw_commands_reuse_fence], true, std::u64::MAX)
-        }?;
-
-        unsafe { device.reset_fences(&[device.draw_commands_reuse_fence]) }?;
-
-        unsafe {
-            device.reset_command_buffer(
-                self.command_buffer,
-                vk::CommandBufferResetFlags::RELEASE_RESOURCES,
-            )
-        }?;
-
-        let ci = vk::CommandBufferBeginInfo::builder()
-            .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-
-        unsafe { device.begin_command_buffer(self.command_buffer, &ci)? };
-
-        Ok(())
+        Self {
+            shared: ContextShared::from_command_buffer(command_buffer),
+        }
     }
 
-    fn end(&self, device: &Device) -> Result<()> {
-        unsafe { device.end_command_buffer(self.command_buffer)? };
-
-        Ok(())
+    pub fn begin(&self, device: &Device) -> Result<()> {
+        self.shared.begin(&device, device.draw_commands_reuse_fence)
     }
 
-    fn resouce_barrier(&self, desc: super::BarrierDescription) {}
-}
+    pub fn end(&self, device: &Device) -> Result<()> {
+        self.shared.end(device)
+    }
 
-impl GraphicsContext {
     pub fn begin_render_pass(&self, device: &Device, render_pass: &RenderPass, present_index: u32) {
         let create_info = vk::RenderPassBeginInfo::builder()
             .render_pass(render_pass.render_pass)
@@ -60,7 +36,7 @@ impl GraphicsContext {
 
         unsafe {
             device.cmd_begin_render_pass(
-                self.command_buffer,
+                self.shared.command_buffer,
                 &create_info,
                 vk::SubpassContents::INLINE,
             )
@@ -68,7 +44,7 @@ impl GraphicsContext {
     }
 
     pub fn end_render_pass(&self, device: &Device, render_pass: &RenderPass) {
-        unsafe { device.cmd_end_render_pass(self.command_buffer) }
+        unsafe { device.cmd_end_render_pass(self.shared.command_buffer) }
     }
 
     pub fn set_graphics_pipeline(&self, pipeline: &GraphicsPipeline) {}
