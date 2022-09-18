@@ -459,7 +459,7 @@ impl Device {
         let buffer_memory_index = find_memory_type_index(
             &buffer_memory_req,
             &self.p_device_memory_properties,
-            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+            desc.memory_desc.ty.into(),
         )
         .ok_or_else(|| BufferCreateError::NoSuitableMemoryType)?;
 
@@ -470,12 +470,46 @@ impl Device {
         };
         let buffer_memory = unsafe { self.device.allocate_memory(&allocate_info, None) }?;
 
-        let memory = Memory { raw: buffer_memory };
+        let memory = Memory {
+            raw: buffer_memory,
+            req: buffer_memory_req,
+        };
 
         Ok(Buffer {
             raw: buffer,
             memory,
         })
+    }
+
+    pub fn copy_data_to_buffer<T: Copy>(&self, buffer: &Buffer, data: &[T]) -> Result<()> {
+        let ptr = unsafe {
+            self.device.map_memory(
+                buffer.memory.raw,
+                0,
+                buffer.memory.req.size,
+                vk::MemoryMapFlags::empty(),
+            )
+        }?;
+        {
+            let mut slice = unsafe {
+                ash::util::Align::new(
+                    ptr,
+                    std::mem::align_of::<T>() as u64,
+                    buffer.memory.req.size,
+                )
+            };
+            slice.copy_from_slice(&data);
+        }
+        unsafe { self.device.unmap_memory(buffer.memory.raw) };
+        Ok(())
+    }
+
+    pub fn bind_buffer(&self, buffer: &Buffer) -> Result<()> {
+        unsafe {
+            self.device
+                .bind_buffer_memory(buffer.raw, buffer.memory.raw, 0)
+        }?;
+        Ok(())
     }
 
     pub fn create_texture(&self, desc: TextureDescription) -> Texture {

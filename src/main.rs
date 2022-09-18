@@ -7,12 +7,15 @@ use cinder::{
     },
     device::Device,
     resoruces::{
+        buffer::{BufferDescription, BufferUsage},
+        memory::{MemoryDescription, MemoryType},
         pipeline::GraphicsPipelineDescription,
         render_pass::{self, RenderPassAttachmentDesc, RenderPassDescription},
         shader::{ShaderDescription, ShaderStage},
     },
     InitData, Resolution,
 };
+use util::*;
 use winit::{
     dpi::PhysicalSize,
     event::{Event, WindowEvent},
@@ -73,6 +76,24 @@ fn main() {
             render_pass: &render_pass,
         })
         .expect("Could not create graphics pipeline");
+
+    // Create and bind index buffer
+    let indices = [0u32, 1, 2];
+    let index_buffer = device
+        .create_buffer(BufferDescription {
+            size: size_of_slice(&indices),
+            usage: BufferUsage::Index,
+            memory_desc: MemoryDescription {
+                ty: MemoryType::CpuVisible,
+            },
+        })
+        .expect("Could not create index buffer");
+    device
+        .copy_data_to_buffer(&index_buffer, &indices)
+        .expect("Could not write to index buffer");
+    device
+        .bind_buffer(&index_buffer)
+        .expect("Could not bind index buffer");
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;

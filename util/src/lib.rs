@@ -8,3 +8,7 @@ macro_rules! offset_of {
         }
     }};
 }
+
+pub fn size_of_slice<T>(slice: &[T]) -> u64 {
+    (std::mem::size_of::<T>() * slice.len()) as u64
+}

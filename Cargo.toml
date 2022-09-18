@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 cinder = {path = "./cinder"}
+util = {path = "./util"}
 winit = "0.27"
 
 [build-dependencies]
