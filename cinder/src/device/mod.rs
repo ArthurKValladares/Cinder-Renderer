@@ -1,6 +1,6 @@
 use crate::{
     context::{
-        graphics_context::{GraphicsContext, GraphicsContextDescription},
+        render_context::{RenderContext, RenderContextDescription},
         upload_context::{UploadContext, UploadContextDescription},
     },
     debug::vulkan_debug_callback,
@@ -678,10 +678,7 @@ impl Device {
         })
     }
 
-    pub fn create_graphics_context(
-        &self,
-        desc: GraphicsContextDescription,
-    ) -> Result<GraphicsContext> {
+    pub fn create_render_context(&self, desc: RenderContextDescription) -> Result<RenderContext> {
         // TODO: Allocate buffers in bulk, manage handing them out some way
         let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
             .command_buffer_count(1)
@@ -693,7 +690,7 @@ impl Device {
                 .allocate_command_buffers(&command_buffer_allocate_info)?
         }[0];
 
-        Ok(GraphicsContext::from_command_buffer(command_buffer))
+        Ok(RenderContext::from_command_buffer(command_buffer))
     }
 
     pub fn create_upload_context(&self, desc: UploadContextDescription) -> Result<UploadContext> {
@@ -713,7 +710,7 @@ impl Device {
 
     pub fn submit_graphics_work(
         &self,
-        context: &GraphicsContext,
+        context: &RenderContext,
         present_index: u32,
     ) -> Result<bool> {
         submit_work(

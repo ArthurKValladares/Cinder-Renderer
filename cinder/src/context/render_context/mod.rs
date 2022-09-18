@@ -6,13 +6,13 @@ use crate::{
 use anyhow::Result;
 use ash::vk::{self};
 
-pub struct GraphicsContextDescription {}
+pub struct RenderContextDescription {}
 
-pub struct GraphicsContext {
+pub struct RenderContext {
     pub shared: ContextShared,
 }
 
-impl GraphicsContext {
+impl RenderContext {
     pub fn from_command_buffer(command_buffer: vk::CommandBuffer) -> Self {
         Self {
             shared: ContextShared::from_command_buffer(command_buffer),

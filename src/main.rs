@@ -1,7 +1,10 @@
 use std::path::Path;
 
 use cinder::{
-    context::graphics_context::GraphicsContextDescription,
+    context::{
+        render_context::RenderContextDescription,
+        upload_context::{self, UploadContextDescription},
+    },
     device::Device,
     resoruces::{
         pipeline::GraphicsPipelineDescription,
@@ -38,9 +41,12 @@ fn main() {
         },
     };
     let device = Device::new(&window, init_data).expect("could not create cinder device");
-    let graphics_context = device
-        .create_graphics_context(GraphicsContextDescription {})
+    let render_context = device
+        .create_render_context(RenderContextDescription {})
         .expect("Could not create graphics context");
+    let upload_context = device
+        .create_upload_context(UploadContextDescription {})
+        .expect("could not create upload context");
     let vertex_shader = device
         .create_shader(ShaderDescription {
             stage: ShaderStage::Vertex,
@@ -80,22 +86,22 @@ fn main() {
                     .acquire_next_image()
                     .expect("Could not acquire swapchain image");
 
-                graphics_context
+                render_context
                     .begin(&device)
                     .expect("Could not begin graphics context");
                 {
-                    graphics_context.begin_render_pass(&device, &render_pass, present_index);
+                    render_context.begin_render_pass(&device, &render_pass, present_index);
                     {
-                        graphics_context.set_graphics_pipeline(&pipeline);
+                        render_context.set_graphics_pipeline(&pipeline);
                     }
-                    graphics_context.end_render_pass(&device, &render_pass);
+                    render_context.end_render_pass(&device, &render_pass);
                 }
-                graphics_context
+                render_context
                     .end(&device)
                     .expect("Could not end graphics context");
 
                 device
-                    .submit_graphics_work(&graphics_context, present_index)
+                    .submit_graphics_work(&render_context, present_index)
                     .expect("Could not submit graphics work");
             }
             Event::WindowEvent {
