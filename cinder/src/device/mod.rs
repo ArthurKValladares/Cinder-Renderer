@@ -6,11 +6,13 @@ use crate::{
     debug::vulkan_debug_callback,
     resoruces::{
         buffer::{Buffer, BufferDescription},
+        memory::{self, Memory},
         pipeline::{GraphicsPipeline, GraphicsPipelineDescription, PipelineCommon},
         render_pass::{RenderPass, RenderPassDescription},
         shader::{Shader, ShaderDescription},
         texture::{Texture, TextureDescription},
     },
+    util::find_memory_type_index,
     InitData,
 };
 use anyhow::Result;
@@ -61,6 +63,12 @@ struct Vertex {
 pub enum DeviceInitError {
     #[error("No suitable device found")]
     NoSuitableDevice,
+}
+
+#[derive(Debug, Error)]
+pub enum BufferCreateError {
+    #[error("No suitable memory type found")]
+    NoSuitableMemoryType,
 }
 
 // TODO: This is rough for now, will be configurable later
@@ -440,8 +448,34 @@ impl Device {
         self.surface_format.format
     }
 
-    pub fn create_buffer(&self, desc: BufferDescription) -> Buffer {
-        Buffer {}
+    pub fn create_buffer(&self, desc: BufferDescription) -> Result<Buffer> {
+        let buffer_info = vk::BufferCreateInfo::builder()
+            .size(desc.size)
+            .usage(desc.usage.into())
+            .sharing_mode(vk::SharingMode::EXCLUSIVE);
+
+        let buffer = unsafe { self.device.create_buffer(&buffer_info, None) }?;
+        let buffer_memory_req = unsafe { self.device.get_buffer_memory_requirements(buffer) };
+        let buffer_memory_index = find_memory_type_index(
+            &buffer_memory_req,
+            &self.p_device_memory_properties,
+            vk::MemoryPropertyFlags::HOST_VISIBLE | vk::MemoryPropertyFlags::HOST_COHERENT,
+        )
+        .ok_or_else(|| BufferCreateError::NoSuitableMemoryType)?;
+
+        let allocate_info = vk::MemoryAllocateInfo {
+            allocation_size: buffer_memory_req.size,
+            memory_type_index: buffer_memory_index,
+            ..Default::default()
+        };
+        let buffer_memory = unsafe { self.device.allocate_memory(&allocate_info, None) }?;
+
+        let memory = Memory { raw: buffer_memory };
+
+        Ok(Buffer {
+            raw: buffer,
+            memory,
+        })
     }
 
     pub fn create_texture(&self, desc: TextureDescription) -> Texture {

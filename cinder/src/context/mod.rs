@@ -1,4 +1,4 @@
-pub mod graphics_context;
+pub mod render_context;
 pub mod upload_context;
 
 use crate::device::Device;

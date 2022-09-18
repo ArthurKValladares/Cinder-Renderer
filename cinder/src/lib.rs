@@ -2,6 +2,7 @@ pub mod context;
 pub(crate) mod debug;
 pub mod device;
 pub mod resoruces;
+pub mod util;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Resolution {

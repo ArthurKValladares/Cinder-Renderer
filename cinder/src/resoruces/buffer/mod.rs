@@ -1,6 +1,31 @@
-pub struct BufferDescription {}
+use super::memory::{Memory, MemoryDescription};
+pub use ash::vk;
 
-pub struct Buffer {}
+#[derive(Debug, Clone, Copy)]
+pub enum BufferUsage {
+    Vertex,
+    Index,
+}
+
+impl From<BufferUsage> for vk::BufferUsageFlags {
+    fn from(usage: BufferUsage) -> Self {
+        match usage {
+            BufferUsage::Vertex => vk::BufferUsageFlags::VERTEX_BUFFER,
+            BufferUsage::Index => vk::BufferUsageFlags::INDEX_BUFFER,
+        }
+    }
+}
+
+pub struct BufferDescription {
+    pub size: u64,
+    pub usage: BufferUsage,
+    pub memory_desc: MemoryDescription,
+}
+
+pub struct Buffer {
+    pub raw: vk::Buffer,
+    pub memory: Memory,
+}
 
 impl Buffer {
     pub fn num_bytes(&self) -> u32 {
