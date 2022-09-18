@@ -54,9 +54,9 @@ fn submit_work(
 
 // TODO: Get this from the shader later on
 #[derive(Clone, Debug, Copy)]
-struct Vertex {
-    pos: [f32; 4],
-    uv: [f32; 2],
+pub struct Vertex {
+    pub pos: [f32; 4],
+    pub color: [f32; 4],
 }
 
 #[derive(Debug, Error)]
@@ -627,8 +627,8 @@ impl Device {
             vk::VertexInputAttributeDescription {
                 location: 1,
                 binding: 0,
-                format: vk::Format::R32G32_SFLOAT,
-                offset: offset_of!(Vertex, uv) as u32,
+                format: vk::Format::R32G32B32A32_SFLOAT,
+                offset: offset_of!(Vertex, color) as u32,
             },
         ];
         let vertex_input_state_info = vk::PipelineVertexInputStateCreateInfo::builder()

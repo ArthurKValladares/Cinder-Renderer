@@ -5,7 +5,7 @@ use cinder::{
         render_context::RenderContextDescription,
         upload_context::{self, UploadContextDescription},
     },
-    device::Device,
+    device::{Device, Vertex},
     resoruces::{
         buffer::{BufferDescription, BufferUsage},
         memory::{MemoryDescription, MemoryType},
@@ -94,6 +94,37 @@ fn main() {
     device
         .bind_buffer(&index_buffer)
         .expect("Could not bind index buffer");
+
+    // Create and bind vertex buffer
+    let vertices = [
+        Vertex {
+            pos: [-1.0, 1.0, 0.0, 1.0],
+            color: [0.0, 1.0, 0.0, 1.0],
+        },
+        Vertex {
+            pos: [1.0, 1.0, 0.0, 1.0],
+            color: [0.0, 0.0, 1.0, 1.0],
+        },
+        Vertex {
+            pos: [0.0, -1.0, 0.0, 1.0],
+            color: [1.0, 0.0, 0.0, 1.0],
+        },
+    ];
+    let vertex_buffer = device
+        .create_buffer(BufferDescription {
+            size: size_of_slice(&vertices),
+            usage: BufferUsage::Index,
+            memory_desc: MemoryDescription {
+                ty: MemoryType::CpuVisible,
+            },
+        })
+        .expect("Could not create vertex buffer");
+    device
+        .copy_data_to_buffer(&vertex_buffer, &vertices)
+        .expect("Could not write to vertex buffer");
+    device
+        .bind_buffer(&vertex_buffer)
+        .expect("Could not bind vertex buffer");
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
