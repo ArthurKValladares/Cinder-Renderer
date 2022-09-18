@@ -21,6 +21,7 @@ use ash::vk;
 use ash::vk::{
     KhrGetPhysicalDeviceProperties2Fn, KhrPortabilityEnumerationFn, KhrPortabilitySubsetFn,
 };
+use math::rect::Rect2D;
 use std::{
     ffi::{CStr, CString},
     fs::File,
@@ -817,6 +818,15 @@ impl Device {
             )
         }?;
         Ok(present_index)
+    }
+
+    pub fn surface_rect(&self) -> Rect2D<u32> {
+        Rect2D::from_top_right_bottom_left(
+            0,
+            self.surface_resolution.width,
+            self.surface_resolution.height,
+            0,
+        )
     }
 }
 

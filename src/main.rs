@@ -113,7 +113,7 @@ fn main() {
     let vertex_buffer = device
         .create_buffer(BufferDescription {
             size: size_of_slice(&vertices),
-            usage: BufferUsage::Index,
+            usage: BufferUsage::Vertex,
             memory_desc: MemoryDescription {
                 ty: MemoryType::CpuVisible,
             },
@@ -144,7 +144,12 @@ fn main() {
                 {
                     render_context.begin_render_pass(&device, &render_pass, present_index);
                     {
-                        render_context.set_graphics_pipeline(&pipeline);
+                        render_context.set_graphics_pipeline(&device, &pipeline);
+                        render_context.set_vertex_buffer(&device, &vertex_buffer);
+                        render_context.set_index_buffer(&device, &index_buffer);
+                        let surface_rect = device.surface_rect();
+                        render_context.set_viewport(&device, surface_rect);
+                        render_context.set_scissor(&device, surface_rect);
                     }
                     render_context.end_render_pass(&device, &render_pass);
                 }
