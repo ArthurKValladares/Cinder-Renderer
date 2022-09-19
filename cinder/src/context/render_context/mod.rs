@@ -108,5 +108,7 @@ impl RenderContext {
         }
     }
 
-    pub fn draw(&self) {}
+    pub fn draw(&self, device: &Device, index_buffer: &Buffer, index_count: u32) {
+        unsafe { device.cmd_draw_indexed(self.shared.command_buffer, index_count, 1, 0, 0, 1) }
+    }
 }

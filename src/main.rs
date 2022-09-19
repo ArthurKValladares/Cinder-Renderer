@@ -150,6 +150,7 @@ fn main() {
                         let surface_rect = device.surface_rect();
                         render_context.set_viewport(&device, surface_rect);
                         render_context.set_scissor(&device, surface_rect);
+                        render_context.draw(&device, &index_buffer, indices.len() as u32);
                     }
                     render_context.end_render_pass(&device, &render_pass);
                 }
