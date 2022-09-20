@@ -2,6 +2,7 @@ use super::memory::Memory;
 use ash::vk;
 use math::size::Size2D;
 
+#[derive(Debug, Clone, Copy)]
 pub enum Format {
     R8G8B8A8Unorm,
 }
@@ -22,6 +23,7 @@ pub struct TextureDescription {
 pub struct Texture {
     pub raw: vk::Image,
     pub memory: Memory,
+    pub desc: TextureDescription,
 }
 
 impl Texture {

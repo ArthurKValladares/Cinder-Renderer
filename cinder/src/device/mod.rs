@@ -563,6 +563,7 @@ impl Device {
         Ok(Texture {
             raw: texture_image,
             memory,
+            desc,
         })
     }
 

@@ -135,6 +135,22 @@ fn main() {
     let (image_width, image_height) = image.dimensions();
     let image_data = image.into_raw();
 
+    let image_buffer = device
+        .create_buffer(BufferDescription {
+            size: size_of_slice(&image_data),
+            usage: BufferUsage::TransferSrc,
+            memory_desc: MemoryDescription {
+                ty: MemoryType::CpuVisible,
+            },
+        })
+        .expect("Could not create image buffer");
+    device
+        .copy_data_to_buffer(&image_buffer, &image_data)
+        .expect("Could not write to image buffer");
+    device
+        .bind_buffer(&image_buffer)
+        .expect("Could not bind image buffer");
+
     let ferris_texture = device
         .create_texture(TextureDescription {
             format: Format::R8G8B8A8Unorm,
@@ -146,7 +162,9 @@ fn main() {
     upload_context
         .begin(&device)
         .expect("could not begin upload context");
-    {}
+    {
+        upload_context.copy_buffer_to_texture(&device, &image_buffer, &ferris_texture);
+    }
     upload_context
         .end(&device)
         .expect("could not end upload context");

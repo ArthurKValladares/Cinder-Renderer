@@ -5,6 +5,7 @@ pub use ash::vk;
 pub enum BufferUsage {
     Vertex,
     Index,
+    TransferSrc,
 }
 
 impl From<BufferUsage> for vk::BufferUsageFlags {
@@ -12,6 +13,7 @@ impl From<BufferUsage> for vk::BufferUsageFlags {
         match usage {
             BufferUsage::Vertex => vk::BufferUsageFlags::VERTEX_BUFFER,
             BufferUsage::Index => vk::BufferUsageFlags::INDEX_BUFFER,
+            BufferUsage::TransferSrc => vk::BufferUsageFlags::TRANSFER_SRC,
         }
     }
 }
