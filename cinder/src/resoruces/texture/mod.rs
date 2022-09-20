@@ -1,10 +1,28 @@
+use super::memory::Memory;
+use ash::vk;
 use math::size::Size2D;
 
-pub struct TextureDescription {}
+pub enum Format {
+    R8G8B8A8Unorm,
+}
 
-pub enum Format {}
+impl From<Format> for vk::Format {
+    fn from(format: Format) -> Self {
+        match format {
+            Format::R8G8B8A8Unorm => vk::Format::R8G8B8A8_UNORM,
+        }
+    }
+}
 
-pub struct Texture {}
+pub struct TextureDescription {
+    pub format: Format,
+    pub size: Size2D<u32>,
+}
+
+pub struct Texture {
+    pub raw: vk::Image,
+    pub memory: Memory,
+}
 
 impl Texture {
     pub fn dims(&self) -> Size2D<u32> {

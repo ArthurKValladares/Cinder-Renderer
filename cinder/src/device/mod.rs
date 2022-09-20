@@ -513,8 +513,49 @@ impl Device {
         Ok(())
     }
 
-    pub fn create_texture(&self, desc: TextureDescription) -> Texture {
-        Texture {}
+    pub fn create_texture(&self, desc: TextureDescription) -> Result<Texture> {
+        let texture_create_info = vk::ImageCreateInfo {
+            image_type: vk::ImageType::TYPE_2D,
+            format: desc.format.into(),
+            extent: vk::Extent3D {
+                width: desc.size.width(),
+                height: desc.size.height(),
+                depth: 1,
+            },
+            mip_levels: 1,
+            array_layers: 1,
+            samples: vk::SampleCountFlags::TYPE_1,
+            tiling: vk::ImageTiling::OPTIMAL,
+            usage: vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED,
+            sharing_mode: vk::SharingMode::EXCLUSIVE,
+            ..Default::default()
+        };
+        let texture_image = unsafe { self.device.create_image(&texture_create_info, None) }?;
+        let texture_memory_req =
+            unsafe { self.device.get_image_memory_requirements(texture_image) };
+        let texture_memory_index = find_memory_type_index(
+            &texture_memory_req,
+            &self.p_device_memory_properties,
+            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+        )
+        .expect("Unable to find suitable memory index for depth image.");
+
+        let texture_allocate_info = vk::MemoryAllocateInfo {
+            allocation_size: texture_memory_req.size,
+            memory_type_index: texture_memory_index,
+            ..Default::default()
+        };
+        let texture_memory = unsafe { self.device.allocate_memory(&texture_allocate_info, None) }?;
+
+        let memory = Memory {
+            raw: texture_memory,
+            req: texture_memory_req,
+        };
+
+        Ok(Texture {
+            raw: texture_image,
+            memory,
+        })
     }
 
     pub fn create_shader(&self, desc: ShaderDescription) -> Result<Shader> {

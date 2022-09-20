@@ -12,9 +12,11 @@ use cinder::{
         pipeline::GraphicsPipelineDescription,
         render_pass::{self, RenderPassAttachmentDesc, RenderPassDescription},
         shader::{ShaderDescription, ShaderStage},
+        texture::{Format, TextureDescription},
     },
     InitData, Resolution,
 };
+use math::size::Size2D;
 use util::*;
 use winit::{
     dpi::PhysicalSize,
@@ -125,6 +127,20 @@ fn main() {
     device
         .bind_buffer(&vertex_buffer)
         .expect("Could not bind vertex buffer");
+
+    // Create and upload image
+    let image = image::load_from_memory(include_bytes!("../assets/textures/ferris.png"))
+        .unwrap()
+        .to_rgba8();
+    let (image_width, image_height) = image.dimensions();
+    let image_data = image.into_raw();
+
+    let ferris_image = device
+        .create_texture(TextureDescription {
+            format: Format::R8G8B8A8Unorm,
+            size: Size2D::new(image_width, image_height),
+        })
+        .expect("could not create texture");
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
