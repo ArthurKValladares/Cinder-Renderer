@@ -18,4 +18,13 @@ impl UploadContext {
             shared: ContextShared::from_command_buffer(command_buffer),
         }
     }
+
+    pub fn begin(&self, device: &Device) -> Result<()> {
+        self.shared
+            .begin(&device, device.setup_commands_reuse_fence)
+    }
+
+    pub fn end(&self, device: &Device) -> Result<()> {
+        self.shared.end(device)
+    }
 }

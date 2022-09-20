@@ -10,7 +10,7 @@ use crate::{
         pipeline::{GraphicsPipeline, GraphicsPipelineDescription, PipelineCommon},
         render_pass::{RenderPass, RenderPassDescription},
         shader::{Shader, ShaderDescription},
-        texture::{Texture, TextureDescription},
+        texture::{self, Texture, TextureDescription},
     },
     util::find_memory_type_index,
     InitData,
@@ -513,6 +513,14 @@ impl Device {
         Ok(())
     }
 
+    pub fn bind_texture(&self, texture: &Texture) -> Result<()> {
+        unsafe {
+            self.device
+                .bind_image_memory(texture.raw, texture.memory.raw, 0)
+        }?;
+        Ok(())
+    }
+
     pub fn create_texture(&self, desc: TextureDescription) -> Result<Texture> {
         let texture_create_info = vk::ImageCreateInfo {
             image_type: vk::ImageType::TYPE_2D,
@@ -846,6 +854,20 @@ impl Device {
                 .queue_present(self.present_queue, &present_info)
         }?;
         Ok(is_suboptimal)
+    }
+
+    pub fn submit_upload_work(&self, context: &UploadContext) -> Result<()> {
+        submit_work(
+            &self.device,
+            context.shared.command_buffer,
+            self.setup_commands_reuse_fence,
+            self.present_queue,
+            &[],
+            &[],
+            &[],
+        )?;
+
+        Ok(())
     }
 
     // TODO: probably should totally abstract this from user code

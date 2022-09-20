@@ -135,12 +135,24 @@ fn main() {
     let (image_width, image_height) = image.dimensions();
     let image_data = image.into_raw();
 
-    let ferris_image = device
+    let ferris_texture = device
         .create_texture(TextureDescription {
             format: Format::R8G8B8A8Unorm,
             size: Size2D::new(image_width, image_height),
         })
         .expect("could not create texture");
+    device.bind_texture(&ferris_texture);
+
+    upload_context
+        .begin(&device)
+        .expect("could not begin upload context");
+    {}
+    upload_context
+        .end(&device)
+        .expect("could not end upload context");
+    device
+        .submit_upload_work(&upload_context)
+        .expect("could not submit upload work");
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
