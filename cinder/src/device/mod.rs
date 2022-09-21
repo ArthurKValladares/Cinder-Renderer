@@ -9,6 +9,7 @@ use crate::{
         memory::{self, Memory},
         pipeline::{GraphicsPipeline, GraphicsPipelineDescription, PipelineCommon},
         render_pass::{RenderPass, RenderPassDescription},
+        sampler::Sampler,
         shader::{Shader, ShaderDescription},
         texture::{self, Texture, TextureDescription},
     },
@@ -58,6 +59,7 @@ fn submit_work(
 pub struct Vertex {
     pub pos: [f32; 4],
     pub color: [f32; 4],
+    pub uv: [f32; 2],
 }
 
 #[derive(Debug, Error)]
@@ -121,7 +123,7 @@ pub struct Device {
     descriptor_pool: vk::DescriptorPool,
     // TODO: This stuff definitely won't stay here
     desc_set_layouts: [vk::DescriptorSetLayout; 1],
-    descriptor_sets: Vec<vk::DescriptorSet>,
+    pub descriptor_sets: Vec<vk::DescriptorSet>,
 
     // TODO: Probably will have better syncronization in the future
     present_complete_semaphore: vk::Semaphore,
@@ -371,16 +373,10 @@ impl Device {
         let command_pool = unsafe { device.create_command_pool(&pool_create_info, None) }?;
 
         // TODO: is this the right place for the DescriptorPool
-        let descriptor_sizes = [
-            vk::DescriptorPoolSize {
-                ty: vk::DescriptorType::UNIFORM_BUFFER,
-                descriptor_count: 1,
-            },
-            vk::DescriptorPoolSize {
-                ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                descriptor_count: 1,
-            },
-        ];
+        let descriptor_sizes = [vk::DescriptorPoolSize {
+            ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+            descriptor_count: 1,
+        }];
         let descriptor_pool_info = vk::DescriptorPoolCreateInfo::builder()
             .pool_sizes(&descriptor_sizes)
             .max_sets(1);
@@ -389,21 +385,13 @@ impl Device {
             unsafe { device.create_descriptor_pool(&descriptor_pool_info, None) }?;
 
         // TODO: This stuff will move later
-        let desc_layout_bindings = [
-            vk::DescriptorSetLayoutBinding {
-                descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
-                descriptor_count: 1,
-                stage_flags: vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-            vk::DescriptorSetLayoutBinding {
-                binding: 1,
-                descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                descriptor_count: 1,
-                stage_flags: vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-        ];
+        let desc_layout_bindings = [vk::DescriptorSetLayoutBinding {
+            binding: 0,
+            descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+            descriptor_count: 1,
+            stage_flags: vk::ShaderStageFlags::FRAGMENT,
+            ..Default::default()
+        }];
         let descriptor_info =
             vk::DescriptorSetLayoutCreateInfo::builder().bindings(&desc_layout_bindings);
 
@@ -555,6 +543,31 @@ impl Device {
         };
         let texture_memory = unsafe { self.device.allocate_memory(&texture_allocate_info, None) }?;
 
+        unsafe {
+            self.device
+                .bind_image_memory(texture_image, texture_memory, 0);
+        }
+
+        let image_view_info = vk::ImageViewCreateInfo {
+            view_type: vk::ImageViewType::TYPE_2D,
+            format: texture_create_info.format,
+            components: vk::ComponentMapping {
+                r: vk::ComponentSwizzle::R,
+                g: vk::ComponentSwizzle::G,
+                b: vk::ComponentSwizzle::B,
+                a: vk::ComponentSwizzle::A,
+            },
+            subresource_range: vk::ImageSubresourceRange {
+                aspect_mask: vk::ImageAspectFlags::COLOR,
+                level_count: 1,
+                layer_count: 1,
+                ..Default::default()
+            },
+            image: texture_image,
+            ..Default::default()
+        };
+        let image_view = unsafe { self.device.create_image_view(&image_view_info, None) }?;
+
         let memory = Memory {
             raw: texture_memory,
             req: texture_memory_req,
@@ -562,9 +575,29 @@ impl Device {
 
         Ok(Texture {
             raw: texture_image,
+            view: image_view,
             memory,
             desc,
         })
+    }
+
+    pub fn create_sampler(&self) -> Result<Sampler> {
+        let sampler_info = vk::SamplerCreateInfo {
+            mag_filter: vk::Filter::LINEAR,
+            min_filter: vk::Filter::LINEAR,
+            mipmap_mode: vk::SamplerMipmapMode::LINEAR,
+            address_mode_u: vk::SamplerAddressMode::MIRRORED_REPEAT,
+            address_mode_v: vk::SamplerAddressMode::MIRRORED_REPEAT,
+            address_mode_w: vk::SamplerAddressMode::MIRRORED_REPEAT,
+            max_anisotropy: 1.0,
+            border_color: vk::BorderColor::FLOAT_OPAQUE_WHITE,
+            compare_op: vk::CompareOp::NEVER,
+            ..Default::default()
+        };
+
+        let sampler = unsafe { self.device.create_sampler(&sampler_info, None) }?;
+
+        Ok(Sampler { raw: sampler })
     }
 
     pub fn create_shader(&self, desc: ShaderDescription) -> Result<Shader> {
@@ -680,6 +713,12 @@ impl Device {
                 binding: 0,
                 format: vk::Format::R32G32B32A32_SFLOAT,
                 offset: offset_of!(Vertex, color) as u32,
+            },
+            vk::VertexInputAttributeDescription {
+                location: 2,
+                binding: 0,
+                format: vk::Format::R32G32_SFLOAT,
+                offset: offset_of!(Vertex, uv) as u32,
             },
         ];
         let vertex_input_state_info = vk::PipelineVertexInputStateCreateInfo::builder()
@@ -891,6 +930,26 @@ impl Device {
             self.surface_resolution.height,
             0,
         )
+    }
+
+    // TODO: This is very temp and hacky
+    pub fn update_descriptor_set(&self, texture: &Texture, sampler: &Sampler) {
+        let tex_descriptor = vk::DescriptorImageInfo {
+            image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            image_view: texture.view,
+            sampler: sampler.raw,
+        };
+
+        let write_desc_sets = [vk::WriteDescriptorSet {
+            dst_set: self.descriptor_sets[0],
+            descriptor_count: 1,
+            descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+            p_image_info: &tex_descriptor,
+            ..Default::default()
+        }];
+        unsafe {
+            self.device.update_descriptor_sets(&write_desc_sets, &[]);
+        }
     }
 }
 

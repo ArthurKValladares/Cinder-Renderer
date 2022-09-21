@@ -22,6 +22,7 @@ pub struct TextureDescription {
 
 pub struct Texture {
     pub raw: vk::Image,
+    pub view: vk::ImageView,
     pub memory: Memory,
     pub desc: TextureDescription,
 }

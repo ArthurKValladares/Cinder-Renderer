@@ -58,6 +58,19 @@ impl RenderContext {
         }
     }
 
+    pub fn bind_descriptor_sets(&self, device: &Device, pipeline: &GraphicsPipeline) {
+        unsafe {
+            device.cmd_bind_descriptor_sets(
+                self.shared.command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                pipeline.common.pipeline_layout,
+                0,
+                &device.descriptor_sets, //TODO: Sets won't always live inside Device
+                &[],
+            );
+        }
+    }
+
     pub fn set_vertex_buffer(&self, device: &Device, buffer: &Buffer) {
         unsafe {
             device.cmd_bind_vertex_buffers(self.shared.command_buffer, 0, &[buffer.raw], &[0])

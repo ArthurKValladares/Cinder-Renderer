@@ -80,7 +80,7 @@ fn main() {
         .expect("Could not create graphics pipeline");
 
     // Create and bind index buffer
-    let indices = [0u32, 1, 2];
+    let indices = [0u32, 1, 2, 2, 3, 0];
     let index_buffer = device
         .create_buffer(BufferDescription {
             size: size_of_slice(&indices),
@@ -100,16 +100,24 @@ fn main() {
     // Create and bind vertex buffer
     let vertices = [
         Vertex {
+            pos: [-1.0, -1.0, 0.0, 1.0],
+            color: [1.0, 1.0, 1.0, 1.0],
+            uv: [0.0, 0.0],
+        },
+        Vertex {
             pos: [-1.0, 1.0, 0.0, 1.0],
-            color: [0.0, 1.0, 0.0, 1.0],
+            color: [1.0, 1.0, 1.0, 1.0],
+            uv: [0.0, 1.0],
         },
         Vertex {
             pos: [1.0, 1.0, 0.0, 1.0],
-            color: [0.0, 0.0, 1.0, 1.0],
+            color: [1.0, 1.0, 1.0, 1.0],
+            uv: [1.0, 1.0],
         },
         Vertex {
-            pos: [0.0, -1.0, 0.0, 1.0],
-            color: [1.0, 0.0, 0.0, 1.0],
+            pos: [1.0, -1.0, 0.0, 1.0],
+            color: [1.0, 1.0, 1.0, 1.0],
+            uv: [1.0, 0.0],
         },
     ];
     let vertex_buffer = device
@@ -157,7 +165,6 @@ fn main() {
             size: Size2D::new(image_width, image_height),
         })
         .expect("could not create texture");
-    device.bind_texture(&ferris_texture);
 
     upload_context
         .begin(&device)
@@ -173,6 +180,9 @@ fn main() {
     device
         .submit_upload_work(&upload_context)
         .expect("could not submit upload work");
+
+    let sampler = device.create_sampler().expect("Could not create sampler");
+    device.update_descriptor_set(&ferris_texture, &sampler);
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
@@ -192,7 +202,9 @@ fn main() {
                 {
                     render_context.begin_render_pass(&device, &render_pass, present_index);
                     {
+                        // TODO: more consistent naming, set/bind
                         render_context.set_graphics_pipeline(&device, &pipeline);
+                        render_context.bind_descriptor_sets(&device, &pipeline);
                         render_context.set_vertex_buffer(&device, &vertex_buffer);
                         render_context.set_index_buffer(&device, &index_buffer);
                         let surface_rect = device.surface_rect();
