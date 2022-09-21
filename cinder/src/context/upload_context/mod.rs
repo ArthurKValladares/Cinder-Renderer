@@ -31,6 +31,60 @@ impl UploadContext {
         self.shared.end(device)
     }
 
+    pub fn texture_barrier_start(&self, device: &Device, texture: &Texture) {
+        let texture_barrier = vk::ImageMemoryBarrier {
+            dst_access_mask: vk::AccessFlags::TRANSFER_WRITE,
+            new_layout: vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+            image: texture.raw,
+            subresource_range: vk::ImageSubresourceRange {
+                aspect_mask: vk::ImageAspectFlags::COLOR,
+                level_count: 1,
+                layer_count: 1,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        unsafe {
+            device.cmd_pipeline_barrier(
+                self.shared.command_buffer,
+                vk::PipelineStageFlags::BOTTOM_OF_PIPE,
+                vk::PipelineStageFlags::TRANSFER,
+                vk::DependencyFlags::empty(),
+                &[],
+                &[],
+                &[texture_barrier],
+            )
+        };
+    }
+
+    pub fn texture_barrier_end(&self, device: &Device, texture: &Texture) {
+        let texture_barrier_end = vk::ImageMemoryBarrier {
+            src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
+            dst_access_mask: vk::AccessFlags::SHADER_READ,
+            old_layout: vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+            new_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            image: texture.raw,
+            subresource_range: vk::ImageSubresourceRange {
+                aspect_mask: vk::ImageAspectFlags::COLOR,
+                level_count: 1,
+                layer_count: 1,
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        unsafe {
+            device.cmd_pipeline_barrier(
+                self.shared.command_buffer,
+                vk::PipelineStageFlags::TRANSFER,
+                vk::PipelineStageFlags::FRAGMENT_SHADER,
+                vk::DependencyFlags::empty(),
+                &[],
+                &[],
+                &[texture_barrier_end],
+            )
+        };
+    }
+
     pub fn copy_buffer_to_texture(&self, device: &Device, buffer: &Buffer, texture: &Texture) {
         let buffer_copy_regions = vk::BufferImageCopy::builder()
             .image_subresource(

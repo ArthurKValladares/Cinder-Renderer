@@ -163,7 +163,9 @@ fn main() {
         .begin(&device)
         .expect("could not begin upload context");
     {
+        upload_context.texture_barrier_start(&device, &ferris_texture);
         upload_context.copy_buffer_to_texture(&device, &image_buffer, &ferris_texture);
+        upload_context.texture_barrier_end(&device, &ferris_texture);
     }
     upload_context
         .end(&device)
