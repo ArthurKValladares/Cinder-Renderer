@@ -5,12 +5,14 @@ use math::size::Size2D;
 #[derive(Debug, Clone, Copy)]
 pub enum Format {
     R8G8B8A8Unorm,
+    D32SFloat,
 }
 
 impl From<Format> for vk::Format {
     fn from(format: Format) -> Self {
         match format {
             Format::R8G8B8A8Unorm => vk::Format::R8G8B8A8_UNORM,
+            Format::D32SFloat => vk::Format::D32_SFLOAT,
         }
     }
 }

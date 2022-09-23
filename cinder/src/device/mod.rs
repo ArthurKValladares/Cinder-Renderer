@@ -114,8 +114,13 @@ pub struct Device {
     surface_resolution: vk::Extent2D,
 
     swapchain: vk::SwapchainKHR,
+    // TODO: Should these and depth image be a `Texture`
     present_images: Vec<vk::Image>,
     present_image_views: Vec<vk::ImageView>,
+
+    pub depth_image: vk::Image,
+    pub depth_image_view: vk::ImageView,
+    pub depth_image_memory: vk::DeviceMemory,
 
     command_pool: vk::CommandPool,
 
@@ -353,6 +358,49 @@ impl Device {
             })
             .collect::<Result<Vec<vk::ImageView>, ash::vk::Result>>()?;
 
+        let depth_image_create_info = vk::ImageCreateInfo::builder()
+            .image_type(vk::ImageType::TYPE_2D)
+            .format(vk::Format::D32_SFLOAT) // TODO: Sync with format passed to render pass
+            .extent(surface_resolution.into())
+            .mip_levels(1)
+            .array_layers(1)
+            .samples(vk::SampleCountFlags::TYPE_1)
+            .tiling(vk::ImageTiling::OPTIMAL)
+            .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
+            .sharing_mode(vk::SharingMode::EXCLUSIVE);
+        let depth_image = unsafe { device.create_image(&depth_image_create_info, None) }?;
+        let depth_image_memory_req = unsafe { device.get_image_memory_requirements(depth_image) };
+        let depth_image_memory_index = find_memory_type_index(
+            &depth_image_memory_req,
+            &p_device_memory_properties,
+            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+        )
+        .expect("Unable to find suitable memory index for depth image.");
+
+        let depth_image_allocate_info = vk::MemoryAllocateInfo::builder()
+            .allocation_size(depth_image_memory_req.size)
+            .memory_type_index(depth_image_memory_index);
+
+        let depth_image_memory =
+            unsafe { device.allocate_memory(&depth_image_allocate_info, None) }?;
+
+        unsafe { device.bind_image_memory(depth_image, depth_image_memory, 0) }?;
+
+        let depth_image_view_info = vk::ImageViewCreateInfo::builder()
+            .subresource_range(
+                vk::ImageSubresourceRange::builder()
+                    .aspect_mask(vk::ImageAspectFlags::DEPTH)
+                    .level_count(1)
+                    .layer_count(1)
+                    .build(),
+            )
+            .image(depth_image)
+            .format(depth_image_create_info.format)
+            .view_type(vk::ImageViewType::TYPE_2D)
+            .build();
+
+        let depth_image_view = unsafe { device.create_image_view(&depth_image_view_info, None) }?;
+
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
 
         let present_complete_semaphore =
@@ -422,6 +470,9 @@ impl Device {
             swapchain,
             present_images,
             present_image_views,
+            depth_image,
+            depth_image_view,
+            depth_image_memory,
             present_complete_semaphore,
             rendering_complete_semaphore,
             draw_commands_reuse_fence,
@@ -623,6 +674,12 @@ impl Device {
                     vk::ImageLayout::PRESENT_SRC_KHR,
                 )
             })
+            .chain(desc.depth_attachment.as_ref().map(|a| {
+                a.compile_with_layout_transition(
+                    vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                    vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                )
+            }))
             .collect::<Vec<_>>();
 
         let color_attachment_refs = (0..desc.color_attachments.len() as u32)
@@ -633,11 +690,19 @@ impl Device {
                     .build()
             })
             .collect::<Vec<_>>();
+        let depth_attachment_ref = vk::AttachmentReference {
+            attachment: desc.color_attachments.len() as u32,
+            layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        };
 
         let mut subpass_description = vk::SubpassDescription::builder()
             .color_attachments(&color_attachment_refs)
-            .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
-            .build();
+            .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS);
+        if desc.depth_attachment.is_some() {
+            subpass_description =
+                subpass_description.depth_stencil_attachment(&depth_attachment_ref);
+        }
+        let subpass_description = subpass_description.build();
 
         // TODO: Subpass dependency stuff
         let subpasses = [subpass_description];
@@ -654,7 +719,7 @@ impl Device {
             .present_image_views
             .iter()
             .map(|&present_image_view| {
-                let framebuffer_attachments = [present_image_view];
+                let framebuffer_attachments = [present_image_view, self.depth_image_view];
                 let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
                     .render_pass(render_pass)
                     .attachments(&framebuffer_attachments)
@@ -673,11 +738,19 @@ impl Device {
             render_pass,
             framebuffers,
             render_area: self.surface_resolution.into(),
-            clear_values: vec![vk::ClearValue {
-                color: vk::ClearColorValue {
-                    float32: [1.0, 1.0, 1.0, 1.0],
+            clear_values: vec![
+                vk::ClearValue {
+                    color: vk::ClearColorValue {
+                        float32: [1.0, 1.0, 1.0, 1.0],
+                    },
                 },
-            }],
+                vk::ClearValue {
+                    depth_stencil: vk::ClearDepthStencilValue {
+                        depth: 1.0,
+                        stencil: 0,
+                    },
+                },
+            ],
         })
     }
 

@@ -52,6 +52,7 @@ fn main() {
     let upload_context = device
         .create_upload_context(UploadContextDescription {})
         .expect("could not create upload context");
+
     let vertex_shader = device
         .create_shader(ShaderDescription {
             stage: ShaderStage::Vertex,
@@ -69,6 +70,7 @@ fn main() {
             color_attachments: [
                 RenderPassAttachmentDesc::with_format(device.surface_format()).clear_input(),
             ],
+            depth_attachment: Some(RenderPassAttachmentDesc::with_format(Format::D32SFloat)),
         })
         .expect("Could not create render pass");
     let pipeline = device
@@ -170,6 +172,7 @@ fn main() {
         .begin(&device)
         .expect("could not begin upload context");
     {
+        upload_context.transition_depth_image(&device);
         upload_context.texture_barrier_start(&device, &ferris_texture);
         upload_context.copy_buffer_to_texture(&device, &image_buffer, &ferris_texture);
         upload_context.texture_barrier_end(&device, &ferris_texture);

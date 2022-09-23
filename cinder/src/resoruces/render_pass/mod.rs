@@ -9,9 +9,9 @@ pub struct RenderPassAttachmentDesc {
 }
 
 impl RenderPassAttachmentDesc {
-    pub fn with_format(format: vk::Format) -> Self {
+    pub fn with_format(format: impl Into<vk::Format>) -> Self {
         Self {
-            format,
+            format: format.into(),
             load_op: vk::AttachmentLoadOp::LOAD,
             store_op: vk::AttachmentStoreOp::STORE,
             samples: vk::SampleCountFlags::TYPE_1,
@@ -52,7 +52,7 @@ impl RenderPassAttachmentDesc {
 
 pub struct RenderPassDescription<const N: usize> {
     pub color_attachments: [RenderPassAttachmentDesc; N],
-    // depth_attachment: Option<RenderPassAttachmentDesc>,
+    pub depth_attachment: Option<RenderPassAttachmentDesc>,
     // TODO: subpasses
 }
 
