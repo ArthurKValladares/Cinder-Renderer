@@ -82,13 +82,14 @@ fn main() {
         .expect("Could not create graphics pipeline");
 
     // Load model
-    let meshes =
+    let mut meshes =
         scene::Mesh::from_obj_path("./assets/models/viking_room.obj").expect("Could not load mesh");
+    let mesh = meshes.remove(0);
+
     // Create and bind index buffer
-    let indices = [0u32, 1, 2, 2, 3, 0];
     let index_buffer = device
         .create_buffer(BufferDescription {
-            size: size_of_slice(&indices),
+            size: size_of_slice(&mesh.indices),
             usage: BufferUsage::Index,
             memory_desc: MemoryDescription {
                 ty: MemoryType::CpuVisible,
@@ -96,38 +97,16 @@ fn main() {
         })
         .expect("Could not create index buffer");
     device
-        .copy_data_to_buffer(&index_buffer, &indices)
+        .copy_data_to_buffer(&index_buffer, &mesh.indices)
         .expect("Could not write to index buffer");
     device
         .bind_buffer(&index_buffer)
         .expect("Could not bind index buffer");
 
     // Create and bind vertex buffer
-    let vertices = [
-        Vertex {
-            pos: [-1.0, -1.0, 0.0, 1.0],
-            color: [1.0, 1.0, 1.0, 1.0],
-            uv: [0.0, 0.0],
-        },
-        Vertex {
-            pos: [-1.0, 1.0, 0.0, 1.0],
-            color: [1.0, 1.0, 1.0, 1.0],
-            uv: [0.0, 1.0],
-        },
-        Vertex {
-            pos: [1.0, 1.0, 0.0, 1.0],
-            color: [1.0, 1.0, 1.0, 1.0],
-            uv: [1.0, 1.0],
-        },
-        Vertex {
-            pos: [1.0, -1.0, 0.0, 1.0],
-            color: [1.0, 1.0, 1.0, 1.0],
-            uv: [1.0, 0.0],
-        },
-    ];
     let vertex_buffer = device
         .create_buffer(BufferDescription {
-            size: size_of_slice(&vertices),
+            size: size_of_slice(&mesh.vertices),
             usage: BufferUsage::Vertex,
             memory_desc: MemoryDescription {
                 ty: MemoryType::CpuVisible,
@@ -135,7 +114,7 @@ fn main() {
         })
         .expect("Could not create vertex buffer");
     device
-        .copy_data_to_buffer(&vertex_buffer, &vertices)
+        .copy_data_to_buffer(&vertex_buffer, &mesh.vertices)
         .expect("Could not write to vertex buffer");
     device
         .bind_buffer(&vertex_buffer)
@@ -216,7 +195,7 @@ fn main() {
                         render_context.bind_index_buffer(&device, &index_buffer);
                         render_context.bind_viewport(&device, surface_rect);
                         render_context.bind_scissor(&device, surface_rect);
-                        render_context.draw(&device, indices.len() as u32);
+                        render_context.draw(&device, mesh.indices.len() as u32);
                     }
                     render_context.end_render_pass(&device, &render_pass);
                 }

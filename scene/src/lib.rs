@@ -3,8 +3,8 @@ use cinder::device::Vertex;
 use std::path::Path;
 
 pub struct Mesh {
-    indices: Vec<u32>,
-    vertices: Vec<Vertex>,
+    pub indices: Vec<u32>,
+    pub vertices: Vec<Vertex>,
 }
 
 impl Mesh {
