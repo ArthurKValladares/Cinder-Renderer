@@ -121,7 +121,7 @@ fn main() {
         .expect("Could not bind vertex buffer");
 
     // Create and upload image
-    let image = image::load_from_memory(include_bytes!("../assets/textures/ferris.png"))
+    let image = image::load_from_memory(include_bytes!("../assets/textures/viking_room.png"))
         .unwrap()
         .to_rgba8();
     let (image_width, image_height) = image.dimensions();

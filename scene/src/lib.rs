@@ -25,10 +25,10 @@ impl Mesh {
                     let mut positions = Vec::with_capacity(num_positions);
                     for i in 0..num_positions {
                         positions.push([
-                            m_positions[i],
-                            m_positions[i + 1],
-                            m_positions[i + 2],
-                            0.0,
+                            m_positions[3 * i],
+                            m_positions[3 * i + 1],
+                            m_positions[3 * i + 2],
+                            1.0,
                         ]);
                     }
                     positions
@@ -45,7 +45,12 @@ impl Mesh {
                     let m_colors = &mesh.vertex_color;
                     let mut colors = Vec::with_capacity(num_colors);
                     for i in 0..num_colors {
-                        colors.push([m_colors[i], m_colors[i + 1], m_colors[i + 2], 1.0]);
+                        colors.push([
+                            m_colors[3 * i],
+                            m_colors[3 * i + 1],
+                            m_colors[3 * i + 2],
+                            1.0,
+                        ]);
                     }
                     colors
                 };
@@ -61,7 +66,7 @@ impl Mesh {
                     let m_uvs = &mesh.texcoords;
                     let mut uvs = Vec::with_capacity(num_uvs);
                     for i in 0..num_uvs {
-                        uvs.push([m_uvs[i], m_uvs[i + 1]]);
+                        uvs.push([m_uvs[2 * i], m_uvs[2 * i + 1]]);
                     }
                     uvs
                 };
