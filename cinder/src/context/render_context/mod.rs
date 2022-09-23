@@ -48,7 +48,7 @@ impl RenderContext {
         unsafe { device.cmd_end_render_pass(self.shared.command_buffer) }
     }
 
-    pub fn set_graphics_pipeline(&self, device: &Device, pipeline: &GraphicsPipeline) {
+    pub fn bind_graphics_pipeline(&self, device: &Device, pipeline: &GraphicsPipeline) {
         unsafe {
             device.cmd_bind_pipeline(
                 self.shared.command_buffer,
@@ -71,13 +71,13 @@ impl RenderContext {
         }
     }
 
-    pub fn set_vertex_buffer(&self, device: &Device, buffer: &Buffer) {
+    pub fn bind_vertex_buffer(&self, device: &Device, buffer: &Buffer) {
         unsafe {
             device.cmd_bind_vertex_buffers(self.shared.command_buffer, 0, &[buffer.raw], &[0])
         }
     }
 
-    pub fn set_index_buffer(&self, device: &Device, buffer: &Buffer) {
+    pub fn bind_index_buffer(&self, device: &Device, buffer: &Buffer) {
         unsafe {
             device.cmd_bind_index_buffer(
                 self.shared.command_buffer,
@@ -88,7 +88,7 @@ impl RenderContext {
         }
     }
 
-    pub fn set_scissor(&self, device: &Device, rect: Rect2D<u32>) {
+    pub fn bind_scissor(&self, device: &Device, rect: Rect2D<u32>) {
         unsafe {
             device.cmd_set_scissor(
                 self.shared.command_buffer,
@@ -104,7 +104,7 @@ impl RenderContext {
         }
     }
 
-    pub fn set_viewport(&self, device: &Device, rect: Rect2D<u32>) {
+    pub fn bind_viewport(&self, device: &Device, rect: Rect2D<u32>) {
         unsafe {
             device.cmd_set_viewport(
                 self.shared.command_buffer,
@@ -121,7 +121,7 @@ impl RenderContext {
         }
     }
 
-    pub fn draw(&self, device: &Device, index_buffer: &Buffer, index_count: u32) {
+    pub fn draw(&self, device: &Device, index_count: u32) {
         unsafe { device.cmd_draw_indexed(self.shared.command_buffer, index_count, 1, 0, 0, 1) }
     }
 }

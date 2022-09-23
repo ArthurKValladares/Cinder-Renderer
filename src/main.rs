@@ -205,15 +205,15 @@ fn main() {
                 {
                     render_context.begin_render_pass(&device, &render_pass, present_index);
                     {
-                        // TODO: more consistent naming, set/bind
-                        render_context.set_graphics_pipeline(&device, &pipeline);
-                        render_context.bind_descriptor_sets(&device, &pipeline);
-                        render_context.set_vertex_buffer(&device, &vertex_buffer);
-                        render_context.set_index_buffer(&device, &index_buffer);
                         let surface_rect = device.surface_rect();
-                        render_context.set_viewport(&device, surface_rect);
-                        render_context.set_scissor(&device, surface_rect);
-                        render_context.draw(&device, &index_buffer, indices.len() as u32);
+
+                        render_context.bind_graphics_pipeline(&device, &pipeline);
+                        render_context.bind_descriptor_sets(&device, &pipeline);
+                        render_context.bind_vertex_buffer(&device, &vertex_buffer);
+                        render_context.bind_index_buffer(&device, &index_buffer);
+                        render_context.bind_viewport(&device, surface_rect);
+                        render_context.bind_scissor(&device, surface_rect);
+                        render_context.draw(&device, indices.len() as u32);
                     }
                     render_context.end_render_pass(&device, &render_pass);
                 }
