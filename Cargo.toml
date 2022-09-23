@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 cinder = {path = "./cinder"}
 util = {path = "./util"}
+scene = {path = "./scene"}
 winit = "0.27"
 image = "0.24.3"
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }

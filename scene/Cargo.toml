@@ -1,0 +1,11 @@
+[package]
+name = "scene"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+anyhow = "1"
+tobj = "3.2.3"
+cinder = {path = "../cinder"}
+math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }

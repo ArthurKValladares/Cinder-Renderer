@@ -81,6 +81,9 @@ fn main() {
         })
         .expect("Could not create graphics pipeline");
 
+    // Load model
+    let meshes =
+        scene::Mesh::from_obj_path("./assets/models/viking_room.obj").expect("Could not load mesh");
     // Create and bind index buffer
     let indices = [0u32, 1, 2, 2, 3, 0];
     let index_buffer = device
