@@ -214,7 +214,7 @@ fn main() {
     device.update_descriptor_set(&ferris_texture, &sampler, &uniform_buffer);
 
     event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Wait;
+        *control_flow = ControlFlow::Poll;
         match event {
             Event::WindowEvent {
                 event: WindowEvent::Resized(size),

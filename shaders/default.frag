@@ -10,4 +10,5 @@ layout (location = 0) out vec4 uFragColor;
 
 void main() {
     uFragColor = texture(albedo_texture, i_uv) * i_color;
+    uFragColor = texture(albedo_texture, i_uv);
 }

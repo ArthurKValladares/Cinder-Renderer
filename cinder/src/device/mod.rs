@@ -757,7 +757,7 @@ impl Device {
             clear_values: vec![
                 vk::ClearValue {
                     color: vk::ClearColorValue {
-                        float32: [1.0, 1.0, 1.0, 1.0],
+                        float32: [1.0, 0.0, 1.0, 1.0],
                     },
                 },
                 vk::ClearValue {
