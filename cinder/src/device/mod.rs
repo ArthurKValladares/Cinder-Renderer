@@ -22,7 +22,7 @@ use ash::vk;
 use ash::vk::{
     KhrGetPhysicalDeviceProperties2Fn, KhrPortabilityEnumerationFn, KhrPortabilitySubsetFn,
 };
-use math::rect::Rect2D;
+use math::{rect::Rect2D, size::Size2D};
 use std::{
     ffi::{CStr, CString},
     fs::File,
@@ -421,10 +421,16 @@ impl Device {
         let command_pool = unsafe { device.create_command_pool(&pool_create_info, None) }?;
 
         // TODO: is this the right place for the DescriptorPool
-        let descriptor_sizes = [vk::DescriptorPoolSize {
-            ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-            descriptor_count: 1,
-        }];
+        let descriptor_sizes = [
+            vk::DescriptorPoolSize {
+                ty: vk::DescriptorType::UNIFORM_BUFFER,
+                descriptor_count: 1 as u32,
+            },
+            vk::DescriptorPoolSize {
+                ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+                descriptor_count: 1,
+            },
+        ];
         let descriptor_pool_info = vk::DescriptorPoolCreateInfo::builder()
             .pool_sizes(&descriptor_sizes)
             .max_sets(1);
@@ -433,13 +439,22 @@ impl Device {
             unsafe { device.create_descriptor_pool(&descriptor_pool_info, None) }?;
 
         // TODO: This stuff will move later
-        let desc_layout_bindings = [vk::DescriptorSetLayoutBinding {
-            binding: 0,
-            descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-            descriptor_count: 1,
-            stage_flags: vk::ShaderStageFlags::FRAGMENT,
-            ..Default::default()
-        }];
+        let desc_layout_bindings = [
+            vk::DescriptorSetLayoutBinding {
+                binding: 0,
+                descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
+                descriptor_count: 1,
+                stage_flags: vk::ShaderStageFlags::VERTEX,
+                ..Default::default()
+            },
+            vk::DescriptorSetLayoutBinding {
+                binding: 1,
+                descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+                descriptor_count: 1,
+                stage_flags: vk::ShaderStageFlags::FRAGMENT,
+                ..Default::default()
+            },
+        ];
         let descriptor_info =
             vk::DescriptorSetLayoutCreateInfo::builder().bindings(&desc_layout_bindings);
 
@@ -518,6 +533,7 @@ impl Device {
         Ok(Buffer {
             raw: buffer,
             memory,
+            size_bytes: desc.size,
         })
     }
 
@@ -996,6 +1012,13 @@ impl Device {
         Ok(present_index)
     }
 
+    pub fn surface_size(&self) -> Size2D<u32> {
+        Size2D::new(
+            self.surface_resolution.width,
+            self.surface_resolution.height,
+        )
+    }
+
     pub fn surface_rect(&self) -> Rect2D<u32> {
         Rect2D::from_top_right_bottom_left(
             0,
@@ -1006,20 +1029,42 @@ impl Device {
     }
 
     // TODO: This is very temp and hacky
-    pub fn update_descriptor_set(&self, texture: &Texture, sampler: &Sampler) {
+    pub fn update_descriptor_set(
+        &self,
+        texture: &Texture,
+        sampler: &Sampler,
+        uniform_buffer: &Buffer,
+    ) {
+        let descriptor_buffer_infos = [vk::DescriptorBufferInfo {
+            buffer: uniform_buffer.raw,
+            offset: 0,
+            range: uniform_buffer.size_bytes,
+        }];
+
         let tex_descriptor = vk::DescriptorImageInfo {
             image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
             image_view: texture.view,
             sampler: sampler.raw,
         };
 
-        let write_desc_sets = [vk::WriteDescriptorSet {
-            dst_set: self.descriptor_sets[0],
-            descriptor_count: 1,
-            descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-            p_image_info: &tex_descriptor,
-            ..Default::default()
-        }];
+        let write_desc_sets = [
+            vk::WriteDescriptorSet {
+                dst_set: self.descriptor_sets[0],
+                dst_binding: 0,
+                descriptor_count: 1,
+                descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
+                p_buffer_info: descriptor_buffer_infos.as_ptr(),
+                ..Default::default()
+            },
+            vk::WriteDescriptorSet {
+                dst_set: self.descriptor_sets[0],
+                dst_binding: 1,
+                descriptor_count: 1,
+                descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+                p_image_info: &tex_descriptor,
+                ..Default::default()
+            },
+        ];
         unsafe {
             self.device.update_descriptor_sets(&write_desc_sets, &[]);
         }

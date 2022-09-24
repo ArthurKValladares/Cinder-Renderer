@@ -1,6 +1,6 @@
 #version 460
 
-layout (binding = 0) uniform sampler2D albedo_texture;
+layout (binding = 1) uniform sampler2D albedo_texture;
 
 layout (location = 0) in vec4 i_color;
 layout (location = 1) in vec2 i_uv;

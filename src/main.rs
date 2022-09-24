@@ -1,5 +1,6 @@
 use std::path::Path;
 
+use cgmath::{Deg, Matrix4, Point3, Vector3};
 use cinder::{
     context::{
         render_context::RenderContextDescription,
@@ -24,6 +25,14 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
+
+#[repr(C)]
+#[derive(Clone, Debug, Copy)]
+pub struct UniformBufferObject {
+    pub model: Matrix4<f32>,
+    pub view: Matrix4<f32>,
+    pub proj: Matrix4<f32>,
+}
 
 fn main() {
     const WINDOW_HEIGHT: u32 = 1000;
@@ -120,6 +129,41 @@ fn main() {
         .bind_buffer(&vertex_buffer)
         .expect("Could not bind vertex buffer");
 
+    // Create and upload uniform buffer
+    let surface_size = device.surface_size();
+    let uniform_data = UniformBufferObject {
+        model: Matrix4::from_angle_z(Deg(90.0)),
+        view: Matrix4::look_at(
+            Point3::new(2.0, 2.0, 2.0),
+            Point3::new(0.0, 0.0, 0.0),
+            Vector3::new(0.0, 0.0, 1.0),
+        ),
+        proj: {
+            let mut proj = cgmath::perspective(
+                Deg(45.0),
+                surface_size.width() as f32 / surface_size.height() as f32,
+                0.1,
+                10.0,
+            );
+            proj[1][1] = proj[1][1] * -1.0;
+            proj
+        },
+    };
+    let uniform_buffer = device
+        .create_buffer(BufferDescription {
+            size: std::mem::size_of::<UniformBufferObject>() as u64,
+            usage: BufferUsage::Uniform,
+            memory_desc: MemoryDescription {
+                ty: MemoryType::CpuVisible,
+            },
+        })
+        .expect("Could not create vertex buffer");
+    device
+        .copy_data_to_buffer(&uniform_buffer, std::slice::from_ref(&uniform_data))
+        .expect("Could not write to vertex buffer");
+    device
+        .bind_buffer(&uniform_buffer)
+        .expect("Could not bind vertex buffer");
     // Create and upload image
     let image = image::load_from_memory(include_bytes!("../assets/textures/viking_room.png"))
         .unwrap()
@@ -167,7 +211,7 @@ fn main() {
         .expect("could not submit upload work");
 
     let sampler = device.create_sampler().expect("Could not create sampler");
-    device.update_descriptor_set(&ferris_texture, &sampler);
+    device.update_descriptor_set(&ferris_texture, &sampler, &uniform_buffer);
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Wait;
