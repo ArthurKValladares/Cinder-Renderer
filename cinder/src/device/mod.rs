@@ -692,7 +692,7 @@ impl Device {
             })
             .chain(desc.depth_attachment.as_ref().map(|a| {
                 a.compile_with_layout_transition(
-                    vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                    vk::ImageLayout::UNDEFINED,
                     vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
                 )
             }))

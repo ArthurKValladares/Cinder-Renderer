@@ -9,11 +9,21 @@ pub struct RenderPassAttachmentDesc {
 }
 
 impl RenderPassAttachmentDesc {
-    pub fn with_format(format: impl Into<vk::Format>) -> Self {
+    // TODO: Better abstraction for creating these later
+    pub fn clear_store(format: impl Into<vk::Format>) -> Self {
         Self {
             format: format.into(),
-            load_op: vk::AttachmentLoadOp::LOAD,
+            load_op: vk::AttachmentLoadOp::CLEAR,
             store_op: vk::AttachmentStoreOp::STORE,
+            samples: vk::SampleCountFlags::TYPE_1,
+        }
+    }
+
+    pub fn clear_dont_care(format: impl Into<vk::Format>) -> Self {
+        Self {
+            format: format.into(),
+            load_op: vk::AttachmentLoadOp::CLEAR,
+            store_op: vk::AttachmentStoreOp::DONT_CARE,
             samples: vk::SampleCountFlags::TYPE_1,
         }
     }

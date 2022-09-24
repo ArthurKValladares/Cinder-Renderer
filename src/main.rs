@@ -77,9 +77,9 @@ fn main() {
     let render_pass = device
         .create_render_pass(RenderPassDescription {
             color_attachments: [
-                RenderPassAttachmentDesc::with_format(device.surface_format()).clear_input(),
+                RenderPassAttachmentDesc::clear_store(device.surface_format()).clear_input(),
             ],
-            depth_attachment: Some(RenderPassAttachmentDesc::with_format(Format::D32SFloat)),
+            depth_attachment: Some(RenderPassAttachmentDesc::clear_dont_care(Format::D32SFloat)),
         })
         .expect("Could not create render pass");
     let pipeline = device
