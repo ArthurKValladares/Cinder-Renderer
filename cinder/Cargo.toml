@@ -12,3 +12,4 @@ winit = "0.27"
 thiserror = "1"
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
 util = { path = "../util" }
+tracing = "0.1"

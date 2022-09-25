@@ -30,6 +30,7 @@ use std::{
     os::raw::c_char,
 };
 use thiserror::Error;
+use tracing::{info, span, Level};
 use util::*;
 
 fn submit_work(
@@ -140,6 +141,9 @@ pub struct Device {
 
 impl Device {
     pub fn new(window: &winit::window::Window, init_data: InitData) -> Result<Self> {
+        let span = span!(Level::DEBUG, "Device::new");
+        let _enter = span.enter();
+
         let entry = unsafe { ash::Entry::load()? };
 
         // TODO: Configurable layers
@@ -288,6 +292,7 @@ impl Device {
             }
             desired_image_count
         };
+        info!("desired image count: {}", desired_image_count);
         let surface_resolution = match surface_capabilities.current_extent.width {
             std::u32::MAX => vk::Extent2D {
                 width: init_data.backbuffer_resolution.width,
@@ -308,7 +313,7 @@ impl Device {
             .into_iter()
             .find(|mode| present_modes.contains(mode))
             .unwrap_or(vk::PresentModeKHR::FIFO);
-
+        info!("present mode: {:?}", present_mode);
         let pre_transform = if surface_capabilities
             .supported_transforms
             .contains(vk::SurfaceTransformFlagsKHR::IDENTITY)

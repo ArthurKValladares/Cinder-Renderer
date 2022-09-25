@@ -18,6 +18,7 @@ use cinder::{
     InitData, Resolution,
 };
 use math::size::Size2D;
+use tracing::Level;
 use util::*;
 use winit::{
     dpi::PhysicalSize,
@@ -47,6 +48,11 @@ fn update_uniform_buffer(
 }
 
 fn main() {
+    let collector = tracing_subscriber::fmt()
+        .with_max_level(Level::TRACE)
+        .finish();
+    tracing::subscriber::set_global_default(collector);
+
     const WINDOW_HEIGHT: u32 = 1000;
     const WINDOW_WIDTH: u32 = 1000;
 
