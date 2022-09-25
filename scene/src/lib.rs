@@ -32,6 +32,11 @@ impl Mesh {
                                 1.0,
                             ]
                         };
+                        let uv = if mesh.texcoords.is_empty() {
+                            [0.0, 0.0]
+                        } else {
+                            [mesh.texcoords[i * 2], mesh.texcoords[i * 2 + 1]]
+                        };
                         Vertex {
                             pos: [
                                 mesh.positions[i * 3],
@@ -40,7 +45,7 @@ impl Mesh {
                                 1.0,
                             ],
                             color,
-                            uv: [mesh.texcoords[i * 2], mesh.texcoords[i * 2 + 1]],
+                            uv,
                         }
                     })
                     .collect::<Vec<_>>();

@@ -165,9 +165,11 @@ fn main() {
         .bind_buffer(&uniform_buffer)
         .expect("Could not bind vertex buffer");
     // Create and upload image
-    let image = image::load_from_memory(include_bytes!("../assets/textures/viking_room.png"))
-        .unwrap()
-        .to_rgba8();
+    let image =
+        image::load_from_memory(include_bytes!("../assets/textures/viking_room.png")).unwrap();
+    let image = image.flipv();
+    let image = image.to_rgba8();
+
     let (image_width, image_height) = image.dimensions();
     let image_data = image.into_raw();
 
