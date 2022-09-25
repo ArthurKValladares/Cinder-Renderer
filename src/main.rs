@@ -1,4 +1,4 @@
-use std::path::Path;
+use std::{path::Path, time::Instant};
 
 use cgmath::{Deg, Matrix4, Point3, Vector3};
 use cinder::{
@@ -8,7 +8,7 @@ use cinder::{
     },
     device::{Device, Vertex},
     resoruces::{
-        buffer::{BufferDescription, BufferUsage},
+        buffer::{Buffer, BufferDescription, BufferUsage},
         memory::{MemoryDescription, MemoryType},
         pipeline::GraphicsPipelineDescription,
         render_pass::{self, RenderPassAttachmentDesc, RenderPassDescription},
@@ -32,6 +32,18 @@ pub struct UniformBufferObject {
     pub model: Matrix4<f32>,
     pub view: Matrix4<f32>,
     pub proj: Matrix4<f32>,
+}
+
+fn update_uniform_buffer(
+    device: &Device,
+    uniform_buffer_data: &mut UniformBufferObject,
+    uniform_buffer: &Buffer,
+    delta_time: f32,
+) {
+    uniform_buffer_data.model =
+        Matrix4::from_axis_angle(Vector3::new(0.0, 0.0, 1.0), Deg(90.0) * delta_time);
+
+    device.copy_data_to_buffer(uniform_buffer, std::slice::from_ref(uniform_buffer_data));
 }
 
 fn main() {
@@ -131,7 +143,7 @@ fn main() {
 
     // Create and upload uniform buffer
     let surface_size = device.surface_size();
-    let uniform_data = UniformBufferObject {
+    let mut uniform_data = UniformBufferObject {
         model: Matrix4::from_angle_z(Deg(90.0)),
         view: Matrix4::look_at(
             Point3::new(2.0, 2.0, 2.0),
@@ -215,6 +227,7 @@ fn main() {
     let sampler = device.create_sampler().expect("Could not create sampler");
     device.update_descriptor_set(&ferris_texture, &sampler, &uniform_buffer);
 
+    let start = Instant::now();
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         match event {
@@ -231,6 +244,9 @@ fn main() {
                     .begin(&device)
                     .expect("Could not begin graphics context");
                 {
+                    let delta_time = start.elapsed().as_secs_f32() / 2.0;
+                    update_uniform_buffer(&device, &mut uniform_data, &uniform_buffer, delta_time);
+
                     render_context.begin_render_pass(&device, &render_pass, present_index);
                     {
                         let surface_rect = device.surface_rect();
