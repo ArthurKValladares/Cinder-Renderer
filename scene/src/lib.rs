@@ -20,62 +20,29 @@ impl Mesh {
                 let mesh = &model.mesh;
 
                 let num_positions = mesh.positions.len() / 3;
-                let positions = {
-                    let m_positions = &mesh.positions;
-                    let mut positions = Vec::with_capacity(num_positions);
-                    for i in 0..num_positions {
-                        positions.push([
-                            m_positions[3 * i],
-                            m_positions[3 * i + 1],
-                            m_positions[3 * i + 2],
-                            1.0,
-                        ]);
-                    }
-                    positions
-                };
-
-                let colors = if mesh.vertex_color.is_empty() {
-                    vec![[0.0f32, 0.0, 0.0, 0.0]; num_positions]
-                } else {
-                    let num_colors = mesh.vertex_color.len() / 3;
-                    assert!(
-                        num_colors == num_positions,
-                        "Mesh contains a different number of colors and positions"
-                    );
-                    let m_colors = &mesh.vertex_color;
-                    let mut colors = Vec::with_capacity(num_colors);
-                    for i in 0..num_colors {
-                        colors.push([
-                            m_colors[3 * i],
-                            m_colors[3 * i + 1],
-                            m_colors[3 * i + 2],
-                            1.0,
-                        ]);
-                    }
-                    colors
-                };
-
-                let uvs = if mesh.texcoords.is_empty() {
-                    vec![[0.0f32, 0.0]; num_positions]
-                } else {
-                    let num_uvs = mesh.texcoords.len() / 2;
-                    assert!(
-                        num_uvs == num_positions,
-                        "Mesh contains a different number of uvs and positions"
-                    );
-                    let m_uvs = &mesh.texcoords;
-                    let mut uvs = Vec::with_capacity(num_uvs);
-                    for i in 0..num_uvs {
-                        uvs.push([m_uvs[2 * i], m_uvs[2 * i + 1]]);
-                    }
-                    uvs
-                };
-
-                let vertices = positions
-                    .into_iter()
-                    .zip(colors.into_iter())
-                    .zip(uvs.into_iter())
-                    .map(|((pos, color), uv)| Vertex { pos, color, uv })
+                let vertices = (0..num_positions)
+                    .map(|i| {
+                        let color = if mesh.vertex_color.is_empty() {
+                            [1.0, 1.0, 1.0, 1.0]
+                        } else {
+                            [
+                                mesh.vertex_color[i * 3],
+                                mesh.vertex_color[i * 3 + 1],
+                                mesh.vertex_color[i * 3 + 2],
+                                1.0,
+                            ]
+                        };
+                        Vertex {
+                            pos: [
+                                mesh.positions[i * 3],
+                                mesh.positions[i * 3 + 1],
+                                mesh.positions[i * 3 + 2],
+                                1.0,
+                            ],
+                            color,
+                            uv: [mesh.texcoords[i * 2], mesh.texcoords[i * 2 + 1]],
+                        }
+                    })
                     .collect::<Vec<_>>();
 
                 Mesh {
