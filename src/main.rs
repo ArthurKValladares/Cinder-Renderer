@@ -17,6 +17,7 @@ use cinder::{
     },
     InitData, Resolution,
 };
+use egui_integration::EguiIntegration;
 use math::size::Size2D;
 use tracing::Level;
 use util::*;
@@ -232,6 +233,9 @@ fn main() {
 
     let sampler = device.create_sampler().expect("Could not create sampler");
     device.update_descriptor_set(&ferris_texture, &sampler, &uniform_buffer);
+
+    // Egui integration
+    let egui = EguiIntegration::new(&event_loop, &device).expect("Could not create event loop");
 
     let start = Instant::now();
     event_loop.run(move |event, _, control_flow| {

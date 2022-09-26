@@ -1,0 +1,12 @@
+[package]
+name = "egui-integration"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+anyhow = "1"
+cinder = {path = "../cinder"}
+egui = "0.19"
+egui-winit = "0.19"
+winit = "0.27"
