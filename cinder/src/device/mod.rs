@@ -730,7 +730,11 @@ impl Device {
             .present_image_views
             .iter()
             .map(|&present_image_view| {
-                let framebuffer_attachments = [present_image_view, self.depth_image_view];
+                let framebuffer_attachments = if desc.depth_attachment.is_some() {
+                    vec![present_image_view, self.depth_image_view]
+                } else {
+                    vec![present_image_view]
+                };
                 let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
                     .render_pass(render_pass)
                     .attachments(&framebuffer_attachments)

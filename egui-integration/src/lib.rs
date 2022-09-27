@@ -32,14 +32,7 @@ impl EguiIntegration {
                         final_layout: Layout::Present,
                     }),
             ],
-            depth_attachment: Some(
-                RenderPassAttachmentDesc::load_dont_care(Format::D32SFloat).with_layout_transition(
-                    LayoutTransition {
-                        initial_layout: Layout::General,
-                        final_layout: Layout::DepthAttachment,
-                    },
-                ),
-            ),
+            depth_attachment: None,
         })?;
 
         Ok(Self {

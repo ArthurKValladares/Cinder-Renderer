@@ -110,7 +110,7 @@ fn main() {
                 RenderPassAttachmentDesc::clear_store(Format::D32SFloat).with_layout_transition(
                     LayoutTransition {
                         initial_layout: Layout::Undefined,
-                        final_layout: Layout::General,
+                        final_layout: Layout::DepthAttachment,
                     },
                 ),
             ),
