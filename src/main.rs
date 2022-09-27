@@ -19,6 +19,7 @@ use cinder::{
 };
 use egui_integration::EguiIntegration;
 use math::size::Size2D;
+use render_pass::{Layout, LayoutTransition};
 use tracing::Level;
 use util::*;
 use winit::{
@@ -27,6 +28,9 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
+
+// TODO: verify that all triple buffering stuff is working
+// Abstractions that can lead me to easily implement egui
 
 #[repr(C)]
 #[derive(Clone, Debug, Copy)]
@@ -96,9 +100,20 @@ fn main() {
     let render_pass = device
         .create_render_pass(RenderPassDescription {
             color_attachments: [
-                RenderPassAttachmentDesc::clear_store(device.surface_format()).clear_input(),
+                RenderPassAttachmentDesc::clear_store(device.surface_format())
+                    .with_layout_transition(LayoutTransition {
+                        initial_layout: Layout::Undefined,
+                        final_layout: Layout::ColorAttachment,
+                    }),
             ],
-            depth_attachment: Some(RenderPassAttachmentDesc::clear_dont_care(Format::D32SFloat)),
+            depth_attachment: Some(
+                RenderPassAttachmentDesc::clear_store(Format::D32SFloat).with_layout_transition(
+                    LayoutTransition {
+                        initial_layout: Layout::Undefined,
+                        final_layout: Layout::General,
+                    },
+                ),
+            ),
         })
         .expect("Could not create render pass");
     let pipeline = device
@@ -235,7 +250,7 @@ fn main() {
     device.update_descriptor_set(&ferris_texture, &sampler, &uniform_buffer);
 
     // Egui integration
-    let egui = EguiIntegration::new(&event_loop, &device).expect("Could not create event loop");
+    let mut egui = EguiIntegration::new(&event_loop, &device).expect("Could not create event loop");
 
     let start = Instant::now();
     event_loop.run(move |event, _, control_flow| {
@@ -257,6 +272,7 @@ fn main() {
                     let delta_time = start.elapsed().as_secs_f32() / 2.0;
                     update_uniform_buffer(&device, &mut uniform_data, &uniform_buffer, delta_time);
 
+                    // Main render pass
                     render_context.begin_render_pass(&device, &render_pass, present_index);
                     {
                         let surface_rect = device.surface_rect();
@@ -269,7 +285,10 @@ fn main() {
                         render_context.bind_scissor(&device, surface_rect);
                         render_context.draw(&device, mesh.indices.len() as u32);
                     }
-                    render_context.end_render_pass(&device, &render_pass);
+                    render_context.end_render_pass(&device);
+
+                    // Ui/egui render pass
+                    egui.run(&device, &render_context, present_index, &window, |_| {});
                 }
                 render_context
                     .end(&device)

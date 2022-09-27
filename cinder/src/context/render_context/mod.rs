@@ -44,7 +44,7 @@ impl RenderContext {
         }
     }
 
-    pub fn end_render_pass(&self, device: &Device, render_pass: &RenderPass) {
+    pub fn end_render_pass(&self, device: &Device) {
         unsafe { device.cmd_end_render_pass(self.shared.command_buffer) }
     }
 

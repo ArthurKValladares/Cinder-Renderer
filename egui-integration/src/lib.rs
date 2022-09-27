@@ -1,11 +1,21 @@
 use anyhow::Result;
-use cinder::{context::render_context::RenderContext, device::Device};
+use cinder::{
+    context::render_context::RenderContext,
+    device::Device,
+    resoruces::{
+        render_pass::{
+            Layout, LayoutTransition, RenderPass, RenderPassAttachmentDesc, RenderPassDescription,
+        },
+        texture::Format,
+    },
+};
 use egui::{RawInput, TexturesDelta};
 use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Window};
 
 pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_winit: egui_winit::State,
+    render_pass: RenderPass,
 }
 
 impl EguiIntegration {
@@ -14,9 +24,28 @@ impl EguiIntegration {
         egui_context.set_visuals(egui::Visuals::light());
         let egui_winit = egui_winit::State::new(event_loop);
 
+        let render_pass = device.create_render_pass(RenderPassDescription {
+            color_attachments: [
+                RenderPassAttachmentDesc::load_store(device.surface_format())
+                    .with_layout_transition(LayoutTransition {
+                        initial_layout: Layout::ColorAttachment,
+                        final_layout: Layout::Present,
+                    }),
+            ],
+            depth_attachment: Some(
+                RenderPassAttachmentDesc::load_dont_care(Format::D32SFloat).with_layout_transition(
+                    LayoutTransition {
+                        initial_layout: Layout::General,
+                        final_layout: Layout::DepthAttachment,
+                    },
+                ),
+            ),
+        })?;
+
         Ok(Self {
             egui_context,
             egui_winit,
+            render_pass,
         })
     }
 
@@ -43,11 +72,17 @@ impl EguiIntegration {
 
         let clipped_primitives = self.egui_context.tessellate(shapes);
 
+        // TOOD: Separate this step maybe?
         self.egui_winit
             .handle_platform_output(window, &self.egui_context, platform_output);
 
         // TODO? Make this a separate step
         self.set_textures(device, context, &textures_delta);
+
+        context.begin_render_pass(device, &self.render_pass, present_index);
+        {}
+        context.end_render_pass(device);
+
         // TODO: render
         self.free_textures(textures_delta);
     }

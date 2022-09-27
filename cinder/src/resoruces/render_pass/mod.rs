@@ -6,6 +6,33 @@ pub struct RenderPassAttachmentDesc {
     load_op: vk::AttachmentLoadOp,
     store_op: vk::AttachmentStoreOp,
     samples: vk::SampleCountFlags,
+    initial_layout: vk::ImageLayout,
+    final_layout: vk::ImageLayout,
+}
+
+pub enum Layout {
+    Undefined,
+    General,
+    ColorAttachment,
+    DepthAttachment,
+    Present,
+}
+
+impl From<Layout> for vk::ImageLayout {
+    fn from(layout: Layout) -> Self {
+        match layout {
+            Layout::Undefined => vk::ImageLayout::UNDEFINED,
+            Layout::General => vk::ImageLayout::GENERAL,
+            Layout::ColorAttachment => vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+            Layout::DepthAttachment => vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL,
+            Layout::Present => vk::ImageLayout::PRESENT_SRC_KHR,
+        }
+    }
+}
+
+pub struct LayoutTransition {
+    pub initial_layout: Layout,
+    pub final_layout: Layout,
 }
 
 impl RenderPassAttachmentDesc {
@@ -16,6 +43,19 @@ impl RenderPassAttachmentDesc {
             load_op: vk::AttachmentLoadOp::CLEAR,
             store_op: vk::AttachmentStoreOp::STORE,
             samples: vk::SampleCountFlags::TYPE_1,
+            initial_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+            final_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+        }
+    }
+
+    pub fn load_store(format: impl Into<vk::Format>) -> Self {
+        Self {
+            format: format.into(),
+            load_op: vk::AttachmentLoadOp::LOAD,
+            store_op: vk::AttachmentStoreOp::STORE,
+            samples: vk::SampleCountFlags::TYPE_1,
+            initial_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+            final_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
         }
     }
 
@@ -25,7 +65,27 @@ impl RenderPassAttachmentDesc {
             load_op: vk::AttachmentLoadOp::CLEAR,
             store_op: vk::AttachmentStoreOp::DONT_CARE,
             samples: vk::SampleCountFlags::TYPE_1,
+            initial_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+            final_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
         }
+    }
+
+    pub fn load_dont_care(format: impl Into<vk::Format>) -> Self {
+        Self {
+            format: format.into(),
+            load_op: vk::AttachmentLoadOp::LOAD,
+            store_op: vk::AttachmentStoreOp::DONT_CARE,
+            samples: vk::SampleCountFlags::TYPE_1,
+            initial_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+            final_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+        }
+    }
+
+    pub fn with_layout_transition(mut self, layout_transition: LayoutTransition) -> Self {
+        self.initial_layout = layout_transition.initial_layout.into();
+        self.final_layout = layout_transition.final_layout.into();
+
+        self
     }
 
     pub fn discard_input(mut self) -> Self {
@@ -43,18 +103,14 @@ impl RenderPassAttachmentDesc {
         self
     }
 
-    pub fn compile_with_layout_transition(
-        self,
-        initial_layout: vk::ImageLayout,
-        final_layout: vk::ImageLayout,
-    ) -> vk::AttachmentDescription {
+    pub fn compile(self) -> vk::AttachmentDescription {
         vk::AttachmentDescription {
             format: self.format,
             samples: self.samples,
             load_op: self.load_op,
             store_op: self.store_op,
-            initial_layout,
-            final_layout,
+            initial_layout: self.initial_layout,
+            final_layout: self.final_layout,
             ..Default::default()
         }
     }

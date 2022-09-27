@@ -689,18 +689,8 @@ impl Device {
         let renderpass_attachments = desc
             .color_attachments
             .iter()
-            .map(|a| {
-                a.compile_with_layout_transition(
-                    vk::ImageLayout::UNDEFINED,
-                    vk::ImageLayout::PRESENT_SRC_KHR,
-                )
-            })
-            .chain(desc.depth_attachment.as_ref().map(|a| {
-                a.compile_with_layout_transition(
-                    vk::ImageLayout::UNDEFINED,
-                    vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                )
-            }))
+            .map(|a| a.compile())
+            .chain(desc.depth_attachment.as_ref().map(|a| a.compile()))
             .collect::<Vec<_>>();
 
         let color_attachment_refs = (0..desc.color_attachments.len() as u32)
