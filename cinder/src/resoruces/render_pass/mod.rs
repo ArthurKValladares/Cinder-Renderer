@@ -24,7 +24,7 @@ impl From<Layout> for vk::ImageLayout {
             Layout::Undefined => vk::ImageLayout::UNDEFINED,
             Layout::General => vk::ImageLayout::GENERAL,
             Layout::ColorAttachment => vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-            Layout::DepthAttachment => vk::ImageLayout::DEPTH_ATTACHMENT_OPTIMAL,
+            Layout::DepthAttachment => vk::ImageLayout::DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL,
             Layout::Present => vk::ImageLayout::PRESENT_SRC_KHR,
         }
     }

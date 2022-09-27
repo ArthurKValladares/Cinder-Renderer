@@ -685,7 +685,6 @@ impl Device {
         desc: RenderPassDescription<N>,
     ) -> Result<RenderPass> {
         // TODO: image transitions should be determined automatically.
-        // Might be easier to always ahve it go from `COLOR_ATTACHMENT_OPTIMAL` to `COLOR_ATTACHMENT_OPTIMAL`
         let renderpass_attachments = desc
             .color_attachments
             .iter()
@@ -703,7 +702,7 @@ impl Device {
             .collect::<Vec<_>>();
         let depth_attachment_ref = vk::AttachmentReference {
             attachment: desc.color_attachments.len() as u32,
-            layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            layout: vk::ImageLayout::DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL,
         };
 
         let mut subpass_description = vk::SubpassDescription::builder()
