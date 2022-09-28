@@ -77,7 +77,7 @@ fn main() {
             height: WINDOW_HEIGHT,
         },
     };
-    let device = Device::new(&window, init_data).expect("could not create cinder device");
+    let mut device = Device::new(&window, init_data).expect("could not create cinder device");
     let render_context = device
         .create_render_context(RenderContextDescription {})
         .expect("Could not create graphics context");
@@ -259,11 +259,14 @@ fn main() {
             Event::WindowEvent {
                 event: WindowEvent::Resized(size),
                 ..
-            } => {}
+            } => {
+                device.resize();
+            }
             Event::RedrawRequested(_) => {
-                let present_index = device
+                let (present_index, _is_suboptimal) = device
                     .acquire_next_image()
                     .expect("Could not acquire swapchain image");
+                // TODO: Handle is_suboptimal
 
                 render_context
                     .begin(&device)

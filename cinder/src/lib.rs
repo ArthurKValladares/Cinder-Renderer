@@ -1,7 +1,11 @@
+use math::size::Size2D;
+
 pub mod context;
 pub(crate) mod debug;
 pub mod device;
 pub mod resoruces;
+pub(crate) mod surface;
+pub(crate) mod swapchain;
 pub mod util;
 
 #[derive(Debug, Clone, Copy)]
@@ -12,4 +16,10 @@ pub struct Resolution {
 
 pub struct InitData {
     pub backbuffer_resolution: Resolution,
+}
+
+impl From<Resolution> for Size2D<u32> {
+    fn from(resolution: Resolution) -> Self {
+        Size2D::new(resolution.width, resolution.height)
+    }
 }

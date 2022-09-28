@@ -13,6 +13,8 @@ use crate::{
         shader::{Shader, ShaderDescription},
         texture::{self, Texture, TextureDescription},
     },
+    surface::{Surface, SurfaceData},
+    swapchain::Swapchain,
     util::find_memory_type_index,
     InitData,
 };
@@ -100,8 +102,6 @@ pub struct Device {
     instance: ash::Instance,
     debug_utils: ash::extensions::ext::DebugUtils,
     debug_utils_messenger: vk::DebugUtilsMessengerEXT,
-    surface_loader: ash::extensions::khr::Surface,
-    swapchain_loader: ash::extensions::khr::Swapchain,
 
     p_device: vk::PhysicalDevice,
     p_device_properties: vk::PhysicalDeviceProperties,
@@ -110,14 +110,10 @@ pub struct Device {
     queue_family_index: u32,
     present_queue: vk::Queue,
 
-    surface: vk::SurfaceKHR,
-    surface_format: vk::SurfaceFormatKHR,
-    surface_resolution: vk::Extent2D,
+    surface: Surface,
+    swapchain: Swapchain,
 
-    swapchain: vk::SwapchainKHR,
-    // TODO: Should these and depth image be a `Texture`
-    present_images: Vec<vk::Image>,
-    present_image_views: Vec<vk::ImageView>,
+    surface_data: SurfaceData,
 
     pub depth_image: vk::Image,
     pub depth_image_view: vk::ImageView,
@@ -195,8 +191,7 @@ impl Device {
         let debug_utils_messenger =
             unsafe { debug_utils.create_debug_utils_messenger(&debug_utils_messenger_ci, None)? };
 
-        let surface_loader = ash::extensions::khr::Surface::new(&entry, &instance);
-        let surface = unsafe { ash_window::create_surface(&entry, &instance, window, None) }?;
+        let surface = Surface::new(window, &entry, &instance)?;
 
         let p_devices = unsafe { instance.enumerate_physical_devices() }?;
         let supported_device_data = p_devices
@@ -209,10 +204,10 @@ impl Device {
                         let supports_graphic_and_surface =
                             info.queue_flags.contains(vk::QueueFlags::GRAPHICS)
                                 && unsafe {
-                                    surface_loader.get_physical_device_surface_support(
+                                    surface.surface_loader.get_physical_device_surface_support(
                                         p_device,
                                         index as u32,
-                                        surface,
+                                        surface.surface,
                                     )
                                 }
                                 .unwrap_or(false);
@@ -267,106 +262,14 @@ impl Device {
 
         let present_queue = unsafe { device.get_device_queue(queue_family_index, 0) };
 
-        let surface_formats =
-            unsafe { surface_loader.get_physical_device_surface_formats(p_device, surface) }?;
+        let surface_data = surface.get_data(p_device, init_data.backbuffer_resolution)?;
 
-        let surface_format = surface_formats
-            .iter()
-            .map(|sfmt| match sfmt.format {
-                vk::Format::UNDEFINED => vk::SurfaceFormatKHR {
-                    format: vk::Format::B8G8R8_UNORM,
-                    color_space: sfmt.color_space,
-                },
-                _ => *sfmt,
-            })
-            .next()
-            .expect("Unable to find suitable surface format.");
-        let surface_capabilities =
-            unsafe { surface_loader.get_physical_device_surface_capabilities(p_device, surface) }?;
-        let mut desired_image_count = {
-            let mut desired_image_count = surface_capabilities.min_image_count + 1;
-            if surface_capabilities.max_image_count > 0
-                && desired_image_count > surface_capabilities.max_image_count
-            {
-                desired_image_count = surface_capabilities.max_image_count;
-            }
-            desired_image_count
-        };
-        info!("desired image count: {}", desired_image_count);
-        let surface_resolution = match surface_capabilities.current_extent.width {
-            std::u32::MAX => vk::Extent2D {
-                width: init_data.backbuffer_resolution.width,
-                height: init_data.backbuffer_resolution.height,
-            },
-            _ => surface_capabilities.current_extent,
-        };
-
-        let present_modes =
-            unsafe { surface_loader.get_physical_device_surface_present_modes(p_device, surface) }?;
-        // TODO: vsyc or not vsync option
-        let present_mode_preference = if false {
-            vec![vk::PresentModeKHR::FIFO_RELAXED, vk::PresentModeKHR::FIFO]
-        } else {
-            vec![vk::PresentModeKHR::MAILBOX, vk::PresentModeKHR::IMMEDIATE]
-        };
-        let present_mode = present_mode_preference
-            .into_iter()
-            .find(|mode| present_modes.contains(mode))
-            .unwrap_or(vk::PresentModeKHR::FIFO);
-        info!("present mode: {:?}", present_mode);
-        let pre_transform = if surface_capabilities
-            .supported_transforms
-            .contains(vk::SurfaceTransformFlagsKHR::IDENTITY)
-        {
-            vk::SurfaceTransformFlagsKHR::IDENTITY
-        } else {
-            surface_capabilities.current_transform
-        };
-        let swapchain_loader = ash::extensions::khr::Swapchain::new(&instance, &device);
-        let swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
-            .surface(surface)
-            .min_image_count(desired_image_count)
-            .image_color_space(surface_format.color_space)
-            .image_format(surface_format.format)
-            .image_extent(surface_resolution)
-            .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
-            .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
-            .pre_transform(pre_transform)
-            .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
-            .present_mode(present_mode)
-            .clipped(true)
-            .image_array_layers(1);
-        let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None) }?;
-
-        let present_images = unsafe { swapchain_loader.get_swapchain_images(swapchain) }?;
-        let present_image_views = present_images
-            .iter()
-            .map(|&image| {
-                let create_view_info = vk::ImageViewCreateInfo::builder()
-                    .view_type(vk::ImageViewType::TYPE_2D)
-                    .format(surface_format.format)
-                    .components(vk::ComponentMapping {
-                        r: vk::ComponentSwizzle::R,
-                        g: vk::ComponentSwizzle::G,
-                        b: vk::ComponentSwizzle::B,
-                        a: vk::ComponentSwizzle::A,
-                    })
-                    .subresource_range(vk::ImageSubresourceRange {
-                        aspect_mask: vk::ImageAspectFlags::COLOR,
-                        base_mip_level: 0,
-                        level_count: 1,
-                        base_array_layer: 0,
-                        layer_count: 1,
-                    })
-                    .image(image);
-                unsafe { device.create_image_view(&create_view_info, None) }
-            })
-            .collect::<Result<Vec<vk::ImageView>, ash::vk::Result>>()?;
+        let swapchain = Swapchain::new(&instance, &device, &surface, &surface_data)?;
 
         let depth_image_create_info = vk::ImageCreateInfo::builder()
             .image_type(vk::ImageType::TYPE_2D)
             .format(vk::Format::D32_SFLOAT) // TODO: Sync with format passed to render pass
-            .extent(surface_resolution.into())
+            .extent(surface_data.surface_resolution.into())
             .mip_levels(1)
             .array_layers(1)
             .samples(vk::SampleCountFlags::TYPE_1)
@@ -476,8 +379,6 @@ impl Device {
             instance,
             debug_utils,
             debug_utils_messenger,
-            surface_loader,
-            swapchain_loader,
             p_device,
             p_device_properties,
             p_device_memory_properties,
@@ -485,11 +386,8 @@ impl Device {
             queue_family_index,
             present_queue,
             surface,
-            surface_format,
-            surface_resolution,
             swapchain,
-            present_images,
-            present_image_views,
+            surface_data,
             depth_image,
             depth_image_view,
             depth_image_memory,
@@ -505,7 +403,7 @@ impl Device {
     }
 
     pub fn surface_format(&self) -> vk::Format {
-        self.surface_format.format
+        self.surface_data.surface_format.format
     }
 
     pub fn create_buffer(&self, desc: BufferDescription) -> Result<Buffer> {
@@ -726,6 +624,7 @@ impl Device {
         };
 
         let framebuffers = self
+            .swapchain
             .present_image_views
             .iter()
             .map(|&present_image_view| {
@@ -737,8 +636,8 @@ impl Device {
                 let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
                     .render_pass(render_pass)
                     .attachments(&framebuffer_attachments)
-                    .width(self.surface_resolution.width)
-                    .height(self.surface_resolution.height)
+                    .width(self.surface_data.surface_resolution.width)
+                    .height(self.surface_data.surface_resolution.height)
                     .layers(1);
 
                 unsafe {
@@ -751,7 +650,7 @@ impl Device {
         Ok(RenderPass {
             render_pass,
             framebuffers,
-            render_area: self.surface_resolution.into(),
+            render_area: self.surface_data.surface_resolution.into(),
             clear_values: vec![
                 vk::ClearValue {
                     color: vk::ClearColorValue {
@@ -819,12 +718,12 @@ impl Device {
         let viewports = [vk::Viewport {
             x: 0.0,
             y: 0.0,
-            width: self.surface_resolution.width as f32,
-            height: self.surface_resolution.height as f32,
+            width: self.surface_data.surface_resolution.width as f32,
+            height: self.surface_data.surface_resolution.height as f32,
             min_depth: 0.0,
             max_depth: 1.0,
         }];
-        let scissors = [self.surface_resolution.into()];
+        let scissors = [self.surface_data.surface_resolution.into()];
         let viewport_state_info = vk::PipelineViewportStateCreateInfo::builder()
             .scissors(&scissors)
             .viewports(&viewports);
@@ -969,7 +868,7 @@ impl Device {
         )?;
 
         let wait_semaphors = [self.rendering_complete_semaphore];
-        let swapchains = [self.swapchain];
+        let swapchains = [self.swapchain.swapchain];
         let image_indices = [present_index];
         let present_info = vk::PresentInfoKHR::builder()
             .wait_semaphores(&wait_semaphors)
@@ -977,7 +876,8 @@ impl Device {
             .image_indices(&image_indices);
 
         let is_suboptimal = unsafe {
-            self.swapchain_loader
+            self.swapchain
+                .swapchain_loader
                 .queue_present(self.present_queue, &present_info)
         }?;
         Ok(is_suboptimal)
@@ -998,30 +898,30 @@ impl Device {
     }
 
     // TODO: probably should totally abstract this from user code
-    pub fn acquire_next_image(&self) -> Result<u32> {
-        let (present_index, _) = unsafe {
-            self.swapchain_loader.acquire_next_image(
-                self.swapchain,
+    pub fn acquire_next_image(&self) -> Result<(u32, bool)> {
+        let (present_index, is_suboptimal) = unsafe {
+            self.swapchain.swapchain_loader.acquire_next_image(
+                self.swapchain.swapchain,
                 std::u64::MAX,
                 self.present_complete_semaphore,
                 vk::Fence::null(),
             )
         }?;
-        Ok(present_index)
+        Ok((present_index, is_suboptimal))
     }
 
     pub fn surface_size(&self) -> Size2D<u32> {
         Size2D::new(
-            self.surface_resolution.width,
-            self.surface_resolution.height,
+            self.surface_data.surface_resolution.width,
+            self.surface_data.surface_resolution.height,
         )
     }
 
     pub fn surface_rect(&self) -> Rect2D<u32> {
         Rect2D::from_top_right_bottom_left(
             0,
-            self.surface_resolution.width,
-            self.surface_resolution.height,
+            self.surface_data.surface_resolution.width,
+            self.surface_data.surface_resolution.height,
             0,
         )
     }
@@ -1066,6 +966,14 @@ impl Device {
         unsafe {
             self.device.update_descriptor_sets(&write_desc_sets, &[]);
         }
+    }
+
+    pub fn resize(&mut self) -> Result<()> {
+        unsafe {
+            self.device.device_wait_idle();
+        }
+
+        Ok(())
     }
 }
 
