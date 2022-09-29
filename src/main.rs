@@ -13,7 +13,7 @@ use cinder::{
         pipeline::GraphicsPipelineDescription,
         render_pass::{self, RenderPassAttachmentDesc, RenderPassDescription},
         shader::{ShaderDescription, ShaderStage},
-        texture::{Format, TextureDescription},
+        texture::{Format, TextureDescription, Usage},
     },
     InitData, Resolution,
 };
@@ -226,6 +226,7 @@ fn main() {
     let ferris_texture = device
         .create_texture(TextureDescription {
             format: Format::R8G8B8A8Unorm,
+            usage: Usage::Texture,
             size: Size2D::new(image_width, image_height),
         })
         .expect("could not create texture");
@@ -260,7 +261,7 @@ fn main() {
                 event: WindowEvent::Resized(size),
                 ..
             } => {
-                device.resize();
+                device.resize(Size2D::new(size.width, size.height));
             }
             Event::RedrawRequested(_) => {
                 let (present_index, _is_suboptimal) = device

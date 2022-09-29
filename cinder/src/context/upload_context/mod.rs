@@ -33,7 +33,7 @@ impl UploadContext {
 
     pub fn transition_depth_image(&self, device: &Device) {
         let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
-            .image(device.depth_image)
+            .image(device.depth_image.raw)
             .dst_access_mask(
                 vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
                     | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,

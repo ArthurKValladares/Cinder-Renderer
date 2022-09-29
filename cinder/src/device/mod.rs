@@ -11,12 +11,12 @@ use crate::{
         render_pass::{RenderPass, RenderPassDescription},
         sampler::Sampler,
         shader::{Shader, ShaderDescription},
-        texture::{self, Texture, TextureDescription},
+        texture::{self, ImageCreateError, Texture, TextureDescription},
     },
     surface::{Surface, SurfaceData},
     swapchain::Swapchain,
     util::find_memory_type_index,
-    InitData,
+    InitData, Resolution,
 };
 use anyhow::Result;
 use ash::vk;
@@ -69,6 +69,8 @@ pub struct Vertex {
 pub enum DeviceInitError {
     #[error("No suitable device found")]
     NoSuitableDevice,
+    #[error(transparent)]
+    ImageCreateError(#[from] ImageCreateError),
 }
 
 #[derive(Debug, Error)]
@@ -115,10 +117,7 @@ pub struct Device {
 
     surface_data: SurfaceData,
 
-    pub depth_image: vk::Image,
-    pub depth_image_view: vk::ImageView,
-    pub depth_image_memory: vk::DeviceMemory,
-
+    pub depth_image: Texture,
     command_pool: vk::CommandPool,
 
     // TODO: Should this stay here?
@@ -266,48 +265,18 @@ impl Device {
 
         let swapchain = Swapchain::new(&instance, &device, &surface, &surface_data)?;
 
-        let depth_image_create_info = vk::ImageCreateInfo::builder()
-            .image_type(vk::ImageType::TYPE_2D)
-            .format(vk::Format::D32_SFLOAT) // TODO: Sync with format passed to render pass
-            .extent(surface_data.surface_resolution.into())
-            .mip_levels(1)
-            .array_layers(1)
-            .samples(vk::SampleCountFlags::TYPE_1)
-            .tiling(vk::ImageTiling::OPTIMAL)
-            .usage(vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT)
-            .sharing_mode(vk::SharingMode::EXCLUSIVE);
-        let depth_image = unsafe { device.create_image(&depth_image_create_info, None) }?;
-        let depth_image_memory_req = unsafe { device.get_image_memory_requirements(depth_image) };
-        let depth_image_memory_index = find_memory_type_index(
-            &depth_image_memory_req,
+        let depth_image = Texture::create(
+            &device,
             &p_device_memory_properties,
-            vk::MemoryPropertyFlags::DEVICE_LOCAL,
-        )
-        .expect("Unable to find suitable memory index for depth image.");
-
-        let depth_image_allocate_info = vk::MemoryAllocateInfo::builder()
-            .allocation_size(depth_image_memory_req.size)
-            .memory_type_index(depth_image_memory_index);
-
-        let depth_image_memory =
-            unsafe { device.allocate_memory(&depth_image_allocate_info, None) }?;
-
-        unsafe { device.bind_image_memory(depth_image, depth_image_memory, 0) }?;
-
-        let depth_image_view_info = vk::ImageViewCreateInfo::builder()
-            .subresource_range(
-                vk::ImageSubresourceRange::builder()
-                    .aspect_mask(vk::ImageAspectFlags::DEPTH)
-                    .level_count(1)
-                    .layer_count(1)
-                    .build(),
-            )
-            .image(depth_image)
-            .format(depth_image_create_info.format)
-            .view_type(vk::ImageViewType::TYPE_2D)
-            .build();
-
-        let depth_image_view = unsafe { device.create_image_view(&depth_image_view_info, None) }?;
+            TextureDescription {
+                format: texture::Format::D32SFloat,
+                usage: texture::Usage::Depth,
+                size: Size2D::new(
+                    surface_data.surface_resolution.width,
+                    surface_data.surface_resolution.height,
+                ),
+            },
+        )?;
 
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
 
@@ -389,8 +358,6 @@ impl Device {
             swapchain,
             surface_data,
             depth_image,
-            depth_image_view,
-            depth_image_memory,
             present_complete_semaphore,
             rendering_complete_semaphore,
             draw_commands_reuse_fence,
@@ -480,75 +447,7 @@ impl Device {
     }
 
     pub fn create_texture(&self, desc: TextureDescription) -> Result<Texture> {
-        let texture_create_info = vk::ImageCreateInfo {
-            image_type: vk::ImageType::TYPE_2D,
-            format: desc.format.into(),
-            extent: vk::Extent3D {
-                width: desc.size.width(),
-                height: desc.size.height(),
-                depth: 1,
-            },
-            mip_levels: 1,
-            array_layers: 1,
-            samples: vk::SampleCountFlags::TYPE_1,
-            tiling: vk::ImageTiling::OPTIMAL,
-            usage: vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED,
-            sharing_mode: vk::SharingMode::EXCLUSIVE,
-            ..Default::default()
-        };
-        let texture_image = unsafe { self.device.create_image(&texture_create_info, None) }?;
-        let texture_memory_req =
-            unsafe { self.device.get_image_memory_requirements(texture_image) };
-        let texture_memory_index = find_memory_type_index(
-            &texture_memory_req,
-            &self.p_device_memory_properties,
-            vk::MemoryPropertyFlags::DEVICE_LOCAL,
-        )
-        .expect("Unable to find suitable memory index for depth image.");
-
-        let texture_allocate_info = vk::MemoryAllocateInfo {
-            allocation_size: texture_memory_req.size,
-            memory_type_index: texture_memory_index,
-            ..Default::default()
-        };
-        let texture_memory = unsafe { self.device.allocate_memory(&texture_allocate_info, None) }?;
-
-        unsafe {
-            self.device
-                .bind_image_memory(texture_image, texture_memory, 0);
-        }
-
-        let image_view_info = vk::ImageViewCreateInfo {
-            view_type: vk::ImageViewType::TYPE_2D,
-            format: texture_create_info.format,
-            components: vk::ComponentMapping {
-                r: vk::ComponentSwizzle::R,
-                g: vk::ComponentSwizzle::G,
-                b: vk::ComponentSwizzle::B,
-                a: vk::ComponentSwizzle::A,
-            },
-            subresource_range: vk::ImageSubresourceRange {
-                aspect_mask: vk::ImageAspectFlags::COLOR,
-                level_count: 1,
-                layer_count: 1,
-                ..Default::default()
-            },
-            image: texture_image,
-            ..Default::default()
-        };
-        let image_view = unsafe { self.device.create_image_view(&image_view_info, None) }?;
-
-        let memory = Memory {
-            raw: texture_memory,
-            req: texture_memory_req,
-        };
-
-        Ok(Texture {
-            raw: texture_image,
-            view: image_view,
-            memory,
-            desc,
-        })
+        Texture::create(&self.device, &self.p_device_memory_properties, desc)
     }
 
     pub fn create_sampler(&self) -> Result<Sampler> {
@@ -629,7 +528,7 @@ impl Device {
             .iter()
             .map(|&present_image_view| {
                 let framebuffer_attachments = if desc.depth_attachment.is_some() {
-                    vec![present_image_view, self.depth_image_view]
+                    vec![present_image_view, self.depth_image.view]
                 } else {
                     vec![present_image_view]
                 };
@@ -968,9 +867,21 @@ impl Device {
         }
     }
 
-    pub fn resize(&mut self) -> Result<()> {
+    pub fn resize(&mut self, backbuffer_resolution: Size2D<u32>) -> Result<()> {
         unsafe {
+            /*
             self.device.device_wait_idle();
+
+            self.surface_data = self
+                .surface
+                .get_data(self.p_device, backbuffer_resolution)?;
+            self.swapchain.resize(
+                &self.instance,
+                &self.device,
+                &self.surface,
+                &self.surface_data,
+            )?;
+            */
         }
 
         Ok(())
