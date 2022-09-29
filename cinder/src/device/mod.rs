@@ -881,6 +881,16 @@ impl Device {
                 &self.surface,
                 &self.surface_data,
             )?;
+            // TODO: clean old depth image
+            self.depth_image = Texture::create(
+                &self.device,
+                &self.p_device_memory_properties,
+                TextureDescription {
+                    format: texture::Format::D32SFloat,
+                    usage: texture::Usage::Depth,
+                    size: backbuffer_resolution,
+                },
+            )?;
             */
         }
 
