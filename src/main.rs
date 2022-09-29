@@ -24,7 +24,7 @@ use tracing::Level;
 use util::*;
 use winit::{
     dpi::PhysicalSize,
-    event::{Event, WindowEvent},
+    event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
@@ -302,6 +302,19 @@ fn main() {
                     .submit_graphics_work(&render_context, present_index)
                     .expect("Could not submit graphics work");
             }
+            Event::WindowEvent {
+                event:
+                    WindowEvent::KeyboardInput {
+                        input:
+                            KeyboardInput {
+                                virtual_keycode: Some(VirtualKeyCode::Escape),
+                                state: ElementState::Pressed,
+                                ..
+                            },
+                        ..
+                    },
+                ..
+            } => *control_flow = ControlFlow::Exit,
             Event::WindowEvent {
                 event: WindowEvent::CloseRequested,
                 ..
