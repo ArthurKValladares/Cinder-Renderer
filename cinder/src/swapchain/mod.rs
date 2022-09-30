@@ -48,6 +48,12 @@ fn create_swapchain_structures(
         });
     let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None) }?;
 
+    if let Some(old_swapchain) = old_swapchain {
+        unsafe {
+            swapchain_loader.destroy_swapchain(old_swapchain, None);
+        }
+    }
+
     let present_images = unsafe { swapchain_loader.get_swapchain_images(swapchain) }?;
     let present_image_views = present_images
         .iter()
@@ -109,6 +115,8 @@ impl Swapchain {
         surface: &Surface,
         surface_data: &SurfaceData,
     ) -> Result<()> {
+        self.clean(device);
+
         let (swapchain, present_images, present_image_views) = create_swapchain_structures(
             instance,
             device,
@@ -123,5 +131,13 @@ impl Swapchain {
         self.present_image_views = present_image_views;
 
         Ok(())
+    }
+
+    pub fn clean(&mut self, device: &ash::Device) {
+        unsafe {
+            for image_view in self.present_image_views.drain(..) {
+                device.destroy_image_view(image_view, None);
+            }
+        }
     }
 }

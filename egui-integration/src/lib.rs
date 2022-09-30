@@ -80,7 +80,21 @@ impl EguiIntegration {
         self.free_textures(textures_delta);
     }
 
-    pub fn resize(&mut self, device: &Device) {}
+    pub fn resize(&mut self, device: &Device) -> Result<()> {
+        // TODO: Clean old render pass
+        device.clean_render_pass(&mut self.render_pass);
+        self.render_pass = device.create_render_pass(RenderPassDescription {
+            color_attachments: [
+                RenderPassAttachmentDesc::load_store(device.surface_format())
+                    .with_layout_transition(LayoutTransition {
+                        initial_layout: Layout::ColorAttachment,
+                        final_layout: Layout::Present,
+                    }),
+            ],
+            depth_attachment: None,
+        })?;
+        Ok(())
+    }
 
     pub fn clean(&mut self, device: &Device) {}
 

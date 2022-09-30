@@ -24,3 +24,11 @@ pub struct Memory {
     pub raw: vk::DeviceMemory,
     pub req: vk::MemoryRequirements,
 }
+
+impl Memory {
+    pub(crate) fn clean(&mut self, device: &ash::Device) {
+        unsafe {
+            device.free_memory(self.raw, None);
+        }
+    }
+}

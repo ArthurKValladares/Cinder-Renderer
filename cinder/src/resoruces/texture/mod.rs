@@ -138,6 +138,14 @@ impl Texture {
         })
     }
 
+    pub(crate) fn clean(&mut self, device: &ash::Device) {
+        unsafe {
+            device.destroy_image(self.raw, None);
+            device.destroy_image_view(self.view, None);
+            self.memory.clean(device);
+        }
+    }
+
     pub fn dims(&self) -> Size2D<u32> {
         todo!()
     }

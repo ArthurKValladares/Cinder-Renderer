@@ -24,7 +24,7 @@ use tracing::Level;
 use util::*;
 use winit::{
     dpi::PhysicalSize,
-    event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, KeyboardInput, StartCause, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
@@ -97,7 +97,7 @@ fn main() {
             path: Path::new("shaders/spv/default.frag.spv"),
         })
         .expect("Could not create fragment shader");
-    let render_pass = device
+    let mut render_pass = device
         .create_render_pass(RenderPassDescription {
             color_attachments: [
                 RenderPassAttachmentDesc::clear_store(device.surface_format())
@@ -254,6 +254,7 @@ fn main() {
     let mut egui = EguiIntegration::new(&event_loop, &device).expect("Could not create event loop");
 
     let start = Instant::now();
+    let mut is_init: bool = true;
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         match event {
@@ -262,6 +263,41 @@ fn main() {
                 ..
             } => {
                 device.resize(Size2D::new(size.width, size.height));
+                // TODO: easier way to re-create render passes
+                device.clean_render_pass(&mut render_pass);
+                render_pass = device
+                    .create_render_pass(RenderPassDescription {
+                        color_attachments: [RenderPassAttachmentDesc::clear_store(
+                            device.surface_format(),
+                        )
+                        .with_layout_transition(LayoutTransition {
+                            initial_layout: Layout::Undefined,
+                            final_layout: Layout::ColorAttachment,
+                        })],
+                        depth_attachment: Some(
+                            RenderPassAttachmentDesc::clear_store(Format::D32SFloat)
+                                .with_layout_transition(LayoutTransition {
+                                    initial_layout: Layout::Undefined,
+                                    final_layout: Layout::DepthAttachment,
+                                }),
+                        ),
+                    })
+                    .expect("Could not create render pass");
+                egui.resize(&device)
+                    .expect("Could not resize egui integration");
+                // TODO: This could be better
+                upload_context
+                    .begin(&device)
+                    .expect("could not begin upload context");
+                {
+                    upload_context.transition_depth_image(&device);
+                }
+                upload_context
+                    .end(&device)
+                    .expect("could not end upload context");
+                device
+                    .submit_upload_work(&upload_context)
+                    .expect("could not submit upload work");
             }
             Event::RedrawRequested(_) => {
                 let (present_index, _is_suboptimal) = device
@@ -321,6 +357,13 @@ fn main() {
             } => *control_flow = ControlFlow::Exit,
             Event::MainEventsCleared => {
                 window.request_redraw();
+            }
+            Event::NewEvents(cause) => {
+                if cause == StartCause::Init {
+                    is_init = true;
+                } else {
+                    is_init = false;
+                }
             }
             _ => {}
         }

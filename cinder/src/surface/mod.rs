@@ -2,6 +2,8 @@ use anyhow::Result;
 use ash::vk;
 use math::size::Size2D;
 
+use crate::device::Device;
+
 pub struct Surface {
     pub surface_loader: ash::extensions::khr::Surface,
     pub surface: vk::SurfaceKHR,

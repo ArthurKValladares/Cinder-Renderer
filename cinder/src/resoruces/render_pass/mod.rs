@@ -1,4 +1,8 @@
+use crate::{device::Device, surface::SurfaceData, swapchain::Swapchain};
+use anyhow::Result;
 use ash::vk;
+
+use super::texture::Texture;
 
 #[derive(Debug, Clone, Copy)]
 pub struct RenderPassAttachmentDesc {
@@ -128,4 +132,101 @@ pub struct RenderPass {
     // TODO: Should this be here? Might make caching worse
     pub clear_values: Vec<vk::ClearValue>,
     pub render_area: vk::Rect2D,
+}
+
+impl RenderPass {
+    pub(crate) fn create<const N: usize>(
+        device: &ash::Device,
+        swapchain: &Swapchain,
+        surface_data: &SurfaceData,
+        depth_image: &Texture,
+        desc: RenderPassDescription<N>,
+    ) -> Result<Self> {
+        // TODO: image transitions should be determined automatically.
+        let renderpass_attachments = desc
+            .color_attachments
+            .iter()
+            .map(|a| a.compile())
+            .chain(desc.depth_attachment.as_ref().map(|a| a.compile()))
+            .collect::<Vec<_>>();
+
+        let color_attachment_refs = (0..desc.color_attachments.len() as u32)
+            .map(|attachment| {
+                vk::AttachmentReference::builder()
+                    .attachment(attachment)
+                    .layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+                    .build()
+            })
+            .collect::<Vec<_>>();
+        let depth_attachment_ref = vk::AttachmentReference {
+            attachment: desc.color_attachments.len() as u32,
+            layout: vk::ImageLayout::DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL,
+        };
+
+        let mut subpass_description = vk::SubpassDescription::builder()
+            .color_attachments(&color_attachment_refs)
+            .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS);
+        if desc.depth_attachment.is_some() {
+            subpass_description =
+                subpass_description.depth_stencil_attachment(&depth_attachment_ref);
+        }
+        let subpass_description = subpass_description.build();
+
+        // TODO: Subpass dependency stuff
+        let subpasses = [subpass_description];
+        let render_pass_create_info = vk::RenderPassCreateInfo::builder()
+            .attachments(&renderpass_attachments)
+            .subpasses(&subpasses);
+
+        let render_pass = unsafe { device.create_render_pass(&render_pass_create_info, None)? };
+
+        let framebuffers = swapchain
+            .present_image_views
+            .iter()
+            .map(|&present_image_view| {
+                let framebuffer_attachments = if desc.depth_attachment.is_some() {
+                    vec![present_image_view, depth_image.view]
+                } else {
+                    vec![present_image_view]
+                };
+                let frame_buffer_create_info = vk::FramebufferCreateInfo::builder()
+                    .render_pass(render_pass)
+                    .attachments(&framebuffer_attachments)
+                    .width(surface_data.surface_resolution.width)
+                    .height(surface_data.surface_resolution.height)
+                    .layers(1);
+
+                unsafe { device.create_framebuffer(&frame_buffer_create_info, None) }
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+
+        Ok(RenderPass {
+            render_pass,
+            framebuffers,
+            render_area: surface_data.surface_resolution.into(),
+            clear_values: vec![
+                vk::ClearValue {
+                    color: vk::ClearColorValue {
+                        float32: [1.0, 0.0, 1.0, 1.0],
+                    },
+                },
+                vk::ClearValue {
+                    depth_stencil: vk::ClearDepthStencilValue {
+                        depth: 1.0,
+                        stencil: 0,
+                    },
+                },
+            ],
+        })
+    }
+
+    // TODO: All cleamn functions should take ownership
+    pub(crate) fn clean(&mut self, device: &ash::Device) {
+        unsafe {
+            for framebuffer in self.framebuffers.drain(..) {
+                device.destroy_framebuffer(framebuffer, None);
+            }
+            device.destroy_render_pass(self.render_pass, None);
+        }
+    }
 }
