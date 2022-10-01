@@ -470,11 +470,7 @@ impl Device {
     }
 
     pub fn create_shader(&self, desc: ShaderDescription) -> Result<Shader> {
-        let mut spv_file = File::open(desc.path)?;
-        let code = ash::util::read_spv(&mut spv_file)?;
-        let shader_info = vk::ShaderModuleCreateInfo::builder().code(&code);
-        let module = unsafe { self.device.create_shader_module(&shader_info, None)? };
-        Ok(Shader { module })
+        Shader::create(&self.device, desc)
     }
 
     pub fn create_render_pass<const N: usize>(

@@ -1,6 +1,6 @@
-use std::path::Path;
-
+use anyhow::Result;
 use ash::vk;
+use std::{fs::File, path::Path};
 
 pub enum ShaderStage {
     Vertex,
@@ -14,4 +14,14 @@ pub struct ShaderDescription {
 
 pub struct Shader {
     pub(crate) module: vk::ShaderModule,
+}
+
+impl Shader {
+    pub(crate) fn create(device: &ash::Device, desc: ShaderDescription) -> Result<Self> {
+        let mut spv_file = File::open(desc.path)?;
+        let code = ash::util::read_spv(&mut spv_file)?;
+        let shader_info = vk::ShaderModuleCreateInfo::builder().code(&code);
+        let module = unsafe { device.create_shader_module(&shader_info, None)? };
+        Ok(Shader { module })
+    }
 }
