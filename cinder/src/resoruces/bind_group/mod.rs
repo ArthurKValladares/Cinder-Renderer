@@ -240,3 +240,85 @@ impl BindGroupLayoutCache {
         }
     }
 }
+
+#[derive(Debug, Default)]
+pub struct BindGroupBuilder {
+    writes: Vec<vk::WriteDescriptorSet>,
+    bindings: Vec<vk::DescriptorSetLayoutBinding>,
+}
+
+impl BindGroupBuilder {
+    pub fn bind_buffer(
+        mut self,
+        binding: u32,
+        buffer_info: &vk::DescriptorBufferInfo,
+        ty: vk::DescriptorType,
+        stage_flags: vk::ShaderStageFlags,
+    ) -> Self {
+        let new_binding = vk::DescriptorSetLayoutBinding::builder()
+            .binding(binding)
+            .descriptor_type(ty)
+            .descriptor_count(1)
+            .stage_flags(stage_flags)
+            .build();
+        self.bindings.push(new_binding);
+
+        let new_write = vk::WriteDescriptorSet::builder()
+            .descriptor_type(ty)
+            .buffer_info(std::slice::from_ref(buffer_info))
+            .dst_binding(binding)
+            .build();
+        self.writes.push(new_write);
+
+        self
+    }
+
+    pub fn bind_image(
+        mut self,
+        binding: u32,
+        image_info: &vk::DescriptorImageInfo,
+        ty: vk::DescriptorType,
+        stage_flags: vk::ShaderStageFlags,
+    ) -> Self {
+        let new_binding = vk::DescriptorSetLayoutBinding::builder()
+            .binding(binding)
+            .descriptor_type(ty)
+            .descriptor_count(1)
+            .stage_flags(stage_flags)
+            .build();
+        self.bindings.push(new_binding);
+
+        let new_write = vk::WriteDescriptorSet::builder()
+            .descriptor_type(ty)
+            .image_info(std::slice::from_ref(image_info))
+            .dst_binding(binding)
+            .build();
+        self.writes.push(new_write);
+
+        self
+    }
+
+    pub fn build_with_layout(
+        mut self,
+        device: &ash::Device,
+        cache: &mut BindGroupLayoutCache,
+        alloc: &mut BindGroupAllocator,
+    ) -> Result<(vk::DescriptorSet, vk::DescriptorSetLayout)> {
+        let layout_info = vk::DescriptorSetLayoutCreateInfo::builder()
+            .bindings(&self.bindings)
+            .build();
+
+        let layout = cache.create_bind_group_layout(device, layout_info)?;
+        let set = alloc.allocate(device, &layout)?;
+
+        for write in &mut self.writes {
+            write.dst_set = set;
+        }
+
+        unsafe {
+            device.update_descriptor_sets(&self.writes, &[]);
+        }
+
+        Ok((set, layout))
+    }
+}
