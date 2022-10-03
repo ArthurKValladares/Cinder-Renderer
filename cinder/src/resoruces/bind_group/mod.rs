@@ -122,7 +122,7 @@ pub struct BindGroupAllocator {
 }
 
 impl BindGroupAllocator {
-    pub fn grab_pool(&mut self, device: &ash::Device) -> Result<vk::DescriptorPool, vk::Result> {
+    fn grab_pool(&mut self, device: &ash::Device) -> Result<vk::DescriptorPool, vk::Result> {
         if let Some(pool) = self.free_pools.pop() {
             Ok(pool)
         } else {
@@ -321,10 +321,7 @@ impl BindGroupBuilder {
         self
     }
 
-    pub fn build(
-        mut self,
-        device: &mut Device,
-    ) -> Result<(vk::DescriptorSet, vk::DescriptorSetLayout)> {
+    pub fn build(mut self, device: &mut Device) -> Result<BindGroup> {
         let layout_info = vk::DescriptorSetLayoutCreateInfo::builder()
             .bindings(&self.bindings)
             .build();
@@ -342,6 +339,12 @@ impl BindGroupBuilder {
             device.update_descriptor_sets(&self.writes, &[]);
         }
 
-        Ok((set, layout))
+        Ok(BindGroup { set, layout })
     }
+}
+
+// TODO: temp, just testing it out
+pub struct BindGroup {
+    pub set: vk::DescriptorSet,
+    pub layout: vk::DescriptorSetLayout,
 }

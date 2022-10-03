@@ -245,7 +245,7 @@ fn main() {
 
     let buffer_info = uniform_buffer.bind_info();
     let image_info = ferris_texture.bind_info(&sampler);
-    let (desc_set, desc_set_layout) = BindGroupBuilder::default()
+    let bind_group = BindGroupBuilder::default()
         .bind_buffer(
             0,
             &buffer_info,
@@ -266,7 +266,7 @@ fn main() {
             vertex_shader,
             fragment_shader,
             render_pass: &render_pass,
-            desc_set_layouts: vec![desc_set_layout],
+            desc_set_layouts: vec![bind_group.layout],
         })
         .expect("Could not create graphics pipeline");
 
@@ -338,7 +338,7 @@ fn main() {
                         let surface_rect = device.surface_rect();
 
                         render_context.bind_graphics_pipeline(&device, &pipeline);
-                        render_context.bind_descriptor_sets(&device, &pipeline, &[desc_set]);
+                        render_context.bind_descriptor_sets(&device, &pipeline, &[bind_group.set]);
                         render_context.bind_vertex_buffer(&device, &vertex_buffer);
                         render_context.bind_index_buffer(&device, &index_buffer);
                         render_context.bind_viewport(&device, surface_rect);

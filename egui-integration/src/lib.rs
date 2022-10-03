@@ -1,21 +1,29 @@
+use std::collections::HashMap;
+
 use anyhow::Result;
 use cinder::{
     context::render_context::RenderContext,
     device::Device,
     resoruces::{
+        bind_group::BindGroup,
+        buffer::Buffer,
         render_pass::{
             Layout, LayoutTransition, RenderPass, RenderPassAttachmentDesc, RenderPassDescription,
         },
-        texture::Format,
+        sampler::Sampler,
+        texture::{Format, Texture},
     },
 };
-use egui::{RawInput, TexturesDelta};
+use egui::{RawInput, TextureId, TexturesDelta};
 use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Window};
 
 pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_winit: egui_winit::State,
     render_pass: RenderPass,
+    sampler: Sampler,
+    image_staging_buffer: Option<Buffer>,
+    image_map: HashMap<TextureId, Texture>,
 }
 
 impl EguiIntegration {
@@ -35,10 +43,15 @@ impl EguiIntegration {
             depth_attachment: None,
         })?;
 
+        let sampler = device.create_sampler()?;
+
         Ok(Self {
             egui_context,
             egui_winit,
             render_pass,
+            sampler,
+            image_staging_buffer: None,
+            image_map: Default::default(),
         })
     }
 
