@@ -11,6 +11,7 @@ pub struct GraphicsPipelineDescription<'a> {
     pub vertex_shader: Shader,
     pub fragment_shader: Shader,
     pub render_pass: &'a RenderPass,
+    pub desc_set_layouts: Vec<vk::DescriptorSetLayout>,
 }
 
 pub struct PipelineCommon {
@@ -26,15 +27,13 @@ impl GraphicsPipeline {
     pub(crate) fn create(
         device: &ash::Device,
         surface_data: &SurfaceData,
-        // TODO: Temp
-        desc_set_layouts: &[vk::DescriptorSetLayout],
         desc: GraphicsPipelineDescription,
     ) -> Result<Self> {
         //
         // Pipeline stuff, pretty temp
         //
         let layout_create_info =
-            vk::PipelineLayoutCreateInfo::builder().set_layouts(desc_set_layouts);
+            vk::PipelineLayoutCreateInfo::builder().set_layouts(&desc.desc_set_layouts);
 
         let pipeline_layout = unsafe { device.create_pipeline_layout(&layout_create_info, None) }?;
 

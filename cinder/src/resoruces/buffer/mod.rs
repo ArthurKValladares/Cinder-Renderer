@@ -43,3 +43,16 @@ impl Buffer {
         todo!()
     }
 }
+
+#[repr(transparent)]
+pub struct BindBufferInfo(pub vk::DescriptorBufferInfo);
+
+impl Buffer {
+    pub fn bind_info(&self) -> BindBufferInfo {
+        BindBufferInfo(vk::DescriptorBufferInfo {
+            buffer: self.raw,
+            offset: 0,
+            range: self.size_bytes,
+        })
+    }
+}

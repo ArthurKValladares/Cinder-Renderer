@@ -1,4 +1,4 @@
-use super::memory::Memory;
+use super::{memory::Memory, sampler::Sampler};
 use crate::{device::Device, util::find_memory_type_index};
 use anyhow::Result;
 use ash::vk;
@@ -151,5 +151,17 @@ impl Texture {
     }
     pub fn format(&self) -> Format {
         todo!()
+    }
+}
+
+pub struct BindTextureInfo(pub vk::DescriptorImageInfo);
+
+impl Texture {
+    pub fn bind_info(&self, sampler: &Sampler) -> BindTextureInfo {
+        BindTextureInfo(vk::DescriptorImageInfo {
+            image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            image_view: self.view,
+            sampler: sampler.raw,
+        })
     }
 }

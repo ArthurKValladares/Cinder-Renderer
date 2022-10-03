@@ -8,6 +8,7 @@ use cinder::{
     },
     device::{Device, Vertex},
     resoruces::{
+        bind_group::{BindGroupBuilder, BindGroupType},
         buffer::{Buffer, BufferDescription, BufferUsage},
         memory::{MemoryDescription, MemoryType},
         pipeline::GraphicsPipelineDescription,
@@ -116,13 +117,6 @@ fn main() {
             ),
         })
         .expect("Could not create render pass");
-    let pipeline = device
-        .create_graphics_pipeline(GraphicsPipelineDescription {
-            vertex_shader,
-            fragment_shader,
-            render_pass: &render_pass,
-        })
-        .expect("Could not create graphics pipeline");
 
     // Load model
     let mut meshes =
@@ -248,7 +242,33 @@ fn main() {
         .expect("could not submit upload work");
 
     let sampler = device.create_sampler().expect("Could not create sampler");
-    device.update_descriptor_set(&ferris_texture, &sampler, &uniform_buffer);
+
+    let buffer_info = uniform_buffer.bind_info();
+    let image_info = ferris_texture.bind_info(&sampler);
+    let (desc_set, desc_set_layout) = BindGroupBuilder::default()
+        .bind_buffer(
+            0,
+            &buffer_info,
+            BindGroupType::UniformBuffer,
+            ShaderStage::Vertex,
+        )
+        .bind_image(
+            1,
+            &image_info,
+            BindGroupType::ImageSampler,
+            ShaderStage::Fragment,
+        )
+        .build(&mut device)
+        .expect("Could not create BindGroup");
+
+    let pipeline = device
+        .create_graphics_pipeline(GraphicsPipelineDescription {
+            vertex_shader,
+            fragment_shader,
+            render_pass: &render_pass,
+            desc_set_layouts: vec![desc_set_layout],
+        })
+        .expect("Could not create graphics pipeline");
 
     // Egui integration
     let mut egui = EguiIntegration::new(&event_loop, &device).expect("Could not create event loop");
@@ -318,7 +338,7 @@ fn main() {
                         let surface_rect = device.surface_rect();
 
                         render_context.bind_graphics_pipeline(&device, &pipeline);
-                        render_context.bind_descriptor_sets(&device, &pipeline);
+                        render_context.bind_descriptor_sets(&device, &pipeline, &[desc_set]);
                         render_context.bind_vertex_buffer(&device, &vertex_buffer);
                         render_context.bind_index_buffer(&device, &index_buffer);
                         render_context.bind_viewport(&device, surface_rect);

@@ -58,14 +58,19 @@ impl RenderContext {
         }
     }
 
-    pub fn bind_descriptor_sets(&self, device: &Device, pipeline: &GraphicsPipeline) {
+    pub fn bind_descriptor_sets(
+        &self,
+        device: &Device,
+        pipeline: &GraphicsPipeline,
+        sets: &[vk::DescriptorSet],
+    ) {
         unsafe {
             device.cmd_bind_descriptor_sets(
                 self.shared.command_buffer,
                 vk::PipelineBindPoint::GRAPHICS,
                 pipeline.common.pipeline_layout,
                 0,
-                &device.descriptor_sets, //TODO: Sets won't always live inside Device
+                sets,
                 &[],
             );
         }

@@ -7,6 +7,15 @@ pub enum ShaderStage {
     Fragment,
 }
 
+impl From<ShaderStage> for vk::ShaderStageFlags {
+    fn from(stage: ShaderStage) -> Self {
+        match stage {
+            ShaderStage::Vertex => vk::ShaderStageFlags::VERTEX,
+            ShaderStage::Fragment => vk::ShaderStageFlags::FRAGMENT,
+        }
+    }
+}
+
 pub struct ShaderDescription {
     pub stage: ShaderStage,
     pub path: &'static Path,

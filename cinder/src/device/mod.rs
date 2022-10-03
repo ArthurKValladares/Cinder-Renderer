@@ -5,6 +5,7 @@ use crate::{
     },
     debug::vulkan_debug_callback,
     resoruces::{
+        bind_group::{BindGroupAllocator, BindGroupLayoutCache},
         buffer::{Buffer, BufferDescription},
         memory::{self, Memory},
         pipeline::{GraphicsPipeline, GraphicsPipelineDescription, PipelineCommon},
@@ -108,7 +109,7 @@ pub struct Device {
     p_device: vk::PhysicalDevice,
     p_device_properties: vk::PhysicalDeviceProperties,
     p_device_memory_properties: vk::PhysicalDeviceMemoryProperties,
-    device: ash::Device,
+    pub device: ash::Device,
     queue_family_index: u32,
     present_queue: vk::Queue,
 
@@ -120,11 +121,8 @@ pub struct Device {
     pub depth_image: Texture,
     command_pool: vk::CommandPool,
 
-    // TODO: Should this stay here?
-    descriptor_pool: vk::DescriptorPool,
-    // TODO: This stuff definitely won't stay here
-    desc_set_layouts: [vk::DescriptorSetLayout; 1],
-    pub descriptor_sets: Vec<vk::DescriptorSet>,
+    pub bind_group_alloc: BindGroupAllocator,
+    pub bind_group_cache: BindGroupLayoutCache,
 
     // TODO: Probably will have better syncronization in the future
     present_complete_semaphore: vk::Semaphore,
@@ -308,40 +306,9 @@ impl Device {
                 descriptor_count: 1,
             },
         ];
-        let descriptor_pool_info = vk::DescriptorPoolCreateInfo::builder()
-            .pool_sizes(&descriptor_sizes)
-            .max_sets(1);
 
-        let descriptor_pool =
-            unsafe { device.create_descriptor_pool(&descriptor_pool_info, None) }?;
-
-        // TODO: This stuff will move later
-        let desc_layout_bindings = [
-            vk::DescriptorSetLayoutBinding {
-                binding: 0,
-                descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
-                descriptor_count: 1,
-                stage_flags: vk::ShaderStageFlags::VERTEX,
-                ..Default::default()
-            },
-            vk::DescriptorSetLayoutBinding {
-                binding: 1,
-                descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                descriptor_count: 1,
-                stage_flags: vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
-            },
-        ];
-        let descriptor_info =
-            vk::DescriptorSetLayoutCreateInfo::builder().bindings(&desc_layout_bindings);
-
-        let desc_set_layouts =
-            [unsafe { device.create_descriptor_set_layout(&descriptor_info, None) }?];
-
-        let desc_alloc_info = vk::DescriptorSetAllocateInfo::builder()
-            .descriptor_pool(descriptor_pool)
-            .set_layouts(&desc_set_layouts);
-        let descriptor_sets = unsafe { device.allocate_descriptor_sets(&desc_alloc_info) }?;
+        let bind_group_alloc = BindGroupAllocator::default();
+        let bind_group_cache = BindGroupLayoutCache::default();
 
         Ok(Self {
             entry,
@@ -363,9 +330,8 @@ impl Device {
             draw_commands_reuse_fence,
             setup_commands_reuse_fence,
             command_pool,
-            descriptor_pool,
-            desc_set_layouts,
-            descriptor_sets,
+            bind_group_alloc,
+            bind_group_cache,
         })
     }
 
@@ -494,12 +460,7 @@ impl Device {
         &self,
         desc: GraphicsPipelineDescription,
     ) -> Result<GraphicsPipeline> {
-        GraphicsPipeline::create(
-            &self.device,
-            &self.surface_data,
-            &self.desc_set_layouts,
-            desc,
-        )
+        GraphicsPipeline::create(&self.device, &self.surface_data, desc)
     }
 
     pub fn create_render_context(&self, desc: RenderContextDescription) -> Result<RenderContext> {
@@ -604,48 +565,6 @@ impl Device {
             self.surface_data.surface_resolution.height,
             0,
         )
-    }
-
-    // TODO: This is very temp and hacky
-    pub fn update_descriptor_set(
-        &self,
-        texture: &Texture,
-        sampler: &Sampler,
-        uniform_buffer: &Buffer,
-    ) {
-        let descriptor_buffer_infos = [vk::DescriptorBufferInfo {
-            buffer: uniform_buffer.raw,
-            offset: 0,
-            range: uniform_buffer.size_bytes,
-        }];
-
-        let tex_descriptor = vk::DescriptorImageInfo {
-            image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-            image_view: texture.view,
-            sampler: sampler.raw,
-        };
-
-        let write_desc_sets = [
-            vk::WriteDescriptorSet {
-                dst_set: self.descriptor_sets[0],
-                dst_binding: 0,
-                descriptor_count: 1,
-                descriptor_type: vk::DescriptorType::UNIFORM_BUFFER,
-                p_buffer_info: descriptor_buffer_infos.as_ptr(),
-                ..Default::default()
-            },
-            vk::WriteDescriptorSet {
-                dst_set: self.descriptor_sets[0],
-                dst_binding: 1,
-                descriptor_count: 1,
-                descriptor_type: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                p_image_info: &tex_descriptor,
-                ..Default::default()
-            },
-        ];
-        unsafe {
-            self.device.update_descriptor_sets(&write_desc_sets, &[]);
-        }
     }
 
     pub fn resize(&mut self, backbuffer_resolution: Size2D<u32>) -> Result<()> {

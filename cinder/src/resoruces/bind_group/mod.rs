@@ -1,8 +1,31 @@
+use super::{
+    buffer::{BindBufferInfo, Buffer},
+    sampler::Sampler,
+    shader::ShaderStage,
+    texture::{BindTextureInfo, Texture},
+};
+use crate::device::Device;
 use anyhow::Result;
 use ash::vk;
 use std::collections::HashMap;
 
-#[derive(Debug)]
+// TODO, maybe could be separate enums, to make bind_buffer, bind_image, etc type-safe
+#[derive(Debug, Copy, Clone)]
+pub enum BindGroupType {
+    ImageSampler,
+    UniformBuffer,
+}
+
+impl From<BindGroupType> for vk::DescriptorType {
+    fn from(ty: BindGroupType) -> Self {
+        match ty {
+            BindGroupType::ImageSampler => vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+            BindGroupType::UniformBuffer => vk::DescriptorType::UNIFORM_BUFFER,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
 struct BindGroupDesc {
     ty: vk::DescriptorType,
     multiplier: f32,
@@ -251,21 +274,21 @@ impl BindGroupBuilder {
     pub fn bind_buffer(
         mut self,
         binding: u32,
-        buffer_info: &vk::DescriptorBufferInfo,
-        ty: vk::DescriptorType,
-        stage_flags: vk::ShaderStageFlags,
+        buffer_info: &BindBufferInfo,
+        ty: BindGroupType,
+        shader_stage: ShaderStage,
     ) -> Self {
         let new_binding = vk::DescriptorSetLayoutBinding::builder()
             .binding(binding)
-            .descriptor_type(ty)
+            .descriptor_type(ty.into())
             .descriptor_count(1)
-            .stage_flags(stage_flags)
+            .stage_flags(shader_stage.into())
             .build();
         self.bindings.push(new_binding);
 
         let new_write = vk::WriteDescriptorSet::builder()
-            .descriptor_type(ty)
-            .buffer_info(std::slice::from_ref(buffer_info))
+            .descriptor_type(ty.into())
+            .buffer_info(std::slice::from_ref(&buffer_info.0))
             .dst_binding(binding)
             .build();
         self.writes.push(new_write);
@@ -276,21 +299,21 @@ impl BindGroupBuilder {
     pub fn bind_image(
         mut self,
         binding: u32,
-        image_info: &vk::DescriptorImageInfo,
-        ty: vk::DescriptorType,
-        stage_flags: vk::ShaderStageFlags,
+        image_info: &BindTextureInfo,
+        ty: BindGroupType,
+        shader_stage: ShaderStage,
     ) -> Self {
         let new_binding = vk::DescriptorSetLayoutBinding::builder()
             .binding(binding)
-            .descriptor_type(ty)
+            .descriptor_type(ty.into())
             .descriptor_count(1)
-            .stage_flags(stage_flags)
+            .stage_flags(shader_stage.into())
             .build();
         self.bindings.push(new_binding);
 
         let new_write = vk::WriteDescriptorSet::builder()
-            .descriptor_type(ty)
-            .image_info(std::slice::from_ref(image_info))
+            .descriptor_type(ty.into())
+            .image_info(std::slice::from_ref(&image_info.0))
             .dst_binding(binding)
             .build();
         self.writes.push(new_write);
@@ -298,18 +321,18 @@ impl BindGroupBuilder {
         self
     }
 
-    pub fn build_with_layout(
+    pub fn build(
         mut self,
-        device: &ash::Device,
-        cache: &mut BindGroupLayoutCache,
-        alloc: &mut BindGroupAllocator,
+        device: &mut Device,
     ) -> Result<(vk::DescriptorSet, vk::DescriptorSetLayout)> {
         let layout_info = vk::DescriptorSetLayoutCreateInfo::builder()
             .bindings(&self.bindings)
             .build();
 
-        let layout = cache.create_bind_group_layout(device, layout_info)?;
-        let set = alloc.allocate(device, &layout)?;
+        let layout = device
+            .bind_group_cache
+            .create_bind_group_layout(&device.device, layout_info)?;
+        let set = device.bind_group_alloc.allocate(&device.device, &layout)?;
 
         for write in &mut self.writes {
             write.dst_set = set;
