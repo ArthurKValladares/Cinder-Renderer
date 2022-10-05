@@ -7,8 +7,8 @@ use crate::{
     resoruces::{
         bind_group::{BindGroupAllocator, BindGroupLayoutCache},
         buffer::{Buffer, BufferDescription},
-        memory::{self, Memory},
-        pipeline::{GraphicsPipeline, GraphicsPipelineDescription, PipelineCommon},
+        memory::Memory,
+        pipeline::{GraphicsPipeline, GraphicsPipelineDescription},
         render_pass::{RenderPass, RenderPassDescription},
         sampler::Sampler,
         shader::{Shader, ShaderDescription},
@@ -17,7 +17,7 @@ use crate::{
     surface::{Surface, SurfaceData},
     swapchain::Swapchain,
     util::find_memory_type_index,
-    InitData, Resolution,
+    InitData,
 };
 use anyhow::Result;
 use ash::vk;
@@ -26,15 +26,14 @@ use ash::vk::{
     KhrGetPhysicalDeviceProperties2Fn, KhrPortabilityEnumerationFn, KhrPortabilitySubsetFn,
 };
 use math::{rect::Rect2D, size::Size2D};
+use raw_window_handle::HasRawDisplayHandle;
 use std::{
     ffi::{CStr, CString},
-    fs::File,
     ops::Deref,
     os::raw::c_char,
 };
 use thiserror::Error;
-use tracing::{info, span, Level};
-use util::*;
+use tracing::{span, Level};
 
 fn submit_work(
     device: &ash::Device,
@@ -149,7 +148,8 @@ impl Device {
         // TODO: Configurable
         let extensions = extensions();
         let extensions = {
-            let window_extensions = ash_window::enumerate_required_extensions(window)?;
+            let window_extensions =
+                ash_window::enumerate_required_extensions(window.raw_display_handle())?;
             let mut extensions = extensions
                 .iter()
                 .map(|raw_name| raw_name.as_ptr())

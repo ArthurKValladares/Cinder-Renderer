@@ -243,7 +243,7 @@ impl BindGroupLayoutCache {
         info: vk::DescriptorSetLayoutCreateInfo,
     ) -> Result<vk::DescriptorSetLayout, vk::Result> {
         let mut bindings = Vec::with_capacity(info.binding_count as usize);
-        for i in (0..info.binding_count) {
+        for i in 0..info.binding_count {
             bindings.push(BindGroupLayoutBinding(unsafe { *info.p_bindings }));
         }
         bindings.sort_by(|left, right| left.0.binding.partial_cmp(&right.0.binding).unwrap());

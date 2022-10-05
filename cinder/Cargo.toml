@@ -7,9 +7,10 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 ash = {version = "0.37"}
-ash-window = {version = "0.11.0"}
+ash-window = {version = "0.12.0"}
 winit = "0.27"
 thiserror = "1"
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
 util = { path = "../util" }
 tracing = "0.1"
+raw-window-handle = "0.5"

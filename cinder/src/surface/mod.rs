@@ -1,8 +1,7 @@
 use anyhow::Result;
 use ash::vk;
 use math::size::Size2D;
-
-use crate::device::Device;
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 
 pub struct Surface {
     pub surface_loader: ash::extensions::khr::Surface,
@@ -16,7 +15,15 @@ impl Surface {
         instance: &ash::Instance,
     ) -> Result<Self> {
         let surface_loader = ash::extensions::khr::Surface::new(&entry, &instance);
-        let surface = unsafe { ash_window::create_surface(&entry, &instance, window, None) }?;
+        let surface = unsafe {
+            ash_window::create_surface(
+                &entry,
+                &instance,
+                window.raw_display_handle(),
+                window.raw_window_handle(),
+                None,
+            )
+        }?;
 
         Ok(Self {
             surface_loader,
