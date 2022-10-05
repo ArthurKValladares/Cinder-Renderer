@@ -104,7 +104,7 @@ impl Cinder {
             &device,
             &device.memopry_properties(),
             ImageDescription {
-                format: image::Format::D32SFloat,
+                format: image::Format::D32_SFloat,
                 usage: image::Usage::Depth,
                 size: Size2D::new(
                     surface_data.surface_resolution.width,
@@ -402,7 +402,7 @@ impl Cinder {
                 &self.device,
                 &self.device.memopry_properties(),
                 ImageDescription {
-                    format: image::Format::D32SFloat,
+                    format: image::Format::D32_SFloat,
                     usage: image::Usage::Depth,
                     size: backbuffer_resolution,
                 },

@@ -11,17 +11,24 @@ pub enum ImageCreateError {
     NoSuitableMemoryType,
 }
 
+#[allow(non_camel_case_types)]
 #[derive(Debug, Clone, Copy)]
 pub enum Format {
-    R8G8B8A8Unorm,
-    D32SFloat,
+    R8_G8_B8_A8_Unorm,
+    D32_SFloat,
+    R32_G32_B32_A32_SFloat,
+    R32_G32_B32_SFloat,
+    R32_G32_SFloat,
 }
 
 impl From<Format> for vk::Format {
     fn from(format: Format) -> Self {
         match format {
-            Format::R8G8B8A8Unorm => vk::Format::R8G8B8A8_UNORM,
-            Format::D32SFloat => vk::Format::D32_SFLOAT,
+            Format::R8_G8_B8_A8_Unorm => vk::Format::R8G8B8A8_UNORM,
+            Format::D32_SFloat => vk::Format::D32_SFLOAT,
+            Format::R32_G32_B32_A32_SFloat => vk::Format::R32G32B32A32_SFLOAT,
+            Format::R32_G32_B32_SFloat => vk::Format::R32G32B32_SFLOAT,
+            Format::R32_G32_SFloat => vk::Format::R32G32_SFLOAT,
         }
     }
 }

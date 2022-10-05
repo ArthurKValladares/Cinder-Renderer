@@ -2,14 +2,17 @@ use std::{path::Path, time::Instant};
 
 use cgmath::{Deg, Matrix4, Point3, Vector3};
 use cinder::{
-    cinder::Cinder,
+    cinder::{Cinder, Vertex},
     context::{render_context::RenderContextDescription, upload_context::UploadContextDescription},
     resoruces::{
         bind_group::{BindGroupLayoutBuilder, BindGroupSetBuilder, BindGroupType},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
-        pipeline::{push_constant::PushConstant, GraphicsPipelineDescription},
+        pipeline::{
+            push_constant::PushConstant, GraphicsPipelineDescription, VertexAttributeDesc,
+            VertexInputStateDesc,
+        },
         render_pass::{self, RenderPassAttachmentDesc, RenderPassDescription},
         shader::{ShaderDescription, ShaderStage},
     },
@@ -122,7 +125,7 @@ fn main() {
                     }),
             ],
             depth_attachment: Some(
-                RenderPassAttachmentDesc::clear_store(Format::D32SFloat).with_layout_transition(
+                RenderPassAttachmentDesc::clear_store(Format::D32_SFloat).with_layout_transition(
                     LayoutTransition {
                         initial_layout: Layout::Undefined,
                         final_layout: Layout::DepthAttachment,
@@ -233,7 +236,7 @@ fn main() {
 
     let ferris_texture = cinder
         .create_image(ImageDescription {
-            format: Format::R8G8B8A8Unorm,
+            format: Format::R8_G8_B8_A8_Unorm,
             usage: Usage::Texture,
             size: Size2D::new(image_width, image_height),
         })
@@ -278,6 +281,24 @@ fn main() {
         .create_graphics_pipeline(GraphicsPipelineDescription {
             vertex_shader,
             fragment_shader,
+            vertex_state: VertexInputStateDesc {
+                binding: 0,
+                stride: std::mem::size_of::<Vertex>() as u32,
+                attributes: vec![
+                    VertexAttributeDesc {
+                        format: Format::R32_G32_B32_A32_SFloat,
+                        offset: offset_of!(Vertex, pos) as u32,
+                    },
+                    VertexAttributeDesc {
+                        format: Format::R32_G32_B32_A32_SFloat,
+                        offset: offset_of!(Vertex, color) as u32,
+                    },
+                    VertexAttributeDesc {
+                        format: Format::R32_G32_SFloat,
+                        offset: offset_of!(Vertex, uv) as u32,
+                    },
+                ],
+            },
             render_pass: &render_pass,
             desc_set_layouts: vec![bind_group_layout.layout],
             push_constants: vec![&color_push_constant],
@@ -315,7 +336,7 @@ fn main() {
                             final_layout: Layout::ColorAttachment,
                         })],
                         depth_attachment: Some(
-                            RenderPassAttachmentDesc::clear_store(Format::D32SFloat)
+                            RenderPassAttachmentDesc::clear_store(Format::D32_SFloat)
                                 .with_layout_transition(LayoutTransition {
                                     initial_layout: Layout::Undefined,
                                     final_layout: Layout::DepthAttachment,

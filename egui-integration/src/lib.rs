@@ -7,9 +7,12 @@ use cinder::{
     resoruces::{
         bind_group::{BindGroupLayout, BindGroupLayoutBuilder, BindGroupSet, BindGroupType},
         buffer::{Buffer, BufferDescription, BufferUsage},
-        image::Image,
+        image::{Format, Image},
         memory::{MemoryDescription, MemoryType},
-        pipeline::{push_constant::PushConstant, GraphicsPipeline, GraphicsPipelineDescription},
+        pipeline::{
+            push_constant::PushConstant, GraphicsPipeline, GraphicsPipelineDescription,
+            VertexAttributeDesc, VertexInputStateDesc,
+        },
         render_pass::{
             Layout, LayoutTransition, RenderPass, RenderPassAttachmentDesc, RenderPassDescription,
         },
@@ -19,6 +22,7 @@ use cinder::{
 };
 use egui::{RawInput, TextureId, TexturesDelta};
 use math::vec::Vec2;
+use util::*;
 use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Window};
 
 static VERTEX_BUFFER_SIZE: u64 = 1024 * 1024 * 4;
@@ -85,6 +89,25 @@ impl EguiIntegration {
         let pipeline = cinder.create_graphics_pipeline(GraphicsPipelineDescription {
             vertex_shader,
             fragment_shader,
+            vertex_state: VertexInputStateDesc {
+                binding: 0,
+                stride: 4 * std::mem::size_of::<f32>() as u32
+                    + 4 * std::mem::size_of::<u8>() as u32,
+                attributes: vec![
+                    VertexAttributeDesc {
+                        format: Format::R32_G32_B32_A32_SFloat,
+                        offset: 0,
+                    },
+                    VertexAttributeDesc {
+                        format: Format::R32_G32_B32_A32_SFloat,
+                        offset: 8,
+                    },
+                    VertexAttributeDesc {
+                        format: Format::R32_G32_SFloat,
+                        offset: 16,
+                    },
+                ],
+            },
             render_pass: &render_pass,
             desc_set_layouts: vec![bind_group_layout.layout],
             push_constants: vec![&push_constant],

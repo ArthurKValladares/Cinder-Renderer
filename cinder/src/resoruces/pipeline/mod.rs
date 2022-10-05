@@ -2,17 +2,29 @@ pub mod push_constant;
 
 use self::push_constant::PushConstant;
 
-use super::{render_pass::RenderPass, shader::Shader};
-use crate::{cinder::Vertex, surface::SurfaceData};
-use ::util::offset_of;
+use super::{image::Format, render_pass::RenderPass, shader::Shader};
+use crate::surface::SurfaceData;
 use anyhow::Result;
 use ash::vk;
 use std::ffi::CStr;
 
-// TODO: This lifetime is annoying
+#[derive(Debug)]
+pub struct VertexAttributeDesc {
+    pub format: Format,
+    pub offset: u32,
+}
+
+#[derive(Debug)]
+pub struct VertexInputStateDesc {
+    pub binding: u32,
+    pub stride: u32,
+    pub attributes: Vec<VertexAttributeDesc>, // TODO: ArrayVec
+}
+
 pub struct GraphicsPipelineDescription<'a> {
     pub vertex_shader: Shader,
     pub fragment_shader: Shader,
+    pub vertex_state: VertexInputStateDesc,
     pub render_pass: &'a RenderPass,
     pub desc_set_layouts: Vec<vk::DescriptorSetLayout>,
     pub push_constants: Vec<&'a PushConstant>,
@@ -48,30 +60,22 @@ impl GraphicsPipeline {
         let pipeline_layout = unsafe { device.create_pipeline_layout(&layout_create_info, None) }?;
 
         let vertex_input_binding_descriptions = [vk::VertexInputBindingDescription {
-            binding: 0,
-            stride: std::mem::size_of::<Vertex>() as u32,
+            binding: desc.vertex_state.binding,
+            stride: desc.vertex_state.stride,
             input_rate: vk::VertexInputRate::VERTEX,
         }];
-        let vertex_input_attribute_descriptions = [
-            vk::VertexInputAttributeDescription {
-                location: 0,
-                binding: 0,
-                format: vk::Format::R32G32B32A32_SFLOAT,
-                offset: offset_of!(Vertex, pos) as u32,
-            },
-            vk::VertexInputAttributeDescription {
-                location: 1,
-                binding: 0,
-                format: vk::Format::R32G32B32A32_SFLOAT,
-                offset: offset_of!(Vertex, color) as u32,
-            },
-            vk::VertexInputAttributeDescription {
-                location: 2,
-                binding: 0,
-                format: vk::Format::R32G32_SFLOAT,
-                offset: offset_of!(Vertex, uv) as u32,
-            },
-        ];
+        let vertex_input_attribute_descriptions = desc
+            .vertex_state
+            .attributes
+            .iter()
+            .enumerate()
+            .map(|(location, att)| vk::VertexInputAttributeDescription {
+                location: location as u32,
+                binding: desc.vertex_state.binding,
+                format: att.format.into(),
+                offset: att.offset,
+            })
+            .collect::<Vec<_>>();
         let vertex_input_state_info = vk::PipelineVertexInputStateCreateInfo::builder()
             .vertex_attribute_descriptions(&vertex_input_attribute_descriptions)
             .vertex_binding_descriptions(&vertex_input_binding_descriptions);
