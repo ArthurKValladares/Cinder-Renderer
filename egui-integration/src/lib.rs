@@ -22,7 +22,6 @@ use cinder::{
 };
 use egui::{RawInput, TextureId, TexturesDelta};
 use math::vec::Vec2;
-use util::*;
 use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Window};
 
 static VERTEX_BUFFER_SIZE: u64 = 1024 * 1024 * 4;
@@ -91,7 +90,7 @@ impl EguiIntegration {
             fragment_shader,
             vertex_state: VertexInputStateDesc {
                 binding: 0,
-                stride: 4 * std::mem::size_of::<f32>() as u32
+                stride: 8 * std::mem::size_of::<f32>() as u32
                     + 4 * std::mem::size_of::<u8>() as u32,
                 attributes: vec![
                     VertexAttributeDesc {
