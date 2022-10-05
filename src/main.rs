@@ -6,7 +6,7 @@ use cinder::{
         render_context::RenderContextDescription,
         upload_context::{self, UploadContextDescription},
     },
-    device::{Device, Vertex},
+    device::Device,
     resoruces::{
         bind_group::{BindGroupLayoutBuilder, BindGroupSetBuilder, BindGroupType},
         buffer::{Buffer, BufferDescription, BufferUsage},
@@ -25,7 +25,7 @@ use tracing::Level;
 use util::*;
 use winit::{
     dpi::PhysicalSize,
-    event::{ElementState, Event, KeyboardInput, StartCause, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
@@ -55,7 +55,9 @@ fn update_uniform_buffer(
     uniform_buffer_data.model =
         Matrix4::from_axis_angle(Vector3::new(0.0, 0.0, 1.0), Deg(90.0) * delta_time);
 
-    device.copy_data_to_buffer(uniform_buffer, std::slice::from_ref(uniform_buffer_data));
+    device
+        .copy_data_to_buffer(uniform_buffer, std::slice::from_ref(uniform_buffer_data))
+        .expect("Could not update uniform buffer");
 }
 
 fn update_color_push_constant(color: &mut ColorPushConstant, delta_time: f32) {
@@ -71,7 +73,8 @@ fn main() {
     let collector = tracing_subscriber::fmt()
         .with_max_level(Level::TRACE)
         .finish();
-    tracing::subscriber::set_global_default(collector);
+    tracing::subscriber::set_global_default(collector)
+        .expect("Could not set tracing global subscriber");
 
     const WINDOW_HEIGHT: u32 = 1000;
     const WINDOW_WIDTH: u32 = 1000;
@@ -175,7 +178,7 @@ fn main() {
     let surface_size = device.surface_size();
     let mut uniform_data = UniformBufferObject {
         model: Matrix4::from_angle_z(Deg(90.0)),
-        view: Matrix4::look_at(
+        view: Matrix4::look_at_rh(
             Point3::new(2.0, 2.0, 2.0),
             Point3::new(0.0, 0.0, 0.0),
             Vector3::new(0.0, 0.0, 1.0),
@@ -293,7 +296,6 @@ fn main() {
         EguiIntegration::new(&event_loop, &mut device).expect("Could not create event loop");
 
     let start = Instant::now();
-    let mut is_init: bool = true;
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
         match event {
@@ -301,7 +303,9 @@ fn main() {
                 event: WindowEvent::Resized(size),
                 ..
             } => {
-                device.resize(Size2D::new(size.width, size.height));
+                device
+                    .resize(Size2D::new(size.width, size.height))
+                    .expect("Could not resize device");
                 // TODO: easier way to re-create render passes
                 device.clean_render_pass(&mut render_pass);
                 render_pass = device
@@ -407,13 +411,6 @@ fn main() {
             } => *control_flow = ControlFlow::Exit,
             Event::MainEventsCleared => {
                 window.request_redraw();
-            }
-            Event::NewEvents(cause) => {
-                if cause == StartCause::Init {
-                    is_init = true;
-                } else {
-                    is_init = false;
-                }
             }
             _ => {}
         }

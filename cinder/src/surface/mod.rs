@@ -57,7 +57,7 @@ impl Surface {
                 .get_physical_device_surface_capabilities(p_device, self.surface)
         }?;
 
-        let mut desired_image_count = {
+        let desired_image_count = {
             let mut desired_image_count = surface_capabilities.min_image_count + 1;
             if surface_capabilities.max_image_count > 0
                 && desired_image_count > surface_capabilities.max_image_count

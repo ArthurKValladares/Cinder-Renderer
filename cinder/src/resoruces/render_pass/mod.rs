@@ -1,4 +1,4 @@
-use crate::{device::Device, surface::SurfaceData, swapchain::Swapchain};
+use crate::{surface::SurfaceData, swapchain::Swapchain};
 use anyhow::Result;
 use ash::vk;
 

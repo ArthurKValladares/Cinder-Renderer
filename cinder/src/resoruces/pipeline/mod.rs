@@ -7,7 +7,7 @@ use crate::{device::Vertex, surface::SurfaceData};
 use ::util::offset_of;
 use anyhow::Result;
 use ash::vk;
-use std::{collections::HashMap, ffi::CStr};
+use std::ffi::CStr;
 
 // TODO: This lifetime is annoying
 pub struct GraphicsPipelineDescription<'a> {
@@ -175,7 +175,7 @@ impl GraphicsPipeline {
                 None,
             )
         }
-        .map_err(|(pipelines, err)| err)?;
+        .map_err(|(_, err)| err)?;
 
         let pipeline = graphics_pipelines[0];
 

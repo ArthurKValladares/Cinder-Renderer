@@ -1,10 +1,7 @@
 use super::ContextShared;
 use crate::{
     device::Device,
-    resoruces::{
-        buffer::Buffer,
-        texture::{self, Texture},
-    },
+    resoruces::{buffer::Buffer, texture::Texture},
 };
 use anyhow::Result;
 use ash::vk;

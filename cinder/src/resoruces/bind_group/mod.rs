@@ -1,13 +1,8 @@
-use super::{
-    buffer::{BindBufferInfo, Buffer},
-    sampler::Sampler,
-    shader::ShaderStage,
-    texture::{BindTextureInfo, Texture},
-};
+use super::{buffer::BindBufferInfo, shader::ShaderStage, texture::BindTextureInfo};
 use crate::device::Device;
 use anyhow::Result;
 use ash::vk;
-use std::{collections::HashMap, io::Seek};
+use std::collections::HashMap;
 
 // TODO: This whole layer doesn't quite work
 
@@ -180,14 +175,15 @@ impl BindGroupAllocator {
         }
     }
 
-    pub fn reset(&mut self, device: &ash::Device) {
+    pub fn reset(&mut self, device: &ash::Device) -> Result<()> {
         unsafe {
             for pool in self.used_pools.drain(..) {
-                device.reset_descriptor_pool(pool, vk::DescriptorPoolResetFlags::empty());
+                device.reset_descriptor_pool(pool, vk::DescriptorPoolResetFlags::empty())?;
                 self.free_pools.push(pool);
             }
         }
         self.current_pool = None;
+        Ok(())
     }
 
     pub fn cleanup(&mut self, device: &ash::Device) {
@@ -243,7 +239,7 @@ impl BindGroupLayoutCache {
         info: vk::DescriptorSetLayoutCreateInfo,
     ) -> Result<vk::DescriptorSetLayout, vk::Result> {
         let mut bindings = Vec::with_capacity(info.binding_count as usize);
-        for i in 0..info.binding_count {
+        for _ in 0..info.binding_count {
             bindings.push(BindGroupLayoutBinding(unsafe { *info.p_bindings }));
         }
         bindings.sort_by(|left, right| left.0.binding.partial_cmp(&right.0.binding).unwrap());
@@ -310,7 +306,7 @@ impl BindGroupLayoutBuilder {
         self
     }
 
-    pub fn build(mut self, device: &mut Device) -> Result<BindGroupLayout> {
+    pub fn build(self, device: &mut Device) -> Result<BindGroupLayout> {
         let layout_info = vk::DescriptorSetLayoutCreateInfo::builder()
             .bindings(&self.bindings)
             .build();
@@ -318,7 +314,6 @@ impl BindGroupLayoutBuilder {
         let layout = device
             .bind_group_cache
             .create_bind_group_layout(&device.device, layout_info)?;
-        let set = device.bind_group_alloc.allocate(&device.device, &layout)?;
 
         Ok(BindGroupLayout { layout })
     }

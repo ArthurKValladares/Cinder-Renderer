@@ -1,7 +1,6 @@
 pub mod render_context;
 pub mod upload_context;
 
-use crate::device::Device;
 use anyhow::Result;
 use ash::vk;
 

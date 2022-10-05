@@ -11,7 +11,6 @@ pub struct Swapchain {
 }
 
 fn create_swapchain_structures(
-    instance: &ash::Instance,
     device: &ash::Device,
     surface: &Surface,
     surface_data: &SurfaceData,
@@ -91,14 +90,8 @@ impl Swapchain {
     ) -> Result<Self> {
         let swapchain_loader = ash::extensions::khr::Swapchain::new(instance, device);
 
-        let (swapchain, present_images, present_image_views) = create_swapchain_structures(
-            instance,
-            device,
-            surface,
-            surface_data,
-            &swapchain_loader,
-            None,
-        )?;
+        let (swapchain, present_images, present_image_views) =
+            create_swapchain_structures(device, surface, surface_data, &swapchain_loader, None)?;
 
         Ok(Self {
             swapchain_loader,
@@ -110,7 +103,6 @@ impl Swapchain {
 
     pub fn resize(
         &mut self,
-        instance: &ash::Instance,
         device: &ash::Device,
         surface: &Surface,
         surface_data: &SurfaceData,
@@ -118,7 +110,6 @@ impl Swapchain {
         self.clean(device);
 
         let (swapchain, present_images, present_image_views) = create_swapchain_structures(
-            instance,
             device,
             surface,
             surface_data,

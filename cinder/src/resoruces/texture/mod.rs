@@ -1,5 +1,5 @@
 use super::{memory::Memory, sampler::Sampler};
-use crate::{device::Device, util::find_memory_type_index};
+use crate::util::find_memory_type_index;
 use anyhow::Result;
 use ash::vk;
 use math::size::Size2D;
@@ -102,7 +102,7 @@ impl Texture {
         let texture_memory = unsafe { device.allocate_memory(&texture_allocate_info, None) }?;
 
         unsafe {
-            device.bind_image_memory(texture_image, texture_memory, 0);
+            device.bind_image_memory(texture_image, texture_memory, 0)?;
         }
 
         let image_view_info = vk::ImageViewCreateInfo {

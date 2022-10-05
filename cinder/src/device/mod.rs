@@ -222,14 +222,12 @@ impl Device {
         let (p_device, queue_family_index, p_device_properties) = supported_device_data
             .into_iter()
             .rev()
-            .max_by_key(
-                |(device, queue_family_index, properties)| match properties.device_type {
-                    vk::PhysicalDeviceType::INTEGRATED_GPU => 200,
-                    vk::PhysicalDeviceType::DISCRETE_GPU => 1000,
-                    vk::PhysicalDeviceType::VIRTUAL_GPU => 1,
-                    _ => 0,
-                },
-            )
+            .max_by_key(|(_, _, properties)| match properties.device_type {
+                vk::PhysicalDeviceType::INTEGRATED_GPU => 200,
+                vk::PhysicalDeviceType::DISCRETE_GPU => 1000,
+                vk::PhysicalDeviceType::VIRTUAL_GPU => 1,
+                _ => 0,
+            })
             .ok_or(DeviceInitError::NoSuitableDevice)?;
 
         let p_device_memory_properties =
@@ -294,18 +292,6 @@ impl Device {
             .queue_family_index(queue_family_index);
 
         let command_pool = unsafe { device.create_command_pool(&pool_create_info, None) }?;
-
-        // TODO: is this the right place for the DescriptorPool
-        let descriptor_sizes = [
-            vk::DescriptorPoolSize {
-                ty: vk::DescriptorType::UNIFORM_BUFFER,
-                descriptor_count: 1 as u32,
-            },
-            vk::DescriptorPoolSize {
-                ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                descriptor_count: 1,
-            },
-        ];
 
         let bind_group_alloc = BindGroupAllocator::default();
         let bind_group_cache = BindGroupLayoutCache::default();
@@ -463,7 +449,7 @@ impl Device {
         GraphicsPipeline::create(&self.device, &self.surface_data, desc)
     }
 
-    pub fn create_render_context(&self, desc: RenderContextDescription) -> Result<RenderContext> {
+    pub fn create_render_context(&self, _desc: RenderContextDescription) -> Result<RenderContext> {
         // TODO: Allocate buffers in bulk, manage handing them out some way
         let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
             .command_buffer_count(1)
@@ -478,7 +464,7 @@ impl Device {
         Ok(RenderContext::from_command_buffer(command_buffer))
     }
 
-    pub fn create_upload_context(&self, desc: UploadContextDescription) -> Result<UploadContext> {
+    pub fn create_upload_context(&self, _desc: UploadContextDescription) -> Result<UploadContext> {
         // TODO: Allocate buffers in bulk, manage handing them out some way
         let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
             .command_buffer_count(1)
@@ -569,17 +555,13 @@ impl Device {
 
     pub fn resize(&mut self, backbuffer_resolution: Size2D<u32>) -> Result<()> {
         unsafe {
-            self.device.device_wait_idle();
+            self.device.device_wait_idle()?;
 
             self.surface_data = self
                 .surface
                 .get_data(self.p_device, backbuffer_resolution)?;
-            self.swapchain.resize(
-                &self.instance,
-                &self.device,
-                &self.surface,
-                &self.surface_data,
-            )?;
+            self.swapchain
+                .resize(&self.device, &self.surface, &self.surface_data)?;
             self.depth_image.clean(&self.device);
             self.depth_image = Texture::create(
                 &self.device,
