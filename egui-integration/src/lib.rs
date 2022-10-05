@@ -140,7 +140,7 @@ impl EguiIntegration {
 
     pub fn run(
         &mut self,
-        device: &Cinder,
+        cinder: &Cinder,
         context: &RenderContext,
         present_index: u32,
         window: &Window,
@@ -162,22 +162,21 @@ impl EguiIntegration {
             .handle_platform_output(window, &self.egui_context, platform_output);
 
         // TODO? Make this a separate step
-        self.set_textures(device, context, &textures_delta);
+        self.set_textures(cinder, context, &textures_delta);
 
-        context.begin_render_pass(device, &self.render_pass, present_index);
+        context.begin_render_pass(cinder, &self.render_pass, present_index);
         {}
-        context.end_render_pass(device);
+        context.end_render_pass(cinder);
 
         // TODO: render
         self.free_textures(textures_delta);
     }
 
-    pub fn resize(&mut self, device: &Cinder) -> Result<()> {
-        // TODO: Clean old render pass
-        device.clean_render_pass(&mut self.render_pass);
-        self.render_pass = device.create_render_pass(RenderPassDescription {
+    pub fn resize(&mut self, cinder: &Cinder) -> Result<()> {
+        cinder.clean_render_pass(&mut self.render_pass);
+        self.render_pass = cinder.create_render_pass(RenderPassDescription {
             color_attachments: [
-                RenderPassAttachmentDesc::load_store(device.surface_format())
+                RenderPassAttachmentDesc::load_store(cinder.surface_format())
                     .with_layout_transition(LayoutTransition {
                         initial_layout: Layout::ColorAttachment,
                         final_layout: Layout::Present,
