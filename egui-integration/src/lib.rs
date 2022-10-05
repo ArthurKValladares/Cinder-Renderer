@@ -6,8 +6,9 @@ use cinder::{
     context::render_context::RenderContext,
     resoruces::{
         bind_group::{BindGroupLayout, BindGroupLayoutBuilder, BindGroupSet, BindGroupType},
-        buffer::Buffer,
-        image::{Format, Image},
+        buffer::{Buffer, BufferDescription, BufferUsage},
+        image::Image,
+        memory::{MemoryDescription, MemoryType},
         pipeline::{push_constant::PushConstant, GraphicsPipeline, GraphicsPipelineDescription},
         render_pass::{
             Layout, LayoutTransition, RenderPass, RenderPassAttachmentDesc, RenderPassDescription,
@@ -19,6 +20,9 @@ use cinder::{
 use egui::{RawInput, TextureId, TexturesDelta};
 use math::vec::Vec2;
 use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Window};
+
+static VERTEX_BUFFER_SIZE: u64 = 1024 * 1024 * 4;
+static INDEX_BUFFER_SIZE: u64 = 1024 * 1024 * 2;
 
 #[repr(C)]
 #[derive(Clone, Debug, Copy)]
@@ -37,17 +41,19 @@ pub struct EguiIntegration {
     sampler: Sampler,
     image_staging_buffer: Option<Buffer>,
     image_map: HashMap<TextureId, Image>,
+    vertex_buffers: Vec<Buffer>,
+    index_buffers: Vec<Buffer>,
 }
 
 impl EguiIntegration {
-    pub fn new<T>(event_loop: &EventLoopWindowTarget<T>, device: &mut Cinder) -> Result<Self> {
+    pub fn new<T>(event_loop: &EventLoopWindowTarget<T>, cinder: &mut Cinder) -> Result<Self> {
         let egui_context = egui::Context::default();
         egui_context.set_visuals(egui::Visuals::light());
         let egui_winit = egui_winit::State::new(event_loop);
 
-        let render_pass = device.create_render_pass(RenderPassDescription {
+        let render_pass = cinder.create_render_pass(RenderPassDescription {
             color_attachments: [
-                RenderPassAttachmentDesc::load_store(device.surface_format())
+                RenderPassAttachmentDesc::load_store(cinder.surface_format())
                     .with_layout_transition(LayoutTransition {
                         initial_layout: Layout::ColorAttachment,
                         final_layout: Layout::Present,
@@ -62,25 +68,21 @@ impl EguiIntegration {
             size: std::mem::size_of::<EguiPushConstantData>() as u32,
         };
 
-        let vertex_shader = device
-            .create_shader(ShaderDescription {
-                stage: ShaderStage::Vertex,
-                path: Path::new("egui-integration/shaders/spv/egui.vert.spv"),
-            })
-            .expect("Could not create vertex shader");
-        let fragment_shader = device
-            .create_shader(ShaderDescription {
-                stage: ShaderStage::Fragment,
-                path: Path::new("egui-integration/shaders/spv/egui.frag.spv"),
-            })
-            .expect("Could not create fragment shader");
+        let vertex_shader = cinder.create_shader(ShaderDescription {
+            stage: ShaderStage::Vertex,
+            path: Path::new("egui-integration/shaders/spv/egui.vert.spv"),
+        })?;
+        let fragment_shader = cinder.create_shader(ShaderDescription {
+            stage: ShaderStage::Fragment,
+            path: Path::new("egui-integration/shaders/spv/egui.frag.spv"),
+        })?;
 
         let bind_group_layout = BindGroupLayoutBuilder::default()
             .bind_image(0, BindGroupType::ImageSampler, ShaderStage::Fragment)
-            .build(device)?;
-        let bind_group_set = BindGroupSet::allocate(device, &bind_group_layout)?;
+            .build(cinder)?;
+        let bind_group_set = BindGroupSet::allocate(cinder, &bind_group_layout)?;
 
-        let pipeline = device.create_graphics_pipeline(GraphicsPipelineDescription {
+        let pipeline = cinder.create_graphics_pipeline(GraphicsPipelineDescription {
             vertex_shader,
             fragment_shader,
             render_pass: &render_pass,
@@ -88,7 +90,33 @@ impl EguiIntegration {
             push_constants: vec![&push_constant],
         })?;
 
-        let sampler = device.create_sampler()?;
+        let sampler = cinder.create_sampler()?;
+
+        let (vertex_buffers, index_buffers) = {
+            let len = render_pass.framebuffers.len();
+            let mut vertex_buffers = Vec::with_capacity(len);
+            let mut index_buffers = Vec::with_capacity(len);
+            for _ in 0..len {
+                // TODO: Should these be GPU-side?
+                let vertex_buffer = cinder.create_buffer(BufferDescription {
+                    size: VERTEX_BUFFER_SIZE,
+                    usage: BufferUsage::Index,
+                    memory_desc: MemoryDescription {
+                        ty: MemoryType::CpuVisible,
+                    },
+                })?;
+                vertex_buffers.push(vertex_buffer);
+                let index_buffer = cinder.create_buffer(BufferDescription {
+                    size: INDEX_BUFFER_SIZE,
+                    usage: BufferUsage::Vertex,
+                    memory_desc: MemoryDescription {
+                        ty: MemoryType::CpuVisible,
+                    },
+                })?;
+                index_buffers.push(index_buffer);
+            }
+            (vertex_buffers, index_buffers)
+        };
 
         Ok(Self {
             egui_context,
@@ -101,6 +129,8 @@ impl EguiIntegration {
             pipeline,
             image_staging_buffer: None,
             image_map: Default::default(),
+            vertex_buffers,
+            index_buffers,
         })
     }
 
@@ -158,7 +188,7 @@ impl EguiIntegration {
         Ok(())
     }
 
-    pub fn clean(&mut self, device: &Cinder) {}
+    pub fn clean(&mut self, cinder: &Cinder) {}
 
     fn gather_input(&mut self, window: &Window) -> RawInput {
         self.egui_winit.take_egui_input(window)
@@ -166,7 +196,7 @@ impl EguiIntegration {
 
     fn set_textures(
         &mut self,
-        device: &Cinder,
+        cinder: &Cinder,
         context: &RenderContext,
         textures_delta: &TexturesDelta,
     ) {
