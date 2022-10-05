@@ -1,6 +1,6 @@
 use super::ContextShared;
 use crate::{
-    cinder::Cinder,
+    cinder::{self, Cinder},
     resoruces::{
         buffer::Buffer,
         pipeline::{push_constant::PushConstant, GraphicsPipeline},
@@ -24,15 +24,16 @@ impl RenderContext {
         }
     }
 
-    pub fn begin(&self, device: &Cinder) -> Result<()> {
-        self.shared.begin(&device, device.draw_commands_reuse_fence)
+    pub fn begin(&self, cinder: &Cinder) -> Result<()> {
+        self.shared
+            .begin(cinder.device(), cinder.draw_commands_reuse_fence)
     }
 
-    pub fn end(&self, device: &Cinder) -> Result<()> {
-        self.shared.end(device)
+    pub fn end(&self, cinder: &Cinder) -> Result<()> {
+        self.shared.end(cinder.device())
     }
 
-    pub fn begin_render_pass(&self, device: &Cinder, render_pass: &RenderPass, present_index: u32) {
+    pub fn begin_render_pass(&self, cinder: &Cinder, render_pass: &RenderPass, present_index: u32) {
         let create_info = vk::RenderPassBeginInfo::builder()
             .render_pass(render_pass.render_pass)
             .framebuffer(render_pass.framebuffers[present_index as usize])
@@ -40,7 +41,7 @@ impl RenderContext {
             .clear_values(&render_pass.clear_values);
 
         unsafe {
-            device.cmd_begin_render_pass(
+            cinder.device().cmd_begin_render_pass(
                 self.shared.command_buffer,
                 &create_info,
                 vk::SubpassContents::INLINE,
@@ -48,13 +49,17 @@ impl RenderContext {
         }
     }
 
-    pub fn end_render_pass(&self, device: &Cinder) {
-        unsafe { device.cmd_end_render_pass(self.shared.command_buffer) }
+    pub fn end_render_pass(&self, cinder: &Cinder) {
+        unsafe {
+            cinder
+                .device()
+                .cmd_end_render_pass(self.shared.command_buffer)
+        }
     }
 
-    pub fn bind_graphics_pipeline(&self, device: &Cinder, pipeline: &GraphicsPipeline) {
+    pub fn bind_graphics_pipeline(&self, cinder: &Cinder, pipeline: &GraphicsPipeline) {
         unsafe {
-            device.cmd_bind_pipeline(
+            cinder.device().cmd_bind_pipeline(
                 self.shared.command_buffer,
                 vk::PipelineBindPoint::GRAPHICS,
                 pipeline.common.pipeline,
@@ -64,12 +69,12 @@ impl RenderContext {
 
     pub fn bind_descriptor_sets(
         &self,
-        device: &Cinder,
+        cinder: &Cinder,
         pipeline: &GraphicsPipeline,
         sets: &[vk::DescriptorSet],
     ) {
         unsafe {
-            device.cmd_bind_descriptor_sets(
+            cinder.device().cmd_bind_descriptor_sets(
                 self.shared.command_buffer,
                 vk::PipelineBindPoint::GRAPHICS,
                 pipeline.common.pipeline_layout,
@@ -80,15 +85,20 @@ impl RenderContext {
         }
     }
 
-    pub fn bind_vertex_buffer(&self, device: &Cinder, buffer: &Buffer) {
+    pub fn bind_vertex_buffer(&self, cinder: &Cinder, buffer: &Buffer) {
         unsafe {
-            device.cmd_bind_vertex_buffers(self.shared.command_buffer, 0, &[buffer.raw], &[0])
+            cinder.device().cmd_bind_vertex_buffers(
+                self.shared.command_buffer,
+                0,
+                &[buffer.raw],
+                &[0],
+            )
         }
     }
 
-    pub fn bind_index_buffer(&self, device: &Cinder, buffer: &Buffer) {
+    pub fn bind_index_buffer(&self, cinder: &Cinder, buffer: &Buffer) {
         unsafe {
-            device.cmd_bind_index_buffer(
+            cinder.device().cmd_bind_index_buffer(
                 self.shared.command_buffer,
                 buffer.raw,
                 0,
@@ -97,9 +107,9 @@ impl RenderContext {
         }
     }
 
-    pub fn bind_scissor(&self, device: &Cinder, rect: Rect2D<u32>) {
+    pub fn bind_scissor(&self, cinder: &Cinder, rect: Rect2D<u32>) {
         unsafe {
-            device.cmd_set_scissor(
+            cinder.device().cmd_set_scissor(
                 self.shared.command_buffer,
                 0,
                 &[vk::Rect2D {
@@ -113,9 +123,9 @@ impl RenderContext {
         }
     }
 
-    pub fn bind_viewport(&self, device: &Cinder, rect: Rect2D<u32>) {
+    pub fn bind_viewport(&self, cinder: &Cinder, rect: Rect2D<u32>) {
         unsafe {
-            device.cmd_set_viewport(
+            cinder.device().cmd_set_viewport(
                 self.shared.command_buffer,
                 0,
                 &[vk::Viewport {
@@ -130,19 +140,23 @@ impl RenderContext {
         }
     }
 
-    pub fn draw(&self, device: &Cinder, index_count: u32) {
-        unsafe { device.cmd_draw_indexed(self.shared.command_buffer, index_count, 1, 0, 0, 1) }
+    pub fn draw(&self, cinder: &Cinder, index_count: u32) {
+        unsafe {
+            cinder
+                .device()
+                .cmd_draw_indexed(self.shared.command_buffer, index_count, 1, 0, 0, 1)
+        }
     }
 
     pub fn push_constant(
         &self,
-        device: &Cinder,
+        cinder: &Cinder,
         pipeline: &GraphicsPipeline,
         push_constant: &PushConstant,
         data: &[u8],
     ) {
         unsafe {
-            device.cmd_push_constants(
+            cinder.device().cmd_push_constants(
                 self.shared.command_buffer,
                 pipeline.common.pipeline_layout,
                 push_constant.stage.into(),

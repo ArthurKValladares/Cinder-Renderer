@@ -3,11 +3,12 @@ use crate::{
         render_context::{RenderContext, RenderContextDescription},
         upload_context::{UploadContext, UploadContextDescription},
     },
+    device::Device,
     instance::Instance,
     resoruces::{
         bind_group::{BindGroupAllocator, BindGroupLayoutCache},
         buffer::{Buffer, BufferDescription},
-        image::{self, Image, ImageCreateError, ImageDescription},
+        image::{self, Image, ImageDescription},
         memory::Memory,
         pipeline::{GraphicsPipeline, GraphicsPipelineDescription},
         render_pass::{RenderPass, RenderPassDescription},
@@ -21,8 +22,6 @@ use crate::{
 };
 use anyhow::Result;
 use ash::vk;
-#[cfg(any(target_os = "macos", target_os = "ios"))]
-use ash::vk::KhrPortabilitySubsetFn;
 use math::{rect::Rect2D, size::Size2D};
 use std::ops::Deref;
 use thiserror::Error;
@@ -59,14 +58,6 @@ pub struct Vertex {
 }
 
 #[derive(Debug, Error)]
-pub enum DeviceInitError {
-    #[error("No suitable device found")]
-    NoSuitableDevice,
-    #[error(transparent)]
-    ImageCreateError(#[from] ImageCreateError),
-}
-
-#[derive(Debug, Error)]
 pub enum BufferCreateError {
     #[error("No suitable memory type found")]
     NoSuitableMemoryType,
@@ -75,17 +66,9 @@ pub enum BufferCreateError {
 // TODO: definitely need a depth image, do it very soon
 pub struct Cinder {
     instance: Instance,
-
-    p_device: vk::PhysicalDevice,
-    p_device_properties: vk::PhysicalDeviceProperties,
-    p_device_memory_properties: vk::PhysicalDeviceMemoryProperties,
-    pub device: ash::Device,
-    queue_family_index: u32,
-    present_queue: vk::Queue,
-
+    device: Device,
     surface: Surface,
     swapchain: Swapchain,
-
     surface_data: SurfaceData,
 
     pub depth_image: Image,
@@ -104,87 +87,22 @@ pub struct Cinder {
 
 impl Cinder {
     pub fn new(window: &winit::window::Window, init_data: InitData) -> Result<Self> {
-        let span = span!(Level::DEBUG, "Device::new");
+        let span = span!(Level::DEBUG, "Cinder::new");
         let _enter = span.enter();
 
         let instance = Instance::new(window)?;
 
         let surface = Surface::new(window, &instance)?;
 
-        let p_devices = unsafe { instance.enumerate_physical_devices() }?;
-        let supported_device_data = p_devices
-            .into_iter()
-            .flat_map(|p_device| {
-                unsafe { instance.get_physical_device_queue_family_properties(p_device) }
-                    .iter()
-                    .enumerate()
-                    .filter_map(|(index, info)| {
-                        let supports_graphic_and_surface =
-                            info.queue_flags.contains(vk::QueueFlags::GRAPHICS)
-                                && unsafe {
-                                    surface.surface_loader.get_physical_device_surface_support(
-                                        p_device,
-                                        index as u32,
-                                        surface.surface,
-                                    )
-                                }
-                                .unwrap_or(false);
-                        if supports_graphic_and_surface {
-                            let properties =
-                                unsafe { instance.get_physical_device_properties(p_device) };
-                            Some((p_device, index as u32, properties))
-                        } else {
-                            None
-                        }
-                    })
-                    .next()
-            })
-            .collect::<Vec<_>>();
-        let (p_device, queue_family_index, p_device_properties) = supported_device_data
-            .into_iter()
-            .rev()
-            .max_by_key(|(_, _, properties)| match properties.device_type {
-                vk::PhysicalDeviceType::INTEGRATED_GPU => 200,
-                vk::PhysicalDeviceType::DISCRETE_GPU => 1000,
-                vk::PhysicalDeviceType::VIRTUAL_GPU => 1,
-                _ => 0,
-            })
-            .ok_or(DeviceInitError::NoSuitableDevice)?;
+        let device = Device::new(&instance, &surface)?;
 
-        let p_device_memory_properties =
-            unsafe { instance.get_physical_device_memory_properties(p_device) };
-
-        let device_extension_names = [
-            ash::extensions::khr::Swapchain::name(),
-            #[cfg(any(target_os = "macos", target_os = "ios"))]
-            KhrPortabilitySubsetFn::name(),
-        ];
-        let device_extension_names_raw: Vec<*const i8> = device_extension_names
-            .iter()
-            .map(|raw_name| raw_name.as_ptr())
-            .collect();
-
-        let features = vk::PhysicalDeviceFeatures::builder();
-        let priorities = [1.0];
-        let queue_info = [vk::DeviceQueueCreateInfo::builder()
-            .queue_family_index(queue_family_index)
-            .queue_priorities(&priorities)
-            .build()];
-        let device_create_info = vk::DeviceCreateInfo::builder()
-            .queue_create_infos(&queue_info)
-            .enabled_extension_names(&device_extension_names_raw)
-            .enabled_features(&features);
-        let device = unsafe { instance.create_device(p_device, &device_create_info, None) }?;
-
-        let present_queue = unsafe { device.get_device_queue(queue_family_index, 0) };
-
-        let surface_data = surface.get_data(p_device, init_data.backbuffer_resolution)?;
+        let surface_data = surface.get_data(device.p_device(), init_data.backbuffer_resolution)?;
 
         let swapchain = Swapchain::new(&instance, &device, &surface, &surface_data)?;
 
         let depth_image = Image::create(
             &device,
-            &p_device_memory_properties,
+            &device.memopry_properties(),
             ImageDescription {
                 format: image::Format::D32SFloat,
                 usage: image::Usage::Depth,
@@ -210,7 +128,7 @@ impl Cinder {
 
         let pool_create_info = vk::CommandPoolCreateInfo::builder()
             .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-            .queue_family_index(queue_family_index);
+            .queue_family_index(device.queue_family_index());
 
         let command_pool = unsafe { device.create_command_pool(&pool_create_info, None) }?;
 
@@ -219,12 +137,7 @@ impl Cinder {
 
         Ok(Self {
             instance,
-            p_device,
-            p_device_properties,
-            p_device_memory_properties,
             device,
-            queue_family_index,
-            present_queue,
             surface,
             swapchain,
             surface_data,
@@ -237,6 +150,10 @@ impl Cinder {
             bind_group_alloc,
             bind_group_cache,
         })
+    }
+
+    pub fn device(&self) -> &Device {
+        &self.device
     }
 
     pub fn surface_format(&self) -> vk::Format {
@@ -253,7 +170,7 @@ impl Cinder {
         let buffer_memory_req = unsafe { self.device.get_buffer_memory_requirements(buffer) };
         let buffer_memory_index = find_memory_type_index(
             &buffer_memory_req,
-            &self.p_device_memory_properties,
+            self.device.memopry_properties(),
             desc.memory_desc.ty.into(),
         )
         .ok_or_else(|| BufferCreateError::NoSuitableMemoryType)?;
@@ -317,7 +234,7 @@ impl Cinder {
     }
 
     pub fn create_image(&self, desc: ImageDescription) -> Result<Image> {
-        Image::create(&self.device, &self.p_device_memory_properties, desc)
+        Image::create(&self.device, self.device.memopry_properties(), desc)
     }
 
     pub fn create_sampler(&self) -> Result<Sampler> {
@@ -406,7 +323,7 @@ impl Cinder {
             &self.device,
             context.shared.command_buffer,
             self.draw_commands_reuse_fence,
-            self.present_queue,
+            self.device.present_queue(),
             std::slice::from_ref(&vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT),
             std::slice::from_ref(&self.present_complete_semaphore),
             std::slice::from_ref(&self.rendering_complete_semaphore),
@@ -423,7 +340,7 @@ impl Cinder {
         let is_suboptimal = unsafe {
             self.swapchain
                 .swapchain_loader
-                .queue_present(self.present_queue, &present_info)
+                .queue_present(self.device.present_queue(), &present_info)
         }?;
         Ok(is_suboptimal)
     }
@@ -433,7 +350,7 @@ impl Cinder {
             &self.device,
             context.shared.command_buffer,
             self.setup_commands_reuse_fence,
-            self.present_queue,
+            self.device.present_queue(),
             &[],
             &[],
             &[],
@@ -477,13 +394,13 @@ impl Cinder {
 
             self.surface_data = self
                 .surface
-                .get_data(self.p_device, backbuffer_resolution)?;
+                .get_data(self.device.p_device(), backbuffer_resolution)?;
             self.swapchain
                 .resize(&self.device, &self.surface, &self.surface_data)?;
             self.depth_image.clean(&self.device);
             self.depth_image = Image::create(
                 &self.device,
-                &self.p_device_memory_properties,
+                &self.device.memopry_properties(),
                 ImageDescription {
                     format: image::Format::D32SFloat,
                     usage: image::Usage::Depth,
@@ -494,12 +411,19 @@ impl Cinder {
 
         Ok(())
     }
-}
 
-impl Deref for Cinder {
-    type Target = ash::Device;
-
-    fn deref(&self) -> &Self::Target {
-        &self.device
+    // TODO: Will refactor pretty much all descriptor set stuff
+    pub(crate) fn create_descriptor_set_layout(
+        &mut self,
+        ci: vk::DescriptorSetLayoutCreateInfo,
+    ) -> Result<vk::DescriptorSetLayout, vk::Result> {
+        self.bind_group_cache
+            .create_bind_group_layout(&self.device, ci)
+    }
+    pub(crate) fn create_descriptor_set(
+        &mut self,
+        layout: &vk::DescriptorSetLayout,
+    ) -> Result<vk::DescriptorSet, vk::Result> {
+        self.bind_group_alloc.allocate(&self.device, layout)
     }
 }

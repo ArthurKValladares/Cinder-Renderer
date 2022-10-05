@@ -306,14 +306,12 @@ impl BindGroupLayoutBuilder {
         self
     }
 
-    pub fn build(self, device: &mut Cinder) -> Result<BindGroupLayout> {
+    pub fn build(self, cinder: &mut Cinder) -> Result<BindGroupLayout> {
         let layout_info = vk::DescriptorSetLayoutCreateInfo::builder()
             .bindings(&self.bindings)
             .build();
 
-        let layout = device
-            .bind_group_cache
-            .create_bind_group_layout(&device.device, layout_info)?;
+        let layout = cinder.create_descriptor_set_layout(layout_info)?;
 
         Ok(BindGroupLayout { layout })
     }
@@ -325,10 +323,8 @@ pub struct BindGroupSet {
 }
 
 impl BindGroupSet {
-    pub fn allocate(device: &mut Cinder, layout: &BindGroupLayout) -> Result<Self> {
-        let set = device
-            .bind_group_alloc
-            .allocate(&device.device, &layout.layout)?;
+    pub fn allocate(cinder: &mut Cinder, layout: &BindGroupLayout) -> Result<Self> {
+        let set = cinder.create_descriptor_set(&layout.layout)?;
         Ok(Self { set })
     }
 }
@@ -373,19 +369,17 @@ impl BindGroupSetBuilder {
 
     pub fn build_and_update(
         mut self,
-        device: &mut Cinder,
+        cinder: &mut Cinder,
         layout: &BindGroupLayout,
     ) -> Result<BindGroupSet> {
-        let set = device
-            .bind_group_alloc
-            .allocate(&device.device, &layout.layout)?;
+        let set = cinder.create_descriptor_set(&layout.layout)?;
 
         for write in &mut self.writes {
             write.dst_set = set;
         }
 
         unsafe {
-            device.update_descriptor_sets(&self.writes, &[]);
+            cinder.device().update_descriptor_sets(&self.writes, &[]);
         }
 
         Ok(BindGroupSet { set })
