@@ -90,19 +90,19 @@ impl EguiIntegration {
             fragment_shader,
             vertex_state: VertexInputStateDesc {
                 binding: 0,
-                stride: 8 * std::mem::size_of::<f32>() as u32
+                stride: 4 * std::mem::size_of::<f32>() as u32
                     + 4 * std::mem::size_of::<u8>() as u32,
                 attributes: vec![
                     VertexAttributeDesc {
-                        format: Format::R32_G32_B32_A32_SFloat,
+                        format: Format::R32_G32_SFloat,
                         offset: 0,
                     },
                     VertexAttributeDesc {
-                        format: Format::R32_G32_B32_A32_SFloat,
+                        format: Format::R32_G32_SFloat,
                         offset: 8,
                     },
                     VertexAttributeDesc {
-                        format: Format::R32_G32_SFloat,
+                        format: Format::R32_SFloat,
                         offset: 16,
                     },
                 ],

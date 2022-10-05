@@ -19,6 +19,7 @@ pub enum Format {
     R32_G32_B32_A32_SFloat,
     R32_G32_B32_SFloat,
     R32_G32_SFloat,
+    R32_SFloat,
 }
 
 impl From<Format> for vk::Format {
@@ -29,6 +30,7 @@ impl From<Format> for vk::Format {
             Format::R32_G32_B32_A32_SFloat => vk::Format::R32G32B32A32_SFLOAT,
             Format::R32_G32_B32_SFloat => vk::Format::R32G32B32_SFLOAT,
             Format::R32_G32_SFloat => vk::Format::R32G32_SFLOAT,
+            Format::R32_SFloat => vk::Format::R32_SFLOAT,
         }
     }
 }
