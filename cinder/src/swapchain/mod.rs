@@ -5,7 +5,7 @@ use ash::vk;
 pub struct Swapchain {
     pub swapchain_loader: ash::extensions::khr::Swapchain,
     pub swapchain: vk::SwapchainKHR,
-    // TODO: Should these and depth image be a `Texture`
+    // TODO: Should these be `Image`s
     pub present_images: Vec<vk::Image>,
     pub present_image_views: Vec<vk::ImageView>,
 }

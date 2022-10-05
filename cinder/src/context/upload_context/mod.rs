@@ -1,7 +1,7 @@
 use super::ContextShared;
 use crate::{
     cinder::Cinder,
-    resoruces::{buffer::Buffer, texture::Texture},
+    resoruces::{buffer::Buffer, image::Image},
 };
 use anyhow::Result;
 use ash::vk;
@@ -59,11 +59,11 @@ impl UploadContext {
         };
     }
 
-    pub fn texture_barrier_start(&self, device: &Cinder, texture: &Texture) {
-        let texture_barrier = vk::ImageMemoryBarrier {
+    pub fn image_barrier_start(&self, device: &Cinder, image: &Image) {
+        let image_barrier = vk::ImageMemoryBarrier {
             dst_access_mask: vk::AccessFlags::TRANSFER_WRITE,
             new_layout: vk::ImageLayout::TRANSFER_DST_OPTIMAL,
-            image: texture.raw,
+            image: image.raw,
             subresource_range: vk::ImageSubresourceRange {
                 aspect_mask: vk::ImageAspectFlags::COLOR,
                 level_count: 1,
@@ -80,18 +80,18 @@ impl UploadContext {
                 vk::DependencyFlags::empty(),
                 &[],
                 &[],
-                &[texture_barrier],
+                &[image_barrier],
             )
         };
     }
 
-    pub fn texture_barrier_end(&self, device: &Cinder, texture: &Texture) {
-        let texture_barrier_end = vk::ImageMemoryBarrier {
+    pub fn image_barrier_end(&self, device: &Cinder, image: &Image) {
+        let image_barrier_end = vk::ImageMemoryBarrier {
             src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
             dst_access_mask: vk::AccessFlags::SHADER_READ,
             old_layout: vk::ImageLayout::TRANSFER_DST_OPTIMAL,
             new_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-            image: texture.raw,
+            image: image.raw,
             subresource_range: vk::ImageSubresourceRange {
                 aspect_mask: vk::ImageAspectFlags::COLOR,
                 level_count: 1,
@@ -108,12 +108,12 @@ impl UploadContext {
                 vk::DependencyFlags::empty(),
                 &[],
                 &[],
-                &[texture_barrier_end],
+                &[image_barrier_end],
             )
         };
     }
 
-    pub fn copy_buffer_to_texture(&self, device: &Cinder, buffer: &Buffer, texture: &Texture) {
+    pub fn copy_buffer_to_image(&self, device: &Cinder, buffer: &Buffer, image: &Image) {
         let buffer_copy_regions = vk::BufferImageCopy::builder()
             .image_subresource(
                 vk::ImageSubresourceLayers::builder()
@@ -122,8 +122,8 @@ impl UploadContext {
                     .build(),
             )
             .image_extent(vk::Extent3D {
-                width: texture.desc.size.width(),
-                height: texture.desc.size.height(),
+                width: image.desc.size.width(),
+                height: image.desc.size.height(),
                 depth: 1,
             })
             .build();
@@ -132,7 +132,7 @@ impl UploadContext {
             device.cmd_copy_buffer_to_image(
                 self.shared.command_buffer,
                 buffer.raw,
-                texture.raw,
+                image.raw,
                 vk::ImageLayout::TRANSFER_DST_OPTIMAL,
                 &[buffer_copy_regions],
             )

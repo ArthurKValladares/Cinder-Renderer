@@ -5,4 +5,4 @@ pub mod pipeline;
 pub mod render_pass;
 pub mod sampler;
 pub mod shader;
-pub mod texture;
+pub mod image;

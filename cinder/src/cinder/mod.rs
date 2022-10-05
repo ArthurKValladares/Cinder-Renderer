@@ -7,12 +7,12 @@ use crate::{
     resoruces::{
         bind_group::{BindGroupAllocator, BindGroupLayoutCache},
         buffer::{Buffer, BufferDescription},
+        image::{self, Image, ImageCreateError, ImageDescription},
         memory::Memory,
         pipeline::{GraphicsPipeline, GraphicsPipelineDescription},
         render_pass::{RenderPass, RenderPassDescription},
         sampler::Sampler,
         shader::{Shader, ShaderDescription},
-        texture::{self, ImageCreateError, Texture, TextureDescription},
     },
     surface::{Surface, SurfaceData},
     swapchain::Swapchain,
@@ -88,7 +88,7 @@ pub struct Cinder {
 
     surface_data: SurfaceData,
 
-    pub depth_image: Texture,
+    pub depth_image: Image,
     command_pool: vk::CommandPool,
 
     pub bind_group_alloc: BindGroupAllocator,
@@ -182,12 +182,12 @@ impl Cinder {
 
         let swapchain = Swapchain::new(&instance, &device, &surface, &surface_data)?;
 
-        let depth_image = Texture::create(
+        let depth_image = Image::create(
             &device,
             &p_device_memory_properties,
-            TextureDescription {
-                format: texture::Format::D32SFloat,
-                usage: texture::Usage::Depth,
+            ImageDescription {
+                format: image::Format::D32SFloat,
+                usage: image::Usage::Depth,
                 size: Size2D::new(
                     surface_data.surface_resolution.width,
                     surface_data.surface_resolution.height,
@@ -308,16 +308,16 @@ impl Cinder {
         Ok(())
     }
 
-    pub fn bind_texture(&self, texture: &Texture) -> Result<()> {
+    pub fn bind_image(&self, image: &Image) -> Result<()> {
         unsafe {
             self.device
-                .bind_image_memory(texture.raw, texture.memory.raw, 0)
+                .bind_image_memory(image.raw, image.memory.raw, 0)
         }?;
         Ok(())
     }
 
-    pub fn create_texture(&self, desc: TextureDescription) -> Result<Texture> {
-        Texture::create(&self.device, &self.p_device_memory_properties, desc)
+    pub fn create_image(&self, desc: ImageDescription) -> Result<Image> {
+        Image::create(&self.device, &self.p_device_memory_properties, desc)
     }
 
     pub fn create_sampler(&self) -> Result<Sampler> {
@@ -481,12 +481,12 @@ impl Cinder {
             self.swapchain
                 .resize(&self.device, &self.surface, &self.surface_data)?;
             self.depth_image.clean(&self.device);
-            self.depth_image = Texture::create(
+            self.depth_image = Image::create(
                 &self.device,
                 &self.p_device_memory_properties,
-                TextureDescription {
-                    format: texture::Format::D32SFloat,
-                    usage: texture::Usage::Depth,
+                ImageDescription {
+                    format: image::Format::D32SFloat,
+                    usage: image::Usage::Depth,
                     size: backbuffer_resolution,
                 },
             )?;

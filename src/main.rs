@@ -7,11 +7,11 @@ use cinder::{
     resoruces::{
         bind_group::{BindGroupLayoutBuilder, BindGroupSetBuilder, BindGroupType},
         buffer::{Buffer, BufferDescription, BufferUsage},
+        image::{Format, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
         pipeline::{push_constant::PushConstant, GraphicsPipelineDescription},
         render_pass::{self, RenderPassAttachmentDesc, RenderPassDescription},
         shader::{ShaderDescription, ShaderStage},
-        texture::{Format, TextureDescription, Usage},
     },
     InitData, Resolution,
 };
@@ -232,7 +232,7 @@ fn main() {
         .expect("Could not bind image buffer");
 
     let ferris_texture = cinder
-        .create_texture(TextureDescription {
+        .create_image(ImageDescription {
             format: Format::R8G8B8A8Unorm,
             usage: Usage::Texture,
             size: Size2D::new(image_width, image_height),
@@ -244,9 +244,9 @@ fn main() {
         .expect("could not begin upload context");
     {
         upload_context.transition_depth_image(&cinder);
-        upload_context.texture_barrier_start(&cinder, &ferris_texture);
-        upload_context.copy_buffer_to_texture(&cinder, &image_buffer, &ferris_texture);
-        upload_context.texture_barrier_end(&cinder, &ferris_texture);
+        upload_context.image_barrier_start(&cinder, &ferris_texture);
+        upload_context.copy_buffer_to_image(&cinder, &image_buffer, &ferris_texture);
+        upload_context.image_barrier_end(&cinder, &ferris_texture);
     }
     upload_context
         .end(&cinder)

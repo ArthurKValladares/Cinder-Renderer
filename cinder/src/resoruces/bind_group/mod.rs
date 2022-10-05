@@ -1,4 +1,4 @@
-use super::{buffer::BindBufferInfo, shader::ShaderStage, texture::BindTextureInfo};
+use super::{buffer::BindBufferInfo, image::BindImageInfo, shader::ShaderStage};
 use crate::cinder::Cinder;
 use anyhow::Result;
 use ash::vk;
@@ -358,7 +358,7 @@ impl BindGroupSetBuilder {
     pub fn bind_image(
         mut self,
         binding: u32,
-        image_info: &BindTextureInfo,
+        image_info: &BindImageInfo,
         ty: BindGroupType,
     ) -> Self {
         let new_write = vk::WriteDescriptorSet::builder()

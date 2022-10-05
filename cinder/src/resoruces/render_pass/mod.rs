@@ -2,7 +2,7 @@ use crate::{surface::SurfaceData, swapchain::Swapchain};
 use anyhow::Result;
 use ash::vk;
 
-use super::texture::Texture;
+use super::image::Image;
 
 #[derive(Debug, Clone, Copy)]
 pub struct RenderPassAttachmentDesc {
@@ -139,7 +139,7 @@ impl RenderPass {
         device: &ash::Device,
         swapchain: &Swapchain,
         surface_data: &SurfaceData,
-        depth_image: &Texture,
+        depth_image: &Image,
         desc: RenderPassDescription<N>,
     ) -> Result<Self> {
         // TODO: image transitions should be determined automatically.

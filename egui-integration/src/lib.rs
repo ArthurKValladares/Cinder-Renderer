@@ -7,13 +7,13 @@ use cinder::{
     resoruces::{
         bind_group::{BindGroupLayout, BindGroupLayoutBuilder, BindGroupSet, BindGroupType},
         buffer::Buffer,
+        image::{Format, Image},
         pipeline::{push_constant::PushConstant, GraphicsPipeline, GraphicsPipelineDescription},
         render_pass::{
             Layout, LayoutTransition, RenderPass, RenderPassAttachmentDesc, RenderPassDescription,
         },
         sampler::Sampler,
         shader::{ShaderDescription, ShaderStage},
-        texture::{Format, Texture},
     },
 };
 use egui::{RawInput, TextureId, TexturesDelta};
@@ -36,7 +36,7 @@ pub struct EguiIntegration {
     pipeline: GraphicsPipeline,
     sampler: Sampler,
     image_staging_buffer: Option<Buffer>,
-    image_map: HashMap<TextureId, Texture>,
+    image_map: HashMap<TextureId, Image>,
 }
 
 impl EguiIntegration {

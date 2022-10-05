@@ -50,26 +50,26 @@ impl From<Usage> for vk::ImageAspectFlags {
     }
 }
 
-pub struct TextureDescription {
+pub struct ImageDescription {
     pub format: Format,
     pub usage: Usage,
     pub size: Size2D<u32>,
 }
 
-pub struct Texture {
+pub struct Image {
     pub raw: vk::Image,
     pub view: vk::ImageView,
     pub memory: Memory,
-    pub desc: TextureDescription,
+    pub desc: ImageDescription,
 }
 
-impl Texture {
+impl Image {
     pub(crate) fn create(
         device: &ash::Device,
         p_device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
-        desc: TextureDescription,
+        desc: ImageDescription,
     ) -> Result<Self> {
-        let texture_create_info = vk::ImageCreateInfo {
+        let create_info = vk::ImageCreateInfo {
             image_type: vk::ImageType::TYPE_2D,
             format: desc.format.into(),
             extent: vk::Extent3D {
@@ -85,29 +85,29 @@ impl Texture {
             sharing_mode: vk::SharingMode::EXCLUSIVE,
             ..Default::default()
         };
-        let texture_image = unsafe { device.create_image(&texture_create_info, None) }?;
-        let texture_memory_req = unsafe { device.get_image_memory_requirements(texture_image) };
-        let texture_memory_index = find_memory_type_index(
-            &texture_memory_req,
+        let image = unsafe { device.create_image(&create_info, None) }?;
+        let memory_req = unsafe { device.get_image_memory_requirements(image) };
+        let memory_index = find_memory_type_index(
+            &memory_req,
             p_device_memory_properties,
             vk::MemoryPropertyFlags::DEVICE_LOCAL,
         )
         .ok_or_else(|| ImageCreateError::NoSuitableMemoryType)?;
 
-        let texture_allocate_info = vk::MemoryAllocateInfo {
-            allocation_size: texture_memory_req.size,
-            memory_type_index: texture_memory_index,
+        let allocate_info = vk::MemoryAllocateInfo {
+            allocation_size: memory_req.size,
+            memory_type_index: memory_index,
             ..Default::default()
         };
-        let texture_memory = unsafe { device.allocate_memory(&texture_allocate_info, None) }?;
+        let memory = unsafe { device.allocate_memory(&allocate_info, None) }?;
 
         unsafe {
-            device.bind_image_memory(texture_image, texture_memory, 0)?;
+            device.bind_image_memory(image, memory, 0)?;
         }
 
         let image_view_info = vk::ImageViewCreateInfo {
             view_type: vk::ImageViewType::TYPE_2D,
-            format: texture_create_info.format,
+            format: create_info.format,
             components: vk::ComponentMapping {
                 r: vk::ComponentSwizzle::R,
                 g: vk::ComponentSwizzle::G,
@@ -120,18 +120,18 @@ impl Texture {
                 layer_count: 1,
                 ..Default::default()
             },
-            image: texture_image,
+            image,
             ..Default::default()
         };
         let image_view = unsafe { device.create_image_view(&image_view_info, None) }?;
 
         let memory = Memory {
-            raw: texture_memory,
-            req: texture_memory_req,
+            raw: memory,
+            req: memory_req,
         };
 
-        Ok(Texture {
-            raw: texture_image,
+        Ok(Image {
+            raw: image,
             view: image_view,
             memory,
             desc,
@@ -154,11 +154,11 @@ impl Texture {
     }
 }
 
-pub struct BindTextureInfo(pub vk::DescriptorImageInfo);
+pub struct BindImageInfo(pub vk::DescriptorImageInfo);
 
-impl Texture {
-    pub fn bind_info(&self, sampler: &Sampler) -> BindTextureInfo {
-        BindTextureInfo(vk::DescriptorImageInfo {
+impl Image {
+    pub fn bind_info(&self, sampler: &Sampler) -> BindImageInfo {
+        BindImageInfo(vk::DescriptorImageInfo {
             image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
             image_view: self.view,
             sampler: sampler.raw,
