@@ -1,3 +1,4 @@
+use crate::instance::Instance;
 use anyhow::Result;
 use ash::vk;
 use math::size::Size2D;
@@ -9,16 +10,13 @@ pub struct Surface {
 }
 
 impl Surface {
-    pub fn new(
-        window: &winit::window::Window,
-        entry: &ash::Entry,
-        instance: &ash::Instance,
-    ) -> Result<Self> {
-        let surface_loader = ash::extensions::khr::Surface::new(&entry, &instance);
+    pub fn new(window: &winit::window::Window, instance: &Instance) -> Result<Self> {
+        let surface_loader =
+            ash::extensions::khr::Surface::new(instance.entry(), instance.instance());
         let surface = unsafe {
             ash_window::create_surface(
-                &entry,
-                &instance,
+                instance.entry(),
+                instance.instance(),
                 window.raw_display_handle(),
                 window.raw_window_handle(),
                 None,

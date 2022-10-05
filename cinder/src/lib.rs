@@ -1,8 +1,8 @@
 use math::size::Size2D;
 
 pub mod context;
-pub(crate) mod debug;
 pub mod device;
+pub mod instance;
 pub mod resoruces;
 pub(crate) mod surface;
 pub(crate) mod swapchain;
