@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, path::Path};
 
 use anyhow::Result;
 use cinder::{
@@ -7,20 +7,31 @@ use cinder::{
     resoruces::{
         bind_group::BindGroup,
         buffer::Buffer,
+        pipeline::{push_constant::PushConstant, GraphicsPipeline, GraphicsPipelineDescription},
         render_pass::{
             Layout, LayoutTransition, RenderPass, RenderPassAttachmentDesc, RenderPassDescription,
         },
         sampler::Sampler,
+        shader::{ShaderDescription, ShaderStage},
         texture::{Format, Texture},
     },
 };
 use egui::{RawInput, TextureId, TexturesDelta};
+use math::vec::Vec2;
 use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Window};
+
+#[repr(C)]
+#[derive(Clone, Debug, Copy)]
+struct EguiPushConstantData {
+    size: Vec2,
+}
 
 pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_winit: egui_winit::State,
     render_pass: RenderPass,
+    push_constant: PushConstant,
+    pipeline: GraphicsPipeline,
     sampler: Sampler,
     image_staging_buffer: Option<Buffer>,
     image_map: HashMap<TextureId, Texture>,
@@ -43,6 +54,33 @@ impl EguiIntegration {
             depth_attachment: None,
         })?;
 
+        let push_constant = PushConstant {
+            stage: ShaderStage::Vertex,
+            offset: 0,
+            size: std::mem::size_of::<EguiPushConstantData>() as u32,
+        };
+
+        let vertex_shader = device
+            .create_shader(ShaderDescription {
+                stage: ShaderStage::Vertex,
+                path: Path::new("egui-integration/shaders/spv/egui.vert.spv"),
+            })
+            .expect("Could not create vertex shader");
+        let fragment_shader = device
+            .create_shader(ShaderDescription {
+                stage: ShaderStage::Fragment,
+                path: Path::new("egui-integration/shaders/spv/egui.frag.spv"),
+            })
+            .expect("Could not create fragment shader");
+
+        let pipeline = device.create_graphics_pipeline(GraphicsPipelineDescription {
+            vertex_shader,
+            fragment_shader,
+            render_pass: &render_pass,
+            desc_set_layouts: vec![], // TODO
+            push_constants: vec![&push_constant],
+        })?;
+
         let sampler = device.create_sampler()?;
 
         Ok(Self {
@@ -50,6 +88,8 @@ impl EguiIntegration {
             egui_winit,
             render_pass,
             sampler,
+            push_constant,
+            pipeline,
             image_staging_buffer: None,
             image_map: Default::default(),
         })

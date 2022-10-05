@@ -10,3 +10,4 @@ cinder = {path = "../cinder"}
 egui = "0.19"
 egui-winit = "0.19"
 winit = "0.27"
+math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
