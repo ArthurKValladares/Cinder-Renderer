@@ -73,7 +73,7 @@ pub enum BufferCreateError {
 }
 
 // TODO: definitely need a depth image, do it very soon
-pub struct Device {
+pub struct Cinder {
     instance: Instance,
 
     p_device: vk::PhysicalDevice,
@@ -102,7 +102,7 @@ pub struct Device {
     pub setup_commands_reuse_fence: vk::Fence,
 }
 
-impl Device {
+impl Cinder {
     pub fn new(window: &winit::window::Window, init_data: InitData) -> Result<Self> {
         let span = span!(Level::DEBUG, "Device::new");
         let _enter = span.enter();
@@ -496,7 +496,7 @@ impl Device {
     }
 }
 
-impl Deref for Device {
+impl Deref for Cinder {
     type Target = ash::Device;
 
     fn deref(&self) -> &Self::Target {

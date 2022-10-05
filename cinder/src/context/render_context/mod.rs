@@ -1,6 +1,6 @@
 use super::ContextShared;
 use crate::{
-    device::Device,
+    cinder::Cinder,
     resoruces::{
         buffer::Buffer,
         pipeline::{push_constant::PushConstant, GraphicsPipeline},
@@ -24,15 +24,15 @@ impl RenderContext {
         }
     }
 
-    pub fn begin(&self, device: &Device) -> Result<()> {
+    pub fn begin(&self, device: &Cinder) -> Result<()> {
         self.shared.begin(&device, device.draw_commands_reuse_fence)
     }
 
-    pub fn end(&self, device: &Device) -> Result<()> {
+    pub fn end(&self, device: &Cinder) -> Result<()> {
         self.shared.end(device)
     }
 
-    pub fn begin_render_pass(&self, device: &Device, render_pass: &RenderPass, present_index: u32) {
+    pub fn begin_render_pass(&self, device: &Cinder, render_pass: &RenderPass, present_index: u32) {
         let create_info = vk::RenderPassBeginInfo::builder()
             .render_pass(render_pass.render_pass)
             .framebuffer(render_pass.framebuffers[present_index as usize])
@@ -48,11 +48,11 @@ impl RenderContext {
         }
     }
 
-    pub fn end_render_pass(&self, device: &Device) {
+    pub fn end_render_pass(&self, device: &Cinder) {
         unsafe { device.cmd_end_render_pass(self.shared.command_buffer) }
     }
 
-    pub fn bind_graphics_pipeline(&self, device: &Device, pipeline: &GraphicsPipeline) {
+    pub fn bind_graphics_pipeline(&self, device: &Cinder, pipeline: &GraphicsPipeline) {
         unsafe {
             device.cmd_bind_pipeline(
                 self.shared.command_buffer,
@@ -64,7 +64,7 @@ impl RenderContext {
 
     pub fn bind_descriptor_sets(
         &self,
-        device: &Device,
+        device: &Cinder,
         pipeline: &GraphicsPipeline,
         sets: &[vk::DescriptorSet],
     ) {
@@ -80,13 +80,13 @@ impl RenderContext {
         }
     }
 
-    pub fn bind_vertex_buffer(&self, device: &Device, buffer: &Buffer) {
+    pub fn bind_vertex_buffer(&self, device: &Cinder, buffer: &Buffer) {
         unsafe {
             device.cmd_bind_vertex_buffers(self.shared.command_buffer, 0, &[buffer.raw], &[0])
         }
     }
 
-    pub fn bind_index_buffer(&self, device: &Device, buffer: &Buffer) {
+    pub fn bind_index_buffer(&self, device: &Cinder, buffer: &Buffer) {
         unsafe {
             device.cmd_bind_index_buffer(
                 self.shared.command_buffer,
@@ -97,7 +97,7 @@ impl RenderContext {
         }
     }
 
-    pub fn bind_scissor(&self, device: &Device, rect: Rect2D<u32>) {
+    pub fn bind_scissor(&self, device: &Cinder, rect: Rect2D<u32>) {
         unsafe {
             device.cmd_set_scissor(
                 self.shared.command_buffer,
@@ -113,7 +113,7 @@ impl RenderContext {
         }
     }
 
-    pub fn bind_viewport(&self, device: &Device, rect: Rect2D<u32>) {
+    pub fn bind_viewport(&self, device: &Cinder, rect: Rect2D<u32>) {
         unsafe {
             device.cmd_set_viewport(
                 self.shared.command_buffer,
@@ -130,13 +130,13 @@ impl RenderContext {
         }
     }
 
-    pub fn draw(&self, device: &Device, index_count: u32) {
+    pub fn draw(&self, device: &Cinder, index_count: u32) {
         unsafe { device.cmd_draw_indexed(self.shared.command_buffer, index_count, 1, 0, 0, 1) }
     }
 
     pub fn push_constant(
         &self,
-        device: &Device,
+        device: &Cinder,
         pipeline: &GraphicsPipeline,
         push_constant: &PushConstant,
         data: &[u8],

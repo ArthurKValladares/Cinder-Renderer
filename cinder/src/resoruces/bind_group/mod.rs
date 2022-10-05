@@ -1,5 +1,5 @@
 use super::{buffer::BindBufferInfo, shader::ShaderStage, texture::BindTextureInfo};
-use crate::device::Device;
+use crate::cinder::Cinder;
 use anyhow::Result;
 use ash::vk;
 use std::collections::HashMap;
@@ -306,7 +306,7 @@ impl BindGroupLayoutBuilder {
         self
     }
 
-    pub fn build(self, device: &mut Device) -> Result<BindGroupLayout> {
+    pub fn build(self, device: &mut Cinder) -> Result<BindGroupLayout> {
         let layout_info = vk::DescriptorSetLayoutCreateInfo::builder()
             .bindings(&self.bindings)
             .build();
@@ -325,7 +325,7 @@ pub struct BindGroupSet {
 }
 
 impl BindGroupSet {
-    pub fn allocate(device: &mut Device, layout: &BindGroupLayout) -> Result<Self> {
+    pub fn allocate(device: &mut Cinder, layout: &BindGroupLayout) -> Result<Self> {
         let set = device
             .bind_group_alloc
             .allocate(&device.device, &layout.layout)?;
@@ -373,7 +373,7 @@ impl BindGroupSetBuilder {
 
     pub fn build_and_update(
         mut self,
-        device: &mut Device,
+        device: &mut Cinder,
         layout: &BindGroupLayout,
     ) -> Result<BindGroupSet> {
         let set = device

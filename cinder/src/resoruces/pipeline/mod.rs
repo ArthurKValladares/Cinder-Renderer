@@ -3,7 +3,7 @@ pub mod push_constant;
 use self::push_constant::PushConstant;
 
 use super::{render_pass::RenderPass, shader::Shader};
-use crate::{device::Vertex, surface::SurfaceData};
+use crate::{cinder::Vertex, surface::SurfaceData};
 use ::util::offset_of;
 use anyhow::Result;
 use ash::vk;

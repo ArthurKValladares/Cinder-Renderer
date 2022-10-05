@@ -1,5 +1,5 @@
 use anyhow::Result;
-use cinder::device::Vertex;
+use cinder::cinder::Vertex;
 use std::path::Path;
 
 pub struct Mesh {

@@ -1,6 +1,6 @@
 use super::ContextShared;
 use crate::{
-    device::Device,
+    cinder::Cinder,
     resoruces::{buffer::Buffer, texture::Texture},
 };
 use anyhow::Result;
@@ -19,16 +19,16 @@ impl UploadContext {
         }
     }
 
-    pub fn begin(&self, device: &Device) -> Result<()> {
+    pub fn begin(&self, device: &Cinder) -> Result<()> {
         self.shared
             .begin(&device, device.setup_commands_reuse_fence)
     }
 
-    pub fn end(&self, device: &Device) -> Result<()> {
+    pub fn end(&self, device: &Cinder) -> Result<()> {
         self.shared.end(device)
     }
 
-    pub fn transition_depth_image(&self, device: &Device) {
+    pub fn transition_depth_image(&self, device: &Cinder) {
         let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
             .image(device.depth_image.raw)
             .dst_access_mask(
@@ -59,7 +59,7 @@ impl UploadContext {
         };
     }
 
-    pub fn texture_barrier_start(&self, device: &Device, texture: &Texture) {
+    pub fn texture_barrier_start(&self, device: &Cinder, texture: &Texture) {
         let texture_barrier = vk::ImageMemoryBarrier {
             dst_access_mask: vk::AccessFlags::TRANSFER_WRITE,
             new_layout: vk::ImageLayout::TRANSFER_DST_OPTIMAL,
@@ -85,7 +85,7 @@ impl UploadContext {
         };
     }
 
-    pub fn texture_barrier_end(&self, device: &Device, texture: &Texture) {
+    pub fn texture_barrier_end(&self, device: &Cinder, texture: &Texture) {
         let texture_barrier_end = vk::ImageMemoryBarrier {
             src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
             dst_access_mask: vk::AccessFlags::SHADER_READ,
@@ -113,7 +113,7 @@ impl UploadContext {
         };
     }
 
-    pub fn copy_buffer_to_texture(&self, device: &Device, buffer: &Buffer, texture: &Texture) {
+    pub fn copy_buffer_to_texture(&self, device: &Cinder, buffer: &Buffer, texture: &Texture) {
         let buffer_copy_regions = vk::BufferImageCopy::builder()
             .image_subresource(
                 vk::ImageSubresourceLayers::builder()

@@ -2,8 +2,8 @@ use std::{collections::HashMap, path::Path};
 
 use anyhow::Result;
 use cinder::{
+    cinder::Cinder,
     context::render_context::RenderContext,
-    device::Device,
     resoruces::{
         bind_group::{BindGroupLayout, BindGroupLayoutBuilder, BindGroupSet, BindGroupType},
         buffer::Buffer,
@@ -40,7 +40,7 @@ pub struct EguiIntegration {
 }
 
 impl EguiIntegration {
-    pub fn new<T>(event_loop: &EventLoopWindowTarget<T>, device: &mut Device) -> Result<Self> {
+    pub fn new<T>(event_loop: &EventLoopWindowTarget<T>, device: &mut Cinder) -> Result<Self> {
         let egui_context = egui::Context::default();
         egui_context.set_visuals(egui::Visuals::light());
         let egui_winit = egui_winit::State::new(event_loop);
@@ -110,7 +110,7 @@ impl EguiIntegration {
 
     pub fn run(
         &mut self,
-        device: &Device,
+        device: &Cinder,
         context: &RenderContext,
         present_index: u32,
         window: &Window,
@@ -142,7 +142,7 @@ impl EguiIntegration {
         self.free_textures(textures_delta);
     }
 
-    pub fn resize(&mut self, device: &Device) -> Result<()> {
+    pub fn resize(&mut self, device: &Cinder) -> Result<()> {
         // TODO: Clean old render pass
         device.clean_render_pass(&mut self.render_pass);
         self.render_pass = device.create_render_pass(RenderPassDescription {
@@ -158,7 +158,7 @@ impl EguiIntegration {
         Ok(())
     }
 
-    pub fn clean(&mut self, device: &Device) {}
+    pub fn clean(&mut self, device: &Cinder) {}
 
     fn gather_input(&mut self, window: &Window) -> RawInput {
         self.egui_winit.take_egui_input(window)
@@ -166,7 +166,7 @@ impl EguiIntegration {
 
     fn set_textures(
         &mut self,
-        device: &Device,
+        device: &Cinder,
         context: &RenderContext,
         textures_delta: &TexturesDelta,
     ) {

@@ -1,7 +1,7 @@
 use math::size::Size2D;
 
 pub mod context;
-pub mod device;
+pub mod cinder;
 pub mod instance;
 pub mod resoruces;
 pub(crate) mod surface;
