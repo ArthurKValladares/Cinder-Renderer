@@ -2,10 +2,7 @@ use std::{path::Path, time::Instant};
 
 use cgmath::{Deg, Matrix4, Point3, Vector3};
 use cinder::{
-    context::{
-        render_context::RenderContextDescription,
-        upload_context::{self, UploadContextDescription},
-    },
+    context::{render_context::RenderContextDescription, upload_context::UploadContextDescription},
     device::Device,
     resoruces::{
         bind_group::{BindGroupLayoutBuilder, BindGroupSetBuilder, BindGroupType},
