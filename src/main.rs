@@ -11,7 +11,7 @@ use cinder::{
         bind_group::{BindGroupBuilder, BindGroupType},
         buffer::{Buffer, BufferDescription, BufferUsage},
         memory::{MemoryDescription, MemoryType},
-        pipeline::GraphicsPipelineDescription,
+        pipeline::{push_constant::PushConstant, GraphicsPipelineDescription},
         render_pass::{self, RenderPassAttachmentDesc, RenderPassDescription},
         shader::{ShaderDescription, ShaderStage},
         texture::{Format, TextureDescription, Usage},
@@ -31,7 +31,6 @@ use winit::{
 };
 
 // TODO: verify that all triple buffering stuff is working
-// Abstractions that can lead me to easily implement egui
 
 #[repr(C)]
 #[derive(Clone, Debug, Copy)]
@@ -39,6 +38,12 @@ pub struct UniformBufferObject {
     pub model: Matrix4<f32>,
     pub view: Matrix4<f32>,
     pub proj: Matrix4<f32>,
+}
+
+#[repr(C)]
+#[derive(Clone, Debug, Copy)]
+pub struct ColorPushConstant {
+    color: [f32; 4],
 }
 
 fn update_uniform_buffer(
@@ -261,14 +266,24 @@ fn main() {
         .build(&mut device)
         .expect("Could not create BindGroup");
 
+    let color_push_constant = PushConstant {
+        stage: ShaderStage::Vertex,
+        offset: 0,
+        size: std::mem::size_of::<ColorPushConstant>() as u32,
+    };
     let pipeline = device
         .create_graphics_pipeline(GraphicsPipelineDescription {
             vertex_shader,
             fragment_shader,
             render_pass: &render_pass,
             desc_set_layouts: vec![bind_group.layout],
+            push_constants: vec![&color_push_constant],
         })
         .expect("Could not create graphics pipeline");
+
+    let mut color = ColorPushConstant {
+        color: [1.0, 0.0, 0.0, 0.0],
+    };
 
     // Egui integration
     let mut egui = EguiIntegration::new(&event_loop, &device).expect("Could not create event loop");
@@ -343,6 +358,12 @@ fn main() {
                         render_context.bind_index_buffer(&device, &index_buffer);
                         render_context.bind_viewport(&device, surface_rect);
                         render_context.bind_scissor(&device, surface_rect);
+                        render_context.push_constant(
+                            &device,
+                            &pipeline,
+                            &color_push_constant,
+                            util::as_u8_slice(&color),
+                        );
                         render_context.draw(&device, mesh.indices.len() as u32);
                     }
                     render_context.end_render_pass(&device);

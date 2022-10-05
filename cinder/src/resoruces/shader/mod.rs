@@ -2,6 +2,7 @@ use anyhow::Result;
 use ash::vk;
 use std::{fs::File, path::Path};
 
+#[derive(Debug, Clone, Copy)]
 pub enum ShaderStage {
     Vertex,
     Fragment,

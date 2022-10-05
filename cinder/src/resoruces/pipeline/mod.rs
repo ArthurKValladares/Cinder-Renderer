@@ -1,6 +1,9 @@
-use crate::{device::Vertex, surface::SurfaceData};
+pub mod push_constant;
+
+use self::push_constant::PushConstant;
 
 use super::{render_pass::RenderPass, shader::Shader};
+use crate::{device::Vertex, surface::SurfaceData};
 use ::util::offset_of;
 use anyhow::Result;
 use ash::vk;
@@ -12,6 +15,7 @@ pub struct GraphicsPipelineDescription<'a> {
     pub fragment_shader: Shader,
     pub render_pass: &'a RenderPass,
     pub desc_set_layouts: Vec<vk::DescriptorSetLayout>,
+    pub push_constants: Vec<&'a PushConstant>,
 }
 
 pub struct PipelineCommon {
@@ -32,8 +36,14 @@ impl GraphicsPipeline {
         //
         // Pipeline stuff, pretty temp
         //
-        let layout_create_info =
-            vk::PipelineLayoutCreateInfo::builder().set_layouts(&desc.desc_set_layouts);
+        let push_constant_ranges = desc
+            .push_constants
+            .iter()
+            .map(|pc| pc.to_raw())
+            .collect::<Vec<_>>();
+        let layout_create_info = vk::PipelineLayoutCreateInfo::builder()
+            .set_layouts(&desc.desc_set_layouts)
+            .push_constant_ranges(&push_constant_ranges);
 
         let pipeline_layout = unsafe { device.create_pipeline_layout(&layout_create_info, None) }?;
 

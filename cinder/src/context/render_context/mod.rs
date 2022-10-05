@@ -1,7 +1,11 @@
 use super::ContextShared;
 use crate::{
     device::Device,
-    resoruces::{buffer::Buffer, pipeline::GraphicsPipeline, render_pass::RenderPass},
+    resoruces::{
+        buffer::Buffer,
+        pipeline::{push_constant::PushConstant, GraphicsPipeline},
+        render_pass::RenderPass,
+    },
 };
 use anyhow::Result;
 use ash::vk::{self};
@@ -128,5 +132,23 @@ impl RenderContext {
 
     pub fn draw(&self, device: &Device, index_count: u32) {
         unsafe { device.cmd_draw_indexed(self.shared.command_buffer, index_count, 1, 0, 0, 1) }
+    }
+
+    pub fn push_constant(
+        &self,
+        device: &Device,
+        pipeline: &GraphicsPipeline,
+        push_constant: &PushConstant,
+        data: &[u8],
+    ) {
+        unsafe {
+            device.cmd_push_constants(
+                self.shared.command_buffer,
+                pipeline.common.pipeline_layout,
+                push_constant.stage.into(),
+                push_constant.offset,
+                data,
+            );
+        }
     }
 }
