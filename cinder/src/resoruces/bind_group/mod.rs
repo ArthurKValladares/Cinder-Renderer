@@ -7,7 +7,9 @@ use super::{
 use crate::device::Device;
 use anyhow::Result;
 use ash::vk;
-use std::collections::HashMap;
+use std::{collections::HashMap, io::Seek};
+
+// TODO: This whole layer doesn't quite work
 
 // TODO, maybe could be separate enums, to make bind_buffer, bind_image, etc type-safe
 #[derive(Debug, Copy, Clone)]
@@ -201,7 +203,7 @@ impl BindGroupAllocator {
 }
 
 #[derive(Debug)]
-struct BindGroupLayoutBinding(vk::DescriptorSetLayoutBinding);
+pub struct BindGroupLayoutBinding(vk::DescriptorSetLayoutBinding);
 
 impl Eq for BindGroupLayoutBinding {}
 impl PartialEq for BindGroupLayoutBinding {
@@ -264,17 +266,19 @@ impl BindGroupLayoutCache {
     }
 }
 
+pub struct BindGroupLayout {
+    pub layout: vk::DescriptorSetLayout,
+}
+
 #[derive(Debug, Default)]
-pub struct BindGroupBuilder {
-    writes: Vec<vk::WriteDescriptorSet>,
+pub struct BindGroupLayoutBuilder {
     bindings: Vec<vk::DescriptorSetLayoutBinding>,
 }
 
-impl BindGroupBuilder {
+impl BindGroupLayoutBuilder {
     pub fn bind_buffer(
         mut self,
         binding: u32,
-        buffer_info: &BindBufferInfo,
         ty: BindGroupType,
         shader_stage: ShaderStage,
     ) -> Self {
@@ -286,6 +290,66 @@ impl BindGroupBuilder {
             .build();
         self.bindings.push(new_binding);
 
+        self
+    }
+
+    pub fn bind_image(
+        mut self,
+        binding: u32,
+        ty: BindGroupType,
+        shader_stage: ShaderStage,
+    ) -> Self {
+        let new_binding = vk::DescriptorSetLayoutBinding::builder()
+            .binding(binding)
+            .descriptor_type(ty.into())
+            .descriptor_count(1)
+            .stage_flags(shader_stage.into())
+            .build();
+        self.bindings.push(new_binding);
+
+        self
+    }
+
+    pub fn build(mut self, device: &mut Device) -> Result<BindGroupLayout> {
+        let layout_info = vk::DescriptorSetLayoutCreateInfo::builder()
+            .bindings(&self.bindings)
+            .build();
+
+        let layout = device
+            .bind_group_cache
+            .create_bind_group_layout(&device.device, layout_info)?;
+        let set = device.bind_group_alloc.allocate(&device.device, &layout)?;
+
+        Ok(BindGroupLayout { layout })
+    }
+}
+
+// TODO: temp, just testing it out
+pub struct BindGroupSet {
+    pub set: vk::DescriptorSet,
+}
+
+impl BindGroupSet {
+    pub fn allocate(device: &mut Device, layout: &BindGroupLayout) -> Result<Self> {
+        let set = device
+            .bind_group_alloc
+            .allocate(&device.device, &layout.layout)?;
+        Ok(Self { set })
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct BindGroupSetBuilder {
+    writes: Vec<vk::WriteDescriptorSet>,
+}
+
+impl BindGroupSetBuilder {
+    pub fn bind_buffer(
+        mut self,
+        binding: u32,
+        buffer_info: &BindBufferInfo,
+        ty: BindGroupType,
+    ) -> Self {
         let new_write = vk::WriteDescriptorSet::builder()
             .descriptor_type(ty.into())
             .buffer_info(std::slice::from_ref(&buffer_info.0))
@@ -301,16 +365,7 @@ impl BindGroupBuilder {
         binding: u32,
         image_info: &BindTextureInfo,
         ty: BindGroupType,
-        shader_stage: ShaderStage,
     ) -> Self {
-        let new_binding = vk::DescriptorSetLayoutBinding::builder()
-            .binding(binding)
-            .descriptor_type(ty.into())
-            .descriptor_count(1)
-            .stage_flags(shader_stage.into())
-            .build();
-        self.bindings.push(new_binding);
-
         let new_write = vk::WriteDescriptorSet::builder()
             .descriptor_type(ty.into())
             .image_info(std::slice::from_ref(&image_info.0))
@@ -321,15 +376,14 @@ impl BindGroupBuilder {
         self
     }
 
-    pub fn build(mut self, device: &mut Device) -> Result<BindGroup> {
-        let layout_info = vk::DescriptorSetLayoutCreateInfo::builder()
-            .bindings(&self.bindings)
-            .build();
-
-        let layout = device
-            .bind_group_cache
-            .create_bind_group_layout(&device.device, layout_info)?;
-        let set = device.bind_group_alloc.allocate(&device.device, &layout)?;
+    pub fn build_and_update(
+        mut self,
+        device: &mut Device,
+        layout: &BindGroupLayout,
+    ) -> Result<BindGroupSet> {
+        let set = device
+            .bind_group_alloc
+            .allocate(&device.device, &layout.layout)?;
 
         for write in &mut self.writes {
             write.dst_set = set;
@@ -339,12 +393,6 @@ impl BindGroupBuilder {
             device.update_descriptor_sets(&self.writes, &[]);
         }
 
-        Ok(BindGroup { set, layout })
+        Ok(BindGroupSet { set })
     }
-}
-
-// TODO: temp, just testing it out
-pub struct BindGroup {
-    pub set: vk::DescriptorSet,
-    pub layout: vk::DescriptorSetLayout,
 }

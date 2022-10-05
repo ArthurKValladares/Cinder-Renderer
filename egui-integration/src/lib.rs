@@ -5,7 +5,7 @@ use cinder::{
     context::render_context::RenderContext,
     device::Device,
     resoruces::{
-        bind_group::BindGroup,
+        bind_group::{BindGroupLayout, BindGroupLayoutBuilder, BindGroupSet, BindGroupType},
         buffer::Buffer,
         pipeline::{push_constant::PushConstant, GraphicsPipeline, GraphicsPipelineDescription},
         render_pass::{
@@ -31,6 +31,8 @@ pub struct EguiIntegration {
     egui_winit: egui_winit::State,
     render_pass: RenderPass,
     push_constant: PushConstant,
+    bind_group_layout: BindGroupLayout,
+    bind_group_set: BindGroupSet,
     pipeline: GraphicsPipeline,
     sampler: Sampler,
     image_staging_buffer: Option<Buffer>,
@@ -38,7 +40,7 @@ pub struct EguiIntegration {
 }
 
 impl EguiIntegration {
-    pub fn new<T>(event_loop: &EventLoopWindowTarget<T>, device: &Device) -> Result<Self> {
+    pub fn new<T>(event_loop: &EventLoopWindowTarget<T>, device: &mut Device) -> Result<Self> {
         let egui_context = egui::Context::default();
         egui_context.set_visuals(egui::Visuals::light());
         let egui_winit = egui_winit::State::new(event_loop);
@@ -73,11 +75,16 @@ impl EguiIntegration {
             })
             .expect("Could not create fragment shader");
 
+        let bind_group_layout = BindGroupLayoutBuilder::default()
+            .bind_image(0, BindGroupType::ImageSampler, ShaderStage::Fragment)
+            .build(device)?;
+        let bind_group_set = BindGroupSet::allocate(device, &bind_group_layout)?;
+
         let pipeline = device.create_graphics_pipeline(GraphicsPipelineDescription {
             vertex_shader,
             fragment_shader,
             render_pass: &render_pass,
-            desc_set_layouts: vec![], // TODO
+            desc_set_layouts: vec![bind_group_layout.layout],
             push_constants: vec![&push_constant],
         })?;
 
@@ -89,6 +96,8 @@ impl EguiIntegration {
             render_pass,
             sampler,
             push_constant,
+            bind_group_layout,
+            bind_group_set,
             pipeline,
             image_staging_buffer: None,
             image_map: Default::default(),

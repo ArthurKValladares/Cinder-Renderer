@@ -8,7 +8,7 @@ use cinder::{
     },
     device::{Device, Vertex},
     resoruces::{
-        bind_group::{BindGroupBuilder, BindGroupType},
+        bind_group::{BindGroupLayoutBuilder, BindGroupSetBuilder, BindGroupType},
         buffer::{Buffer, BufferDescription, BufferUsage},
         memory::{MemoryDescription, MemoryType},
         pipeline::{push_constant::PushConstant, GraphicsPipelineDescription},
@@ -250,22 +250,16 @@ fn main() {
 
     let buffer_info = uniform_buffer.bind_info();
     let image_info = ferris_texture.bind_info(&sampler);
-    let bind_group = BindGroupBuilder::default()
-        .bind_buffer(
-            0,
-            &buffer_info,
-            BindGroupType::UniformBuffer,
-            ShaderStage::Vertex,
-        )
-        .bind_image(
-            1,
-            &image_info,
-            BindGroupType::ImageSampler,
-            ShaderStage::Fragment,
-        )
+    let bind_group_layout = BindGroupLayoutBuilder::default()
+        .bind_buffer(0, BindGroupType::UniformBuffer, ShaderStage::Vertex)
+        .bind_image(1, BindGroupType::ImageSampler, ShaderStage::Fragment)
         .build(&mut device)
         .expect("Could not create BindGroup");
-
+    let bind_group_set = BindGroupSetBuilder::default()
+        .bind_buffer(0, &buffer_info, BindGroupType::UniformBuffer)
+        .bind_image(1, &image_info, BindGroupType::ImageSampler)
+        .build_and_update(&mut device, &bind_group_layout)
+        .expect("Could not create bind group set");
     let color_push_constant = PushConstant {
         stage: ShaderStage::Vertex,
         offset: 0,
@@ -276,7 +270,7 @@ fn main() {
             vertex_shader,
             fragment_shader,
             render_pass: &render_pass,
-            desc_set_layouts: vec![bind_group.layout],
+            desc_set_layouts: vec![bind_group_layout.layout],
             push_constants: vec![&color_push_constant],
         })
         .expect("Could not create graphics pipeline");
@@ -286,7 +280,8 @@ fn main() {
     };
 
     // Egui integration
-    let mut egui = EguiIntegration::new(&event_loop, &device).expect("Could not create event loop");
+    let mut egui =
+        EguiIntegration::new(&event_loop, &mut device).expect("Could not create event loop");
 
     let start = Instant::now();
     let mut is_init: bool = true;
@@ -353,7 +348,11 @@ fn main() {
                         let surface_rect = device.surface_rect();
 
                         render_context.bind_graphics_pipeline(&device, &pipeline);
-                        render_context.bind_descriptor_sets(&device, &pipeline, &[bind_group.set]);
+                        render_context.bind_descriptor_sets(
+                            &device,
+                            &pipeline,
+                            &[bind_group_set.set],
+                        );
                         render_context.bind_vertex_buffer(&device, &vertex_buffer);
                         render_context.bind_index_buffer(&device, &index_buffer);
                         render_context.bind_viewport(&device, surface_rect);
