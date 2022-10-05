@@ -58,6 +58,15 @@ fn update_uniform_buffer(
     device.copy_data_to_buffer(uniform_buffer, std::slice::from_ref(uniform_buffer_data));
 }
 
+fn update_color_push_constant(color: &mut ColorPushConstant, delta_time: f32) {
+    color.color = [
+        delta_time.sin().abs(),
+        0.0,
+        (delta_time * 0.5).cos().abs(),
+        1.0,
+    ];
+}
+
 fn main() {
     let collector = tracing_subscriber::fmt()
         .with_max_level(Level::TRACE)
@@ -341,6 +350,7 @@ fn main() {
                 {
                     let delta_time = start.elapsed().as_secs_f32() / 2.0;
                     update_uniform_buffer(&device, &mut uniform_data, &uniform_buffer, delta_time);
+                    update_color_push_constant(&mut color, delta_time);
 
                     // Main render pass
                     render_context.begin_render_pass(&device, &render_pass, present_index);
