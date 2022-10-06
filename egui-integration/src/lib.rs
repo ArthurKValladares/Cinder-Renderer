@@ -3,11 +3,14 @@ use std::{collections::HashMap, path::Path};
 use anyhow::Result;
 use cinder::{
     cinder::Cinder,
-    context::render_context::RenderContext,
+    context::{
+        render_context::{self, RenderContext},
+        upload_context::UploadContext,
+    },
     resoruces::{
         bind_group::{BindGroupLayout, BindGroupLayoutBuilder, BindGroupSet, BindGroupType},
         buffer::{Buffer, BufferDescription, BufferUsage},
-        image::{Format, Image},
+        image::{Format, Image, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
         pipeline::{
             push_constant::PushConstant, GraphicsPipeline, GraphicsPipelineDescription,
@@ -20,8 +23,9 @@ use cinder::{
         shader::{ShaderDescription, ShaderStage},
     },
 };
-use egui::{RawInput, TextureId, TexturesDelta};
-use math::vec::Vec2;
+use egui::{epaint::ImageDelta, ImageData, RawInput, TextureId, TexturesDelta};
+use math::{size::Size2D, vec::Vec2};
+use util::size_of_slice;
 use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Window};
 
 static VERTEX_BUFFER_SIZE: u64 = 1024 * 1024 * 4;
@@ -163,7 +167,8 @@ impl EguiIntegration {
     pub fn run(
         &mut self,
         cinder: &Cinder,
-        context: &RenderContext,
+        upload_context: &UploadContext,
+        render_context: &RenderContext,
         present_index: u32,
         window: &Window,
         f: impl FnOnce(&egui::Context),
@@ -184,11 +189,11 @@ impl EguiIntegration {
             .handle_platform_output(window, &self.egui_context, platform_output);
 
         // TODO? Make this a separate step
-        self.set_textures(cinder, context, &textures_delta);
+        self.set_textures(cinder, upload_context, &textures_delta);
 
-        context.begin_render_pass(cinder, &self.render_pass, present_index);
+        render_context.begin_render_pass(cinder, &self.render_pass, present_index);
         {}
-        context.end_render_pass(cinder);
+        render_context.end_render_pass(cinder);
 
         // TODO: render
         self.free_textures(textures_delta);
@@ -215,12 +220,65 @@ impl EguiIntegration {
         self.egui_winit.take_egui_input(window)
     }
 
+    fn set_image(
+        &mut self,
+        cinder: &Cinder,
+        upload_context: &UploadContext,
+        id: &TextureId,
+        delta: &ImageDelta,
+    ) -> Result<()> {
+        let ((width, height), data) = match &delta.image {
+            ImageData::Color(_) => todo!(),
+            ImageData::Font(font_data) => {
+                let dimensions = (font_data.width() as u32, font_data.height() as u32);
+                let data = font_data.srgba_pixels(1.0).collect::<Vec<_>>();
+                (dimensions, data)
+            }
+        };
+
+        // TODO: Revisit image abstraction
+        if let Some(mut buffer) = self.image_staging_buffer.take() {
+            buffer.clean(cinder.device());
+        }
+        let image_staging_buffer = cinder.create_buffer(BufferDescription {
+            size: size_of_slice(&data),
+            usage: BufferUsage::TransferSrc,
+            memory_desc: MemoryDescription {
+                ty: MemoryType::CpuVisible,
+            },
+        })?;
+        cinder.copy_data_to_buffer(&image_staging_buffer, &data)?;
+        cinder.bind_buffer(&image_staging_buffer)?;
+
+        let image = cinder.create_image(ImageDescription {
+            format: Format::R8_G8_B8_A8_Unorm,
+            usage: Usage::Texture,
+            size: Size2D::new(width, height),
+        })?;
+
+        upload_context.image_barrier_start(&cinder, &image);
+        upload_context.copy_buffer_to_image(&cinder, &image_staging_buffer, &image);
+        upload_context.image_barrier_end(&cinder, &image);
+
+        self.image_map.insert(*id, image);
+        self.image_staging_buffer = Some(image_staging_buffer);
+
+        Ok(())
+    }
+
     fn set_textures(
         &mut self,
         cinder: &Cinder,
-        context: &RenderContext,
+        context: &UploadContext,
         textures_delta: &TexturesDelta,
-    ) {
+    ) -> Result<()> {
+        context.begin(cinder)?;
+        for (id, delta) in &textures_delta.set {
+            self.set_image(cinder, context, id, delta)?;
+        }
+        context.end(cinder)?;
+        cinder.submit_upload_work(context)?;
+        Ok(())
     }
 
     fn free_textures(&mut self, _textures_delta: TexturesDelta) {}

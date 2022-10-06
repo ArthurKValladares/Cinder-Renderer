@@ -400,7 +400,14 @@ fn main() {
                     render_context.end_render_pass(&cinder);
 
                     // Ui/egui render pass
-                    egui.run(&cinder, &render_context, present_index, &window, |_| {});
+                    egui.run(
+                        &cinder,
+                        &upload_context,
+                        &render_context,
+                        present_index,
+                        &window,
+                        |_| {},
+                    );
                 }
                 render_context
                     .end(&cinder)

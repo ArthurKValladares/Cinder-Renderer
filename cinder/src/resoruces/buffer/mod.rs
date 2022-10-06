@@ -1,3 +1,5 @@
+use crate::device::Device;
+
 use super::memory::{Memory, MemoryDescription};
 pub use ash::vk;
 
@@ -54,5 +56,12 @@ impl Buffer {
             offset: 0,
             range: self.size_bytes,
         })
+    }
+
+    pub fn clean(&mut self, device: &Device) {
+        unsafe {
+            device.destroy_buffer(self.raw, None);
+            self.memory.clean(device);
+        }
     }
 }
