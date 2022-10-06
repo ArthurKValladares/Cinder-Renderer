@@ -3,12 +3,12 @@ use std::{collections::HashMap, path::Path};
 use anyhow::Result;
 use cinder::{
     cinder::Cinder,
-    context::{
-        render_context::{self, RenderContext},
-        upload_context::UploadContext,
-    },
+    context::{render_context::RenderContext, upload_context::UploadContext},
     resoruces::{
-        bind_group::{BindGroupLayout, BindGroupLayoutBuilder, BindGroupSet, BindGroupType},
+        bind_group::{
+            BindGroupLayout, BindGroupLayoutBuilder, BindGroupSet, BindGroupSetBuilder,
+            BindGroupType,
+        },
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
@@ -22,10 +22,14 @@ use cinder::{
         sampler::Sampler,
         shader::{ShaderDescription, ShaderStage},
     },
+    util::MemoryMappablePointer,
 };
-use egui::{epaint::ImageDelta, ImageData, RawInput, TextureId, TexturesDelta};
-use math::{size::Size2D, vec::Vec2};
-use util::size_of_slice;
+use egui::{
+    epaint::{ImageDelta, Primitive},
+    ClippedPrimitive, ImageData, Mesh, RawInput, Rect, TextureId, TexturesDelta,
+};
+use math::{rect::Rect2D, size::Size2D, vec::Vec2};
+use util::{as_u8_slice, size_of_slice};
 use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Window};
 
 static VERTEX_BUFFER_SIZE: u64 = 1024 * 1024 * 4;
@@ -172,7 +176,7 @@ impl EguiIntegration {
         present_index: u32,
         window: &Window,
         f: impl FnOnce(&egui::Context),
-    ) {
+    ) -> Result<()> {
         let raw_input = self.gather_input(window);
         // TODO: Hook up needs_repaint
         let egui::FullOutput {
@@ -189,14 +193,183 @@ impl EguiIntegration {
             .handle_platform_output(window, &self.egui_context, platform_output);
 
         // TODO? Make this a separate step
-        self.set_textures(cinder, upload_context, &textures_delta);
+        self.set_textures(cinder, upload_context, &textures_delta)?;
+
+        self.paint(
+            cinder,
+            render_context,
+            window,
+            present_index,
+            self.egui_context.pixels_per_point(),
+            &clipped_primitives,
+        )?;
+
+        self.free_textures(textures_delta);
+
+        Ok(())
+    }
+
+    fn paint(
+        &mut self,
+        cinder: &Cinder,
+        render_context: &RenderContext,
+        window: &Window,
+        present_index: u32,
+        pixels_per_point: f32,
+        clipped_primitives: &[ClippedPrimitive],
+    ) -> Result<()> {
+        let size = window.inner_size();
+
+        let mut vertex_buffer_ptr = self.vertex_buffers[present_index as usize].ptr()?;
+        let mut index_buffer_ptr = self.index_buffers[present_index as usize].ptr()?;
+
+        let mut vertex_base = 0;
+        let mut index_base = 0;
+
+        let vertex_buffer = &self.vertex_buffers[present_index as usize];
+        let index_buffer = &self.index_buffers[present_index as usize];
 
         render_context.begin_render_pass(cinder, &self.render_pass, present_index);
-        {}
+        {
+            render_context.bind_graphics_pipeline(cinder, &self.pipeline);
+            render_context.bind_vertex_buffer(cinder, vertex_buffer);
+            render_context.bind_index_buffer(cinder, index_buffer);
+            render_context.bind_viewport(cinder, Rect2D::<u32>::new(size.width, size.height));
+            render_context.bind_scissor(cinder, Rect2D::<u32>::new(size.width, size.height));
+            render_context.push_constant(
+                cinder,
+                &self.pipeline,
+                &self.push_constant,
+                as_u8_slice(&EguiPushConstantData {
+                    size: Vec2::new(
+                        size.width as f32 / pixels_per_point,
+                        size.height as f32 / pixels_per_point,
+                    ),
+                }),
+            );
+
+            for egui::ClippedPrimitive {
+                clip_rect,
+                primitive,
+            } in clipped_primitives
+            {
+                match primitive {
+                    Primitive::Mesh(mesh) => {
+                        self.paint_mesh(
+                            cinder,
+                            render_context,
+                            window,
+                            present_index,
+                            clip_rect,
+                            mesh,
+                            &mut vertex_buffer_ptr,
+                            &mut vertex_base,
+                            &mut index_buffer_ptr,
+                            &mut index_base,
+                        );
+                    }
+                    Primitive::Callback(_) => {
+                        todo!("Custom rendering callbacks are not implemented");
+                    }
+                }
+            }
+        }
         render_context.end_render_pass(cinder);
 
-        // TODO: render
-        self.free_textures(textures_delta);
+        Ok(())
+    }
+
+    fn paint_mesh(
+        &mut self,
+        cinder: &Cinder,
+        render_context: &RenderContext,
+        window: &Window,
+        present_index: u32,
+        clip_rect: &Rect,
+        mesh: &Mesh,
+        vertex_buffer_ptr: &mut MemoryMappablePointer,
+        vertex_base: &mut i32,
+        index_buffer_ptr: &mut MemoryMappablePointer,
+        index_base: &mut u32,
+    ) -> Result<()> {
+        let vertices = &mesh.vertices;
+        let vertex_copy_size = std::mem::size_of_val(&vertices[0]) * vertices.len();
+
+        let indices = &mesh.indices;
+        let index_copy_size = std::mem::size_of_val(&indices[0]) * indices.len();
+
+        vertex_buffer_ptr.copy_from(vertices, vertex_copy_size);
+        index_buffer_ptr.copy_from(indices, index_copy_size);
+
+        let vertex_buffer_ptr_next = vertex_buffer_ptr.add(vertex_copy_size);
+        let index_buffer_ptr_next = index_buffer_ptr.add(index_copy_size);
+
+        if vertex_buffer_ptr_next
+            >= self.vertex_buffers[present_index as usize]
+                .end_ptr()
+                .unwrap()
+            || index_buffer_ptr_next
+                >= self.index_buffers[present_index as usize]
+                    .end_ptr()
+                    .unwrap()
+        {
+            panic!("egui out of memory");
+        }
+
+        vertex_buffer_ptr.copy_from(&vertices, vertex_copy_size);
+        index_buffer_ptr.copy_from(&indices, index_copy_size);
+
+        *vertex_buffer_ptr = vertex_buffer_ptr_next;
+        *index_buffer_ptr = index_buffer_ptr_next;
+        if let egui::TextureId::User(_id) = mesh.texture_id {
+            todo!();
+        } else {
+            self.egui_pipeline.bind_descriptor_set(
+                cinder,
+                render_context,
+                &self.egui_descriptor_set,
+                present_index as usize,
+            );
+        }
+        {
+            let scale_factor = window.scale_factor() as f32;
+            let size = window.inner_size();
+
+            let min = {
+                let min = clip_rect.min;
+                let min = egui::Pos2 {
+                    x: min.x * scale_factor,
+                    y: min.y * scale_factor,
+                };
+                egui::Pos2 {
+                    x: f32::clamp(min.x, 0.0, size.width as f32),
+                    y: f32::clamp(min.y, 0.0, size.height as f32),
+                }
+            };
+            let max = {
+                let max = clip_rect.max;
+                let max = egui::Pos2 {
+                    x: max.x * scale_factor,
+                    y: max.y * scale_factor,
+                };
+                egui::Pos2 {
+                    x: f32::clamp(max.x, min.x, size.width as f32),
+                    y: f32::clamp(max.y, min.y, size.height as f32),
+                }
+            };
+            cinder.set_scissor(render_context, min.x, min.y, max.x, max.y);
+        }
+        cinder.draw_indexed(
+            render_context,
+            indices.len() as u32,
+            *index_base,
+            *vertex_base,
+        );
+
+        *vertex_base += vertices.len() as i32;
+        *index_base += indices.len() as u32;
+
+        Ok(())
     }
 
     pub fn resize(&mut self, cinder: &Cinder) -> Result<()> {
@@ -259,6 +432,14 @@ impl EguiIntegration {
         upload_context.image_barrier_start(&cinder, &image);
         upload_context.copy_buffer_to_image(&cinder, &image_staging_buffer, &image);
         upload_context.image_barrier_end(&cinder, &image);
+
+        BindGroupSetBuilder::default()
+            .bind_image(
+                0,
+                &image.bind_info(&self.sampler),
+                BindGroupType::ImageSampler,
+            )
+            .update(cinder, &self.bind_group_set);
 
         self.image_map.insert(*id, image);
         self.image_staging_buffer = Some(image_staging_buffer);

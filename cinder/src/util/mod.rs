@@ -14,3 +14,8 @@ pub fn find_memory_type_index(
         })
         .map(|(index, _memory_type)| index as _)
 }
+
+#[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct MemoryMappablePointer(*mut u8);
+unsafe impl Send for MemoryMappablePointer {}
+unsafe impl Sync for MemoryMappablePointer {}

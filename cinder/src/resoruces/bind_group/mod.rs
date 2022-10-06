@@ -367,6 +367,16 @@ impl BindGroupSetBuilder {
         self
     }
 
+    pub fn update(mut self, cinder: &Cinder, set: &BindGroupSet) {
+        for write in &mut self.writes {
+            write.dst_set = set.set;
+        }
+
+        unsafe {
+            cinder.device().update_descriptor_sets(&self.writes, &[]);
+        }
+    }
+
     pub fn build_and_update(
         mut self,
         cinder: &mut Cinder,
