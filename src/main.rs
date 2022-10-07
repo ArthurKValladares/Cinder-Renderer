@@ -55,8 +55,8 @@ fn update_uniform_buffer(
     uniform_buffer_data.model =
         Matrix4::from_axis_angle(Vector3::new(0.0, 0.0, 1.0), Deg(90.0) * delta_time);
 
-    cinder
-        .copy_data_to_buffer(uniform_buffer, std::slice::from_ref(uniform_buffer_data))
+    uniform_buffer
+        .mem_copy(std::slice::from_ref(uniform_buffer_data))
         .expect("Could not update uniform buffer");
 }
 
@@ -150,8 +150,8 @@ fn main() {
             },
         })
         .expect("Could not create index buffer");
-    cinder
-        .copy_data_to_buffer(&index_buffer, &mesh.indices)
+    index_buffer
+        .mem_copy(&mesh.indices)
         .expect("Could not write to index buffer");
     cinder
         .bind_buffer(&index_buffer)
@@ -167,8 +167,8 @@ fn main() {
             },
         })
         .expect("Could not create vertex buffer");
-    cinder
-        .copy_data_to_buffer(&vertex_buffer, &mesh.vertices)
+    vertex_buffer
+        .mem_copy(&mesh.vertices)
         .expect("Could not write to vertex buffer");
     cinder
         .bind_buffer(&vertex_buffer)
@@ -203,8 +203,8 @@ fn main() {
             },
         })
         .expect("Could not create vertex buffer");
-    cinder
-        .copy_data_to_buffer(&uniform_buffer, std::slice::from_ref(&uniform_data))
+    uniform_buffer
+        .mem_copy(std::slice::from_ref(&uniform_data))
         .expect("Could not write to vertex buffer");
     cinder
         .bind_buffer(&uniform_buffer)
@@ -227,8 +227,8 @@ fn main() {
             },
         })
         .expect("Could not create image buffer");
-    cinder
-        .copy_data_to_buffer(&image_buffer, &image_data)
+    image_buffer
+        .mem_copy(&image_data)
         .expect("Could not write to image buffer");
     cinder
         .bind_buffer(&image_buffer)

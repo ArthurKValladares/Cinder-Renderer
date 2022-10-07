@@ -1,5 +1,6 @@
 use ash::vk;
 
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Copy, Clone)]
 pub enum MemoryType {
     CpuVisible,
     GpuOnly,
@@ -7,6 +8,12 @@ pub enum MemoryType {
 
 pub struct MemoryDescription {
     pub ty: MemoryType,
+}
+
+impl MemoryDescription {
+    pub fn is_cpu_visible(&self) -> bool {
+        self.ty == MemoryType::CpuVisible
+    }
 }
 
 impl From<MemoryType> for vk::MemoryPropertyFlags {

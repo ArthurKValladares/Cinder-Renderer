@@ -140,11 +140,27 @@ impl RenderContext {
         }
     }
 
+    // TODO: This should maybe be a user-land abstraction
     pub fn draw(&self, cinder: &Cinder, index_count: u32) {
+        Self::draw_offset(&self, cinder, index_count, 0, 0)
+    }
+
+    pub fn draw_offset(
+        &self,
+        cinder: &Cinder,
+        index_count: u32,
+        first_index: u32,
+        vertex_offset: i32,
+    ) {
         unsafe {
-            cinder
-                .device()
-                .cmd_draw_indexed(self.shared.command_buffer, index_count, 1, 0, 0, 1)
+            cinder.device().cmd_draw_indexed(
+                self.shared.command_buffer,
+                index_count,
+                1,
+                first_index,
+                vertex_offset,
+                1,
+            )
         }
     }
 

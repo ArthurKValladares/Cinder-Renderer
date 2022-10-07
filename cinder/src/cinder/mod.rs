@@ -9,7 +9,6 @@ use crate::{
         bind_group::{BindGroupAllocator, BindGroupLayoutCache},
         buffer::{Buffer, BufferDescription},
         image::{self, Image, ImageDescription},
-        memory::Memory,
         pipeline::{GraphicsPipeline, GraphicsPipelineDescription},
         render_pass::{RenderPass, RenderPassDescription},
         sampler::Sampler,
@@ -17,14 +16,11 @@ use crate::{
     },
     surface::{Surface, SurfaceData},
     swapchain::Swapchain,
-    util::find_memory_type_index,
     InitData,
 };
 use anyhow::Result;
 use ash::vk;
 use math::{rect::Rect2D, size::Size2D};
-use std::ops::Deref;
-use thiserror::Error;
 use tracing::{span, Level};
 
 fn submit_work(
@@ -55,12 +51,6 @@ pub struct Vertex {
     pub pos: [f32; 4],
     pub color: [f32; 4],
     pub uv: [f32; 2],
-}
-
-#[derive(Debug, Error)]
-pub enum BufferCreateError {
-    #[error("No suitable memory type found")]
-    NoSuitableMemoryType,
 }
 
 // TODO: definitely need a depth image, do it very soon
@@ -161,60 +151,7 @@ impl Cinder {
     }
 
     pub fn create_buffer(&self, desc: BufferDescription) -> Result<Buffer> {
-        let buffer_info = vk::BufferCreateInfo::builder()
-            .size(desc.size)
-            .usage(desc.usage.into())
-            .sharing_mode(vk::SharingMode::EXCLUSIVE);
-
-        let buffer = unsafe { self.device.create_buffer(&buffer_info, None) }?;
-        let buffer_memory_req = unsafe { self.device.get_buffer_memory_requirements(buffer) };
-        let buffer_memory_index = find_memory_type_index(
-            &buffer_memory_req,
-            self.device.memopry_properties(),
-            desc.memory_desc.ty.into(),
-        )
-        .ok_or_else(|| BufferCreateError::NoSuitableMemoryType)?;
-
-        let allocate_info = vk::MemoryAllocateInfo {
-            allocation_size: buffer_memory_req.size,
-            memory_type_index: buffer_memory_index,
-            ..Default::default()
-        };
-        let buffer_memory = unsafe { self.device.allocate_memory(&allocate_info, None) }?;
-
-        let memory = Memory {
-            raw: buffer_memory,
-            req: buffer_memory_req,
-        };
-
-        Ok(Buffer {
-            raw: buffer,
-            memory,
-            size_bytes: desc.size,
-        })
-    }
-
-    pub fn copy_data_to_buffer<T: Copy>(&self, buffer: &Buffer, data: &[T]) -> Result<()> {
-        let ptr = unsafe {
-            self.device.map_memory(
-                buffer.memory.raw,
-                0,
-                buffer.memory.req.size,
-                vk::MemoryMapFlags::empty(),
-            )
-        }?;
-        {
-            let mut slice = unsafe {
-                ash::util::Align::new(
-                    ptr,
-                    std::mem::align_of::<T>() as u64,
-                    buffer.memory.req.size,
-                )
-            };
-            slice.copy_from_slice(&data);
-        }
-        unsafe { self.device.unmap_memory(buffer.memory.raw) };
-        Ok(())
+        Buffer::create(&self.device, desc)
     }
 
     pub fn bind_buffer(&self, buffer: &Buffer) -> Result<()> {
@@ -380,11 +317,9 @@ impl Cinder {
     }
 
     pub fn surface_rect(&self) -> Rect2D<u32> {
-        Rect2D::from_top_right_bottom_left(
-            0,
+        Rect2D::from_width_height(
             self.surface_data.surface_resolution.width,
             self.surface_data.surface_resolution.height,
-            0,
         )
     }
 

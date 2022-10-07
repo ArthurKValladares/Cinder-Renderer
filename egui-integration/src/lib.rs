@@ -220,8 +220,8 @@ impl EguiIntegration {
     ) -> Result<()> {
         let size = window.inner_size();
 
-        let mut vertex_buffer_ptr = self.vertex_buffers[present_index as usize].ptr()?;
-        let mut index_buffer_ptr = self.index_buffers[present_index as usize].ptr()?;
+        let mut vertex_buffer_ptr = self.vertex_buffers[present_index as usize].ptr().unwrap();
+        let mut index_buffer_ptr = self.index_buffers[present_index as usize].ptr().unwrap();
 
         let mut vertex_base = 0;
         let mut index_base = 0;
@@ -234,8 +234,8 @@ impl EguiIntegration {
             render_context.bind_graphics_pipeline(cinder, &self.pipeline);
             render_context.bind_vertex_buffer(cinder, vertex_buffer);
             render_context.bind_index_buffer(cinder, index_buffer);
-            render_context.bind_viewport(cinder, Rect2D::<u32>::new(size.width, size.height));
-            render_context.bind_scissor(cinder, Rect2D::<u32>::new(size.width, size.height));
+            render_context
+                .bind_viewport(cinder, Rect2D::from_width_height(size.width, size.height));
             render_context.push_constant(
                 cinder,
                 &self.pipeline,
@@ -324,12 +324,7 @@ impl EguiIntegration {
         if let egui::TextureId::User(_id) = mesh.texture_id {
             todo!();
         } else {
-            self.egui_pipeline.bind_descriptor_set(
-                cinder,
-                render_context,
-                &self.egui_descriptor_set,
-                present_index as usize,
-            );
+            render_context.bind_descriptor_sets(cinder, &self.pipeline, &[self.bind_group_set.set]);
         }
         {
             let scale_factor = window.scale_factor() as f32;
@@ -357,14 +352,18 @@ impl EguiIntegration {
                     y: f32::clamp(max.y, min.y, size.height as f32),
                 }
             };
-            cinder.set_scissor(render_context, min.x, min.y, max.x, max.y);
+            // TODO: Is this right?
+            render_context.bind_scissor(
+                cinder,
+                Rect2D::from_top_right_bottom_left(
+                    min.x as u32,
+                    max.y as u32,
+                    max.x as u32,
+                    min.y as u32,
+                ),
+            );
         }
-        cinder.draw_indexed(
-            render_context,
-            indices.len() as u32,
-            *index_base,
-            *vertex_base,
-        );
+        render_context.draw_offset(cinder, indices.len() as u32, *index_base, *vertex_base);
 
         *vertex_base += vertices.len() as i32;
         *index_base += indices.len() as u32;
@@ -420,7 +419,7 @@ impl EguiIntegration {
                 ty: MemoryType::CpuVisible,
             },
         })?;
-        cinder.copy_data_to_buffer(&image_staging_buffer, &data)?;
+        image_staging_buffer.mem_copy(&data)?;
         cinder.bind_buffer(&image_staging_buffer)?;
 
         let image = cinder.create_image(ImageDescription {
