@@ -130,15 +130,16 @@ impl EguiIntegration {
                 // TODO: Should these be GPU-side?
                 let vertex_buffer = cinder.create_buffer(BufferDescription {
                     size: VERTEX_BUFFER_SIZE,
-                    usage: BufferUsage::Index,
+                    usage: BufferUsage::Vertex,
                     memory_desc: MemoryDescription {
                         ty: MemoryType::CpuVisible,
                     },
                 })?;
                 vertex_buffers.push(vertex_buffer);
+
                 let index_buffer = cinder.create_buffer(BufferDescription {
                     size: INDEX_BUFFER_SIZE,
-                    usage: BufferUsage::Vertex,
+                    usage: BufferUsage::Index,
                     memory_desc: MemoryDescription {
                         ty: MemoryType::CpuVisible,
                     },
@@ -420,7 +421,6 @@ impl EguiIntegration {
             },
         })?;
         image_staging_buffer.mem_copy(&data)?;
-        cinder.bind_buffer(&image_staging_buffer)?;
 
         let image = cinder.create_image(ImageDescription {
             format: Format::R8_G8_B8_A8_Unorm,

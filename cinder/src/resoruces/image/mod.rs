@@ -109,7 +109,6 @@ impl Image {
             ..Default::default()
         };
         let memory = unsafe { device.allocate_memory(&allocate_info, None) }?;
-
         unsafe {
             device.bind_image_memory(image, memory, 0)?;
         }

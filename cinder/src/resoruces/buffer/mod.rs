@@ -104,6 +104,7 @@ impl Buffer {
             ..Default::default()
         };
         let buffer_memory = unsafe { device.allocate_memory(&allocate_info, None) }?;
+        unsafe { device.bind_buffer_memory(buffer, buffer_memory, 0) }?;
 
         let memory = Memory {
             raw: buffer_memory,

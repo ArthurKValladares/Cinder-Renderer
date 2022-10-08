@@ -153,9 +153,6 @@ fn main() {
     index_buffer
         .mem_copy(&mesh.indices)
         .expect("Could not write to index buffer");
-    cinder
-        .bind_buffer(&index_buffer)
-        .expect("Could not bind index buffer");
 
     // Create and bind vertex buffer
     let vertex_buffer = cinder
@@ -170,9 +167,6 @@ fn main() {
     vertex_buffer
         .mem_copy(&mesh.vertices)
         .expect("Could not write to vertex buffer");
-    cinder
-        .bind_buffer(&vertex_buffer)
-        .expect("Could not bind vertex buffer");
 
     // Create and upload uniform buffer
     let surface_size = cinder.surface_size();
@@ -206,9 +200,7 @@ fn main() {
     uniform_buffer
         .mem_copy(std::slice::from_ref(&uniform_data))
         .expect("Could not write to vertex buffer");
-    cinder
-        .bind_buffer(&uniform_buffer)
-        .expect("Could not bind vertex buffer");
+
     // Create and upload image
     let image =
         image::load_from_memory(include_bytes!("../assets/textures/viking_room.png")).unwrap();
@@ -230,9 +222,6 @@ fn main() {
     image_buffer
         .mem_copy(&image_data)
         .expect("Could not write to image buffer");
-    cinder
-        .bind_buffer(&image_buffer)
-        .expect("Could not bind image buffer");
 
     let ferris_texture = cinder
         .create_image(ImageDescription {

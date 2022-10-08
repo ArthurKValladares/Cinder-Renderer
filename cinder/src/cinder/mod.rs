@@ -154,22 +154,6 @@ impl Cinder {
         Buffer::create(&self.device, desc)
     }
 
-    pub fn bind_buffer(&self, buffer: &Buffer) -> Result<()> {
-        unsafe {
-            self.device
-                .bind_buffer_memory(buffer.raw, buffer.memory.raw, 0)
-        }?;
-        Ok(())
-    }
-
-    pub fn bind_image(&self, image: &Image) -> Result<()> {
-        unsafe {
-            self.device
-                .bind_image_memory(image.raw, image.memory.raw, 0)
-        }?;
-        Ok(())
-    }
-
     pub fn create_image(&self, desc: ImageDescription) -> Result<Image> {
         Image::create(&self.device, self.device.memopry_properties(), desc)
     }
