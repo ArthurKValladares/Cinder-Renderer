@@ -178,7 +178,7 @@ impl EguiIntegration {
         window: &Window,
         f: impl FnOnce(&egui::Context),
     ) -> Result<()> {
-        let raw_input = self.gather_input(window);
+        let raw_input = self.egui_winit.take_egui_input(window);
         // TODO: Hook up needs_repaint
         let egui::FullOutput {
             platform_output,
@@ -388,10 +388,6 @@ impl EguiIntegration {
     }
 
     pub fn clean(&mut self, cinder: &Cinder) {}
-
-    fn gather_input(&mut self, window: &Window) -> RawInput {
-        self.egui_winit.take_egui_input(window)
-    }
 
     fn set_image(
         &mut self,

@@ -415,6 +415,25 @@ fn main() {
                             egui::Window::new("Cinder Renderer").show(egui_context, |ui| {
                                 ui.label("Hello World!");
                             });
+
+                            //egui::SidePanel::left("my_left_panel").show(egui_context, |ui| {
+                            //    ui.label("Hello World!");
+                            //});
+
+                            //egui::SidePanel::right("my_right_panel").show(egui_context, |ui| {
+                            //    ui.label("Hello World!");
+                            //});
+
+                            //egui::TopBottomPanel::top("my_top_panel").show(egui_context, |ui| {
+                            //    ui.label("Hello World!");
+                            //});
+
+                            //egui::TopBottomPanel::bottom("my_bottom_panel").show(
+                            //    egui_context,
+                            //    |ui| {
+                            //        ui.label("Hello World!");
+                            //    },
+                            //);
                         },
                     );
                 }
