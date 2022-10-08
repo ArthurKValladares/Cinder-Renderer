@@ -1,5 +1,3 @@
-use std::{collections::HashMap, path::Path};
-
 use anyhow::Result;
 use cinder::{
     cinder::Cinder,
@@ -24,11 +22,13 @@ use cinder::{
     },
     util::MemoryMappablePointer,
 };
+pub use egui;
 use egui::{
     epaint::{ImageDelta, Primitive},
     ClippedPrimitive, ImageData, Mesh, RawInput, Rect, TextureId, TexturesDelta,
 };
 use math::{rect::Rect2D, size::Size2D, vec::Vec2};
+use std::{collections::HashMap, path::Path};
 use util::{as_u8_slice, size_of_slice};
 use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Window};
 

@@ -18,7 +18,7 @@ use cinder::{
     },
     InitData, Resolution,
 };
-use egui_integration::EguiIntegration;
+use egui_integration::{egui, EguiIntegration};
 use math::size::Size2D;
 use render_pass::{Layout, LayoutTransition};
 use tracing::Level;
@@ -307,47 +307,63 @@ fn main() {
         *control_flow = ControlFlow::Poll;
         match event {
             Event::WindowEvent {
-                event: WindowEvent::Resized(size),
+                event: window_event,
                 ..
             } => {
-                cinder
-                    .resize(Size2D::new(size.width, size.height))
-                    .expect("Could not resize device");
-                // TODO: easier way to re-create render passes
-                cinder.clean_render_pass(&mut render_pass);
-                render_pass = cinder
-                    .create_render_pass(RenderPassDescription {
-                        color_attachments: [RenderPassAttachmentDesc::clear_store(
-                            cinder.surface_format(),
-                        )
-                        .with_layout_transition(LayoutTransition {
-                            initial_layout: Layout::Undefined,
-                            final_layout: Layout::ColorAttachment,
-                        })],
-                        depth_attachment: Some(
-                            RenderPassAttachmentDesc::clear_store(Format::D32_SFloat)
+                egui.on_event(&window_event);
+                match window_event {
+                    WindowEvent::Resized(size) => {
+                        cinder
+                            .resize(Size2D::new(size.width, size.height))
+                            .expect("Could not resize device");
+                        // TODO: easier way to re-create render passes
+                        cinder.clean_render_pass(&mut render_pass);
+                        render_pass = cinder
+                            .create_render_pass(RenderPassDescription {
+                                color_attachments: [RenderPassAttachmentDesc::clear_store(
+                                    cinder.surface_format(),
+                                )
                                 .with_layout_transition(LayoutTransition {
                                     initial_layout: Layout::Undefined,
-                                    final_layout: Layout::DepthAttachment,
-                                }),
-                        ),
-                    })
-                    .expect("Could not create render pass");
-                egui.resize(&cinder)
-                    .expect("Could not resize egui integration");
-                // TODO: This could be better
-                upload_context
-                    .begin(&cinder)
-                    .expect("could not begin upload context");
-                {
-                    upload_context.transition_depth_image(&cinder);
+                                    final_layout: Layout::ColorAttachment,
+                                })],
+                                depth_attachment: Some(
+                                    RenderPassAttachmentDesc::clear_store(Format::D32_SFloat)
+                                        .with_layout_transition(LayoutTransition {
+                                            initial_layout: Layout::Undefined,
+                                            final_layout: Layout::DepthAttachment,
+                                        }),
+                                ),
+                            })
+                            .expect("Could not create render pass");
+                        egui.resize(&cinder)
+                            .expect("Could not resize egui integration");
+                        // TODO: This could be better
+                        upload_context
+                            .begin(&cinder)
+                            .expect("could not begin upload context");
+                        {
+                            upload_context.transition_depth_image(&cinder);
+                        }
+                        upload_context
+                            .end(&cinder)
+                            .expect("could not end upload context");
+                        cinder
+                            .submit_upload_work(&upload_context)
+                            .expect("could not submit upload work");
+                    }
+                    WindowEvent::KeyboardInput {
+                        input:
+                            KeyboardInput {
+                                virtual_keycode: Some(VirtualKeyCode::Escape),
+                                state: ElementState::Pressed,
+                                ..
+                            },
+                        ..
+                    } => *control_flow = ControlFlow::Exit,
+                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                    _ => {}
                 }
-                upload_context
-                    .end(&cinder)
-                    .expect("could not end upload context");
-                cinder
-                    .submit_upload_work(&upload_context)
-                    .expect("could not submit upload work");
             }
             Event::RedrawRequested(_) => {
                 let (present_index, _is_suboptimal) = cinder
@@ -395,7 +411,11 @@ fn main() {
                         &render_context,
                         present_index,
                         &window,
-                        |_| {},
+                        |egui_context| {
+                            egui::Window::new("Cinder Renderer").show(egui_context, |ui| {
+                                ui.label("Hello World!");
+                            });
+                        },
                     );
                 }
                 render_context
@@ -406,23 +426,6 @@ fn main() {
                     .submit_graphics_work(&render_context, present_index)
                     .expect("Could not submit graphics work");
             }
-            Event::WindowEvent {
-                event:
-                    WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                virtual_keycode: Some(VirtualKeyCode::Escape),
-                                state: ElementState::Pressed,
-                                ..
-                            },
-                        ..
-                    },
-                ..
-            } => *control_flow = ControlFlow::Exit,
-            Event::WindowEvent {
-                event: WindowEvent::CloseRequested,
-                ..
-            } => *control_flow = ControlFlow::Exit,
             Event::MainEventsCleared => {
                 window.request_redraw();
             }
