@@ -110,7 +110,7 @@ impl EguiIntegration {
                         offset: 8,
                     },
                     VertexAttributeDesc {
-                        format: Format::R32_SFloat,
+                        format: Format::R8_G8_B8_A8_Unorm,
                         offset: 16,
                     },
                 ],
