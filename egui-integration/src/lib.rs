@@ -118,6 +118,7 @@ impl EguiIntegration {
             render_pass: &render_pass,
             desc_set_layouts: vec![bind_group_layout.layout],
             push_constants: vec![&push_constant],
+            depth_testing_enabled: false,
         })?;
 
         let sampler = cinder.create_sampler()?;

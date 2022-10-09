@@ -28,6 +28,7 @@ pub struct GraphicsPipelineDescription<'a> {
     pub render_pass: &'a RenderPass,
     pub desc_set_layouts: Vec<vk::DescriptorSetLayout>,
     pub push_constants: Vec<&'a PushConstant>,
+    pub depth_testing_enabled: bool,
 }
 
 pub struct PipelineCommon {
@@ -97,16 +98,28 @@ impl GraphicsPipeline {
         let stencil_state = vk::StencilOpState::builder()
             .fail_op(vk::StencilOp::KEEP)
             .pass_op(vk::StencilOp::KEEP)
+            .depth_fail_op(vk::StencilOp::KEEP)
             .compare_op(vk::CompareOp::ALWAYS)
             .build();
-        let depth_state_info = vk::PipelineDepthStencilStateCreateInfo::builder()
-            .depth_test_enable(false)
-            .depth_write_enable(false)
-            .depth_compare_op(vk::CompareOp::ALWAYS)
-            .depth_bounds_test_enable(false)
-            .stencil_test_enable(false)
-            .front(stencil_state)
-            .back(stencil_state);
+
+        let depth_state_info = if desc.depth_testing_enabled {
+            vk::PipelineDepthStencilStateCreateInfo::builder()
+                .depth_test_enable(true)
+                .depth_write_enable(true)
+                .depth_compare_op(vk::CompareOp::LESS_OR_EQUAL)
+                .front(stencil_state)
+                .back(stencil_state)
+                .max_depth_bounds(1.0)
+        } else {
+            vk::PipelineDepthStencilStateCreateInfo::builder()
+                .depth_test_enable(false)
+                .depth_write_enable(false)
+                .depth_compare_op(vk::CompareOp::ALWAYS)
+                .depth_bounds_test_enable(false)
+                .stencil_test_enable(false)
+                .front(stencil_state)
+                .back(stencil_state)
+        };
         let color_blend_attachment_states = [vk::PipelineColorBlendAttachmentState::builder()
             .color_write_mask(
                 vk::ColorComponentFlags::R
@@ -117,6 +130,11 @@ impl GraphicsPipeline {
             .blend_enable(true)
             .src_color_blend_factor(vk::BlendFactor::ONE)
             .dst_color_blend_factor(vk::BlendFactor::ONE_MINUS_SRC_ALPHA)
+            .color_blend_op(vk::BlendOp::ADD)
+            .src_alpha_blend_factor(vk::BlendFactor::ONE)
+            .dst_alpha_blend_factor(vk::BlendFactor::ZERO)
+            .alpha_blend_op(vk::BlendOp::ADD)
+            .color_write_mask(vk::ColorComponentFlags::RGBA)
             .build()];
         let color_blend_state = vk::PipelineColorBlendStateCreateInfo::builder()
             .attachments(&color_blend_attachment_states);

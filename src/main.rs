@@ -291,6 +291,7 @@ fn main() {
             render_pass: &render_pass,
             desc_set_layouts: vec![bind_group_layout.layout],
             push_constants: vec![&color_push_constant],
+            depth_testing_enabled: true,
         })
         .expect("Could not create graphics pipeline");
 
