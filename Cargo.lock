@@ -965,7 +965,7 @@ dependencies = [
 [[package]]
 name = "math"
 version = "0.1.0"
-source = "git+https://github.com/ArthurKValladares/Yet-Another-Math-Lib#221afa287cc5ae0afadfa964636bca6b2b7d7499"
+source = "git+https://github.com/ArthurKValladares/Yet-Another-Math-Lib#c6b86a56553de66d7c81b4c00e1eeb253c7d865e"
 dependencies = [
  "num",
  "rkyv",

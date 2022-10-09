@@ -27,7 +27,7 @@ use egui::{
     epaint::{ImageDelta, Primitive},
     ClippedPrimitive, ImageData, Mesh, RawInput, Rect, TextureId, TexturesDelta,
 };
-use math::{rect::Rect2D, size::Size2D, vec::Vec2};
+use math::{point::Point2D, rect::Rect2D, size::Size2D, vec::Vec2};
 use std::{collections::HashMap, path::Path};
 use util::{as_u8_slice, size_of_slice};
 use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Window};
@@ -201,7 +201,6 @@ impl EguiIntegration {
             render_context,
             window,
             present_index,
-            self.egui_context.pixels_per_point(),
             &clipped_primitives,
         )?;
 
@@ -216,7 +215,6 @@ impl EguiIntegration {
         render_context: &RenderContext,
         window: &Window,
         present_index: u32,
-        pixels_per_point: f32,
         clipped_primitives: &[ClippedPrimitive],
     ) -> Result<()> {
         let size = window.inner_size();
@@ -237,14 +235,15 @@ impl EguiIntegration {
             render_context.bind_index_buffer(cinder, index_buffer);
             render_context
                 .bind_viewport(cinder, Rect2D::from_width_height(size.width, size.height));
+            let scale_factor = window.scale_factor() as f32;
             render_context.push_constant(
                 cinder,
                 &self.pipeline,
                 &self.push_constant,
                 as_u8_slice(&EguiPushConstantData {
                     size: Vec2::new(
-                        size.width as f32 / pixels_per_point,
-                        size.height as f32 / pixels_per_point,
+                        size.width as f32 / scale_factor,
+                        size.height as f32 / scale_factor,
                     ),
                 }),
             );
@@ -329,38 +328,38 @@ impl EguiIntegration {
         }
         {
             let scale_factor = window.scale_factor() as f32;
-            let size = window.inner_size();
+            let (min, max) = {
+                let size = window.inner_size();
 
-            let min = {
                 let min = clip_rect.min;
                 let min = egui::Pos2 {
-                    x: min.x * scale_factor,
-                    y: min.y * scale_factor,
+                    x: min.x * scale_factor as f32,
+                    y: min.y * scale_factor as f32,
                 };
-                egui::Pos2 {
+                let min = egui::Pos2 {
                     x: f32::clamp(min.x, 0.0, size.width as f32),
                     y: f32::clamp(min.y, 0.0, size.height as f32),
-                }
-            };
-            let max = {
+                };
                 let max = clip_rect.max;
                 let max = egui::Pos2 {
-                    x: max.x * scale_factor,
-                    y: max.y * scale_factor,
+                    x: max.x * scale_factor as f32,
+                    y: max.y * scale_factor as f32,
                 };
-                egui::Pos2 {
+                let max = egui::Pos2 {
                     x: f32::clamp(max.x, min.x, size.width as f32),
                     y: f32::clamp(max.y, min.y, size.height as f32),
-                }
+                };
+                (min, max)
             };
             // TODO: Is this right?
             render_context.bind_scissor(
                 cinder,
-                Rect2D::from_top_right_bottom_left(
-                    min.x as u32,
-                    max.y as u32,
-                    max.x as u32,
-                    min.y as u32,
+                Rect2D::from_offset_and_size(
+                    Point2D::new(min.x.round() as u32, min.y.round() as u32),
+                    Size2D::new(
+                        (max.x.round() - min.x) as u32,
+                        (max.y.round() - min.y) as u32,
+                    ),
                 ),
             );
         }

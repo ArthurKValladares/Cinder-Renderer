@@ -113,7 +113,10 @@ impl RenderContext {
                 self.shared.command_buffer,
                 0,
                 &[vk::Rect2D {
-                    offset: vk::Offset2D { x: 0, y: 0 },
+                    offset: vk::Offset2D {
+                        x: rect.offset().x() as i32,
+                        y: rect.offset().y() as i32,
+                    },
                     extent: vk::Extent2D {
                         width: rect.width(),
                         height: rect.height(),
