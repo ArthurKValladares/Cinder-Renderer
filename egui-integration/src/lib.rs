@@ -43,6 +43,7 @@ struct EguiPushConstantData {
 
 pub struct EguiIntegration {
     egui_context: egui::Context,
+    egui_visuals: egui::Visuals,
     egui_winit: egui_winit::State,
     render_pass: RenderPass,
     push_constant: PushConstant,
@@ -59,7 +60,8 @@ pub struct EguiIntegration {
 impl EguiIntegration {
     pub fn new<T>(event_loop: &EventLoopWindowTarget<T>, cinder: &mut Cinder) -> Result<Self> {
         let egui_context = egui::Context::default();
-        egui_context.set_visuals(egui::Visuals::light());
+        let egui_visuals = egui::Visuals::light();
+        egui_context.set_visuals(egui_visuals.clone());
         let egui_winit = egui_winit::State::new(event_loop);
 
         let render_pass = cinder.create_render_pass(RenderPassDescription {
@@ -152,6 +154,7 @@ impl EguiIntegration {
 
         Ok(Self {
             egui_context,
+            egui_visuals,
             egui_winit,
             render_pass,
             sampler,

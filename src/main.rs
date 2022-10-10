@@ -1,4 +1,4 @@
-use std::{path::Path, time::Instant};
+mod ui;
 
 use cgmath::{Deg, Matrix4, Point3, Vector3};
 use cinder::{
@@ -21,6 +21,7 @@ use cinder::{
 use egui_integration::{egui, EguiIntegration};
 use math::size::Size2D;
 use render_pass::{Layout, LayoutTransition};
+use std::{path::Path, time::Instant};
 use tracing::Level;
 use util::*;
 use winit::{
@@ -29,6 +30,8 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
+
+use crate::ui::Ui;
 
 // TODO: verify that all triple buffering stuff is working
 
@@ -305,6 +308,7 @@ fn main() {
     // Egui integration
     let mut egui =
         EguiIntegration::new(&event_loop, &mut cinder).expect("Could not create event loop");
+    let mut cinder_ui = Ui::new();
 
     let init_time = init_start.elapsed().as_secs_f32();
     let start = Instant::now();
@@ -417,6 +421,10 @@ fn main() {
                         present_index,
                         &window,
                         |egui_context| {
+                            egui::TopBottomPanel::top("Cinder").show(egui_context, |ui| {
+                                cinder_ui.show_tabs(ui);
+                            });
+
                             egui::Window::new("Cinder Renderer").show(egui_context, |ui| {
                                 ui.collapsing("init", |ui| {
                                     ui.label(format!("total time: {} s", init_time));
