@@ -425,12 +425,12 @@ fn main() {
                                 cinder_ui.show_tabs(ui);
                             });
 
-                            egui::Window::new("Cinder Renderer").show(egui_context, |ui| {
+                            cinder_ui.show_selected_tab(egui_context, |ui| {
                                 ui.collapsing("init", |ui| {
                                     ui.label(format!("total time: {} s", init_time));
                                     ui.label(format!("scene load: {} s", scene_load_time));
                                 });
-                            });
+                            })
                         },
                     );
                 }
