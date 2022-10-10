@@ -9,3 +9,6 @@ anyhow = "1"
 tobj = "3.2.3"
 cinder = {path = "../cinder"}
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
+rkyv = { version = "0.7", features = ["validation"] }
+memmap = "0.7.0"
+thiserror = "1"

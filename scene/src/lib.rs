@@ -1,14 +1,33 @@
 use anyhow::Result;
 use cinder::cinder::Vertex;
-use std::path::Path;
+use memmap::MmapOptions;
+use rkyv::{Archive, Deserialize, Serialize};
+use std::{fs::File, io::Write, path::Path};
+use thiserror::Error;
 
+const COMPILED_DIR: &str = "compiled_scenes";
+
+#[derive(Debug, Error)]
+pub enum CompiledSceneError {
+    #[error("path did not have valid file name: {0:?}")]
+    NoFileName(std::path::PathBuf),
+    #[error("path contained invalid utf-8: {0:?}")]
+    InvalidUtf8(std::path::PathBuf),
+}
+
+#[derive(Debug, Archive, Deserialize, Serialize)]
 pub struct Mesh {
     pub indices: Vec<u32>,
     pub vertices: Vec<Vertex>,
 }
 
-impl Mesh {
-    pub fn from_obj_path(path: impl AsRef<Path>) -> Result<Vec<Self>> {
+#[derive(Debug, Archive, Deserialize, Serialize)]
+pub struct ObjScene {
+    pub meshes: Vec<Mesh>,
+}
+
+impl ObjScene {
+    pub fn from_obj_path(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         let (obj_models, _obj_materials) = tobj::load_obj(path, &tobj::GPU_LOAD_OPTIONS)?;
 
@@ -57,6 +76,43 @@ impl Mesh {
             })
             .collect::<Vec<_>>();
 
-        Ok(meshes)
+        Ok(Self { meshes })
+    }
+
+    // TODO: this can be a much more general pattern
+    pub fn from_archive_file(path: impl AsRef<Path>) -> Result<Self> {
+        let file = File::open(path)?;
+        let mmap = unsafe { MmapOptions::new().map(&file)? };
+        let archived = unsafe { rkyv::archived_root::<Self>(&mmap[..]) };
+        let ret = archived.deserialize(&mut rkyv::Infallible)?;
+        Ok(ret)
+    }
+
+    pub fn archive_to_file(&self, path: impl AsRef<Path>) -> Result<()> {
+        // TODO: figure out N, use ScratchTracker.
+        const N: usize = 256;
+        let bytes = rkyv::to_bytes::<_, N>(self)?;
+        let path = path.as_ref();
+        let mut file = File::create(path)?;
+        file.write_all(&bytes)?;
+        Ok(())
+    }
+
+    pub fn load_or_achive(path: impl AsRef<Path>) -> Result<Self> {
+        let path = path.as_ref();
+        let file_stem = path
+            .file_stem()
+            .ok_or_else(|| CompiledSceneError::NoFileName(path.to_owned()))?
+            .to_str()
+            .ok_or_else(|| CompiledSceneError::InvalidUtf8(path.to_owned()))?;
+        let compiled_path = Path::new(COMPILED_DIR).join(format!("{}.akv", file_stem));
+        if compiled_path.exists() {
+            Self::from_archive_file(compiled_path)
+        } else {
+            let scene = Self::from_obj_path(path)?;
+            std::fs::create_dir_all(COMPILED_DIR)?;
+            scene.archive_to_file(&compiled_path)?;
+            Ok(scene)
+        }
     }
 }

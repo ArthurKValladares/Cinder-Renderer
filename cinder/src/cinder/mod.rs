@@ -21,6 +21,7 @@ use crate::{
 use anyhow::Result;
 use ash::vk;
 use math::{rect::Rect2D, size::Size2D};
+use rkyv::{Archive, Deserialize, Serialize};
 use tracing::{span, Level};
 
 fn submit_work(
@@ -46,7 +47,7 @@ fn submit_work(
 }
 
 // TODO: Get this from the shader later on
-#[derive(Clone, Debug, Copy)]
+#[derive(Clone, Debug, Copy, Archive, Deserialize, Serialize)]
 pub struct Vertex {
     pub pos: [f32; 4],
     pub color: [f32; 4],

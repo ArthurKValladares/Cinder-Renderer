@@ -76,6 +76,7 @@ fn main() {
     tracing::subscriber::set_global_default(collector)
         .expect("Could not set tracing global subscriber");
 
+    let init_start = Instant::now();
     const WINDOW_HEIGHT: u32 = 1000;
     const WINDOW_WIDTH: u32 = 1000;
 
@@ -136,9 +137,11 @@ fn main() {
         .expect("Could not create render pass");
 
     // Load model
-    let mut meshes =
-        scene::Mesh::from_obj_path("./assets/models/viking_room.obj").expect("Could not load mesh");
-    let mesh = meshes.remove(0);
+    let scene_load_start = Instant::now();
+    let mut scene = scene::ObjScene::load_or_achive("./assets/models/viking_room.obj")
+        .expect("Could not load mesh");
+    let scene_load_time = scene_load_start.elapsed().as_secs_f32();
+    let mesh = scene.meshes.remove(0);
 
     // Create and bind index buffer
     let index_buffer = cinder
@@ -303,6 +306,7 @@ fn main() {
     let mut egui =
         EguiIntegration::new(&event_loop, &mut cinder).expect("Could not create event loop");
 
+    let init_time = init_start.elapsed().as_secs_f32();
     let start = Instant::now();
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -414,27 +418,11 @@ fn main() {
                         &window,
                         |egui_context| {
                             egui::Window::new("Cinder Renderer").show(egui_context, |ui| {
-                                ui.label("Hello World!");
+                                ui.collapsing("init", |ui| {
+                                    ui.label(format!("total time: {} s", init_time));
+                                    ui.label(format!("scene load: {} s", scene_load_time));
+                                });
                             });
-
-                            //egui::SidePanel::left("my_left_panel").show(egui_context, |ui| {
-                            //    ui.label("Hello World!");
-                            //});
-
-                            //egui::SidePanel::right("my_right_panel").show(egui_context, |ui| {
-                            //    ui.label("Hello World!");
-                            //});
-
-                            //egui::TopBottomPanel::top("my_top_panel").show(egui_context, |ui| {
-                            //    ui.label("Hello World!");
-                            //});
-
-                            //egui::TopBottomPanel::bottom("my_bottom_panel").show(
-                            //    egui_context,
-                            //    |ui| {
-                            //        ui.label("Hello World!");
-                            //    },
-                            //);
                         },
                     );
                 }

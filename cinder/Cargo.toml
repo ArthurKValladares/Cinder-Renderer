@@ -14,3 +14,4 @@ math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
 util = { path = "../util" }
 tracing = "0.1"
 raw-window-handle = "0.5"
+rkyv = { version = "0.7", features = ["validation"] }
