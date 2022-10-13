@@ -18,14 +18,20 @@ impl Tab {
 pub struct Ui {
     tabs: [Tab; 2],
     selected_tab: Option<Tab>,
+    visuals: egui::Visuals,
 }
 
 impl Ui {
-    pub const fn new() -> Self {
+    pub fn new() -> Self {
         Self {
             tabs: [Tab::App, Tab::Egui],
             selected_tab: None,
+            visuals: egui::Visuals::light(),
         }
+    }
+
+    pub fn visuals(&self) -> egui::Visuals {
+        self.visuals.clone()
     }
 
     pub fn show_tabs(&mut self, ui: &mut egui::Ui) {
@@ -54,11 +60,35 @@ impl Ui {
             match selected_tab {
                 Tab::App => {
                     // TODO: window type configurable
-                    egui::Window::new(Tab::App.name()).show(context, |ui| {
-                        app_callback(ui);
-                    });
+                    egui::Window::new(Tab::App.name())
+                        .resizable(true)
+                        .show(context, |ui| {
+                            app_callback(ui);
+                        });
                 }
-                Tab::Egui => {}
+                Tab::Egui => {
+                    egui::Window::new(Tab::App.name())
+                        .resizable(true)
+                        .show(context, |ui| {
+                            ui.horizontal(|ui| {
+                                ui.label("Style:");
+                                if ui
+                                    .selectable_label(self.visuals.dark_mode, "dark")
+                                    .clicked()
+                                {
+                                    self.visuals = egui::Visuals::dark();
+                                    context.set_visuals(self.visuals());
+                                }
+                                if ui
+                                    .selectable_label(!self.visuals.dark_mode, "light")
+                                    .clicked()
+                                {
+                                    self.visuals = egui::Visuals::light();
+                                    context.set_visuals(self.visuals());
+                                }
+                            })
+                        });
+                }
             }
         }
     }

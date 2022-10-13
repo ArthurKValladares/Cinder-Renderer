@@ -306,9 +306,9 @@ fn main() {
     };
 
     // Egui integration
-    let mut egui =
-        EguiIntegration::new(&event_loop, &mut cinder).expect("Could not create event loop");
     let mut cinder_ui = Ui::new();
+    let mut egui = EguiIntegration::new(&event_loop, &mut cinder, cinder_ui.visuals())
+        .expect("Could not create event loop");
 
     let init_time = init_start.elapsed().as_secs_f32();
     let start = Instant::now();
