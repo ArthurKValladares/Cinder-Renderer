@@ -107,15 +107,15 @@ impl RenderContext {
         }
     }
 
-    pub fn bind_scissor(&self, cinder: &Cinder, rect: Rect2D<u32>) {
+    pub fn bind_scissor(&self, cinder: &Cinder, rect: Rect2D<i32, u32>) {
         unsafe {
             cinder.device().cmd_set_scissor(
                 self.shared.command_buffer,
                 0,
                 &[vk::Rect2D {
                     offset: vk::Offset2D {
-                        x: rect.offset().x() as i32,
-                        y: rect.offset().y() as i32,
+                        x: rect.offset().x(),
+                        y: rect.offset().y(),
                     },
                     extent: vk::Extent2D {
                         width: rect.width(),
@@ -126,14 +126,15 @@ impl RenderContext {
         }
     }
 
-    pub fn bind_viewport(&self, cinder: &Cinder, rect: Rect2D<u32>) {
+    // TODO: maybe make generics f32, f32
+    pub fn bind_viewport(&self, cinder: &Cinder, rect: Rect2D<i32, u32>) {
         unsafe {
             cinder.device().cmd_set_viewport(
                 self.shared.command_buffer,
                 0,
                 &[vk::Viewport {
-                    x: 0.0,
-                    y: 0.0 as f32,
+                    x: rect.offset().x() as f32,
+                    y: rect.offset().y() as f32,
                     width: rect.width() as f32,
                     height: rect.height() as f32,
                     min_depth: 0.0,

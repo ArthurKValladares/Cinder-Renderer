@@ -301,7 +301,7 @@ impl Cinder {
         )
     }
 
-    pub fn surface_rect(&self) -> Rect2D<u32> {
+    pub fn surface_rect(&self) -> Rect2D<i32, u32> {
         Rect2D::from_width_height(
             self.surface_data.surface_resolution.width,
             self.surface_data.surface_resolution.height,

@@ -206,6 +206,7 @@ impl EguiIntegration {
             render_context,
             window,
             present_index,
+            self.egui_context.pixels_per_point(),
             &clipped_primitives,
         )?;
 
@@ -220,6 +221,7 @@ impl EguiIntegration {
         render_context: &RenderContext,
         window: &Window,
         present_index: u32,
+        pixels_per_point: f32,
         clipped_primitives: &[ClippedPrimitive],
     ) -> Result<()> {
         let size = window.inner_size();
@@ -240,15 +242,15 @@ impl EguiIntegration {
             render_context.bind_index_buffer(cinder, index_buffer);
             render_context
                 .bind_viewport(cinder, Rect2D::from_width_height(size.width, size.height));
-            let scale_factor = window.scale_factor() as f32;
+
             render_context.push_constant(
                 cinder,
                 &self.pipeline,
                 &self.push_constant,
                 as_u8_slice(&EguiPushConstantData {
                     size: Vec2::new(
-                        size.width as f32 / scale_factor,
-                        size.height as f32 / scale_factor,
+                        size.width as f32 / pixels_per_point,
+                        size.height as f32 / pixels_per_point,
                     ),
                 }),
             );
@@ -258,6 +260,34 @@ impl EguiIntegration {
                 primitive,
             } in clipped_primitives
             {
+                {
+                    let size = window.inner_size();
+                    let min = {
+                        let min = clip_rect.min;
+                        egui::Pos2 {
+                            x: f32::clamp(min.x, 0.0, size.width as f32),
+                            y: f32::clamp(min.y, 0.0, size.height as f32),
+                        }
+                    };
+                    let max = {
+                        let max = clip_rect.max;
+                        egui::Pos2 {
+                            x: f32::clamp(max.x, min.x, size.width as f32),
+                            y: f32::clamp(max.y, min.y, size.height as f32),
+                        }
+                    };
+                    render_context.bind_scissor(
+                        cinder,
+                        Rect2D::from_offset_and_size(
+                            Point2D::new(min.x.round() as i32, min.y.round() as i32),
+                            Size2D::new(
+                                (max.x.round() - min.x) as u32,
+                                (max.y.round() - min.y) as u32,
+                            ),
+                        ),
+                    );
+                }
+
                 match primitive {
                     Primitive::Mesh(mesh) => {
                         self.paint_mesh(
@@ -331,43 +361,7 @@ impl EguiIntegration {
         } else {
             render_context.bind_descriptor_sets(cinder, &self.pipeline, &[self.bind_group_set.set]);
         }
-        {
-            let scale_factor = window.scale_factor() as f32;
-            let (min, max) = {
-                let size = window.inner_size();
 
-                let min = clip_rect.min;
-                let min = egui::Pos2 {
-                    x: min.x * scale_factor as f32,
-                    y: min.y * scale_factor as f32,
-                };
-                let min = egui::Pos2 {
-                    x: f32::clamp(min.x, 0.0, size.width as f32),
-                    y: f32::clamp(min.y, 0.0, size.height as f32),
-                };
-                let max = clip_rect.max;
-                let max = egui::Pos2 {
-                    x: max.x * scale_factor as f32,
-                    y: max.y * scale_factor as f32,
-                };
-                let max = egui::Pos2 {
-                    x: f32::clamp(max.x, min.x, size.width as f32),
-                    y: f32::clamp(max.y, min.y, size.height as f32),
-                };
-                (min, max)
-            };
-            // TODO: Is this right?
-            render_context.bind_scissor(
-                cinder,
-                Rect2D::from_offset_and_size(
-                    Point2D::new(min.x.round() as u32, min.y.round() as u32),
-                    Size2D::new(
-                        (max.x.round() - min.x) as u32,
-                        (max.y.round() - min.y) as u32,
-                    ),
-                ),
-            );
-        }
         render_context.draw_offset(cinder, indices.len() as u32, *index_base, *vertex_base);
 
         *vertex_base += vertices.len() as i32;
