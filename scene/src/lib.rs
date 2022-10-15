@@ -1,6 +1,7 @@
 use anyhow::Result;
 use cinder::cinder::Vertex;
 use memmap::MmapOptions;
+use meshopt::VertexDataAdapter;
 use rkyv::{Archive, Deserialize, Serialize};
 use std::{fs::File, io::Write, path::Path};
 use thiserror::Error;
@@ -66,30 +67,27 @@ impl ObjScene {
                     })
                     .collect::<Vec<_>>();
 
-                let total_indices = mesh.indices.len();
                 let (total_vertices, vertex_remap) =
                     meshopt::generate_vertex_remap(&src_vertices, Some(&mesh.indices));
 
-                let indices = Vec::with_capacity(total_indices);
-                unsafe {
-                    meshopt::ffi::meshopt_remapIndexBuffer(
-                        indices.as_ptr() as *mut ::std::os::raw::c_uint,
-                        ::std::ptr::null(),
-                        total_indices,
-                        vertex_remap.as_ptr() as *const ::std::os::raw::c_uint,
-                    );
-                }
+                let mut indices =
+                    meshopt::remap_index_buffer(Some(&mesh.indices), total_vertices, &vertex_remap);
 
-                let vertices = Vec::with_capacity(total_vertices);
-                unsafe {
-                    meshopt::ffi::meshopt_remapVertexBuffer(
-                        vertices.as_ptr() as *mut ::std::os::raw::c_void,
-                        src_vertices.as_ptr() as *const ::std::os::raw::c_void,
-                        total_indices,
-                        std::mem::size_of::<Vertex>(),
-                        vertex_remap.as_ptr() as *const ::std::os::raw::c_uint,
-                    );
-                }
+                let mut vertices =
+                    meshopt::remap_vertex_buffer(&src_vertices, src_vertices.len(), &vertex_remap);
+
+                meshopt::optimize_vertex_cache_in_place(&mut indices, vertices.len());
+
+                let vertex_data_adapter = {
+                    let position_offset = util::offset_of!(Vertex, pos);
+                    let vertex_stride = std::mem::size_of::<Vertex>();
+                    let vertex_data = util::typed_to_bytes(&vertices);
+
+                    VertexDataAdapter::new(vertex_data, vertex_stride, position_offset)
+                        .expect("failed to create vertex data reader")
+                };
+                let threshold = 1.05f32;
+                meshopt::optimize_overdraw_in_place(&indices, &vertex_data_adapter, threshold);
 
                 Mesh { indices, vertices }
             })

@@ -2,3 +2,6 @@
 name = "util"
 version = "0.1.0"
 edition = "2021"
+
+[dependencies]
+memoffset = "0.6"

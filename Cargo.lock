@@ -1684,6 +1684,7 @@ dependencies = [
  "rkyv",
  "thiserror",
  "tobj",
+ "util",
 ]
 
 [[package]]
@@ -2090,6 +2091,9 @@ dependencies = [
 [[package]]
 name = "util"
 version = "0.1.0"
+dependencies = [
+ "memoffset",
+]
 
 [[package]]
 name = "valuable"
