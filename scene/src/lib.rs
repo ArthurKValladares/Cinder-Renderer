@@ -39,8 +39,14 @@ impl ObjScene {
                 let mesh = &model.mesh;
 
                 let num_positions = mesh.positions.len() / 3;
-                let vertices = (0..num_positions)
+                let src_vertices = (0..num_positions)
                     .map(|i| {
+                        let pos = [
+                            mesh.positions[i * 3],
+                            mesh.positions[i * 3 + 1],
+                            mesh.positions[i * 3 + 2],
+                            1.0,
+                        ];
                         let color = if mesh.vertex_color.is_empty() {
                             [1.0, 1.0, 1.0, 1.0]
                         } else {
@@ -56,23 +62,36 @@ impl ObjScene {
                         } else {
                             [mesh.texcoords[i * 2], mesh.texcoords[i * 2 + 1]]
                         };
-                        Vertex {
-                            pos: [
-                                mesh.positions[i * 3],
-                                mesh.positions[i * 3 + 1],
-                                mesh.positions[i * 3 + 2],
-                                1.0,
-                            ],
-                            color,
-                            uv,
-                        }
+                        Vertex { pos, color, uv }
                     })
                     .collect::<Vec<_>>();
 
-                Mesh {
-                    indices: mesh.indices.clone(),
-                    vertices,
+                let total_indices = mesh.indices.len();
+                let (total_vertices, vertex_remap) =
+                    meshopt::generate_vertex_remap(&src_vertices, Some(&mesh.indices));
+
+                let indices = Vec::with_capacity(total_indices);
+                unsafe {
+                    meshopt::ffi::meshopt_remapIndexBuffer(
+                        indices.as_ptr() as *mut ::std::os::raw::c_uint,
+                        ::std::ptr::null(),
+                        total_indices,
+                        vertex_remap.as_ptr() as *const ::std::os::raw::c_uint,
+                    );
                 }
+
+                let vertices = Vec::with_capacity(total_vertices);
+                unsafe {
+                    meshopt::ffi::meshopt_remapVertexBuffer(
+                        vertices.as_ptr() as *mut ::std::os::raw::c_void,
+                        src_vertices.as_ptr() as *const ::std::os::raw::c_void,
+                        total_indices,
+                        std::mem::size_of::<Vertex>(),
+                        vertex_remap.as_ptr() as *const ::std::os::raw::c_uint,
+                    );
+                }
+
+                Mesh { indices, vertices }
             })
             .collect::<Vec<_>>();
 
