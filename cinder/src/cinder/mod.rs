@@ -47,7 +47,7 @@ fn submit_work(
 }
 
 // TODO: Get this from the shader later on
-#[derive(Clone, Debug, Copy, Archive, Deserialize, Serialize)]
+#[derive(Clone, Debug, Default, Copy, Archive, Deserialize, Serialize)]
 pub struct Vertex {
     pub pos: [f32; 4],
     pub color: [f32; 4],

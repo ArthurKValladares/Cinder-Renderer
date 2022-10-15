@@ -281,11 +281,11 @@ fn main() {
                 stride: std::mem::size_of::<Vertex>() as u32,
                 attributes: vec![
                     VertexAttributeDesc {
-                        format: Format::R32_G32_B32_A32_SFloat,
+                        format: Format::R32_G32_B32_SFloat,
                         offset: offset_of!(Vertex, pos) as u32,
                     },
                     VertexAttributeDesc {
-                        format: Format::R32_G32_B32_A32_SFloat,
+                        format: Format::R32_G32_B32_SFloat,
                         offset: offset_of!(Vertex, color) as u32,
                     },
                     VertexAttributeDesc {
