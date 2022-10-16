@@ -6,11 +6,13 @@ version = 3
 name = "Cinder-Renderer"
 version = "0.1.0"
 dependencies = [
+ "camera",
  "cgmath",
  "cinder",
  "egui-integration",
  "home",
  "image",
+ "input",
  "math",
  "rust-shader-tools",
  "scene",
@@ -248,6 +250,13 @@ dependencies = [
  "slotmap",
  "thiserror",
  "vec_map",
+]
+
+[[package]]
+name = "camera"
+version = "0.1.0"
+dependencies = [
+ "math",
 ]
 
 [[package]]
@@ -916,6 +925,13 @@ dependencies = [
  "png",
  "scoped_threadpool",
  "tiff",
+]
+
+[[package]]
+name = "input"
+version = "0.1.0"
+dependencies = [
+ "winit",
 ]
 
 [[package]]

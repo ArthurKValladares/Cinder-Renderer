@@ -1,5 +1,6 @@
 mod ui;
 
+use camera::Direction;
 use cgmath::{Deg, Matrix4, Point3, Vector3};
 use cinder::{
     cinder::{Cinder, Vertex},
@@ -19,6 +20,7 @@ use cinder::{
     InitData, Resolution,
 };
 use egui_integration::{egui, EguiIntegration};
+use input::keyboard::KeyboardState;
 use math::size::Size2D;
 use render_pass::{Layout, LayoutTransition};
 use std::{path::Path, time::Instant};
@@ -53,6 +55,27 @@ pub struct UniformBufferObject {
 #[derive(Clone, Debug, Copy)]
 pub struct ColorPushConstant {
     color: [f32; 4],
+}
+
+fn get_uniform_data(camera: &camera::Camera, surface_size: Size2D<u32>) -> UniformBufferObject {
+    UniformBufferObject {
+        model: Matrix4::from_angle_z(Deg(90.0)),
+        view: Matrix4::look_at_rh(
+            Point3::new(camera.pos.x(), camera.pos.y(), camera.pos.z()),
+            Point3::new(camera.front.x(), camera.front.y(), camera.front.z()),
+            Vector3::new(0.0, 0.0, 1.0),
+        ),
+        proj: {
+            let mut proj = cgmath::perspective(
+                Deg(45.0),
+                surface_size.width() as f32 / surface_size.height() as f32,
+                0.1,
+                10.0,
+            );
+            proj[1][1] = proj[1][1] * -1.0;
+            proj
+        },
+    }
 }
 
 fn update_uniform_buffer(
@@ -193,26 +216,12 @@ fn main() {
         })
         .collect::<Vec<_>>();
 
+    let mut camera = camera::Camera::default();
+
     // Create and upload uniform buffer
     let surface_size = cinder.surface_size();
-    let mut uniform_data = UniformBufferObject {
-        model: Matrix4::from_angle_z(Deg(90.0)),
-        view: Matrix4::look_at_rh(
-            Point3::new(2.0, 2.0, 2.0),
-            Point3::new(0.0, 0.0, 0.0),
-            Vector3::new(0.0, 0.0, 1.0),
-        ),
-        proj: {
-            let mut proj = cgmath::perspective(
-                Deg(45.0),
-                surface_size.width() as f32 / surface_size.height() as f32,
-                0.1,
-                10.0,
-            );
-            proj[1][1] = proj[1][1] * -1.0;
-            proj
-        },
-    };
+    let mut uniform_data = get_uniform_data(&camera, surface_size);
+
     let uniform_buffer = cinder
         .create_buffer(BufferDescription {
             size: std::mem::size_of::<UniformBufferObject>() as u64,
@@ -329,6 +338,7 @@ fn main() {
     let mut egui = EguiIntegration::new(&event_loop, &mut cinder, cinder_ui.visuals())
         .expect("Could not create event loop");
 
+    let mut keyboard_state = KeyboardState::default();
     let init_time = init_start.elapsed().as_secs_f32();
     let start = Instant::now();
     event_loop.run(move |event, _, control_flow| {
@@ -380,15 +390,15 @@ fn main() {
                             .submit_upload_work(&upload_context)
                             .expect("could not submit upload work");
                     }
-                    WindowEvent::KeyboardInput {
-                        input:
-                            KeyboardInput {
-                                virtual_keycode: Some(VirtualKeyCode::Escape),
-                                state: ElementState::Pressed,
-                                ..
-                            },
-                        ..
-                    } => *control_flow = ControlFlow::Exit,
+                    WindowEvent::KeyboardInput { input, .. } => {
+                        keyboard_state.update(input);
+                        if let Some(virtual_keycode) = input.virtual_keycode {
+                            match virtual_keycode {
+                                VirtualKeyCode::Escape => *control_flow = ControlFlow::Exit,
+                                _ => {}
+                            }
+                        }
+                    }
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     _ => {}
                 }
@@ -470,5 +480,30 @@ fn main() {
             }
             _ => {}
         }
+
+        // TODO: Clean this up
+        if keyboard_state.is_down(VirtualKeyCode::W) {
+            camera.update_position(Direction::Front);
+        }
+        if keyboard_state.is_down(VirtualKeyCode::S) {
+            camera.update_position(Direction::Back);
+        }
+        if keyboard_state.is_down(VirtualKeyCode::A) {
+            camera.update_position(Direction::Left);
+        }
+        if keyboard_state.is_down(VirtualKeyCode::D) {
+            camera.update_position(Direction::Right);
+        }
+        if keyboard_state.is_down(VirtualKeyCode::Space) {
+            camera.update_position(Direction::Up);
+        }
+        if keyboard_state.is_down(VirtualKeyCode::LShift) {
+            camera.update_position(Direction::Down);
+        }
+
+        uniform_data = get_uniform_data(&camera, cinder.surface_size());
+        uniform_buffer
+            .mem_copy(std::slice::from_ref(&uniform_data))
+            .expect("Could not write to vertex buffer");
     });
 }

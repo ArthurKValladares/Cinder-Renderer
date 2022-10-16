@@ -1,0 +1,8 @@
+[package]
+name = "camera"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
