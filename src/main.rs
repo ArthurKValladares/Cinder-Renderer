@@ -141,7 +141,7 @@ fn main() {
 
     // Load model
     let scene_load_start = Instant::now();
-    let mut scene = scene::ObjScene::load_or_achive("./assets/models/viking_room.obj")
+    let mut scene = scene::ObjScene::load_or_achive("./assets/models/sponza/sponza.obj")
         .expect("Could not load mesh");
     let scene_load_time = scene_load_start.elapsed().as_secs_f32();
     let mesh = scene.meshes.remove(0);
