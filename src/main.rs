@@ -33,6 +33,12 @@ use winit::{
 
 use crate::ui::Ui;
 
+struct MeshDraw {
+    index_buffer: Buffer,
+    num_indices: usize,
+    vertex_buffer: Buffer,
+}
+
 // TODO: verify that all triple buffering stuff is working
 
 #[repr(C)]
@@ -144,35 +150,48 @@ fn main() {
     let mut scene = scene::ObjScene::load_or_achive("./assets/models/sponza/sponza.obj")
         .expect("Could not load mesh");
     let scene_load_time = scene_load_start.elapsed().as_secs_f32();
-    let mesh = scene.meshes.remove(0);
 
     // Create and bind index buffer
-    let index_buffer = cinder
-        .create_buffer(BufferDescription {
-            size: size_of_slice(&mesh.indices),
-            usage: BufferUsage::Index,
-            memory_desc: MemoryDescription {
-                ty: MemoryType::CpuVisible,
-            },
-        })
-        .expect("Could not create index buffer");
-    index_buffer
-        .mem_copy(&mesh.indices)
-        .expect("Could not write to index buffer");
+    let mesh_draws = scene
+        .meshes
+        .iter()
+        .map(|mesh| {
+            let index_buffer = cinder
+                .create_buffer(BufferDescription {
+                    size: size_of_slice(&mesh.indices),
+                    usage: BufferUsage::Index,
+                    memory_desc: MemoryDescription {
+                        ty: MemoryType::CpuVisible,
+                    },
+                })
+                .expect("Could not create index buffer");
+            index_buffer
+                .mem_copy(&mesh.indices)
+                .expect("Could not write to index buffer");
 
-    // Create and bind vertex buffer
-    let vertex_buffer = cinder
-        .create_buffer(BufferDescription {
-            size: size_of_slice(&mesh.vertices),
-            usage: BufferUsage::Vertex,
-            memory_desc: MemoryDescription {
-                ty: MemoryType::CpuVisible,
-            },
+            // Create and bind vertex buffer
+            let vertex_buffer = cinder
+                .create_buffer(BufferDescription {
+                    size: size_of_slice(&mesh.vertices),
+                    usage: BufferUsage::Vertex,
+                    memory_desc: MemoryDescription {
+                        ty: MemoryType::CpuVisible,
+                    },
+                })
+                .expect("Could not create vertex buffer");
+            vertex_buffer
+                .mem_copy(&mesh.vertices)
+                .expect("Could not write to vertex buffer");
+
+            let num_indices = mesh.indices.len();
+
+            MeshDraw {
+                index_buffer,
+                num_indices,
+                vertex_buffer,
+            }
         })
-        .expect("Could not create vertex buffer");
-    vertex_buffer
-        .mem_copy(&mesh.vertices)
-        .expect("Could not write to vertex buffer");
+        .collect::<Vec<_>>();
 
     // Create and upload uniform buffer
     let surface_size = cinder.surface_size();
@@ -394,22 +413,26 @@ fn main() {
                         let surface_rect = cinder.surface_rect();
 
                         render_context.bind_graphics_pipeline(&cinder, &pipeline);
+                        render_context.bind_viewport(&cinder, surface_rect);
+                        render_context.bind_scissor(&cinder, surface_rect);
+
+                        // TODO: Descriptor set will need to be different per mesh
                         render_context.bind_descriptor_sets(
                             &cinder,
                             &pipeline,
                             &[bind_group_set.set],
                         );
-                        render_context.bind_vertex_buffer(&cinder, &vertex_buffer);
-                        render_context.bind_index_buffer(&cinder, &index_buffer);
-                        render_context.bind_viewport(&cinder, surface_rect);
-                        render_context.bind_scissor(&cinder, surface_rect);
-                        render_context.push_constant(
-                            &cinder,
-                            &pipeline,
-                            &color_push_constant,
-                            util::as_u8_slice(&color),
-                        );
-                        render_context.draw(&cinder, mesh.indices.len() as u32);
+                        for draw in &mesh_draws {
+                            render_context.bind_vertex_buffer(&cinder, &draw.vertex_buffer);
+                            render_context.bind_index_buffer(&cinder, &draw.index_buffer);
+                            render_context.push_constant(
+                                &cinder,
+                                &pipeline,
+                                &color_push_constant,
+                                util::as_u8_slice(&color),
+                            );
+                            render_context.draw(&cinder, draw.num_indices as u32);
+                        }
                     }
                     render_context.end_render_pass(&cinder);
 
