@@ -1,6 +1,6 @@
 mod ui;
 
-use camera::Direction;
+use camera::{CameraType, Direction, OrtographicData};
 use cgmath::{Deg, Matrix4, Point3, Vector3};
 use cinder::{
     cinder::{Cinder, Vertex},
@@ -61,8 +61,8 @@ fn get_uniform_data(camera: &camera::Camera, surface_size: Size2D<u32>) -> Unifo
     UniformBufferObject {
         model: Matrix4::from_angle_z(Deg(90.0)),
         view: Matrix4::look_at_rh(
-            Point3::new(camera.pos.x(), camera.pos.y(), camera.pos.z()),
-            Point3::new(camera.front.x(), camera.front.y(), camera.front.z()),
+            Point3::new(camera.pos().x(), camera.pos().y(), camera.pos().z()),
+            Point3::new(camera.front().x(), camera.front().y(), camera.front().z()),
             Vector3::new(0.0, 0.0, 1.0),
         ),
         proj: {
@@ -216,7 +216,8 @@ fn main() {
         })
         .collect::<Vec<_>>();
 
-    let mut camera = camera::Camera::default();
+    let mut camera =
+        camera::Camera::from_type(CameraType::Orthographic(OrtographicData::default()));
 
     // Create and upload uniform buffer
     let surface_size = cinder.surface_size();

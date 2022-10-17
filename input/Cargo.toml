@@ -6,3 +6,4 @@ edition = "2021"
 
 [dependencies]
 winit = "0.27"
+math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
