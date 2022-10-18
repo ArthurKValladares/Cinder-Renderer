@@ -3,8 +3,8 @@ use math::{
     vec::{Vec2, Vec3},
 };
 
-static ROTATION_DELTA: f32 = 10.0;
-static MOVEMENT_DELTA: f32 = 0.005;
+pub static ROTATION_DELTA: f32 = 0.01;
+pub static MOVEMENT_DELTA: f32 = 0.001;
 static WORLD_UP: Vec3 = Vec3::new(0.0, 1.0, 0.0);
 
 #[rustfmt::skip]
@@ -177,8 +177,8 @@ pub struct Camera {
     pos: Vec3,
     front: Vec3,
     ty: CameraType,
-    rotation_speed: f32,
-    movement_speed: f32,
+    pub rotation_speed: f32,
+    pub movement_speed: f32,
     // TODO: Stop using yaw and pitch later
     yaw: f32,
     pitch: f32,
@@ -203,21 +203,6 @@ impl Camera {
 
     pub fn front(&self) -> &Vec3 {
         &self.front
-    }
-
-    pub fn update_rotation_speed(&mut self, update: UpdateSpeed) {
-        match update {
-            UpdateSpeed::Decrease => self.rotation_speed -= ROTATION_DELTA,
-            UpdateSpeed::Increase => self.rotation_speed += ROTATION_DELTA,
-        }
-    }
-
-    pub fn update_movement_speed(&mut self, update: UpdateSpeed) {
-        match update {
-            UpdateSpeed::Decrease => self.movement_speed -= MOVEMENT_DELTA,
-            UpdateSpeed::Increase => self.movement_speed += MOVEMENT_DELTA,
-        }
-        self.movement_speed = self.movement_speed.max(MOVEMENT_DELTA);
     }
 
     pub fn update_position(&mut self, direction: Direction) {

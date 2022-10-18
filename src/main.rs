@@ -1,6 +1,8 @@
 mod ui;
 
-use camera::{CameraMatrices, CameraType, Direction, PerspectiveData};
+use camera::{
+    CameraMatrices, CameraType, Direction, PerspectiveData, MOVEMENT_DELTA, ROTATION_DELTA,
+};
 use cgmath::{Deg, Matrix4, Point3, Vector3};
 use cinder::{
     cinder::{Cinder, Vertex},
@@ -291,6 +293,7 @@ fn main() {
     let mut egui = EguiIntegration::new(&event_loop, &mut cinder, cinder_ui.visuals())
         .expect("Could not create event loop");
 
+    let mut update_camera = false;
     let mut keyboard_state = KeyboardState::default();
     let init_time = init_start.elapsed().as_secs_f32();
     let start = Instant::now();
@@ -347,7 +350,15 @@ fn main() {
                         keyboard_state.update(input);
                         if let Some(virtual_keycode) = input.virtual_keycode {
                             match virtual_keycode {
-                                VirtualKeyCode::Escape => *control_flow = ControlFlow::Exit,
+                                VirtualKeyCode::Escape => {
+                                    *control_flow = ControlFlow::Exit;
+                                }
+                                VirtualKeyCode::C => {
+                                    if input.state == ElementState::Pressed {
+                                        // TODO: Visual representation of this
+                                        update_camera = !update_camera;
+                                    }
+                                }
                                 _ => {}
                             }
                         }
@@ -415,6 +426,22 @@ fn main() {
                                     ui.label(format!("total time: {} s", init_time));
                                     ui.label(format!("scene load: {} s", scene_load_time));
                                 });
+                                ui.collapsing("camera", |ui| {
+                                    ui.horizontal(|ui| {
+                                        ui.label("movement speed: ");
+                                        ui.add(
+                                            egui::DragValue::new(&mut camera.movement_speed)
+                                                .speed(MOVEMENT_DELTA),
+                                        );
+                                    });
+                                    ui.horizontal(|ui| {
+                                        ui.label("rotation speed: ");
+                                        ui.add(
+                                            egui::DragValue::new(&mut camera.rotation_speed)
+                                                .speed(ROTATION_DELTA),
+                                        );
+                                    });
+                                });
                             })
                         },
                     );
@@ -429,7 +456,10 @@ fn main() {
             }
             Event::DeviceEvent { event, .. } => match event {
                 winit::event::DeviceEvent::MouseMotion { delta } => {
-                    camera.rotate(delta);
+                    // TODO: Maybe using the mouse_state concept makes more sense
+                    if update_camera {
+                        camera.rotate(delta);
+                    }
                 }
                 _ => {}
             },
@@ -439,32 +469,34 @@ fn main() {
             _ => {}
         }
 
-        // TODO: Clean this up
-        if keyboard_state.is_down(VirtualKeyCode::W) {
-            camera.update_position(Direction::Front);
-        }
-        if keyboard_state.is_down(VirtualKeyCode::S) {
-            camera.update_position(Direction::Back);
-        }
-        if keyboard_state.is_down(VirtualKeyCode::A) {
-            camera.update_position(Direction::Left);
-        }
-        if keyboard_state.is_down(VirtualKeyCode::D) {
-            camera.update_position(Direction::Right);
-        }
-        if keyboard_state.is_down(VirtualKeyCode::Space) {
-            camera.update_position(Direction::Up);
-        }
-        if keyboard_state.is_down(VirtualKeyCode::LShift) {
-            camera.update_position(Direction::Down);
-        }
+        if update_camera {
+            // TODO: Clean this up
+            if keyboard_state.is_down(VirtualKeyCode::W) {
+                camera.update_position(Direction::Front);
+            }
+            if keyboard_state.is_down(VirtualKeyCode::S) {
+                camera.update_position(Direction::Back);
+            }
+            if keyboard_state.is_down(VirtualKeyCode::A) {
+                camera.update_position(Direction::Left);
+            }
+            if keyboard_state.is_down(VirtualKeyCode::D) {
+                camera.update_position(Direction::Right);
+            }
+            if keyboard_state.is_down(VirtualKeyCode::Space) {
+                camera.update_position(Direction::Up);
+            }
+            if keyboard_state.is_down(VirtualKeyCode::LShift) {
+                camera.update_position(Direction::Down);
+            }
 
-        let surface_size = cinder.surface_size();
-        camera_matrices =
-            camera.get_matrices(surface_size.width() as f32, surface_size.height() as f32);
+            let surface_size = cinder.surface_size();
+            camera_matrices =
+                camera.get_matrices(surface_size.width() as f32, surface_size.height() as f32);
 
-        uniform_buffer
-            .mem_copy(std::slice::from_ref(&camera_matrices))
-            .expect("Could not write to uniform buffer");
+            uniform_buffer
+                .mem_copy(std::slice::from_ref(&camera_matrices))
+                .expect("Could not write to uniform buffer");
+        }
     });
 }
