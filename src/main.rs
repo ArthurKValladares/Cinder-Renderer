@@ -1,6 +1,6 @@
 mod ui;
 
-use camera::{CameraType, Direction, OrtographicData};
+use camera::{CameraMatrices, CameraType, Direction, PerspectiveData};
 use cgmath::{Deg, Matrix4, Point3, Vector3};
 use cinder::{
     cinder::{Cinder, Vertex},
@@ -45,60 +45,12 @@ struct MeshDraw {
 
 #[repr(C)]
 #[derive(Clone, Debug, Copy)]
-pub struct UniformBufferObject {
-    pub model: Matrix4<f32>,
-    pub view: Matrix4<f32>,
-    pub proj: Matrix4<f32>,
+pub struct ModelPushConstant {
+    mat: Matrix4<f32>,
 }
 
-#[repr(C)]
-#[derive(Clone, Debug, Copy)]
-pub struct ColorPushConstant {
-    color: [f32; 4],
-}
-
-fn get_uniform_data(camera: &camera::Camera, surface_size: Size2D<u32>) -> UniformBufferObject {
-    UniformBufferObject {
-        model: Matrix4::from_angle_z(Deg(90.0)),
-        view: Matrix4::look_at_rh(
-            Point3::new(camera.pos().x(), camera.pos().y(), camera.pos().z()),
-            Point3::new(camera.front().x(), camera.front().y(), camera.front().z()),
-            Vector3::new(0.0, 0.0, 1.0),
-        ),
-        proj: {
-            let mut proj = cgmath::perspective(
-                Deg(45.0),
-                surface_size.width() as f32 / surface_size.height() as f32,
-                0.1,
-                10.0,
-            );
-            proj[1][1] = proj[1][1] * -1.0;
-            proj
-        },
-    }
-}
-
-fn update_uniform_buffer(
-    cinder: &Cinder,
-    uniform_buffer_data: &mut UniformBufferObject,
-    uniform_buffer: &Buffer,
-    delta_time: f32,
-) {
-    uniform_buffer_data.model =
-        Matrix4::from_axis_angle(Vector3::new(0.0, 0.0, 1.0), Deg(90.0) * delta_time);
-
-    uniform_buffer
-        .mem_copy(std::slice::from_ref(uniform_buffer_data))
-        .expect("Could not update uniform buffer");
-}
-
-fn update_color_push_constant(color: &mut ColorPushConstant, delta_time: f32) {
-    color.color = [
-        delta_time.sin().abs(),
-        0.0,
-        (delta_time * 0.5).cos().abs(),
-        1.0,
-    ];
+fn update_model_push_constant(model: &mut ModelPushConstant, delta_time: f32) {
+    model.mat = Matrix4::from_axis_angle(Vector3::new(0.0, 0.0, 1.0), Deg(90.0) * delta_time);
 }
 
 fn main() {
@@ -170,7 +122,7 @@ fn main() {
 
     // Load model
     let scene_load_start = Instant::now();
-    let mut scene = scene::ObjScene::load_or_achive("./assets/models/sponza/sponza.obj")
+    let mut scene = scene::ObjScene::load_or_achive("./assets/models/viking_room.obj")
         .expect("Could not load mesh");
     let scene_load_time = scene_load_start.elapsed().as_secs_f32();
 
@@ -216,25 +168,25 @@ fn main() {
         })
         .collect::<Vec<_>>();
 
-    let mut camera =
-        camera::Camera::from_type(CameraType::Orthographic(OrtographicData::default()));
+    let mut camera = camera::Camera::from_type(CameraType::Perspective(PerspectiveData::default()));
 
     // Create and upload uniform buffer
     let surface_size = cinder.surface_size();
-    let mut uniform_data = get_uniform_data(&camera, surface_size);
+    let mut camera_matrices =
+        camera.get_matrices(surface_size.width() as f32, surface_size.height() as f32);
 
     let uniform_buffer = cinder
         .create_buffer(BufferDescription {
-            size: std::mem::size_of::<UniformBufferObject>() as u64,
+            size: std::mem::size_of::<CameraMatrices>() as u64,
             usage: BufferUsage::Uniform,
             memory_desc: MemoryDescription {
                 ty: MemoryType::CpuVisible,
             },
         })
-        .expect("Could not create vertex buffer");
+        .expect("Could not create uniform buffer");
     uniform_buffer
-        .mem_copy(std::slice::from_ref(&uniform_data))
-        .expect("Could not write to vertex buffer");
+        .mem_copy(std::slice::from_ref(&camera_matrices))
+        .expect("Could not write to uniform buffer");
 
     // Create and upload image
     let image =
@@ -296,10 +248,10 @@ fn main() {
         .bind_image(1, &image_info, BindGroupType::ImageSampler)
         .build_and_update(&mut cinder, &bind_group_layout)
         .expect("Could not create bind group set");
-    let color_push_constant = PushConstant {
+    let model_push_constant = PushConstant {
         stage: ShaderStage::Vertex,
         offset: 0,
-        size: std::mem::size_of::<ColorPushConstant>() as u32,
+        size: std::mem::size_of::<ModelPushConstant>() as u32,
     };
     let pipeline = cinder
         .create_graphics_pipeline(GraphicsPipelineDescription {
@@ -325,13 +277,13 @@ fn main() {
             },
             render_pass: &render_pass,
             desc_set_layouts: vec![bind_group_layout.layout],
-            push_constants: vec![&color_push_constant],
+            push_constants: vec![&model_push_constant],
             depth_testing_enabled: true,
         })
         .expect("Could not create graphics pipeline");
 
-    let mut color = ColorPushConstant {
-        color: [1.0, 0.0, 0.0, 0.0],
+    let mut color = ModelPushConstant {
+        mat: Matrix4::from_axis_angle(Vector3::new(0.0, 0.0, 1.0), Deg(0.0)),
     };
 
     // Egui integration
@@ -415,8 +367,7 @@ fn main() {
                     .expect("Could not begin graphics context");
                 {
                     let delta_time = start.elapsed().as_secs_f32() / 2.0;
-                    update_uniform_buffer(&cinder, &mut uniform_data, &uniform_buffer, delta_time);
-                    update_color_push_constant(&mut color, delta_time);
+                    update_model_push_constant(&mut color, delta_time);
 
                     // Main render pass
                     render_context.begin_render_pass(&cinder, &render_pass, present_index);
@@ -439,7 +390,7 @@ fn main() {
                             render_context.push_constant(
                                 &cinder,
                                 &pipeline,
-                                &color_push_constant,
+                                &model_push_constant,
                                 util::as_u8_slice(&color),
                             );
                             render_context.draw(&cinder, draw.num_indices as u32);
@@ -476,6 +427,12 @@ fn main() {
                     .submit_graphics_work(&render_context, present_index)
                     .expect("Could not submit graphics work");
             }
+            Event::DeviceEvent { event, .. } => match event {
+                winit::event::DeviceEvent::MouseMotion { delta } => {
+                    camera.rotate(delta);
+                }
+                _ => {}
+            },
             Event::MainEventsCleared => {
                 window.request_redraw();
             }
@@ -502,9 +459,12 @@ fn main() {
             camera.update_position(Direction::Down);
         }
 
-        uniform_data = get_uniform_data(&camera, cinder.surface_size());
+        let surface_size = cinder.surface_size();
+        camera_matrices =
+            camera.get_matrices(surface_size.width() as f32, surface_size.height() as f32);
+
         uniform_buffer
-            .mem_copy(std::slice::from_ref(&uniform_data))
-            .expect("Could not write to vertex buffer");
+            .mem_copy(std::slice::from_ref(&camera_matrices))
+            .expect("Could not write to uniform buffer");
     });
 }

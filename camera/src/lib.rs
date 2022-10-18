@@ -187,10 +187,10 @@ pub struct Camera {
 impl Camera {
     pub fn from_type(ty: CameraType) -> Self {
         Self {
-            pos: Default::default(),
+            pos: Vec3::new(2.0, 2.0, 2.0),
             front: Vec3::new(1.0, 0.0, 0.0),
             ty,
-            rotation_speed: 100.0,
+            rotation_speed: 0.1,
             movement_speed: 0.01,
             yaw: 0.0,
             pitch: 0.0,
@@ -228,14 +228,15 @@ impl Camera {
             Direction::Back => self.pos -= flat_front * self.movement_speed,
             Direction::Left => self.pos += left * self.movement_speed,
             Direction::Right => self.pos -= left * self.movement_speed,
-            Direction::Up => self.pos += WORLD_UP * self.movement_speed,
-            Direction::Down => self.pos -= WORLD_UP * self.movement_speed,
+            Direction::Up => self.pos -= WORLD_UP * self.movement_speed,
+            Direction::Down => self.pos += WORLD_UP * self.movement_speed,
         }
     }
 
-    pub fn rotate(&mut self, delta: Vec2) {
-        self.yaw += delta.x() * self.rotation_speed;
-        self.pitch -= delta.y() * self.rotation_speed;
+    pub fn rotate(&mut self, delta: (f64, f64)) {
+        let (x, y) = delta;
+        self.yaw += x as f32 * self.rotation_speed;
+        self.pitch += y as f32 * self.rotation_speed;
         self.pitch = self.pitch.clamp(-89.0, 89.0);
 
         let yaw_r = self.yaw.to_radians();
