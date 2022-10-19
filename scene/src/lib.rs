@@ -16,10 +16,16 @@ pub enum CompiledSceneError {
     InvalidUtf8(std::path::PathBuf),
 }
 
+#[derive(Debug)]
+pub struct Material {
+    pub diffuse_texture: String,
+}
+
 #[derive(Debug, Archive, Deserialize, Serialize)]
 pub struct Mesh {
     pub indices: Vec<u32>,
     pub vertices: Vec<Vertex>,
+    pub material_index: Option<usize>,
 }
 
 #[derive(Debug, Archive, Deserialize, Serialize)]
@@ -30,7 +36,14 @@ pub struct ObjScene {
 impl ObjScene {
     pub fn from_obj_path(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
-        let (obj_models, _obj_materials) = tobj::load_obj(path, &tobj::GPU_LOAD_OPTIONS)?;
+        let (obj_models, obj_materials) = tobj::load_obj(path, &tobj::GPU_LOAD_OPTIONS)?;
+
+        let materials = obj_materials?
+            .into_iter()
+            .map(|material| Material {
+                diffuse_texture: material.diffuse_texture,
+            })
+            .collect::<Vec<_>>();
 
         let meshes = obj_models
             .into_iter()
@@ -89,7 +102,11 @@ impl ObjScene {
                 let threshold = 1.05f32;
                 meshopt::optimize_overdraw_in_place(&indices, &vertex_data_adapter, threshold);
 
-                Mesh { indices, vertices }
+                Mesh {
+                    indices,
+                    vertices,
+                    material_index: mesh.material_id,
+                }
             })
             .collect::<Vec<_>>();
 
