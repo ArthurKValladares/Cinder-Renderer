@@ -20,7 +20,7 @@ pub enum CompiledSceneError {
     InvalidUtf8(std::path::PathBuf),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Archive, Deserialize, Serialize)]
 pub struct Material {
     pub diffuse_texture: String,
 }
@@ -37,6 +37,7 @@ pub struct ObjScene {
     #[with(Skip)]
     pub root: PathBuf,
     pub meshes: Vec<Mesh>,
+    pub materials: Vec<Material>,
 }
 
 impl ObjScene {
@@ -48,6 +49,7 @@ impl ObjScene {
 
         let materials = obj_materials?
             .into_iter()
+            .filter(|material| !material.diffuse_texture.is_empty())
             .map(|material| Material {
                 diffuse_texture: material.diffuse_texture,
             })
@@ -121,6 +123,7 @@ impl ObjScene {
         Ok(Self {
             root: root.to_owned(),
             meshes,
+            materials,
         })
     }
 
@@ -144,6 +147,7 @@ impl ObjScene {
     }
 
     pub fn load_or_achive(root: impl AsRef<Path>, obj_relative: impl AsRef<Path>) -> Result<Self> {
+        let root = root.as_ref();
         let obj_relative = obj_relative.as_ref();
         let file_stem = obj_relative
             .file_stem()
@@ -152,12 +156,22 @@ impl ObjScene {
             .ok_or_else(|| CompiledSceneError::InvalidUtf8(obj_relative.to_owned()))?;
         let compiled_path = Path::new(COMPILED_DIR).join(format!("{}.akv", file_stem));
         if compiled_path.exists() {
-            Self::from_archive_file(compiled_path)
+            let mut ret = Self::from_archive_file(compiled_path)?;
+            ret.root = root.to_owned();
+            Ok(ret)
         } else {
             let scene = Self::from_obj_path(root, obj_relative)?;
             std::fs::create_dir_all(COMPILED_DIR)?;
             scene.archive_to_file(&compiled_path)?;
             Ok(scene)
         }
+    }
+
+    pub fn root(&self) -> &Path {
+        &self.root
+    }
+
+    pub fn materials(&self) -> &Vec<Material> {
+        &self.materials
     }
 }

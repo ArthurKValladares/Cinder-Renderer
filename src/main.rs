@@ -190,45 +190,51 @@ fn main() {
         .mem_copy(std::slice::from_ref(&camera_matrices))
         .expect("Could not write to uniform buffer");
 
-    // Create and upload image
-    let image =
-        image::load_from_memory(include_bytes!("../assets/textures/viking_room.png")).unwrap();
-    let image = image.flipv();
-    let image = image.to_rgba8();
-
-    let (image_width, image_height) = image.dimensions();
-    let image_data = image.into_raw();
-
-    let image_buffer = cinder
-        .create_buffer(BufferDescription {
-            size: size_of_slice(&image_data),
-            usage: BufferUsage::TransferSrc,
-            memory_desc: MemoryDescription {
-                ty: MemoryType::CpuVisible,
-            },
-        })
-        .expect("Could not create image buffer");
-    image_buffer
-        .mem_copy(&image_data)
-        .expect("Could not write to image buffer");
-
-    let ferris_texture = cinder
-        .create_image(ImageDescription {
-            format: Format::R8_G8_B8_A8_Unorm,
-            usage: Usage::Texture,
-            size: Size2D::new(image_width, image_height),
-        })
-        .expect("could not create texture");
-
     upload_context
         .begin(&cinder)
         .expect("could not begin upload context");
-    {
-        upload_context.transition_depth_image(&cinder);
-        upload_context.image_barrier_start(&cinder, &ferris_texture);
-        upload_context.copy_buffer_to_image(&cinder, &image_buffer, &ferris_texture);
-        upload_context.image_barrier_end(&cinder, &ferris_texture);
-    }
+    // Create and upload image
+    let images = scene
+        .materials()
+        .iter()
+        .map(|material| {
+            let path = scene.root().join(&material.diffuse_texture);
+            let image =
+                image::open(&path).expect(&format!("could not find image path: {:?}", path));
+            let image = image.flipv();
+            let image = image.to_rgba8();
+
+            let (image_width, image_height) = image.dimensions();
+            let image_data = image.into_raw();
+
+            let image_buffer = cinder
+                .create_buffer(BufferDescription {
+                    size: size_of_slice(&image_data),
+                    usage: BufferUsage::TransferSrc,
+                    memory_desc: MemoryDescription {
+                        ty: MemoryType::CpuVisible,
+                    },
+                })
+                .expect("Could not create image buffer");
+            image_buffer
+                .mem_copy(&image_data)
+                .expect("Could not write to image buffer");
+
+            let texture = cinder
+                .create_image(ImageDescription {
+                    format: Format::R8_G8_B8_A8_Unorm,
+                    usage: Usage::Texture,
+                    size: Size2D::new(image_width, image_height),
+                })
+                .expect("could not create texture");
+
+            upload_context.image_barrier_start(&cinder, &texture);
+            upload_context.copy_buffer_to_image(&cinder, &image_buffer, &texture);
+            upload_context.image_barrier_end(&cinder, &texture);
+
+            texture
+        })
+        .collect::<Vec<_>>();
     upload_context
         .end(&cinder)
         .expect("could not end upload context");
@@ -239,7 +245,7 @@ fn main() {
     let sampler = cinder.create_sampler().expect("Could not create sampler");
 
     let buffer_info = uniform_buffer.bind_info();
-    let image_info = ferris_texture.bind_info(&sampler);
+    let image_info = images[0].bind_info(&sampler);
     let bind_group_layout = BindGroupLayoutBuilder::default()
         .bind_buffer(0, BindGroupType::UniformBuffer, ShaderStage::Vertex)
         .bind_image(1, BindGroupType::ImageSampler, ShaderStage::Fragment)
