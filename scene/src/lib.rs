@@ -49,7 +49,6 @@ impl ObjScene {
 
         let materials = obj_materials?
             .into_iter()
-            .filter(|material| !material.diffuse_texture.is_empty())
             .map(|material| Material {
                 diffuse_texture: material.diffuse_texture,
             })

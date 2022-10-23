@@ -25,7 +25,10 @@ use egui_integration::{egui, EguiIntegration};
 use input::keyboard::KeyboardState;
 use math::size::Size2D;
 use render_pass::{Layout, LayoutTransition};
-use std::{path::Path, time::Instant};
+use std::{
+    path::{Path, PathBuf},
+    time::Instant,
+};
 use tracing::Level;
 use util::*;
 use winit::{
@@ -41,6 +44,7 @@ struct MeshDraw {
     index_buffer: Buffer,
     num_indices: usize,
     vertex_buffer: Buffer,
+    image_index: usize,
 }
 
 // TODO: verify that all triple buffering stuff is working
@@ -161,11 +165,13 @@ fn main() {
                 .expect("Could not write to vertex buffer");
 
             let num_indices = mesh.indices.len();
+            let image_index = mesh.material_index.unwrap(); //TODO: Actually handle this the right way, or use a white texture
 
             MeshDraw {
                 index_buffer,
                 num_indices,
                 vertex_buffer,
+                image_index,
             }
         })
         .collect::<Vec<_>>();
@@ -198,7 +204,11 @@ fn main() {
         .materials()
         .iter()
         .map(|material| {
-            let path = scene.root().join(&material.diffuse_texture);
+            let path = if material.diffuse_texture.is_empty() {
+                PathBuf::from("assets/textures/white.png")
+            } else {
+                scene.root().join(&material.diffuse_texture)
+            };
             let image =
                 image::open(&path).expect(&format!("could not find image path: {:?}", path));
             let image = image.flipv();
@@ -235,6 +245,7 @@ fn main() {
             texture
         })
         .collect::<Vec<_>>();
+
     upload_context
         .end(&cinder)
         .expect("could not end upload context");
@@ -245,17 +256,23 @@ fn main() {
     let sampler = cinder.create_sampler().expect("Could not create sampler");
 
     let buffer_info = uniform_buffer.bind_info();
-    let image_info = images[0].bind_info(&sampler);
     let bind_group_layout = BindGroupLayoutBuilder::default()
         .bind_buffer(0, BindGroupType::UniformBuffer, ShaderStage::Vertex)
         .bind_image(1, BindGroupType::ImageSampler, ShaderStage::Fragment)
         .build(&mut cinder)
         .expect("Could not create BindGroup");
-    let bind_group_set = BindGroupSetBuilder::default()
-        .bind_buffer(0, &buffer_info, BindGroupType::UniformBuffer)
-        .bind_image(1, &image_info, BindGroupType::ImageSampler)
-        .build_and_update(&mut cinder, &bind_group_layout)
-        .expect("Could not create bind group set");
+    let bind_group_sets = images
+        .iter()
+        .map(|image| {
+            let image_info = image.bind_info(&sampler);
+
+            BindGroupSetBuilder::default()
+                .bind_buffer(0, &buffer_info, BindGroupType::UniformBuffer)
+                .bind_image(1, &image_info, BindGroupType::ImageSampler)
+                .build_and_update(&mut cinder, &bind_group_layout)
+                .expect("Could not create bind group set")
+        })
+        .collect::<Vec<_>>();
     let model_push_constant = PushConstant {
         stage: ShaderStage::Vertex,
         offset: 0,
@@ -395,13 +412,13 @@ fn main() {
                         render_context.bind_viewport(&cinder, surface_rect);
                         render_context.bind_scissor(&cinder, surface_rect);
 
-                        // TODO: Descriptor set will need to be different per mesh
-                        render_context.bind_descriptor_sets(
-                            &cinder,
-                            &pipeline,
-                            &[bind_group_set.set],
-                        );
                         for draw in &mesh_draws {
+                            render_context.bind_descriptor_sets(
+                                &cinder,
+                                &pipeline,
+                                &[bind_group_sets[draw.image_index].set],
+                            );
+
                             render_context.bind_vertex_buffer(&cinder, &draw.vertex_buffer);
                             render_context.bind_index_buffer(&cinder, &draw.index_buffer);
                             render_context.push_constant(
