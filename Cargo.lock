@@ -1695,6 +1695,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "cinder",
+ "image",
  "math",
  "memmap",
  "meshopt",

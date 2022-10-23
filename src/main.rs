@@ -128,8 +128,9 @@ fn main() {
 
     // Load model
     let scene_load_start = Instant::now();
-    let mut scene = scene::ObjScene::load_or_achive("./assets/models/sponza", "sponza.obj")
-        .expect("Could not load mesh");
+    let (mut scene, image_buffers) =
+        scene::ObjScene::load_or_achive("./assets/models/sponza", "sponza.obj")
+            .expect("Could not load mesh");
     let scene_load_time = scene_load_start.elapsed().as_secs_f32();
 
     // Create and bind index buffer
@@ -200,26 +201,12 @@ fn main() {
         .begin(&cinder)
         .expect("could not begin upload context");
     // Create and upload image
-    let images = scene
-        .materials()
+    let images = image_buffers
         .iter()
-        .map(|material| {
-            let path = if material.diffuse_texture.is_empty() {
-                PathBuf::from("assets/textures/white.png")
-            } else {
-                scene.root().join(&material.diffuse_texture)
-            };
-            let image =
-                image::open(&path).expect(&format!("could not find image path: {:?}", path));
-            let image = image.flipv();
-            let image = image.to_rgba8();
-
-            let (image_width, image_height) = image.dimensions();
-            let image_data = image.into_raw();
-
+        .map(|image| {
             let image_buffer = cinder
                 .create_buffer(BufferDescription {
-                    size: size_of_slice(&image_data),
+                    size: size_of_slice(&image.data),
                     usage: BufferUsage::TransferSrc,
                     memory_desc: MemoryDescription {
                         ty: MemoryType::CpuVisible,
@@ -227,14 +214,14 @@ fn main() {
                 })
                 .expect("Could not create image buffer");
             image_buffer
-                .mem_copy(&image_data)
+                .mem_copy(&image.data)
                 .expect("Could not write to image buffer");
 
             let texture = cinder
                 .create_image(ImageDescription {
                     format: Format::R8_G8_B8_A8_Unorm,
                     usage: Usage::Texture,
-                    size: Size2D::new(image_width, image_height),
+                    size: Size2D::new(image.width, image.height),
                 })
                 .expect("could not create texture");
 
