@@ -24,7 +24,7 @@ fn archive_to_file(bytes: AlignedVec, path: impl AsRef<Path>) -> Result<()> {
     // TODO: figure out N, use ScratchTracker.
     const N: usize = 256;
     let path = path.as_ref();
-    let mut file = File::create(path)?;
+    let mut file = File::create(path).expect(&format!("Could not create file: {:?}", path));
     file.write_all(&bytes)?;
     Ok(())
 }
@@ -49,6 +49,7 @@ impl ImageBuffer {
 #[derive(Debug, Archive, Deserialize, Serialize)]
 pub struct Material {
     pub diffuse_texture: String,
+    pub archive_path: String,
 }
 
 #[derive(Debug, Archive, Deserialize, Serialize)]
@@ -67,18 +68,39 @@ pub struct ObjScene {
 }
 
 impl ObjScene {
-    pub fn from_obj_path(root: impl AsRef<Path>, obj_relative: impl AsRef<Path>) -> Result<Self> {
+    pub fn from_obj_path(
+        root: impl AsRef<Path>,
+        obj_relative: impl AsRef<Path>,
+        archive_dir: impl AsRef<Path>,
+    ) -> Result<Self> {
         let root = root.as_ref();
         let obj_relative = obj_relative.as_ref();
+        let archive_dir = archive_dir.as_ref();
+
         let path = root.join(obj_relative);
         let (obj_models, obj_materials) = tobj::load_obj(path, &tobj::GPU_LOAD_OPTIONS)?;
 
         let materials = obj_materials?
             .into_iter()
-            .map(|material| Material {
-                diffuse_texture: material.diffuse_texture,
+            .map(|material| {
+                let archive_path = if !material.diffuse_texture.is_empty() {
+                    let diffuse_path = PathBuf::from(&material.diffuse_texture);
+                    let material_stem = diffuse_path
+                        .file_stem()
+                        .ok_or_else(|| CompiledSceneError::NoFileName(obj_relative.to_owned()))?
+                        .to_str()
+                        .ok_or_else(|| CompiledSceneError::InvalidUtf8(obj_relative.to_owned()))?;
+                    archive_dir.join(format!("{}.akvi", material_stem))
+                } else {
+                    archive_dir.join(format!("white.akvi"))
+                };
+
+                Ok(Material {
+                    diffuse_texture: material.diffuse_texture,
+                    archive_path: archive_path.to_str().unwrap().to_owned(),
+                })
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>>>()?;
 
         let meshes = obj_models
             .into_iter()
@@ -174,45 +196,26 @@ impl ObjScene {
             .ok_or_else(|| CompiledSceneError::NoFileName(obj_relative.to_owned()))?
             .to_str()
             .ok_or_else(|| CompiledSceneError::InvalidUtf8(obj_relative.to_owned()))?;
-        let scene_path = Path::new(COMPILED_DIR).join(format!("{}/{}.akvs", file_stem, file_stem));
+        let scene_dir = Path::new(COMPILED_DIR).join(file_stem);
+        let scene_path = scene_dir.join(format!("{}.akvs", file_stem));
         if scene_path.exists() {
             let mut ret = Self::from_archive_file(scene_path)?;
             let image_buffers = ret
                 .materials
                 .iter()
-                .map(|material| {
-                    let diffuse_path = PathBuf::from(&material.diffuse_texture);
-                    let material_stem = diffuse_path
-                        .file_stem()
-                        .ok_or_else(|| CompiledSceneError::NoFileName(obj_relative.to_owned()))?
-                        .to_str()
-                        .ok_or_else(|| CompiledSceneError::InvalidUtf8(obj_relative.to_owned()))?;
-                    let material_stem = Path::new(COMPILED_DIR)
-                        .join(format!("{}/{}.akvi", file_stem, material_stem));
-
-                    ImageBuffer::from_archive_file(&material_stem)
-                })
+                .map(|material| ImageBuffer::from_archive_file(&material.archive_path))
                 .collect::<Result<Vec<_>>>()?;
             ret.root = root.to_owned();
             Ok((ret, image_buffers))
         } else {
-            let scene = Self::from_obj_path(root, obj_relative)?;
-            std::fs::create_dir_all(COMPILED_DIR)?;
+            let scene = Self::from_obj_path(root, obj_relative, &scene_dir)?;
+            std::fs::create_dir_all(&scene_dir)?;
             rkyv::to_bytes::<_, N>(&scene)?;
             archive_to_file(rkyv::to_bytes::<_, N>(&scene)?, &scene_path)?;
             let image_buffers = scene
                 .materials
                 .iter()
                 .map(|material| {
-                    let diffuse_path = PathBuf::from(&material.diffuse_texture);
-                    let material_stem = diffuse_path
-                        .file_stem()
-                        .ok_or_else(|| CompiledSceneError::NoFileName(obj_relative.to_owned()))?
-                        .to_str()
-                        .ok_or_else(|| CompiledSceneError::InvalidUtf8(obj_relative.to_owned()))?;
-                    let material_stem = Path::new(COMPILED_DIR)
-                        .join(format!("{}/{}.akvi", file_stem, material_stem));
-
                     let image_buffer = {
                         let path = if material.diffuse_texture.is_empty() {
                             PathBuf::from("assets/textures/white.png")
@@ -234,7 +237,10 @@ impl ObjScene {
                         }
                     };
 
-                    archive_to_file(rkyv::to_bytes::<_, N>(&image_buffer)?, &material_stem)?;
+                    archive_to_file(
+                        rkyv::to_bytes::<_, N>(&image_buffer)?,
+                        &material.archive_path,
+                    )?;
 
                     Ok(image_buffer)
                 })
