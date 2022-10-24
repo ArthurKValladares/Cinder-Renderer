@@ -67,7 +67,7 @@ impl Ui {
                         });
                 }
                 Tab::Egui => {
-                    egui::Window::new(Tab::App.name())
+                    egui::Window::new(Tab::Egui.name())
                         .resizable(true)
                         .show(context, |ui| {
                             ui.horizontal(|ui| {
