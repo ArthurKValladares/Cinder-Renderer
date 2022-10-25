@@ -93,7 +93,7 @@ impl Surface {
             surface_format,
             surface_capabilities,
             surface_resolution,
-            present_mode,
+            present_mode: vk::PresentModeKHR::FIFO,
             desired_image_count,
         })
     }

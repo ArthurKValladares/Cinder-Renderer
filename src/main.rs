@@ -307,7 +307,10 @@ fn main() {
     let mut keyboard_state = KeyboardState::default();
     let init_time = init_start.elapsed().as_secs_f32();
     let start = Instant::now();
+    let mut frame_cpu_average = f64::MAX;
     event_loop.run(move |event, _, control_flow| {
+        let frame_start = Instant::now();
+
         *control_flow = ControlFlow::Poll;
         match event {
             Event::WindowEvent {
@@ -432,6 +435,13 @@ fn main() {
                             });
 
                             cinder_ui.show_selected_tab(egui_context, |ui| {
+                                ui.collapsing("profiling", |ui| {
+                                    ui.label(format!(
+                                        "FPS: {}",
+                                        (1e3 / frame_cpu_average).round() as u32
+                                    ));
+                                    ui.label(format!("Average CPU: {:.5} ms", frame_cpu_average));
+                                });
                                 ui.collapsing("init", |ui| {
                                     ui.label(format!("total time: {} s", init_time));
                                     ui.label(format!("scene load: {} s", scene_load_time));
@@ -507,6 +517,14 @@ fn main() {
             uniform_buffer
                 .mem_copy(std::slice::from_ref(&camera_matrices))
                 .expect("Could not write to uniform buffer");
+        }
+
+        let frame_dt = frame_start.elapsed().as_millis();
+        let frame_dt_f = frame_dt as f64;
+        if frame_cpu_average == f64::MAX {
+            frame_cpu_average = frame_dt_f;
+        } else {
+            frame_cpu_average = frame_cpu_average * 0.95 + frame_dt_f * 0.05;
         }
     });
 }
