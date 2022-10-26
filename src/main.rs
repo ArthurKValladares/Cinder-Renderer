@@ -303,7 +303,7 @@ fn main() {
     let mut egui = EguiIntegration::new(&event_loop, &mut cinder, cinder_ui.visuals())
         .expect("Could not create event loop");
 
-    let mut update_camera = false;
+    let mut lock_movement = true;
     let mut keyboard_state = KeyboardState::default();
     let init_time = init_start.elapsed().as_secs_f32();
     let start = Instant::now();
@@ -369,7 +369,7 @@ fn main() {
                                 VirtualKeyCode::C => {
                                     if input.state == ElementState::Pressed {
                                         // TODO: Visual representation of this
-                                        update_camera = !update_camera;
+                                        lock_movement = !lock_movement;
                                     }
                                 }
                                 _ => {}
@@ -435,6 +435,10 @@ fn main() {
                             });
 
                             cinder_ui.show_selected_tab(egui_context, |ui| {
+                                ui.horizontal(|ui| {
+                                    ui.label("lock movement");
+                                    ui.checkbox(&mut lock_movement, "toggle with `C`");
+                                });
                                 ui.collapsing("profiling", |ui| {
                                     ui.label(format!(
                                         "FPS: {}",
@@ -477,7 +481,7 @@ fn main() {
             Event::DeviceEvent { event, .. } => match event {
                 winit::event::DeviceEvent::MouseMotion { delta } => {
                     // TODO: Maybe using the mouse_state concept makes more sense
-                    if update_camera {
+                    if !lock_movement {
                         camera.rotate(delta);
                     }
                 }
@@ -489,7 +493,7 @@ fn main() {
             _ => {}
         }
 
-        if update_camera {
+        if !lock_movement {
             // TODO: Clean this up
             if keyboard_state.is_down(VirtualKeyCode::W) {
                 camera.update_position(Direction::Front);

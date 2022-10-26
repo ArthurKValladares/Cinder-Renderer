@@ -25,7 +25,7 @@ impl Ui {
     pub fn new() -> Self {
         Self {
             tabs: [Tab::App, Tab::Egui],
-            selected_tab: None,
+            selected_tab: Some(Tab::App),
             visuals: egui::Visuals::light(),
         }
     }
