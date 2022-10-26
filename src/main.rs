@@ -399,7 +399,7 @@ fn main() {
                         let surface_rect = cinder.surface_rect();
 
                         render_context.bind_graphics_pipeline(&cinder, &pipeline);
-                        render_context.bind_viewport(&cinder, surface_rect);
+                        render_context.bind_viewport(&cinder, surface_rect, true);
                         render_context.bind_scissor(&cinder, surface_rect);
 
                         for draw in &mesh_draws {

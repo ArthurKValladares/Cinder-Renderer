@@ -213,15 +213,15 @@ impl Camera {
             Direction::Back => self.pos -= flat_front * self.movement_speed,
             Direction::Left => self.pos += left * self.movement_speed,
             Direction::Right => self.pos -= left * self.movement_speed,
-            Direction::Up => self.pos -= WORLD_UP * self.movement_speed,
-            Direction::Down => self.pos += WORLD_UP * self.movement_speed,
+            Direction::Up => self.pos += WORLD_UP * self.movement_speed,
+            Direction::Down => self.pos -= WORLD_UP * self.movement_speed,
         }
     }
 
     pub fn rotate(&mut self, delta: (f64, f64)) {
         let (x, y) = delta;
         self.yaw += x as f32 * self.rotation_speed;
-        self.pitch += y as f32 * self.rotation_speed;
+        self.pitch -= y as f32 * self.rotation_speed;
         self.pitch = self.pitch.clamp(-89.0, 89.0);
 
         let yaw_r = self.yaw.to_radians();

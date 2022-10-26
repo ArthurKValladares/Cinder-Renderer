@@ -240,8 +240,11 @@ impl EguiIntegration {
             render_context.bind_graphics_pipeline(cinder, &self.pipeline);
             render_context.bind_vertex_buffer(cinder, vertex_buffer);
             render_context.bind_index_buffer(cinder, index_buffer);
-            render_context
-                .bind_viewport(cinder, Rect2D::from_width_height(size.width, size.height));
+            render_context.bind_viewport(
+                cinder,
+                Rect2D::from_width_height(size.width, size.height),
+                false,
+            );
 
             render_context.push_constant(
                 cinder,

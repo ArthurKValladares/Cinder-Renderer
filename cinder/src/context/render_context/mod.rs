@@ -127,16 +127,24 @@ impl RenderContext {
     }
 
     // TODO: maybe make generics f32, f32
-    pub fn bind_viewport(&self, cinder: &Cinder, rect: Rect2D<i32, u32>) {
+    pub fn bind_viewport(&self, cinder: &Cinder, rect: Rect2D<i32, u32>, flipped: bool) {
+        let (y, height) = if flipped {
+            (
+                rect.height() as f32 - rect.offset().y() as f32,
+                -(rect.height() as f32),
+            )
+        } else {
+            (rect.offset().y() as f32, rect.height() as f32)
+        };
         unsafe {
             cinder.device().cmd_set_viewport(
                 self.shared.command_buffer,
                 0,
                 &[vk::Viewport {
                     x: rect.offset().x() as f32,
-                    y: rect.offset().y() as f32,
+                    y,
                     width: rect.width() as f32,
-                    height: rect.height() as f32,
+                    height,
                     min_depth: 0.0,
                     max_depth: 1.0,
                 }],
