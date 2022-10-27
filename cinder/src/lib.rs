@@ -4,6 +4,7 @@ pub mod cinder;
 pub mod context;
 pub mod device;
 pub mod instance;
+pub mod profiling;
 pub mod resoruces;
 pub(crate) mod surface;
 pub(crate) mod swapchain;

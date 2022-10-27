@@ -5,6 +5,7 @@ use crate::{
     },
     device::Device,
     instance::Instance,
+    profiling::{self, Profiling},
     resoruces::{
         bind_group::{BindGroupAllocator, BindGroupLayoutCache},
         buffer::{Buffer, BufferDescription},
@@ -74,6 +75,8 @@ pub struct Cinder {
 
     pub draw_commands_reuse_fence: vk::Fence,
     pub setup_commands_reuse_fence: vk::Fence,
+
+    pub profiling: Profiling,
 }
 
 impl Cinder {
@@ -126,6 +129,8 @@ impl Cinder {
         let bind_group_alloc = BindGroupAllocator::default();
         let bind_group_cache = BindGroupLayoutCache::default();
 
+        let profiling = Profiling::new(&device)?;
+
         Ok(Self {
             instance,
             device,
@@ -140,6 +145,7 @@ impl Cinder {
             command_pool,
             bind_group_alloc,
             bind_group_cache,
+            profiling,
         })
     }
 
