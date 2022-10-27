@@ -196,13 +196,13 @@ impl RenderContext {
         }
     }
 
-    pub fn write_timestamp(&self, device: &Device, query_pool: &QueryPool) {
+    pub fn write_timestamp(&self, device: &Device, query_pool: &QueryPool, query: u32) {
         unsafe {
             device.cmd_write_timestamp(
                 self.shared.command_buffer,
                 vk::PipelineStageFlags::BOTTOM_OF_PIPE,
                 query_pool.raw,
-                query_pool.current_query,
+                query,
             )
         }
     }
@@ -216,41 +216,5 @@ impl RenderContext {
                 query_pool.count,
             )
         }
-    }
-
-    pub fn get_query_pool_results_u32(
-        &self,
-        device: &Device,
-        query_pool: &QueryPool,
-    ) -> Result<Vec<u32>> {
-        let mut ret = Vec::with_capacity(query_pool.current_query as usize);
-        unsafe {
-            device.get_query_pool_results(
-                query_pool.raw,
-                0,
-                query_pool.current_query,
-                &mut ret,
-                vk::QueryResultFlags::empty(),
-            );
-        }
-        Ok(ret)
-    }
-
-    pub fn get_query_pool_results_u64(
-        &self,
-        device: &Device,
-        query_pool: &QueryPool,
-    ) -> Result<Vec<u64>> {
-        let mut ret = Vec::with_capacity(query_pool.current_query as usize);
-        unsafe {
-            device.get_query_pool_results(
-                query_pool.raw,
-                0,
-                query_pool.current_query,
-                &mut ret,
-                vk::QueryResultFlags::TYPE_64,
-            );
-        }
-        Ok(ret)
     }
 }

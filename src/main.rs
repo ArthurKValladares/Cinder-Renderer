@@ -307,7 +307,8 @@ fn main() {
     let mut keyboard_state = KeyboardState::default();
     let init_time = init_start.elapsed().as_secs_f32();
     let start = Instant::now();
-    let mut frame_cpu_average = f64::MAX;
+    let mut frame_cpu_average = f32::MAX;
+    let mut frame_gpu_average = f32::MAX;
     event_loop.run(move |event, _, control_flow| {
         let frame_start = Instant::now();
 
@@ -390,6 +391,14 @@ fn main() {
                     .begin(&cinder)
                     .expect("Could not begin graphics context");
                 {
+                    render_context
+                        .reset_query_pool(cinder.device(), &cinder.profiling.timestamp_query_pool);
+                    render_context.write_timestamp(
+                        cinder.device(),
+                        &cinder.profiling.timestamp_query_pool,
+                        0,
+                    );
+
                     let delta_time = start.elapsed().as_secs_f32() / 2.0;
                     update_model_push_constant(&mut color, delta_time);
 
@@ -445,6 +454,7 @@ fn main() {
                                         (1e3 / frame_cpu_average).round() as u32
                                     ));
                                     ui.label(format!("Average CPU: {:.5} ms", frame_cpu_average));
+                                    ui.label(format!("Average GPU: {:.5} ms", frame_gpu_average));
                                 });
                                 ui.collapsing("init", |ui| {
                                     ui.label(format!("total time: {} s", init_time));
@@ -468,6 +478,12 @@ fn main() {
                                 });
                             })
                         },
+                    );
+
+                    render_context.write_timestamp(
+                        cinder.device(),
+                        &cinder.profiling.timestamp_query_pool,
+                        1,
                     );
                 }
                 render_context
@@ -523,12 +539,29 @@ fn main() {
                 .expect("Could not write to uniform buffer");
         }
 
-        let frame_dt = frame_start.elapsed().as_millis();
-        let frame_dt_f = frame_dt as f64;
-        if frame_cpu_average == f64::MAX {
-            frame_cpu_average = frame_dt_f;
+        let frame_dt = frame_start.elapsed().as_millis() as f32;
+        if frame_cpu_average == f32::MAX {
+            frame_cpu_average = frame_dt;
         } else {
-            frame_cpu_average = frame_cpu_average * 0.95 + frame_dt_f * 0.05;
+            frame_cpu_average = frame_cpu_average * 0.95 + frame_dt * 0.05;
+        }
+
+        // TODO: Should not be a crash on fail
+        let timestamp_results = cinder
+            .device()
+            .get_query_pool_results_u64(&cinder.profiling.timestamp_query_pool, 0, 2)
+            .expect("Could not get query pool results");
+        let gpu_begin = timestamp_results[0] as f32
+            * cinder.device().properties().limits.timestamp_period
+            * 1e-6;
+        let gpu_end = timestamp_results[1] as f32
+            * cinder.device().properties().limits.timestamp_period
+            * 1e-6;
+        let gpu_dt = gpu_end - gpu_begin;
+        if frame_gpu_average == f32::MAX {
+            frame_gpu_average = gpu_dt;
+        } else {
+            frame_gpu_average = frame_gpu_average * 0.95 + gpu_dt * 0.05;
         }
     });
 }

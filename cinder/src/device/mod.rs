@@ -1,6 +1,8 @@
-use std::ops::Deref;
+use std::{ops::Deref, slice};
 
-use crate::{instance::Instance, resoruces::image::ImageCreateError, surface::Surface};
+use crate::{
+    instance::Instance, profiling::QueryPool, resoruces::image::ImageCreateError, surface::Surface,
+};
 use anyhow::Result;
 use ash::vk;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -121,6 +123,45 @@ impl Device {
 
     pub fn present_queue(&self) -> vk::Queue {
         self.present_queue
+    }
+
+    pub fn get_query_pool_results_u32(
+        &self,
+        query_pool: &QueryPool,
+        first_query: u32,
+        count: u32,
+    ) -> Result<Vec<u32>> {
+        let mut ret = Vec::with_capacity((count - first_query) as usize);
+        unsafe {
+            self.get_query_pool_results(
+                query_pool.raw,
+                first_query,
+                count,
+                &mut ret,
+                vk::QueryResultFlags::empty(),
+            );
+        }
+        Ok(ret)
+    }
+
+    pub fn get_query_pool_results_u64(
+        &self,
+        query_pool: &QueryPool,
+        first_query: u32,
+        count: u32,
+    ) -> Result<Vec<u64>> {
+        let query_count = (count - first_query) as usize;
+        let mut results = vec![0; query_count];
+        unsafe {
+            self.get_query_pool_results(
+                query_pool.raw,
+                first_query,
+                count,
+                &mut results,
+                vk::QueryResultFlags::TYPE_64,
+            );
+        }
+        Ok(results)
     }
 }
 
