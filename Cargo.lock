@@ -1268,6 +1268,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "normpath"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "04aaf5e9cb0fbf883cc0423159eacdf96a9878022084b35c462c428cab73bcaf"
+dependencies = [
+ "winapi",
+]
+
+[[package]]
 name = "num"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1699,6 +1708,7 @@ dependencies = [
  "math",
  "memmap",
  "meshopt",
+ "normpath",
  "rkyv",
  "thiserror",
  "tobj",

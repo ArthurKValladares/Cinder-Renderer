@@ -128,9 +128,11 @@ fn main() {
 
     // Load model
     let scene_load_start = Instant::now();
-    let (mut scene, image_buffers) =
-        scene::ObjScene::load_or_achive("./assets/models/sponza", "sponza.obj")
-            .expect("Could not load mesh");
+    let (mut scene, image_buffers) = scene::ObjScene::load_or_achive(
+        PathBuf::from("assets").join("models").join("sponza"),
+        "sponza.obj",
+    )
+    .unwrap_or_else(|err| panic!("Could not load mesh: {}", err));
     let scene_load_time = scene_load_start.elapsed().as_secs_f32();
 
     // Create and bind index buffer

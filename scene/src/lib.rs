@@ -2,6 +2,7 @@ use anyhow::Result;
 use cinder::cinder::Vertex;
 use memmap::MmapOptions;
 use meshopt::VertexDataAdapter;
+use normpath::PathExt;
 use rkyv::{with::Skip, AlignedVec, Archive, Deserialize, Fallible, Serialize};
 use std::{
     fs::File,
@@ -96,7 +97,7 @@ impl ObjScene {
                 };
 
                 Ok(Material {
-                    diffuse_texture: material.diffuse_texture,
+                    diffuse_texture: material.diffuse_texture.replace("\\", "/"),
                     archive_path: archive_path.to_str().unwrap().to_owned(),
                 })
             })
