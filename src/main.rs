@@ -291,6 +291,7 @@ fn main() {
             desc_set_layouts: vec![bind_group_layout.layout],
             push_constants: vec![&model_push_constant],
             depth_testing_enabled: true,
+            backface_culling: true,
         })
         .expect("Could not create graphics pipeline");
 

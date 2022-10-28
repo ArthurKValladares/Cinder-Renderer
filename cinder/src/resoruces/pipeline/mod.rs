@@ -29,6 +29,7 @@ pub struct GraphicsPipelineDescription<'a> {
     pub desc_set_layouts: Vec<vk::DescriptorSetLayout>,
     pub push_constants: Vec<&'a PushConstant>,
     pub depth_testing_enabled: bool,
+    pub backface_culling: bool,
 }
 
 pub struct PipelineCommon {
@@ -86,12 +87,15 @@ impl GraphicsPipeline {
         let viewport_state_info = vk::PipelineViewportStateCreateInfo::builder()
             .viewport_count(1)
             .scissor_count(1);
-        // TODO: backface culling
         let rasterization_info = vk::PipelineRasterizationStateCreateInfo::builder()
             .depth_clamp_enable(false)
             .rasterizer_discard_enable(false)
             .polygon_mode(vk::PolygonMode::FILL)
-            .cull_mode(vk::CullModeFlags::NONE)
+            .cull_mode(if desc.backface_culling {
+                vk::CullModeFlags::BACK
+            } else {
+                vk::CullModeFlags::NONE
+            })
             .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
             .depth_bias_enable(false)
             .line_width(1.0);
