@@ -115,20 +115,20 @@ impl Image {
 
         let image_view_info = vk::ImageViewCreateInfo {
             view_type: vk::ImageViewType::TYPE_2D,
+            image,
             format: create_info.format,
-            components: vk::ComponentMapping {
-                r: vk::ComponentSwizzle::R,
-                g: vk::ComponentSwizzle::G,
-                b: vk::ComponentSwizzle::B,
-                a: vk::ComponentSwizzle::A,
-            },
             subresource_range: vk::ImageSubresourceRange {
                 aspect_mask: desc.usage.into(),
                 level_count: 1,
                 layer_count: 1,
                 ..Default::default()
             },
-            image,
+            components: vk::ComponentMapping {
+                r: vk::ComponentSwizzle::R,
+                g: vk::ComponentSwizzle::G,
+                b: vk::ComponentSwizzle::B,
+                a: vk::ComponentSwizzle::A,
+            },
             ..Default::default()
         };
         let image_view = unsafe { device.create_image_view(&image_view_info, None) }?;

@@ -100,22 +100,27 @@ impl GraphicsPipeline {
             .depth_bias_enable(false)
             .line_width(1.0);
 
-        let depth_state_info = if desc.depth_testing_enabled {
-            vk::PipelineDepthStencilStateCreateInfo::builder()
-                .depth_test_enable(true)
-                .depth_write_enable(true)
-                .depth_compare_op(vk::CompareOp::LESS)
-                .max_depth_bounds(1.0)
-                .depth_bounds_test_enable(false)
-                .stencil_test_enable(false)
-        } else {
-            vk::PipelineDepthStencilStateCreateInfo::builder()
-                .depth_test_enable(false)
-                .depth_write_enable(false)
-                .depth_compare_op(vk::CompareOp::ALWAYS)
-                .depth_bounds_test_enable(false)
-                .stencil_test_enable(false)
-        };
+        let depth_state_info = vk::PipelineDepthStencilStateCreateInfo::builder()
+            .depth_test_enable(if desc.depth_testing_enabled {
+                true
+            } else {
+                false
+            })
+            .depth_write_enable(if desc.depth_testing_enabled {
+                true
+            } else {
+                false
+            })
+            .depth_compare_op(if desc.depth_testing_enabled {
+                vk::CompareOp::LESS_OR_EQUAL
+            } else {
+                vk::CompareOp::ALWAYS
+            })
+            .depth_bounds_test_enable(false)
+            .max_depth_bounds(0.0)
+            .max_depth_bounds(1.0)
+            .stencil_test_enable(false);
+
         let color_blend_attachment_states = [vk::PipelineColorBlendAttachmentState::builder()
             .color_write_mask(
                 vk::ColorComponentFlags::R

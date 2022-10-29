@@ -55,7 +55,6 @@ pub struct Vertex {
     pub uv: [f32; 2],
 }
 
-// TODO: definitely need a depth image, do it very soon
 pub struct Cinder {
     instance: Instance,
     device: Device,

@@ -124,6 +124,10 @@ fn main() {
                 RenderPassAttachmentDesc::new(Format::D32_SFloat)
                     .with_color_depth_ops(AttachmentOps {
                         load: AttachmentLoadOp::Clear,
+                        store: AttachmentStoreOp::Store,
+                    })
+                    .with_stencil_ops(AttachmentOps {
+                        load: AttachmentLoadOp::Clear,
                         store: AttachmentStoreOp::DontCare,
                     })
                     .with_layout_transition(LayoutTransition {
@@ -359,6 +363,10 @@ fn main() {
                                 depth_attachment: Some(
                                     RenderPassAttachmentDesc::new(Format::D32_SFloat)
                                         .with_color_depth_ops(AttachmentOps {
+                                            load: AttachmentLoadOp::Clear,
+                                            store: AttachmentStoreOp::Store,
+                                        })
+                                        .with_stencil_ops(AttachmentOps {
                                             load: AttachmentLoadOp::Clear,
                                             store: AttachmentStoreOp::DontCare,
                                         })
