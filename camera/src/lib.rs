@@ -70,7 +70,7 @@ impl Default for OrtographicData {
             top: 0.0,
             bottom: 1.0,
             near: 0.0,
-            far: 100.0,
+            far: 200.0,
         }
     }
 }
