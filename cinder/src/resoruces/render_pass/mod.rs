@@ -9,6 +9,8 @@ pub struct RenderPassAttachmentDesc {
     format: vk::Format,
     load_op: vk::AttachmentLoadOp,
     store_op: vk::AttachmentStoreOp,
+    stencil_load_op: vk::AttachmentLoadOp,
+    stencil_store_op: vk::AttachmentStoreOp,
     samples: vk::SampleCountFlags,
     initial_layout: vk::ImageLayout,
     final_layout: vk::ImageLayout,
@@ -28,10 +30,47 @@ impl From<Layout> for vk::ImageLayout {
             Layout::Undefined => vk::ImageLayout::UNDEFINED,
             Layout::General => vk::ImageLayout::GENERAL,
             Layout::ColorAttachment => vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-            Layout::DepthAttachment => vk::ImageLayout::DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL,
+            Layout::DepthAttachment => vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
             Layout::Present => vk::ImageLayout::PRESENT_SRC_KHR,
         }
     }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum AttachmentLoadOp {
+    Clear,
+    Load,
+    DontCare,
+}
+
+impl From<AttachmentLoadOp> for vk::AttachmentLoadOp {
+    fn from(op: AttachmentLoadOp) -> Self {
+        match op {
+            AttachmentLoadOp::Clear => vk::AttachmentLoadOp::CLEAR,
+            AttachmentLoadOp::Load => vk::AttachmentLoadOp::LOAD,
+            AttachmentLoadOp::DontCare => vk::AttachmentLoadOp::DONT_CARE,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum AttachmentStoreOp {
+    Store,
+    DontCare,
+}
+
+impl From<AttachmentStoreOp> for vk::AttachmentStoreOp {
+    fn from(op: AttachmentStoreOp) -> Self {
+        match op {
+            AttachmentStoreOp::Store => vk::AttachmentStoreOp::STORE,
+            AttachmentStoreOp::DontCare => vk::AttachmentStoreOp::DONT_CARE,
+        }
+    }
+}
+
+pub struct AttachmentOps {
+    pub load: AttachmentLoadOp,
+    pub store: AttachmentStoreOp,
 }
 
 pub struct LayoutTransition {
@@ -40,49 +79,31 @@ pub struct LayoutTransition {
 }
 
 impl RenderPassAttachmentDesc {
-    // TODO: Better abstraction for creating these later
-    pub fn clear_store(format: impl Into<vk::Format>) -> Self {
-        Self {
-            format: format.into(),
-            load_op: vk::AttachmentLoadOp::CLEAR,
-            store_op: vk::AttachmentStoreOp::STORE,
-            samples: vk::SampleCountFlags::TYPE_1,
-            initial_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-            final_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-        }
-    }
-
-    pub fn load_store(format: impl Into<vk::Format>) -> Self {
+    pub fn new(format: impl Into<vk::Format>) -> Self {
         Self {
             format: format.into(),
             load_op: vk::AttachmentLoadOp::LOAD,
             store_op: vk::AttachmentStoreOp::STORE,
+            stencil_load_op: vk::AttachmentLoadOp::DONT_CARE,
+            stencil_store_op: vk::AttachmentStoreOp::DONT_CARE,
             samples: vk::SampleCountFlags::TYPE_1,
             initial_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
             final_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
         }
     }
 
-    pub fn clear_dont_care(format: impl Into<vk::Format>) -> Self {
-        Self {
-            format: format.into(),
-            load_op: vk::AttachmentLoadOp::CLEAR,
-            store_op: vk::AttachmentStoreOp::DONT_CARE,
-            samples: vk::SampleCountFlags::TYPE_1,
-            initial_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-            final_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-        }
+    pub fn with_color_depth_ops(mut self, ops: AttachmentOps) -> Self {
+        self.load_op = ops.load.into();
+        self.store_op = ops.store.into();
+
+        self
     }
 
-    pub fn load_dont_care(format: impl Into<vk::Format>) -> Self {
-        Self {
-            format: format.into(),
-            load_op: vk::AttachmentLoadOp::LOAD,
-            store_op: vk::AttachmentStoreOp::DONT_CARE,
-            samples: vk::SampleCountFlags::TYPE_1,
-            initial_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-            final_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-        }
+    pub fn with_stencil_ops(mut self, ops: AttachmentOps) -> Self {
+        self.stencil_load_op = ops.load.into();
+        self.stencil_store_op = ops.store.into();
+
+        self
     }
 
     pub fn with_layout_transition(mut self, layout_transition: LayoutTransition) -> Self {
@@ -113,6 +134,8 @@ impl RenderPassAttachmentDesc {
             samples: self.samples,
             load_op: self.load_op,
             store_op: self.store_op,
+            stencil_load_op: self.stencil_load_op,
+            stencil_store_op: self.stencil_store_op,
             initial_layout: self.initial_layout,
             final_layout: self.final_layout,
             ..Default::default()
@@ -160,7 +183,7 @@ impl RenderPass {
             .collect::<Vec<_>>();
         let depth_attachment_ref = vk::AttachmentReference {
             attachment: desc.color_attachments.len() as u32,
-            layout: vk::ImageLayout::DEPTH_ATTACHMENT_STENCIL_READ_ONLY_OPTIMAL,
+            layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         };
 
         let mut subpass_description = vk::SubpassDescription::builder()
@@ -172,11 +195,41 @@ impl RenderPass {
         }
         let subpass_description = subpass_description.build();
 
-        // TODO: Subpass dependency stuff
+        let dependency = if desc.depth_attachment.is_some() {
+            vk::SubpassDependency::builder()
+                .src_subpass(vk::SUBPASS_EXTERNAL)
+                .dst_subpass(0)
+                .src_stage_mask(
+                    vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
+                        | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+                )
+                .dst_stage_mask(
+                    vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT
+                        | vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+                )
+                .src_access_mask(vk::AccessFlags::empty())
+                .dst_access_mask(
+                    vk::AccessFlags::COLOR_ATTACHMENT_WRITE
+                        | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+                )
+                .build()
+        } else {
+            vk::SubpassDependency::builder()
+                .src_subpass(vk::SUBPASS_EXTERNAL)
+                .dst_subpass(0)
+                .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+                .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+                .src_access_mask(vk::AccessFlags::empty())
+                .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
+                .build()
+        };
+
         let subpasses = [subpass_description];
+        let dependencies = [dependency];
         let render_pass_create_info = vk::RenderPassCreateInfo::builder()
             .attachments(&renderpass_attachments)
-            .subpasses(&subpasses);
+            .subpasses(&subpasses)
+            .dependencies(&dependencies);
 
         let render_pass = unsafe { device.create_render_pass(&render_pass_create_info, None)? };
 

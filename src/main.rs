@@ -16,7 +16,10 @@ use cinder::{
             push_constant::PushConstant, GraphicsPipelineDescription, VertexAttributeDesc,
             VertexInputStateDesc,
         },
-        render_pass::{self, RenderPassAttachmentDesc, RenderPassDescription},
+        render_pass::{
+            self, AttachmentLoadOp, AttachmentOps, AttachmentStoreOp, RenderPassAttachmentDesc,
+            RenderPassDescription,
+        },
         shader::{ShaderDescription, ShaderStage},
     },
     InitData, Resolution,
@@ -33,7 +36,7 @@ use tracing::Level;
 use util::*;
 use winit::{
     dpi::PhysicalSize,
-    event::{ElementState, Event, KeyboardInput, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, KeyboardInput, StartCause, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
@@ -67,8 +70,8 @@ fn main() {
         .expect("Could not set tracing global subscriber");
 
     let init_start = Instant::now();
-    const WINDOW_HEIGHT: u32 = 1000;
-    const WINDOW_WIDTH: u32 = 1000;
+    const WINDOW_HEIGHT: u32 = 2000;
+    const WINDOW_WIDTH: u32 = 2000;
 
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
@@ -108,20 +111,25 @@ fn main() {
         .expect("Could not create fragment shader");
     let mut render_pass = cinder
         .create_render_pass(RenderPassDescription {
-            color_attachments: [
-                RenderPassAttachmentDesc::clear_store(cinder.surface_format())
+            color_attachments: [RenderPassAttachmentDesc::new(cinder.surface_format())
+                .with_color_depth_ops(AttachmentOps {
+                    load: AttachmentLoadOp::Clear,
+                    store: AttachmentStoreOp::Store,
+                })
+                .with_layout_transition(LayoutTransition {
+                    initial_layout: Layout::Undefined,
+                    final_layout: Layout::ColorAttachment,
+                })],
+            depth_attachment: Some(
+                RenderPassAttachmentDesc::new(Format::D32_SFloat)
+                    .with_color_depth_ops(AttachmentOps {
+                        load: AttachmentLoadOp::Clear,
+                        store: AttachmentStoreOp::DontCare,
+                    })
                     .with_layout_transition(LayoutTransition {
                         initial_layout: Layout::Undefined,
-                        final_layout: Layout::ColorAttachment,
-                    }),
-            ],
-            depth_attachment: Some(
-                RenderPassAttachmentDesc::clear_store(Format::D32_SFloat).with_layout_transition(
-                    LayoutTransition {
-                        initial_layout: Layout::Undefined,
                         final_layout: Layout::DepthAttachment,
-                    },
-                ),
+                    }),
             ),
         })
         .expect("Could not create render pass");
@@ -306,6 +314,8 @@ fn main() {
     let mut egui = EguiIntegration::new(&event_loop, &mut cinder, cinder_ui.visuals())
         .expect("Could not create event loop");
 
+    // TODO: need this `is_init` hack until winit fiexes their long-standing resize on startup bug :(
+    let mut is_init = false;
     let mut lock_movement = true;
     let mut keyboard_state = KeyboardState::default();
     let init_time = init_start.elapsed().as_secs_f32();
@@ -324,6 +334,10 @@ fn main() {
                 egui.on_event(&window_event);
                 match window_event {
                     WindowEvent::Resized(size) => {
+                        if is_init {
+                            return;
+                        }
+
                         cinder
                             .resize(Size2D::new(size.width, size.height))
                             .expect("Could not resize device");
@@ -331,15 +345,23 @@ fn main() {
                         cinder.clean_render_pass(&mut render_pass);
                         render_pass = cinder
                             .create_render_pass(RenderPassDescription {
-                                color_attachments: [RenderPassAttachmentDesc::clear_store(
+                                color_attachments: [RenderPassAttachmentDesc::new(
                                     cinder.surface_format(),
                                 )
+                                .with_color_depth_ops(AttachmentOps {
+                                    load: AttachmentLoadOp::Clear,
+                                    store: AttachmentStoreOp::Store,
+                                })
                                 .with_layout_transition(LayoutTransition {
                                     initial_layout: Layout::Undefined,
                                     final_layout: Layout::ColorAttachment,
                                 })],
                                 depth_attachment: Some(
-                                    RenderPassAttachmentDesc::clear_store(Format::D32_SFloat)
+                                    RenderPassAttachmentDesc::new(Format::D32_SFloat)
+                                        .with_color_depth_ops(AttachmentOps {
+                                            load: AttachmentLoadOp::Clear,
+                                            store: AttachmentStoreOp::DontCare,
+                                        })
                                         .with_layout_transition(LayoutTransition {
                                             initial_layout: Layout::Undefined,
                                             final_layout: Layout::DepthAttachment,
@@ -508,6 +530,13 @@ fn main() {
             },
             Event::MainEventsCleared => {
                 window.request_redraw();
+            }
+            Event::NewEvents(cause) => {
+                if cause == StartCause::Init {
+                    is_init = true;
+                } else {
+                    is_init = false;
+                }
             }
             _ => {}
         }
