@@ -6,14 +6,7 @@ use super::image::Image;
 
 #[derive(Debug, Clone, Copy)]
 pub struct RenderPassAttachmentDesc {
-    format: vk::Format,
-    load_op: vk::AttachmentLoadOp,
-    store_op: vk::AttachmentStoreOp,
-    stencil_load_op: vk::AttachmentLoadOp,
-    stencil_store_op: vk::AttachmentStoreOp,
-    samples: vk::SampleCountFlags,
-    initial_layout: vk::ImageLayout,
-    final_layout: vk::ImageLayout,
+    desc: vk::AttachmentDescription,
 }
 
 pub enum Layout {
@@ -81,65 +74,37 @@ pub struct LayoutTransition {
 impl RenderPassAttachmentDesc {
     pub fn new(format: impl Into<vk::Format>) -> Self {
         Self {
-            format: format.into(),
-            load_op: vk::AttachmentLoadOp::LOAD,
-            store_op: vk::AttachmentStoreOp::STORE,
-            stencil_load_op: vk::AttachmentLoadOp::DONT_CARE,
-            stencil_store_op: vk::AttachmentStoreOp::DONT_CARE,
-            samples: vk::SampleCountFlags::TYPE_1,
-            initial_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
-            final_layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+            desc: vk::AttachmentDescription {
+                format: format.into(),
+                samples: vk::SampleCountFlags::TYPE_1,
+                ..Default::default()
+            },
         }
     }
 
     pub fn with_color_depth_ops(mut self, ops: AttachmentOps) -> Self {
-        self.load_op = ops.load.into();
-        self.store_op = ops.store.into();
+        self.desc.load_op = ops.load.into();
+        self.desc.store_op = ops.store.into();
 
         self
     }
 
     pub fn with_stencil_ops(mut self, ops: AttachmentOps) -> Self {
-        self.stencil_load_op = ops.load.into();
-        self.stencil_store_op = ops.store.into();
+        self.desc.stencil_load_op = ops.load.into();
+        self.desc.stencil_store_op = ops.store.into();
 
         self
     }
 
     pub fn with_layout_transition(mut self, layout_transition: LayoutTransition) -> Self {
-        self.initial_layout = layout_transition.initial_layout.into();
-        self.final_layout = layout_transition.final_layout.into();
+        self.desc.initial_layout = layout_transition.initial_layout.into();
+        self.desc.final_layout = layout_transition.final_layout.into();
 
-        self
-    }
-
-    pub fn discard_input(mut self) -> Self {
-        self.load_op = vk::AttachmentLoadOp::DONT_CARE;
-        self
-    }
-
-    pub fn clear_input(mut self) -> Self {
-        self.load_op = vk::AttachmentLoadOp::CLEAR;
-        self
-    }
-
-    pub fn discard_output(mut self) -> Self {
-        self.store_op = vk::AttachmentStoreOp::DONT_CARE;
         self
     }
 
     pub fn compile(self) -> vk::AttachmentDescription {
-        vk::AttachmentDescription {
-            format: self.format,
-            samples: self.samples,
-            load_op: self.load_op,
-            store_op: self.store_op,
-            stencil_load_op: self.stencil_load_op,
-            stencil_store_op: self.stencil_store_op,
-            initial_layout: self.initial_layout,
-            final_layout: self.final_layout,
-            ..Default::default()
-        }
+        self.desc
     }
 }
 

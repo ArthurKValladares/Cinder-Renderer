@@ -124,14 +124,10 @@ fn main() {
                 RenderPassAttachmentDesc::new(Format::D32_SFloat)
                     .with_color_depth_ops(AttachmentOps {
                         load: AttachmentLoadOp::Clear,
-                        store: AttachmentStoreOp::Store,
-                    })
-                    .with_stencil_ops(AttachmentOps {
-                        load: AttachmentLoadOp::Clear,
                         store: AttachmentStoreOp::DontCare,
                     })
                     .with_layout_transition(LayoutTransition {
-                        initial_layout: Layout::Undefined,
+                        initial_layout: Layout::DepthAttachment,
                         final_layout: Layout::DepthAttachment,
                     }),
             ),
@@ -246,7 +242,7 @@ fn main() {
             texture
         })
         .collect::<Vec<_>>();
-
+    upload_context.transition_depth_image(&cinder);
     upload_context
         .end(&cinder)
         .expect("could not end upload context");
@@ -338,6 +334,7 @@ fn main() {
                 egui.on_event(&window_event);
                 match window_event {
                     WindowEvent::Resized(size) => {
+                        /*
                         if is_init {
                             return;
                         }
@@ -364,14 +361,10 @@ fn main() {
                                     RenderPassAttachmentDesc::new(Format::D32_SFloat)
                                         .with_color_depth_ops(AttachmentOps {
                                             load: AttachmentLoadOp::Clear,
-                                            store: AttachmentStoreOp::Store,
-                                        })
-                                        .with_stencil_ops(AttachmentOps {
-                                            load: AttachmentLoadOp::Clear,
                                             store: AttachmentStoreOp::DontCare,
                                         })
                                         .with_layout_transition(LayoutTransition {
-                                            initial_layout: Layout::Undefined,
+                                            initial_layout: Layout::DepthAttachment,
                                             final_layout: Layout::DepthAttachment,
                                         }),
                                 ),
@@ -392,6 +385,7 @@ fn main() {
                         cinder
                             .submit_upload_work(&upload_context)
                             .expect("could not submit upload work");
+                        */
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         keyboard_state.update(input);

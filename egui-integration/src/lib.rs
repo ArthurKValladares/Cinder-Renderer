@@ -15,7 +15,8 @@ use cinder::{
             VertexAttributeDesc, VertexInputStateDesc,
         },
         render_pass::{
-            Layout, LayoutTransition, RenderPass, RenderPassAttachmentDesc, RenderPassDescription,
+            AttachmentLoadOp, AttachmentOps, AttachmentStoreOp, Layout, LayoutTransition,
+            RenderPass, RenderPassAttachmentDesc, RenderPassDescription,
         },
         sampler::Sampler,
         shader::{ShaderDescription, ShaderStage},
@@ -68,6 +69,10 @@ impl EguiIntegration {
 
         let render_pass = cinder.create_render_pass(RenderPassDescription {
             color_attachments: [RenderPassAttachmentDesc::new(cinder.surface_format())
+                .with_color_depth_ops(AttachmentOps {
+                    load: AttachmentLoadOp::Load,
+                    store: AttachmentStoreOp::Store,
+                })
                 .with_layout_transition(LayoutTransition {
                     initial_layout: Layout::ColorAttachment,
                     final_layout: Layout::Present,
@@ -376,6 +381,10 @@ impl EguiIntegration {
         cinder.clean_render_pass(&mut self.render_pass);
         self.render_pass = cinder.create_render_pass(RenderPassDescription {
             color_attachments: [RenderPassAttachmentDesc::new(cinder.surface_format())
+                .with_color_depth_ops(AttachmentOps {
+                    load: AttachmentLoadOp::Load,
+                    store: AttachmentStoreOp::Store,
+                })
                 .with_layout_transition(LayoutTransition {
                     initial_layout: Layout::ColorAttachment,
                     final_layout: Layout::Present,

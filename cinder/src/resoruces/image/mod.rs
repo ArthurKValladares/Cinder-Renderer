@@ -78,22 +78,22 @@ impl Image {
         p_device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
         desc: ImageDescription,
     ) -> Result<Self> {
-        let create_info = vk::ImageCreateInfo {
-            image_type: vk::ImageType::TYPE_2D,
-            format: desc.format.into(),
-            extent: vk::Extent3D {
+        let create_info = vk::ImageCreateInfo::builder()
+            .image_type(vk::ImageType::TYPE_2D)
+            .extent(vk::Extent3D {
                 width: desc.size.width(),
                 height: desc.size.height(),
                 depth: 1,
-            },
-            mip_levels: 1,
-            array_layers: 1,
-            samples: vk::SampleCountFlags::TYPE_1,
-            tiling: vk::ImageTiling::OPTIMAL,
-            usage: desc.usage.into(),
-            sharing_mode: vk::SharingMode::EXCLUSIVE,
-            ..Default::default()
-        };
+            })
+            .mip_levels(1)
+            .array_layers(1)
+            .format(desc.format.into())
+            .tiling(vk::ImageTiling::OPTIMAL)
+            .initial_layout(vk::ImageLayout::UNDEFINED)
+            .usage(desc.usage.into())
+            .sharing_mode(vk::SharingMode::EXCLUSIVE)
+            .samples(vk::SampleCountFlags::TYPE_1)
+            .flags(vk::ImageCreateFlags::empty());
         let image = unsafe { device.create_image(&create_info, None) }?;
         let memory_req = unsafe { device.get_image_memory_requirements(image) };
         let memory_index = find_memory_type_index(
@@ -113,24 +113,17 @@ impl Image {
             device.bind_image_memory(image, memory, 0)?;
         }
 
-        let image_view_info = vk::ImageViewCreateInfo {
-            view_type: vk::ImageViewType::TYPE_2D,
-            image,
-            format: create_info.format,
-            subresource_range: vk::ImageSubresourceRange {
+        let image_view_info = vk::ImageViewCreateInfo::builder()
+            .image(image)
+            .view_type(vk::ImageViewType::TYPE_2D)
+            .format(create_info.format)
+            .subresource_range(vk::ImageSubresourceRange {
                 aspect_mask: desc.usage.into(),
+                base_mip_level: 0,
                 level_count: 1,
+                base_array_layer: 0,
                 layer_count: 1,
-                ..Default::default()
-            },
-            components: vk::ComponentMapping {
-                r: vk::ComponentSwizzle::R,
-                g: vk::ComponentSwizzle::G,
-                b: vk::ComponentSwizzle::B,
-                a: vk::ComponentSwizzle::A,
-            },
-            ..Default::default()
-        };
+            });
         let image_view = unsafe { device.create_image_view(&image_view_info, None) }?;
 
         let memory = Memory {
