@@ -105,28 +105,31 @@ impl GraphicsPipeline {
             .depth_fail_op(vk::StencilOp::KEEP)
             .compare_op(vk::CompareOp::ALWAYS)
             .build();
-        let depth_state_info = vk::PipelineDepthStencilStateCreateInfo::builder()
-            .depth_test_enable(if desc.depth_testing_enabled {
-                true
-            } else {
-                false
-            })
-            .depth_write_enable(if desc.depth_testing_enabled {
-                true
-            } else {
-                false
-            })
-            .depth_compare_op(if desc.depth_testing_enabled {
-                vk::CompareOp::LESS_OR_EQUAL
-            } else {
-                vk::CompareOp::ALWAYS
-            })
-            .depth_bounds_test_enable(false)
-            .max_depth_bounds(0.0)
-            .max_depth_bounds(1.0)
-            .stencil_test_enable(false)
-            .front(noop_stencil_state)
-            .back(noop_stencil_state);
+        let depth_state_info = if desc.depth_testing_enabled {
+            vk::PipelineDepthStencilStateCreateInfo::builder()
+                .depth_test_enable(true)
+                .depth_write_enable(true)
+                .depth_compare_op(vk::CompareOp::LESS_OR_EQUAL)
+                .depth_bounds_test_enable(false)
+                .max_depth_bounds(0.0)
+                .max_depth_bounds(1.0)
+                .stencil_test_enable(false)
+                .front(noop_stencil_state)
+                .back(noop_stencil_state)
+                .build()
+        } else {
+            vk::PipelineDepthStencilStateCreateInfo::builder()
+                .depth_test_enable(false)
+                .depth_write_enable(false)
+                .depth_compare_op(vk::CompareOp::ALWAYS)
+                .depth_bounds_test_enable(false)
+                .max_depth_bounds(0.0)
+                .max_depth_bounds(1.0)
+                .stencil_test_enable(false)
+                .front(noop_stencil_state)
+                .back(noop_stencil_state)
+                .build()
+        };
 
         let color_blend_attachment_states = [vk::PipelineColorBlendAttachmentState::builder()
             .color_write_mask(
@@ -145,6 +148,7 @@ impl GraphicsPipeline {
             .color_write_mask(vk::ColorComponentFlags::RGBA)
             .build()];
         let color_blend_state = vk::PipelineColorBlendStateCreateInfo::builder()
+            .logic_op(vk::LogicOp::CLEAR)
             .attachments(&color_blend_attachment_states);
         let dynamic_state = [vk::DynamicState::VIEWPORT, vk::DynamicState::SCISSOR];
         let dynamic_state_info =
@@ -184,14 +188,18 @@ impl GraphicsPipeline {
         // TODO: investigate the error return type here
         let graphics_pipelines = unsafe {
             device.create_graphics_pipelines(
-                vk::PipelineCache::null(),
+                vk::PipelineCache::null(), // TODO: Hook up cache
                 &[graphic_pipeline_infos],
                 None,
             )
         }
         .map_err(|(_, err)| err)?;
-
         let pipeline = graphics_pipelines[0];
+        for pipeline in graphics_pipelines.iter().skip(1) {
+            unsafe {
+                device.destroy_pipeline(*pipeline, None);
+            }
+        }
 
         Ok(GraphicsPipeline {
             common: PipelineCommon {

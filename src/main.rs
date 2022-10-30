@@ -124,7 +124,7 @@ fn main() {
                 RenderPassAttachmentDesc::new(Format::D32_SFloat)
                     .with_color_depth_ops(AttachmentOps {
                         load: AttachmentLoadOp::Clear,
-                        store: AttachmentStoreOp::DontCare,
+                        store: AttachmentStoreOp::Store,
                     })
                     .with_layout_transition(LayoutTransition {
                         initial_layout: Layout::DepthAttachment,
@@ -284,16 +284,16 @@ fn main() {
                 stride: std::mem::size_of::<Vertex>() as u32,
                 attributes: vec![
                     VertexAttributeDesc {
-                        format: Format::R32_G32_B32_A32_SFloat,
+                        format: Format::R32_G32_B32_SFloat,
                         offset: offset_of!(Vertex, pos) as u32,
-                    },
-                    VertexAttributeDesc {
-                        format: Format::R32_G32_B32_A32_SFloat,
-                        offset: offset_of!(Vertex, color) as u32,
                     },
                     VertexAttributeDesc {
                         format: Format::R32_G32_SFloat,
                         offset: offset_of!(Vertex, uv) as u32,
+                    },
+                    VertexAttributeDesc {
+                        format: Format::R32_G32_B32_A32_SFloat,
+                        offset: offset_of!(Vertex, color) as u32,
                     },
                 ],
             },
@@ -361,7 +361,7 @@ fn main() {
                                     RenderPassAttachmentDesc::new(Format::D32_SFloat)
                                         .with_color_depth_ops(AttachmentOps {
                                             load: AttachmentLoadOp::Clear,
-                                            store: AttachmentStoreOp::DontCare,
+                                            store: AttachmentStoreOp::Store,
                                         })
                                         .with_layout_transition(LayoutTransition {
                                             initial_layout: Layout::DepthAttachment,
