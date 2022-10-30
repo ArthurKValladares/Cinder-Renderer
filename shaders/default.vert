@@ -21,10 +21,5 @@ void main() {
     o_color = i_color;
     o_uv = i_uv;
     vec4 pos = ubo.proj_view * vec4(i_pos, 1.0);
-    if (pos.z <= 1.0) {
-        o_color = vec4(1.0, 0.0, 0.0, 1.0);
-    } else {
-        o_color = vec4(0.0, 0.0, 1.0, 1.0);
-    }
     gl_Position = pos;
 }
