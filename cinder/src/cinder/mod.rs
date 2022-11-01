@@ -187,10 +187,7 @@ impl Cinder {
         Shader::create(&self.device, desc)
     }
 
-    pub fn create_render_pass<const N: usize>(
-        &self,
-        desc: RenderPassDescription<N>,
-    ) -> Result<RenderPass> {
+    pub fn create_render_pass(&self, desc: RenderPassDescription) -> Result<RenderPass> {
         RenderPass::create(
             &self.device,
             &self.swapchain,

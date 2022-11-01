@@ -111,7 +111,7 @@ fn main() {
         .expect("Could not create fragment shader");
     let mut render_pass = cinder
         .create_render_pass(RenderPassDescription {
-            color_attachments: [RenderPassAttachmentDesc::new(cinder.surface_format())
+            color_attachment: RenderPassAttachmentDesc::new(cinder.surface_format())
                 .with_color_depth_ops(AttachmentOps {
                     load: AttachmentLoadOp::Clear,
                     store: AttachmentStoreOp::Store,
@@ -119,12 +119,16 @@ fn main() {
                 .with_layout_transition(LayoutTransition {
                     initial_layout: Layout::Undefined,
                     final_layout: Layout::ColorAttachment,
-                })],
+                }),
             depth_attachment: Some(
                 RenderPassAttachmentDesc::new(Format::D32_SFloat)
                     .with_color_depth_ops(AttachmentOps {
                         load: AttachmentLoadOp::Clear,
                         store: AttachmentStoreOp::Store,
+                    })
+                    .with_stencil_ops(AttachmentOps {
+                        load: AttachmentLoadOp::Clear,
+                        store: AttachmentStoreOp::DontCare,
                     })
                     .with_layout_transition(LayoutTransition {
                         initial_layout: Layout::DepthAttachment,
@@ -346,7 +350,7 @@ fn main() {
                         cinder.clean_render_pass(&mut render_pass);
                         render_pass = cinder
                             .create_render_pass(RenderPassDescription {
-                                color_attachments: [RenderPassAttachmentDesc::new(
+                                color_attachment: RenderPassAttachmentDesc::new(
                                     cinder.surface_format(),
                                 )
                                 .with_color_depth_ops(AttachmentOps {
@@ -356,7 +360,7 @@ fn main() {
                                 .with_layout_transition(LayoutTransition {
                                     initial_layout: Layout::Undefined,
                                     final_layout: Layout::ColorAttachment,
-                                })],
+                                }),
                                 depth_attachment: Some(
                                     RenderPassAttachmentDesc::new(Format::D32_SFloat)
                                         .with_color_depth_ops(AttachmentOps {

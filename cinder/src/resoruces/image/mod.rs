@@ -89,7 +89,6 @@ impl Image {
             .array_layers(1)
             .format(desc.format.into())
             .tiling(vk::ImageTiling::OPTIMAL)
-            .initial_layout(vk::ImageLayout::UNDEFINED)
             .usage(desc.usage.into())
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .samples(vk::SampleCountFlags::TYPE_1)
@@ -114,8 +113,8 @@ impl Image {
         }
 
         let image_view_info = vk::ImageViewCreateInfo::builder()
-            .image(image)
             .view_type(vk::ImageViewType::TYPE_2D)
+            .image(image)
             .format(create_info.format)
             .subresource_range(vk::ImageSubresourceRange {
                 aspect_mask: desc.usage.into(),

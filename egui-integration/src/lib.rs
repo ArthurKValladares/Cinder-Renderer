@@ -68,7 +68,7 @@ impl EguiIntegration {
         let egui_winit = egui_winit::State::new(event_loop);
 
         let render_pass = cinder.create_render_pass(RenderPassDescription {
-            color_attachments: [RenderPassAttachmentDesc::new(cinder.surface_format())
+            color_attachment: RenderPassAttachmentDesc::new(cinder.surface_format())
                 .with_color_depth_ops(AttachmentOps {
                     load: AttachmentLoadOp::Load,
                     store: AttachmentStoreOp::Store,
@@ -76,7 +76,7 @@ impl EguiIntegration {
                 .with_layout_transition(LayoutTransition {
                     initial_layout: Layout::ColorAttachment,
                     final_layout: Layout::Present,
-                })],
+                }),
             depth_attachment: None,
         })?;
 
@@ -380,7 +380,7 @@ impl EguiIntegration {
     pub fn resize(&mut self, cinder: &Cinder) -> Result<()> {
         cinder.clean_render_pass(&mut self.render_pass);
         self.render_pass = cinder.create_render_pass(RenderPassDescription {
-            color_attachments: [RenderPassAttachmentDesc::new(cinder.surface_format())
+            color_attachment: RenderPassAttachmentDesc::new(cinder.surface_format())
                 .with_color_depth_ops(AttachmentOps {
                     load: AttachmentLoadOp::Load,
                     store: AttachmentStoreOp::Store,
@@ -388,7 +388,7 @@ impl EguiIntegration {
                 .with_layout_transition(LayoutTransition {
                     initial_layout: Layout::ColorAttachment,
                     final_layout: Layout::Present,
-                })],
+                }),
             depth_attachment: None,
         })?;
         Ok(())
