@@ -16,6 +16,7 @@ pub enum ImageCreateError {
 pub enum Format {
     R8_G8_B8_A8_Unorm,
     D32_SFloat,
+    D16Unorm,
     R32_G32_B32_A32_SFloat,
     R32_G32_B32_SFloat,
     R32_G32_SFloat,
@@ -27,6 +28,7 @@ impl From<Format> for vk::Format {
         match format {
             Format::R8_G8_B8_A8_Unorm => vk::Format::R8G8B8A8_UNORM,
             Format::D32_SFloat => vk::Format::D32_SFLOAT,
+            Format::D16Unorm => vk::Format::D16_UNORM,
             Format::R32_G32_B32_A32_SFloat => vk::Format::R32G32B32A32_SFLOAT,
             Format::R32_G32_B32_SFloat => vk::Format::R32G32B32_SFLOAT,
             Format::R32_G32_SFloat => vk::Format::R32G32_SFLOAT,
@@ -80,6 +82,7 @@ impl Image {
     ) -> Result<Self> {
         let create_info = vk::ImageCreateInfo::builder()
             .image_type(vk::ImageType::TYPE_2D)
+            .format(desc.format.into())
             .extent(vk::Extent3D {
                 width: desc.size.width(),
                 height: desc.size.height(),
@@ -87,12 +90,12 @@ impl Image {
             })
             .mip_levels(1)
             .array_layers(1)
-            .format(desc.format.into())
+            .samples(vk::SampleCountFlags::TYPE_1)
             .tiling(vk::ImageTiling::OPTIMAL)
             .usage(desc.usage.into())
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
-            .samples(vk::SampleCountFlags::TYPE_1)
-            .flags(vk::ImageCreateFlags::empty());
+            .build();
+
         let image = unsafe { device.create_image(&create_info, None) }?;
         let memory_req = unsafe { device.get_image_memory_requirements(image) };
         let memory_index = find_memory_type_index(
@@ -113,16 +116,17 @@ impl Image {
         }
 
         let image_view_info = vk::ImageViewCreateInfo::builder()
-            .view_type(vk::ImageViewType::TYPE_2D)
+            .subresource_range(
+                vk::ImageSubresourceRange::builder()
+                    .aspect_mask(desc.usage.into())
+                    .level_count(1)
+                    .layer_count(1)
+                    .build(),
+            )
             .image(image)
             .format(create_info.format)
-            .subresource_range(vk::ImageSubresourceRange {
-                aspect_mask: desc.usage.into(),
-                base_mip_level: 0,
-                level_count: 1,
-                base_array_layer: 0,
-                layer_count: 1,
-            });
+            .view_type(vk::ImageViewType::TYPE_2D);
+
         let image_view = unsafe { device.create_image_view(&image_view_info, None) }?;
 
         let memory = Memory {

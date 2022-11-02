@@ -25,26 +25,6 @@ use math::{rect::Rect2D, size::Size2D};
 use rkyv::{Archive, Deserialize, Serialize};
 use tracing::{span, Level};
 
-fn submit_work(
-    device: &ash::Device,
-    command_buffer: vk::CommandBuffer,
-    command_buffer_reuse_fence: vk::Fence,
-    submit_queue: vk::Queue,
-    wait_mask: &[vk::PipelineStageFlags],
-    wait_semaphores: &[vk::Semaphore],
-    signal_semaphores: &[vk::Semaphore],
-) -> Result<()> {
-    let submit_info = vk::SubmitInfo::builder()
-        .wait_semaphores(wait_semaphores)
-        .wait_dst_stage_mask(wait_mask)
-        .command_buffers(std::slice::from_ref(&command_buffer))
-        .signal_semaphores(signal_semaphores)
-        .build();
-
-    unsafe { device.queue_submit(submit_queue, &[submit_info], command_buffer_reuse_fence) }?;
-    Ok(())
-}
-
 // TODO: Get this from the shader later on
 #[derive(Clone, Debug, Default, Copy, Archive, Deserialize, Serialize)]
 pub struct Vertex {
@@ -150,6 +130,26 @@ impl Cinder {
         &self.device
     }
 
+    pub fn setup_fence(&self) -> vk::Fence {
+        self.setup_commands_reuse_fence
+    }
+
+    pub fn draw_fence(&self) -> vk::Fence {
+        self.draw_commands_reuse_fence
+    }
+
+    pub fn present_semaphore(&self) -> vk::Semaphore {
+        self.present_complete_semaphore
+    }
+
+    pub fn render_semaphore(&self) -> vk::Semaphore {
+        self.rendering_complete_semaphore
+    }
+
+    pub fn present_queue(&self) -> vk::Queue {
+        self.device.present_queue()
+    }
+
     pub fn surface_format(&self) -> vk::Format {
         self.surface_data.surface_format.format
     }
@@ -236,28 +236,12 @@ impl Cinder {
         Ok(UploadContext::from_command_buffer(command_buffer))
     }
 
-    pub fn submit_graphics_work(
-        &self,
-        context: &RenderContext,
-        present_index: u32,
-    ) -> Result<bool> {
-        submit_work(
-            &self.device,
-            context.shared.command_buffer,
-            self.draw_commands_reuse_fence,
-            self.device.present_queue(),
-            std::slice::from_ref(&vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT),
-            std::slice::from_ref(&self.present_complete_semaphore),
-            std::slice::from_ref(&self.rendering_complete_semaphore),
-        )?;
-
-        let wait_semaphors = [self.rendering_complete_semaphore];
-        let swapchains = [self.swapchain.swapchain];
-        let image_indices = [present_index];
+    pub fn present(&self, context: &RenderContext, present_index: u32) -> Result<bool> {
         let present_info = vk::PresentInfoKHR::builder()
-            .wait_semaphores(&wait_semaphors)
-            .swapchains(&swapchains)
-            .image_indices(&image_indices);
+            .wait_semaphores(std::slice::from_ref(&self.rendering_complete_semaphore))
+            .swapchains(std::slice::from_ref(&self.swapchain.swapchain))
+            .image_indices(std::slice::from_ref(&present_index))
+            .build();
 
         let is_suboptimal = unsafe {
             self.swapchain
@@ -265,20 +249,6 @@ impl Cinder {
                 .queue_present(self.device.present_queue(), &present_info)
         }?;
         Ok(is_suboptimal)
-    }
-
-    pub fn submit_upload_work(&self, context: &UploadContext) -> Result<()> {
-        submit_work(
-            &self.device,
-            context.shared.command_buffer,
-            self.setup_commands_reuse_fence,
-            self.device.present_queue(),
-            &[],
-            &[],
-            &[],
-        )?;
-
-        Ok(())
     }
 
     // TODO: probably should totally abstract this from user code

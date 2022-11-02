@@ -15,8 +15,8 @@ use cinder::{
             VertexAttributeDesc, VertexInputStateDesc,
         },
         render_pass::{
-            AttachmentLoadOp, AttachmentOps, AttachmentStoreOp, ClearValue, Layout,
-            LayoutTransition, RenderPass, RenderPassAttachmentDesc, RenderPassDescription,
+            AttachmentLoadOp, AttachmentStoreOp, ClearValue, Layout, RenderPass,
+            RenderPassAttachmentDesc, RenderPassDescription,
         },
         sampler::Sampler,
         shader::{ShaderDescription, ShaderStage},
@@ -69,14 +69,10 @@ impl EguiIntegration {
 
         let render_pass = cinder.create_render_pass(RenderPassDescription {
             color_attachment: RenderPassAttachmentDesc::new(cinder.surface_format())
-                .with_color_depth_ops(AttachmentOps {
-                    load: AttachmentLoadOp::Load,
-                    store: AttachmentStoreOp::Store,
-                })
-                .with_layout_transition(LayoutTransition {
-                    initial_layout: Layout::ColorAttachment,
-                    final_layout: Layout::Present,
-                }),
+                .load_op(AttachmentLoadOp::Load)
+                .store_op(AttachmentStoreOp::Store)
+                .initial_layout(Layout::ColorAttachment)
+                .final_layout(Layout::Present),
             depth_attachment: None,
         })?;
 
@@ -387,14 +383,10 @@ impl EguiIntegration {
         cinder.clean_render_pass(&mut self.render_pass);
         self.render_pass = cinder.create_render_pass(RenderPassDescription {
             color_attachment: RenderPassAttachmentDesc::new(cinder.surface_format())
-                .with_color_depth_ops(AttachmentOps {
-                    load: AttachmentLoadOp::Load,
-                    store: AttachmentStoreOp::Store,
-                })
-                .with_layout_transition(LayoutTransition {
-                    initial_layout: Layout::ColorAttachment,
-                    final_layout: Layout::Present,
-                }),
+                .load_op(AttachmentLoadOp::Load)
+                .store_op(AttachmentStoreOp::Store)
+                .initial_layout(Layout::ColorAttachment)
+                .final_layout(Layout::Present),
             depth_attachment: None,
         })?;
         Ok(())
@@ -465,8 +457,14 @@ impl EguiIntegration {
         for (id, delta) in &textures_delta.set {
             self.set_image(cinder, context, id, delta)?;
         }
-        context.end(cinder)?;
-        cinder.submit_upload_work(context)?;
+        context.end(
+            cinder,
+            cinder.setup_fence(),
+            cinder.present_queue(),
+            &[],
+            &[],
+            &[],
+        )?;
         Ok(())
     }
 

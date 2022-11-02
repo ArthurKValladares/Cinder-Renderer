@@ -24,8 +24,23 @@ impl UploadContext {
             .begin(cinder.device(), cinder.setup_commands_reuse_fence)
     }
 
-    pub fn end(&self, cinder: &Cinder) -> Result<()> {
-        self.shared.end(cinder.device())
+    pub fn end(
+        &self,
+        cinder: &Cinder,
+        command_buffer_reuse_fence: vk::Fence,
+        submit_queue: vk::Queue,
+        wait_mask: &[vk::PipelineStageFlags],
+        wait_semaphores: &[vk::Semaphore],
+        signal_semaphores: &[vk::Semaphore],
+    ) -> Result<()> {
+        self.shared.end(
+            cinder.device(),
+            command_buffer_reuse_fence,
+            submit_queue,
+            wait_mask,
+            wait_semaphores,
+            signal_semaphores,
+        )
     }
 
     pub fn transition_depth_image(&self, cinder: &Cinder) {

@@ -22,11 +22,6 @@ impl ClearValue {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-pub struct RenderPassAttachmentDesc {
-    desc: vk::AttachmentDescription,
-}
-
 pub enum Layout {
     Undefined,
     General,
@@ -79,14 +74,9 @@ impl From<AttachmentStoreOp> for vk::AttachmentStoreOp {
     }
 }
 
-pub struct AttachmentOps {
-    pub load: AttachmentLoadOp,
-    pub store: AttachmentStoreOp,
-}
-
-pub struct LayoutTransition {
-    pub initial_layout: Layout,
-    pub final_layout: Layout,
+#[derive(Debug, Clone, Copy)]
+pub struct RenderPassAttachmentDesc {
+    desc: vk::AttachmentDescription,
 }
 
 impl RenderPassAttachmentDesc {
@@ -100,24 +90,23 @@ impl RenderPassAttachmentDesc {
         }
     }
 
-    pub fn with_color_depth_ops(mut self, ops: AttachmentOps) -> Self {
-        self.desc.load_op = ops.load.into();
-        self.desc.store_op = ops.store.into();
-
+    pub fn load_op(mut self, op: AttachmentLoadOp) -> Self {
+        self.desc.load_op = op.into();
         self
     }
 
-    pub fn with_stencil_ops(mut self, ops: AttachmentOps) -> Self {
-        self.desc.stencil_load_op = ops.load.into();
-        self.desc.stencil_store_op = ops.store.into();
-
+    pub fn store_op(mut self, op: AttachmentStoreOp) -> Self {
+        self.desc.store_op = op.into();
         self
     }
 
-    pub fn with_layout_transition(mut self, layout_transition: LayoutTransition) -> Self {
-        self.desc.initial_layout = layout_transition.initial_layout.into();
-        self.desc.final_layout = layout_transition.final_layout.into();
+    pub fn initial_layout(mut self, layout: Layout) -> Self {
+        self.desc.initial_layout = layout.into();
+        self
+    }
 
+    pub fn final_layout(mut self, layout: Layout) -> Self {
+        self.desc.final_layout = layout.into();
         self
     }
 
@@ -146,19 +135,30 @@ impl RenderPass {
         desc: RenderPassDescription,
     ) -> Result<Self> {
         // TODO: image transitions should be determined automatically.
-        let color_attachment = desc.color_attachment.compile();
+        let renderpass_attachments = if let Some(depth_attachment) = desc.depth_attachment {
+            vec![desc.color_attachment.compile(), depth_attachment.compile()]
+        } else {
+            vec![desc.color_attachment.compile()]
+        };
         let color_attachment_ref = vk::AttachmentReference {
             attachment: 0,
             layout: vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
         };
-
-        let depth_attachment = desc.depth_attachment.map(|desc| desc.compile());
         let depth_attachment_ref = vk::AttachmentReference {
             attachment: 1,
             layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         };
 
-        let subpass_description = if desc.depth_attachment.is_some() {
+        let dependencies = vec![vk::SubpassDependency::builder()
+            .src_subpass(vk::SUBPASS_EXTERNAL)
+            .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+            .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
+            .dst_access_mask(
+                vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
+            )
+            .build()];
+
+        let subpass = if desc.depth_attachment.is_some() {
             vk::SubpassDescription::builder()
                 .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
                 .color_attachments(std::slice::from_ref(&color_attachment_ref))
@@ -171,42 +171,9 @@ impl RenderPass {
                 .build()
         };
 
-        let mut dependencies = vec![vk::SubpassDependency::builder()
-            .src_subpass(vk::SUBPASS_EXTERNAL)
-            .dst_subpass(0)
-            .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-            .src_access_mask(vk::AccessFlags::empty())
-            .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-            .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
-            .build()];
-        if desc.depth_attachment.is_some() {
-            dependencies.push(
-                vk::SubpassDependency::builder()
-                    .src_subpass(vk::SUBPASS_EXTERNAL)
-                    .dst_subpass(0)
-                    .src_stage_mask(
-                        vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
-                            | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-                    )
-                    .src_access_mask(vk::AccessFlags::empty())
-                    .dst_stage_mask(
-                        vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS
-                            | vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-                    )
-                    .dst_access_mask(vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE)
-                    .build(),
-            )
-        }
-
-        let renderpass_attachments = if let Some(depth_attachment) = depth_attachment {
-            vec![color_attachment, depth_attachment]
-        } else {
-            vec![color_attachment]
-        };
-        let subpasses = [subpass_description];
         let render_pass_create_info = vk::RenderPassCreateInfo::builder()
             .attachments(&renderpass_attachments)
-            .subpasses(&subpasses)
+            .subpasses(std::slice::from_ref(&subpass))
             .dependencies(&dependencies);
 
         let render_pass = unsafe { device.create_render_pass(&render_pass_create_info, None)? };

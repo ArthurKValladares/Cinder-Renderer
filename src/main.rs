@@ -9,7 +9,7 @@ use cinder::{
     context::{render_context::RenderContextDescription, upload_context::UploadContextDescription},
     resoruces::{
         bind_group::{BindGroupLayoutBuilder, BindGroupSetBuilder, BindGroupType},
-        buffer::{Buffer, BufferDescription, BufferUsage},
+        buffer::{vk, Buffer, BufferDescription, BufferUsage},
         image::{Format, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
         pipeline::{
@@ -17,8 +17,8 @@ use cinder::{
             VertexInputStateDesc,
         },
         render_pass::{
-            self, AttachmentLoadOp, AttachmentOps, AttachmentStoreOp, ClearValue,
-            RenderPassAttachmentDesc, RenderPassDescription,
+            self, AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderPassAttachmentDesc,
+            RenderPassDescription,
         },
         shader::{ShaderDescription, ShaderStage},
     },
@@ -27,7 +27,7 @@ use cinder::{
 use egui_integration::{egui, EguiIntegration};
 use input::keyboard::KeyboardState;
 use math::size::Size2D;
-use render_pass::{Layout, LayoutTransition};
+use render_pass::Layout;
 use std::{
     path::{Path, PathBuf},
     time::Instant,
@@ -112,28 +112,16 @@ fn main() {
     let mut render_pass = cinder
         .create_render_pass(RenderPassDescription {
             color_attachment: RenderPassAttachmentDesc::new(cinder.surface_format())
-                .with_color_depth_ops(AttachmentOps {
-                    load: AttachmentLoadOp::Clear,
-                    store: AttachmentStoreOp::Store,
-                })
-                .with_layout_transition(LayoutTransition {
-                    initial_layout: Layout::Undefined,
-                    final_layout: Layout::ColorAttachment,
-                }),
+                .load_op(AttachmentLoadOp::Clear)
+                .store_op(AttachmentStoreOp::Store)
+                .final_layout(Layout::ColorAttachment),
             depth_attachment: Some(
                 RenderPassAttachmentDesc::new(Format::D32_SFloat)
-                    .with_color_depth_ops(AttachmentOps {
-                        load: AttachmentLoadOp::Clear,
-                        store: AttachmentStoreOp::Store,
-                    })
-                    .with_stencil_ops(AttachmentOps {
-                        load: AttachmentLoadOp::Clear,
-                        store: AttachmentStoreOp::DontCare,
-                    })
-                    .with_layout_transition(LayoutTransition {
-                        initial_layout: Layout::DepthAttachment,
-                        final_layout: Layout::DepthAttachment,
-                    }),
+                    .load_op(AttachmentLoadOp::Clear)
+                    .store_op(AttachmentStoreOp::Store)
+                    .store_op(AttachmentStoreOp::Store)
+                    .initial_layout(Layout::DepthAttachment)
+                    .final_layout(Layout::DepthAttachment),
             ),
         })
         .expect("Could not create render pass");
@@ -248,11 +236,15 @@ fn main() {
         .collect::<Vec<_>>();
     upload_context.transition_depth_image(&cinder);
     upload_context
-        .end(&cinder)
+        .end(
+            &cinder,
+            cinder.setup_fence(),
+            cinder.present_queue(),
+            &[],
+            &[],
+            &[],
+        )
         .expect("could not end upload context");
-    cinder
-        .submit_upload_work(&upload_context)
-        .expect("could not submit upload work");
 
     let sampler = cinder.create_sampler().expect("Could not create sampler");
 
@@ -527,10 +519,17 @@ fn main() {
                     );
                 }
                 render_context
-                    .end(&cinder)
+                    .end(
+                        &cinder,
+                        cinder.draw_fence(),
+                        cinder.present_queue(),
+                        &[vk::PipelineStageFlags::BOTTOM_OF_PIPE],
+                        &[cinder.present_semaphore()],
+                        &[cinder.render_semaphore()],
+                    )
                     .expect("Could not end graphics context");
                 cinder
-                    .submit_graphics_work(&render_context, present_index)
+                    .present(&render_context, present_index)
                     .expect("Could not submit graphics work");
             }
             Event::DeviceEvent { event, .. } => match event {

@@ -37,8 +37,25 @@ impl ContextShared {
         Ok(())
     }
 
-    fn end(&self, device: &ash::Device) -> Result<()> {
+    fn end(
+        &self,
+        device: &ash::Device,
+        command_buffer_reuse_fence: vk::Fence,
+        submit_queue: vk::Queue,
+        wait_mask: &[vk::PipelineStageFlags],
+        wait_semaphores: &[vk::Semaphore],
+        signal_semaphores: &[vk::Semaphore],
+    ) -> Result<()> {
         unsafe { device.end_command_buffer(self.command_buffer) }?;
+
+        let submit_info = vk::SubmitInfo::builder()
+            .wait_semaphores(wait_semaphores)
+            .wait_dst_stage_mask(wait_mask)
+            .command_buffers(std::slice::from_ref(&self.command_buffer))
+            .signal_semaphores(signal_semaphores)
+            .build();
+
+        unsafe { device.queue_submit(submit_queue, &[submit_info], command_buffer_reuse_fence) }?;
 
         Ok(())
     }
