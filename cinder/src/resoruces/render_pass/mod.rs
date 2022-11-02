@@ -4,6 +4,24 @@ use ash::vk;
 
 use super::image::Image;
 
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ClearValue(vk::ClearValue);
+
+impl ClearValue {
+    pub fn color(vals: [f32; 4]) -> Self {
+        Self(vk::ClearValue {
+            color: vk::ClearColorValue { float32: vals },
+        })
+    }
+
+    pub fn depth(depth: f32, stencil: u32) -> Self {
+        Self(vk::ClearValue {
+            depth_stencil: vk::ClearDepthStencilValue { depth, stencil },
+        })
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
 pub struct RenderPassAttachmentDesc {
     desc: vk::AttachmentDescription,
@@ -117,9 +135,6 @@ pub struct RenderPassDescription {
 pub struct RenderPass {
     pub render_pass: vk::RenderPass,
     pub framebuffers: Vec<vk::Framebuffer>,
-    // TODO: Should this be here? Might make caching worse
-    pub clear_values: Vec<vk::ClearValue>,
-    pub render_area: vk::Rect2D,
 }
 
 impl RenderPass {
@@ -217,33 +232,9 @@ impl RenderPass {
             })
             .collect::<Result<Vec<_>, _>>()?;
 
-        // TODO: Configurable clear color
-        let clear_values = if desc.depth_attachment.is_some() {
-            vec![
-                vk::ClearValue {
-                    color: vk::ClearColorValue {
-                        float32: [1.0, 0.0, 1.0, 1.0],
-                    },
-                },
-                vk::ClearValue {
-                    depth_stencil: vk::ClearDepthStencilValue {
-                        depth: 1.0,
-                        stencil: 0,
-                    },
-                },
-            ]
-        } else {
-            vec![vk::ClearValue {
-                color: vk::ClearColorValue {
-                    float32: [1.0, 0.0, 1.0, 1.0],
-                },
-            }]
-        };
         Ok(RenderPass {
             render_pass,
             framebuffers,
-            render_area: surface_data.surface_resolution.into(),
-            clear_values,
         })
     }
 

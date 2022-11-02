@@ -15,8 +15,8 @@ use cinder::{
             VertexAttributeDesc, VertexInputStateDesc,
         },
         render_pass::{
-            AttachmentLoadOp, AttachmentOps, AttachmentStoreOp, Layout, LayoutTransition,
-            RenderPass, RenderPassAttachmentDesc, RenderPassDescription,
+            AttachmentLoadOp, AttachmentOps, AttachmentStoreOp, ClearValue, Layout,
+            LayoutTransition, RenderPass, RenderPassAttachmentDesc, RenderPassDescription,
         },
         sampler::Sampler,
         shader::{ShaderDescription, ShaderStage},
@@ -239,7 +239,13 @@ impl EguiIntegration {
         let vertex_buffer = &self.vertex_buffers[present_index as usize];
         let index_buffer = &self.index_buffers[present_index as usize];
 
-        render_context.begin_render_pass(cinder, &self.render_pass, present_index);
+        render_context.begin_render_pass(
+            cinder,
+            &self.render_pass,
+            present_index,
+            cinder.surface_rect(),
+            &[],
+        );
         {
             render_context.bind_graphics_pipeline(cinder, &self.pipeline);
             render_context.bind_vertex_buffer(cinder, vertex_buffer);

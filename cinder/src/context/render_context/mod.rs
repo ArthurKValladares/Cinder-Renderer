@@ -6,7 +6,7 @@ use crate::{
     resoruces::{
         buffer::Buffer,
         pipeline::{push_constant::PushConstant, GraphicsPipeline},
-        render_pass::RenderPass,
+        render_pass::{ClearValue, RenderPass},
     },
 };
 use anyhow::Result;
@@ -35,12 +35,33 @@ impl RenderContext {
         self.shared.end(cinder.device())
     }
 
-    pub fn begin_render_pass(&self, cinder: &Cinder, render_pass: &RenderPass, present_index: u32) {
+    pub fn begin_render_pass(
+        &self,
+        cinder: &Cinder,
+        render_pass: &RenderPass,
+        present_index: u32,
+        render_area: Rect2D<i32, u32>,
+        clear_values: &[ClearValue],
+    ) {
+        // TODO: impl From<>?
+        let render_area = vk::Rect2D {
+            offset: vk::Offset2D {
+                x: render_area.offset().x(),
+                y: render_area.offset().y(),
+            },
+            extent: vk::Extent2D {
+                width: render_area.width(),
+                height: render_area.height(),
+            },
+        };
+        let clear_values =
+            unsafe { std::mem::transmute::<&[ClearValue], &[vk::ClearValue]>(clear_values) };
+
         let create_info = vk::RenderPassBeginInfo::builder()
             .render_pass(render_pass.render_pass)
             .framebuffer(render_pass.framebuffers[present_index as usize])
-            .render_area(render_pass.render_area)
-            .clear_values(&render_pass.clear_values);
+            .render_area(render_area.into())
+            .clear_values(clear_values);
 
         unsafe {
             cinder.device().cmd_begin_render_pass(

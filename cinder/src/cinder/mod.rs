@@ -34,12 +34,10 @@ fn submit_work(
     wait_semaphores: &[vk::Semaphore],
     signal_semaphores: &[vk::Semaphore],
 ) -> Result<()> {
-    let command_buffers = vec![command_buffer];
-
     let submit_info = vk::SubmitInfo::builder()
         .wait_semaphores(wait_semaphores)
         .wait_dst_stage_mask(wait_mask)
-        .command_buffers(&command_buffers)
+        .command_buffers(std::slice::from_ref(&command_buffer))
         .signal_semaphores(signal_semaphores)
         .build();
 

@@ -17,8 +17,8 @@ use cinder::{
             VertexInputStateDesc,
         },
         render_pass::{
-            self, AttachmentLoadOp, AttachmentOps, AttachmentStoreOp, RenderPassAttachmentDesc,
-            RenderPassDescription,
+            self, AttachmentLoadOp, AttachmentOps, AttachmentStoreOp, ClearValue,
+            RenderPassAttachmentDesc, RenderPassDescription,
         },
         shader::{ShaderDescription, ShaderStage},
     },
@@ -433,11 +433,20 @@ fn main() {
                     let delta_time = start.elapsed().as_secs_f32() / 2.0;
                     update_model_push_constant(&mut color, delta_time);
 
-                    // Main render pass
-                    render_context.begin_render_pass(&cinder, &render_pass, present_index);
-                    {
-                        let surface_rect = cinder.surface_rect();
+                    let surface_rect = cinder.surface_rect();
 
+                    // Main render pass
+                    render_context.begin_render_pass(
+                        &cinder,
+                        &render_pass,
+                        present_index,
+                        surface_rect,
+                        &[
+                            ClearValue::color([1.0, 0.0, 1.0, 1.0]),
+                            ClearValue::depth(1.0, 0),
+                        ],
+                    );
+                    {
                         render_context.bind_graphics_pipeline(&cinder, &pipeline);
                         render_context.bind_viewport(&cinder, surface_rect, true);
                         render_context.bind_scissor(&cinder, surface_rect);
@@ -520,7 +529,6 @@ fn main() {
                 render_context
                     .end(&cinder)
                     .expect("Could not end graphics context");
-
                 cinder
                     .submit_graphics_work(&render_context, present_index)
                     .expect("Could not submit graphics work");
@@ -534,9 +542,6 @@ fn main() {
                 }
                 _ => {}
             },
-            Event::MainEventsCleared => {
-                window.request_redraw();
-            }
             Event::NewEvents(cause) => {
                 if cause == StartCause::Init {
                     is_init = true;
@@ -601,5 +606,7 @@ fn main() {
         } else {
             frame_gpu_average = frame_gpu_average * 0.95 + gpu_dt * 0.05;
         }
+
+        window.request_redraw();
     });
 }
