@@ -129,8 +129,8 @@ fn main() {
     // Load model
     let scene_load_start = Instant::now();
     let (mut scene, image_buffers) = scene::ObjScene::load_or_achive(
-        PathBuf::from("assets").join("models").join("sponza"),
-        "sponza.obj",
+        PathBuf::from("assets").join("models").join("sibenik"),
+        "sibenik.obj",
     )
     .unwrap_or_else(|err| panic!("Could not load mesh: {}", err));
     let scene_load_time = scene_load_start.elapsed().as_secs_f32();
@@ -168,7 +168,7 @@ fn main() {
                 .expect("Could not write to vertex buffer");
 
             let num_indices = mesh.indices.len();
-            let image_index = mesh.material_index.unwrap(); //TODO: Actually handle this the right way, or use a white texture
+            let image_index = mesh.material_index.unwrap_or_else(|| 0); //TODO: Actually handle this the right way, or use a white texture
 
             MeshDraw {
                 index_buffer,
