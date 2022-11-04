@@ -13,7 +13,7 @@ fn new_infinite_perspective_proj(aspect_ratio: f32, y_fov: f32, z_near: f32) -> 
     Mat4::from_data(
         f / aspect_ratio, 0.0, 0.0,  0.0,
         0.0,              f,   0.0,  0.0,
-        0.0,              0.0, -1.0, -z_near,
+        0.0,              0.0, -1.0, -z_near * 2.0,
         0.0,              0.0, -1.0, 0.0,
     )
 }
@@ -50,7 +50,8 @@ impl Default for PerspectiveData {
 #[repr(C)]
 #[derive(Copy, Clone, Debug)]
 pub struct CameraMatrices {
-    proj_view: Mat4,
+    proj: Mat4,
+    view: Mat4,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -141,7 +142,6 @@ impl Camera {
             self.data.z_near,
         );
 
-        let proj_view = proj * view;
-        CameraMatrices { proj_view }
+        CameraMatrices { proj, view }
     }
 }
