@@ -149,15 +149,6 @@ impl RenderPass {
             layout: vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
         };
 
-        let dependencies = vec![vk::SubpassDependency::builder()
-            .src_subpass(vk::SUBPASS_EXTERNAL)
-            .src_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-            .dst_stage_mask(vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT)
-            .dst_access_mask(
-                vk::AccessFlags::COLOR_ATTACHMENT_READ | vk::AccessFlags::COLOR_ATTACHMENT_WRITE,
-            )
-            .build()];
-
         let subpass = if desc.depth_attachment.is_some() {
             vk::SubpassDescription::builder()
                 .pipeline_bind_point(vk::PipelineBindPoint::GRAPHICS)
@@ -173,8 +164,7 @@ impl RenderPass {
 
         let render_pass_create_info = vk::RenderPassCreateInfo::builder()
             .attachments(&renderpass_attachments)
-            .subpasses(std::slice::from_ref(&subpass))
-            .dependencies(&dependencies);
+            .subpasses(std::slice::from_ref(&subpass));
 
         let render_pass = unsafe { device.create_render_pass(&render_pass_create_info, None)? };
 

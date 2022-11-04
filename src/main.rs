@@ -117,7 +117,6 @@ fn main() {
                 RenderPassAttachmentDesc::new(Format::D32_SFloat)
                     .load_op(AttachmentLoadOp::Clear)
                     .store_op(AttachmentStoreOp::Store)
-                    .store_op(AttachmentStoreOp::Store)
                     .initial_layout(Layout::DepthAttachment)
                     .final_layout(Layout::DepthAttachment),
             ),
@@ -433,7 +432,7 @@ fn main() {
                         surface_rect,
                         &[
                             ClearValue::color([1.0, 0.0, 1.0, 1.0]),
-                            ClearValue::depth(1.0, 0),
+                            ClearValue::depth(0.0, 0),
                         ],
                     );
                     {

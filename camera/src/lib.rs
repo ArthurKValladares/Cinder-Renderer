@@ -7,14 +7,28 @@ pub static ROTATION_DELTA: f32 = 0.01;
 pub static MOVEMENT_DELTA: f32 = 0.001;
 static WORLD_UP: Vec3 = Vec3::new(0.0, 1.0, 0.0);
 
-#[rustfmt::skip]
 fn new_infinite_perspective_proj(aspect_ratio: f32, y_fov: f32, z_near: f32) -> Mat4 {
-    let f = 1.0 / (y_fov * 0.5).tan();
+    let f = 1.0 / (y_fov / 2.0).tan();
     Mat4::from_data(
-        f / aspect_ratio, 0.0, 0.0,  0.0,
-        0.0,              f,   0.0,  0.0,
-        0.0,              0.0, -1.0, -z_near * 2.0,
-        0.0,              0.0, -1.0, 0.0,
+        f / aspect_ratio,
+        0.,
+        0.,
+        0.,
+        //
+        0.,
+        f,
+        0.,
+        0.,
+        //
+        0.,
+        0.,
+        0.,
+        z_near,
+        //
+        0.,
+        0.,
+        1.0,
+        0.,
     )
 }
 
@@ -107,8 +121,8 @@ impl Camera {
         let flat_front = Vec3::new(self.front.x(), 0.0, self.front.z());
         let left = WORLD_UP.cross(&flat_front).normalized();
         match direction {
-            Direction::Front => self.pos += flat_front * self.movement_speed,
-            Direction::Back => self.pos -= flat_front * self.movement_speed,
+            Direction::Front => self.pos -= flat_front * self.movement_speed,
+            Direction::Back => self.pos += flat_front * self.movement_speed,
             Direction::Left => self.pos += left * self.movement_speed,
             Direction::Right => self.pos -= left * self.movement_speed,
             Direction::Up => self.pos += WORLD_UP * self.movement_speed,
@@ -118,8 +132,8 @@ impl Camera {
 
     pub fn rotate(&mut self, delta: (f64, f64)) {
         let (x, y) = delta;
-        self.yaw += x as f32 * self.rotation_speed;
-        self.pitch -= y as f32 * self.rotation_speed;
+        self.yaw -= x as f32 * self.rotation_speed;
+        self.pitch += y as f32 * self.rotation_speed;
         self.pitch = self.pitch.clamp(-89.0, 89.0);
 
         let yaw_r = self.yaw.to_radians();

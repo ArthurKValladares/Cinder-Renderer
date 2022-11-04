@@ -96,32 +96,21 @@ impl GraphicsPipeline {
             } else {
                 vk::CullModeFlags::NONE
             })
-            .front_face(vk::FrontFace::COUNTER_CLOCKWISE)
+            .front_face(vk::FrontFace::CLOCKWISE)
             .depth_bias_enable(false)
             .line_width(1.0);
-        let noop_stencil_state = vk::StencilOpState::builder()
-            .fail_op(vk::StencilOp::KEEP)
-            .pass_op(vk::StencilOp::KEEP)
-            .depth_fail_op(vk::StencilOp::KEEP)
-            .compare_op(vk::CompareOp::ALWAYS)
-            .build();
+
         let depth_state_info = if desc.depth_testing_enabled {
             vk::PipelineDepthStencilStateCreateInfo::builder()
                 .depth_test_enable(true)
                 .depth_write_enable(true)
-                .depth_compare_op(vk::CompareOp::LESS_OR_EQUAL)
-                .front(noop_stencil_state)
-                .back(noop_stencil_state)
-                .max_depth_bounds(1.0)
+                .depth_compare_op(vk::CompareOp::GREATER)
                 .build()
         } else {
             vk::PipelineDepthStencilStateCreateInfo::builder()
                 .depth_test_enable(false)
                 .depth_write_enable(false)
                 .depth_compare_op(vk::CompareOp::ALWAYS)
-                .front(noop_stencil_state)
-                .back(noop_stencil_state)
-                .max_depth_bounds(1.0)
                 .build()
         };
 
