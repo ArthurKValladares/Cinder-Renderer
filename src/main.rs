@@ -1,8 +1,6 @@
 mod ui;
 
-use camera::{
-    CameraMatrices, CameraType, Direction, PerspectiveData, MOVEMENT_DELTA, ROTATION_DELTA,
-};
+use camera::{CameraMatrices, Direction, PerspectiveData, MOVEMENT_DELTA, ROTATION_DELTA};
 use cgmath::{Deg, Matrix4, Point3, Vector3};
 use cinder::{
     cinder::{Cinder, Vertex},
@@ -179,7 +177,7 @@ fn main() {
         })
         .collect::<Vec<_>>();
 
-    let mut camera = camera::Camera::from_type(CameraType::Perspective(PerspectiveData::default()));
+    let mut camera = camera::Camera::from_data(PerspectiveData::default());
 
     // Create and upload uniform buffer
     let surface_size = cinder.surface_size();

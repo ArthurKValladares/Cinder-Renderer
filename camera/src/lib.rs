@@ -8,26 +8,6 @@ pub static MOVEMENT_DELTA: f32 = 0.001;
 static WORLD_UP: Vec3 = Vec3::new(0.0, 1.0, 0.0);
 
 #[rustfmt::skip]
-fn new_orthographic_proj(
-    left: f32,
-    right: f32,
-    bottom: f32,
-    top: f32,
-    near: f32,
-    far: f32,
-) -> Mat4 {
-    let w_inv = 1.0 / (right - left);
-    let h_inv = 1.0 / (bottom - top);
-    let d_inv = 1.0 / (far - near);
-    Mat4::from_data(
-        2.0 * w_inv, 0.0, 0.0, 0.0,
-        0.0, 2.0 * h_inv, 0.0, -(bottom + top) * h_inv,
-        0.0, 0.0, d_inv, 0.0,
-        -(left + right) * w_inv, -(top + bottom) * h_inv, d_inv * near, 1.0,
-    )
-}
-
-#[rustfmt::skip]
 fn new_infinite_perspective_proj(aspect_ratio: f32, y_fov: f32, z_near: f32) -> Mat4 {
     let f = 1.0 / (y_fov * 0.5).tan();
     Mat4::from_data(
@@ -53,99 +33,16 @@ fn look_to(eye: Vec3, front: Vec3, world_up: Vec3) -> Mat4 {
 }
 
 #[derive(Debug)]
-pub struct OrtographicData {
-    pub left: f32,
-    pub right: f32,
-    pub top: f32,
-    pub bottom: f32,
-    pub near: f32,
-    pub far: f32,
-}
-
-impl Default for OrtographicData {
-    fn default() -> Self {
-        Self {
-            left: 0.0,
-            right: 1.0,
-            top: 0.0,
-            bottom: 1.0,
-            near: 0.0,
-            far: 200.0,
-        }
-    }
-}
-#[derive(Debug)]
 pub struct PerspectiveData {
-    pub aspect_ratio: Option<f32>,
     pub y_fov: f32,
     pub z_near: f32,
-    pub z_far: Option<f32>,
 }
 
 impl Default for PerspectiveData {
     fn default() -> Self {
         Self {
-            aspect_ratio: None,
             y_fov: 20.0,
             z_near: 0.01,
-            z_far: None,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum CameraType {
-    Orthographic(OrtographicData),
-    Perspective(PerspectiveData),
-}
-
-impl CameraType {
-    pub fn ortographic(data: OrtographicData) -> Self {
-        Self::Orthographic(data)
-    }
-
-    pub fn perspective(data: PerspectiveData) -> Self {
-        Self::Perspective(data)
-    }
-
-    pub fn projection(&self, window_width: f32, window_height: f32) -> CameraProjection {
-        match self {
-            Self::Orthographic(data) => CameraProjection::new_orthographic(data),
-            Self::Perspective(data) => {
-                CameraProjection::new_perspective(data, window_width, window_height)
-            }
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum CameraProjection {
-    Orthographic(Mat4),
-    Perspective(Mat4),
-}
-
-impl CameraProjection {
-    pub fn new_orthographic(data: &OrtographicData) -> Self {
-        Self::Orthographic(new_orthographic_proj(
-            data.left,
-            data.right,
-            data.bottom,
-            data.top,
-            data.near,
-            data.far,
-        ))
-    }
-
-    pub fn new_perspective(data: &PerspectiveData, window_width: f32, window_height: f32) -> Self {
-        let aspect_ratio = data.aspect_ratio.unwrap_or(window_width / window_height);
-        let mat = new_infinite_perspective_proj(aspect_ratio, data.y_fov, data.z_near);
-        Self::Perspective(mat)
-    }
-
-    pub fn to_raw_matrix(self) -> Mat4 {
-        match self {
-            CameraProjection::Orthographic(mat) => mat,
-            CameraProjection::Perspective(mat) => mat,
         }
     }
 }
@@ -176,7 +73,7 @@ pub enum UpdateSpeed {
 pub struct Camera {
     pos: Vec3,
     front: Vec3,
-    ty: CameraType,
+    data: PerspectiveData,
     pub rotation_speed: f32,
     pub movement_speed: f32,
     // TODO: Stop using yaw and pitch later
@@ -185,11 +82,11 @@ pub struct Camera {
 }
 
 impl Camera {
-    pub fn from_type(ty: CameraType) -> Self {
+    pub fn from_data(data: PerspectiveData) -> Self {
         Self {
             pos: Vec3::new(2.0, 2.0, 2.0),
             front: Vec3::new(1.0, 0.0, 0.0),
-            ty,
+            data,
             rotation_speed: 0.1,
             movement_speed: 0.01,
             yaw: 0.0,
@@ -238,10 +135,11 @@ impl Camera {
         let front = self.front;
 
         let view = look_to(eye, front, WORLD_UP);
-        let proj = self
-            .ty
-            .projection(window_width, window_height)
-            .to_raw_matrix();
+        let proj = new_infinite_perspective_proj(
+            window_width / window_height,
+            self.data.y_fov,
+            self.data.z_near,
+        );
 
         let proj_view = proj * view;
         CameraMatrices { proj_view }

@@ -20,6 +20,5 @@ layout (location = 1) out vec2 o_uv;
 void main() {
     o_color = i_color;
     o_uv = i_uv;
-    vec4 pos = ubo.proj_view * vec4(i_pos, 1.0);
-    gl_Position = pos;
+    gl_Position = ubo.proj_view * vec4(i_pos, 1.0);
 }
