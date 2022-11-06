@@ -11,8 +11,8 @@ use cinder::{
         image::{Format, Image, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
         pipeline::{
-            push_constant::PushConstant, GraphicsPipeline, GraphicsPipelineDescription,
-            VertexAttributeDesc, VertexInputStateDesc,
+            push_constant::PushConstant, ColorBlendState, GraphicsPipeline,
+            GraphicsPipelineDescription, VertexAttributeDesc, VertexInputStateDesc,
         },
         render_pass::{
             AttachmentLoadOp, AttachmentStoreOp, ClearValue, Layout, RenderPass,
@@ -118,6 +118,7 @@ impl EguiIntegration {
                     },
                 ],
             },
+            blending: ColorBlendState::pma(),
             render_pass: &render_pass,
             desc_set_layouts: vec![bind_group_layout.layout],
             push_constants: vec![&push_constant],

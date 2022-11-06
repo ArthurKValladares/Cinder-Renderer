@@ -11,8 +11,8 @@ use cinder::{
         image::{Format, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
         pipeline::{
-            push_constant::PushConstant, GraphicsPipelineDescription, VertexAttributeDesc,
-            VertexInputStateDesc,
+            push_constant::PushConstant, ColorBlendState, GraphicsPipelineDescription,
+            VertexAttributeDesc, VertexInputStateDesc,
         },
         render_pass::{
             self, AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderPassAttachmentDesc,
@@ -290,6 +290,7 @@ fn main() {
                     },
                 ],
             },
+            blending: ColorBlendState::add(),
             render_pass: &render_pass,
             desc_set_layouts: vec![bind_group_layout.layout],
             push_constants: vec![&model_push_constant],

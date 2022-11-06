@@ -8,6 +8,50 @@ use anyhow::Result;
 use ash::vk;
 use std::ffi::CStr;
 
+#[repr(C)]
+#[derive(Debug, Default)]
+pub struct ColorBlendState {
+    state: vk::PipelineColorBlendAttachmentState,
+}
+
+impl ColorBlendState {
+    pub fn add() -> Self {
+        Self {
+            state: vk::PipelineColorBlendAttachmentState::builder()
+                .blend_enable(false)
+                .src_color_blend_factor(vk::BlendFactor::SRC_COLOR)
+                .dst_color_blend_factor(vk::BlendFactor::ONE_MINUS_DST_COLOR)
+                .color_blend_op(vk::BlendOp::ADD)
+                .src_alpha_blend_factor(vk::BlendFactor::ZERO)
+                .dst_alpha_blend_factor(vk::BlendFactor::ZERO)
+                .alpha_blend_op(vk::BlendOp::ADD)
+                .color_write_mask(vk::ColorComponentFlags::RGBA)
+                .build(),
+        }
+    }
+
+    pub fn pma() -> Self {
+        Self {
+            state: vk::PipelineColorBlendAttachmentState::builder()
+                .color_write_mask(
+                    vk::ColorComponentFlags::R
+                        | vk::ColorComponentFlags::G
+                        | vk::ColorComponentFlags::B
+                        | vk::ColorComponentFlags::A,
+                )
+                .blend_enable(true)
+                .src_color_blend_factor(vk::BlendFactor::ONE)
+                .dst_color_blend_factor(vk::BlendFactor::ONE_MINUS_SRC_ALPHA)
+                .color_blend_op(vk::BlendOp::ADD)
+                .src_alpha_blend_factor(vk::BlendFactor::ONE)
+                .dst_alpha_blend_factor(vk::BlendFactor::ZERO)
+                .alpha_blend_op(vk::BlendOp::ADD)
+                .color_write_mask(vk::ColorComponentFlags::RGBA)
+                .build(),
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct VertexAttributeDesc {
     pub format: Format,
@@ -25,6 +69,7 @@ pub struct GraphicsPipelineDescription<'a> {
     pub vertex_shader: Shader,
     pub fragment_shader: Shader,
     pub vertex_state: VertexInputStateDesc,
+    pub blending: ColorBlendState,
     pub render_pass: &'a RenderPass,
     pub desc_set_layouts: Vec<vk::DescriptorSetLayout>,
     pub push_constants: Vec<&'a PushConstant>,
@@ -114,22 +159,7 @@ impl GraphicsPipeline {
                 .build()
         };
 
-        let color_blend_attachment_states = [vk::PipelineColorBlendAttachmentState::builder()
-            .color_write_mask(
-                vk::ColorComponentFlags::R
-                    | vk::ColorComponentFlags::G
-                    | vk::ColorComponentFlags::B
-                    | vk::ColorComponentFlags::A,
-            )
-            .blend_enable(true)
-            .src_color_blend_factor(vk::BlendFactor::ONE)
-            .dst_color_blend_factor(vk::BlendFactor::ONE_MINUS_SRC_ALPHA)
-            .color_blend_op(vk::BlendOp::ADD)
-            .src_alpha_blend_factor(vk::BlendFactor::ONE)
-            .dst_alpha_blend_factor(vk::BlendFactor::ZERO)
-            .alpha_blend_op(vk::BlendOp::ADD)
-            .color_write_mask(vk::ColorComponentFlags::RGBA)
-            .build()];
+        let color_blend_attachment_states = [desc.blending.state];
         let color_blend_state = vk::PipelineColorBlendStateCreateInfo::builder()
             .logic_op(vk::LogicOp::CLEAR)
             .attachments(&color_blend_attachment_states);
