@@ -328,7 +328,6 @@ fn main() {
                 egui.on_event(&window_event);
                 match window_event {
                     WindowEvent::Resized(size) => {
-                        /*
                         if is_init {
                             return;
                         }
@@ -343,24 +342,15 @@ fn main() {
                                 color_attachment: RenderPassAttachmentDesc::new(
                                     cinder.surface_format(),
                                 )
-                                .with_color_depth_ops(AttachmentOps {
-                                    load: AttachmentLoadOp::Clear,
-                                    store: AttachmentStoreOp::Store,
-                                })
-                                .with_layout_transition(LayoutTransition {
-                                    initial_layout: Layout::Undefined,
-                                    final_layout: Layout::ColorAttachment,
-                                }),
+                                .load_op(AttachmentLoadOp::Clear)
+                                .store_op(AttachmentStoreOp::Store)
+                                .final_layout(Layout::ColorAttachment),
                                 depth_attachment: Some(
                                     RenderPassAttachmentDesc::new(Format::D32_SFloat)
-                                        .with_color_depth_ops(AttachmentOps {
-                                            load: AttachmentLoadOp::Clear,
-                                            store: AttachmentStoreOp::Store,
-                                        })
-                                        .with_layout_transition(LayoutTransition {
-                                            initial_layout: Layout::DepthAttachment,
-                                            final_layout: Layout::DepthAttachment,
-                                        }),
+                                        .load_op(AttachmentLoadOp::Clear)
+                                        .store_op(AttachmentStoreOp::Store)
+                                        .initial_layout(Layout::DepthAttachment)
+                                        .final_layout(Layout::DepthAttachment),
                                 ),
                             })
                             .expect("Could not create render pass");
@@ -374,12 +364,15 @@ fn main() {
                             upload_context.transition_depth_image(&cinder);
                         }
                         upload_context
-                            .end(&cinder)
+                            .end(
+                                &cinder,
+                                cinder.setup_fence(),
+                                cinder.present_queue(),
+                                &[],
+                                &[],
+                                &[],
+                            )
                             .expect("could not end upload context");
-                        cinder
-                            .submit_upload_work(&upload_context)
-                            .expect("could not submit upload work");
-                        */
                     }
                     WindowEvent::KeyboardInput { input, .. } => {
                         keyboard_state.update(input);
