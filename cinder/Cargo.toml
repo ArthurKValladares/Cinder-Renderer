@@ -6,6 +6,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
+smallvec = "1.10.0"
 ash = {version = "0.37"}
 ash-window = {version = "0.12.0"}
 winit = "0.27"

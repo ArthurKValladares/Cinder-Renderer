@@ -33,6 +33,7 @@ impl Surface {
         &self,
         p_device: vk::PhysicalDevice,
         backbuffer_resolution: impl Into<Size2D<u32>>,
+        vsync: bool,
     ) -> Result<SurfaceData> {
         let surface_formats = unsafe {
             self.surface_loader
@@ -79,7 +80,7 @@ impl Surface {
                 .get_physical_device_surface_present_modes(p_device, self.surface)
         }?;
         // TODO: vsyc or not vsync option
-        let present_mode_preference = if false {
+        let present_mode_preference = if !vsync {
             vec![vk::PresentModeKHR::FIFO_RELAXED, vk::PresentModeKHR::FIFO]
         } else {
             vec![vk::PresentModeKHR::MAILBOX, vk::PresentModeKHR::IMMEDIATE]

@@ -58,7 +58,6 @@ impl RenderContext {
         render_area: Rect2D<i32, u32>,
         clear_values: &[ClearValue],
     ) {
-        // TODO: impl From<>?
         let render_area = vk::Rect2D {
             offset: vk::Offset2D {
                 x: render_area.offset().x(),
@@ -190,7 +189,6 @@ impl RenderContext {
         }
     }
 
-    // TODO: This should maybe be a user-land abstraction
     pub fn draw(&self, cinder: &Cinder, index_count: u32) {
         Self::draw_offset(&self, cinder, index_count, 0, 0)
     }

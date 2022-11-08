@@ -6,6 +6,7 @@ use super::{image::Format, render_pass::RenderPass, shader::Shader};
 use crate::surface::SurfaceData;
 use anyhow::Result;
 use ash::vk;
+use smallvec::SmallVec;
 use std::ffi::CStr;
 
 #[repr(C)]
@@ -62,7 +63,7 @@ pub struct VertexAttributeDesc {
 pub struct VertexInputStateDesc {
     pub binding: u32,
     pub stride: u32,
-    pub attributes: Vec<VertexAttributeDesc>, // TODO: ArrayVec
+    pub attributes: SmallVec<[VertexAttributeDesc; 6]>,
 }
 
 pub struct GraphicsPipelineDescription<'a> {
@@ -89,6 +90,7 @@ pub struct GraphicsPipeline {
 impl GraphicsPipeline {
     pub(crate) fn create(
         device: &ash::Device,
+        pipeline_cache: vk::PipelineCache,
         surface_data: &SurfaceData,
         desc: GraphicsPipelineDescription,
     ) -> Result<Self> {
@@ -200,11 +202,7 @@ impl GraphicsPipeline {
 
         // TODO: investigate the error return type here
         let graphics_pipelines = unsafe {
-            device.create_graphics_pipelines(
-                vk::PipelineCache::null(), // TODO: Hook up cache
-                &[graphic_pipeline_infos],
-                None,
-            )
+            device.create_graphics_pipelines(pipeline_cache, &[graphic_pipeline_infos], None)
         }
         .map_err(|(_, err)| err)?;
         let pipeline = graphics_pipelines[0];

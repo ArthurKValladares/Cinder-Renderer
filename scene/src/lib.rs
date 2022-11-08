@@ -11,6 +11,8 @@ use std::{
 };
 use thiserror::Error;
 
+// TODO: figure out N, use ScratchTracker.
+const N: usize = 256;
 const COMPILED_DIR: &str = "compiled_scenes";
 
 #[derive(Debug, Error)]
@@ -22,8 +24,6 @@ pub enum CompiledSceneError {
 }
 
 fn archive_to_file(bytes: AlignedVec, path: impl AsRef<Path>) -> Result<()> {
-    // TODO: figure out N, use ScratchTracker.
-    const N: usize = 256;
     let path = path.as_ref();
     let mut file = File::create(path).expect(&format!("Could not create file: {:?}", path));
     file.write_all(&bytes)?;
@@ -106,8 +106,6 @@ impl ObjScene {
         let meshes = obj_models
             .into_iter()
             .map(|model| {
-                // TODO: The inner loop here could be more efficient, but I will instead serialize this to a
-                // zero-copy custom file format after the first load
                 let mesh = &model.mesh;
 
                 let num_positions = mesh.positions.len() / 3;
@@ -174,7 +172,6 @@ impl ObjScene {
         })
     }
 
-    // TODO: this can be a much more general pattern
     pub fn from_archive_file(path: impl AsRef<Path>) -> Result<Self> {
         let file = File::open(path)?;
         let mmap = unsafe { MmapOptions::new().map(&file)? };

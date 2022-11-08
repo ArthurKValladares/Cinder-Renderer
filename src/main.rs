@@ -1,5 +1,6 @@
 mod ui;
 
+use crate::ui::Ui;
 use camera::{CameraMatrices, Direction, PerspectiveData, MOVEMENT_DELTA, ROTATION_DELTA};
 use cgmath::{Deg, Matrix4, Point3, Vector3};
 use cinder::{
@@ -26,6 +27,7 @@ use egui_integration::{egui, EguiIntegration};
 use input::keyboard::KeyboardState;
 use math::size::Size2D;
 use render_pass::Layout;
+use smallvec::smallvec;
 use std::{
     path::{Path, PathBuf},
     time::Instant,
@@ -38,8 +40,6 @@ use winit::{
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
-
-use crate::ui::Ui;
 
 struct MeshDraw {
     index_buffer: Buffer,
@@ -86,6 +86,7 @@ fn main() {
             width: WINDOW_WIDTH,
             height: WINDOW_HEIGHT,
         },
+        vsync: true,
     };
     let mut cinder = Cinder::new(&window, init_data).expect("could not create cinder device");
     let render_context = cinder
@@ -275,7 +276,7 @@ fn main() {
             vertex_state: VertexInputStateDesc {
                 binding: 0,
                 stride: std::mem::size_of::<Vertex>() as u32,
-                attributes: vec![
+                attributes: smallvec![
                     VertexAttributeDesc {
                         format: Format::R32_G32_B32_SFloat,
                         offset: offset_of!(Vertex, pos) as u32,
@@ -383,7 +384,6 @@ fn main() {
                                 }
                                 VirtualKeyCode::C => {
                                     if input.state == ElementState::Pressed {
-                                        // TODO: Visual representation of this
                                         lock_movement = !lock_movement;
                                     }
                                 }
@@ -579,22 +579,23 @@ fn main() {
             frame_cpu_average = frame_cpu_average * 0.95 + frame_dt * 0.05;
         }
 
-        // TODO: Should not be a crash on fail
         let timestamp_results = cinder
             .device()
             .get_query_pool_results_u64(&cinder.profiling.timestamp_query_pool, 0, 2)
-            .expect("Could not get query pool results");
-        let gpu_begin = timestamp_results[0] as f32
-            * cinder.device().properties().limits.timestamp_period
-            * 1e-6;
-        let gpu_end = timestamp_results[1] as f32
-            * cinder.device().properties().limits.timestamp_period
-            * 1e-6;
-        let gpu_dt = gpu_end - gpu_begin;
-        if frame_gpu_average == f32::MAX {
-            frame_gpu_average = gpu_dt;
-        } else {
-            frame_gpu_average = frame_gpu_average * 0.95 + gpu_dt * 0.05;
+            .unwrap_or_else(|_| vec![]);
+        if !timestamp_results.is_empty() {
+            let gpu_begin = timestamp_results[0] as f32
+                * cinder.device().properties().limits.timestamp_period
+                * 1e-6;
+            let gpu_end = timestamp_results[1] as f32
+                * cinder.device().properties().limits.timestamp_period
+                * 1e-6;
+            let gpu_dt = gpu_end - gpu_begin;
+            if frame_gpu_average == f32::MAX {
+                frame_gpu_average = gpu_dt;
+            } else {
+                frame_gpu_average = frame_gpu_average * 0.95 + gpu_dt * 0.05;
+            }
         }
 
         window.request_redraw();

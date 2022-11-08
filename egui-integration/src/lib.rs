@@ -29,6 +29,7 @@ use egui::{
     ClippedPrimitive, ImageData, Mesh, RawInput, Rect, TextureId, TexturesDelta,
 };
 use math::{point::Point2D, rect::Rect2D, size::Size2D, vec::Vec2};
+use smallvec::smallvec;
 use std::{collections::HashMap, path::Path};
 use util::{as_u8_slice, size_of_slice};
 use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Window};
@@ -103,7 +104,7 @@ impl EguiIntegration {
                 binding: 0,
                 stride: 4 * std::mem::size_of::<f32>() as u32
                     + 4 * std::mem::size_of::<u8>() as u32,
-                attributes: vec![
+                attributes: smallvec![
                     VertexAttributeDesc {
                         format: Format::R32_G32_SFloat,
                         offset: 0,

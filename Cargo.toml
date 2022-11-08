@@ -18,6 +18,7 @@ math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
 cgmath = "0.18.0"
 tracing = "0.1"
 tracing-subscriber = "0.3"
+smallvec = "1"
 
 [build-dependencies]
 home = "0.5.3"

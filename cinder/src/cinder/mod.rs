@@ -34,11 +34,13 @@ pub struct Vertex {
 }
 
 pub struct Cinder {
+    init_data: InitData,
     instance: Instance,
     device: Device,
     surface: Surface,
     swapchain: Swapchain,
     surface_data: SurfaceData,
+    pipeline_cache: vk::PipelineCache,
 
     pub depth_image: Image,
     command_pool: vk::CommandPool,
@@ -67,9 +69,18 @@ impl Cinder {
 
         let device = Device::new(&instance, &surface)?;
 
-        let surface_data = surface.get_data(device.p_device(), init_data.backbuffer_resolution)?;
+        let surface_data = surface.get_data(
+            device.p_device(),
+            init_data.backbuffer_resolution,
+            init_data.vsync,
+        )?;
 
         let swapchain = Swapchain::new(&instance, &device, &surface, &surface_data)?;
+
+        let pipeline_cache = {
+            let ci = vk::PipelineCacheCreateInfo::builder().build();
+            unsafe { device.create_pipeline_cache(&ci, None)? }
+        };
 
         let depth_image = Image::create(
             &device,
@@ -109,11 +120,13 @@ impl Cinder {
         let profiling = Profiling::new(&device)?;
 
         Ok(Self {
+            init_data,
             instance,
             device,
             surface,
             swapchain,
             surface_data,
+            pipeline_cache,
             depth_image,
             present_complete_semaphore,
             rendering_complete_semaphore,
@@ -203,7 +216,7 @@ impl Cinder {
         &self,
         desc: GraphicsPipelineDescription,
     ) -> Result<GraphicsPipeline> {
-        GraphicsPipeline::create(&self.device, &self.surface_data, desc)
+        GraphicsPipeline::create(&self.device, self.pipeline_cache, &self.surface_data, desc)
     }
 
     pub fn create_render_context(&self, _desc: RenderContextDescription) -> Result<RenderContext> {
@@ -282,9 +295,11 @@ impl Cinder {
         unsafe {
             self.device.device_wait_idle()?;
 
-            self.surface_data = self
-                .surface
-                .get_data(self.device.p_device(), backbuffer_resolution)?;
+            self.surface_data = self.surface.get_data(
+                self.device.p_device(),
+                backbuffer_resolution,
+                self.init_data.vsync,
+            )?;
             self.swapchain
                 .resize(&self.device, &self.surface, &self.surface_data)?;
             self.depth_image.clean(&self.device);

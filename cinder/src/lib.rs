@@ -18,6 +18,7 @@ pub struct Resolution {
 
 pub struct InitData {
     pub backbuffer_resolution: Resolution,
+    pub vsync: bool,
 }
 
 impl From<Resolution> for Size2D<u32> {

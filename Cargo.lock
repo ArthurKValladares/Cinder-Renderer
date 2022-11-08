@@ -16,6 +16,7 @@ dependencies = [
  "math",
  "rust-shader-tools",
  "scene",
+ "smallvec",
  "tracing",
  "tracing-subscriber",
  "util",
@@ -288,6 +289,7 @@ dependencies = [
  "math",
  "raw-window-handle 0.5.0",
  "rkyv",
+ "smallvec",
  "thiserror",
  "tracing",
  "util",
@@ -592,6 +594,7 @@ dependencies = [
  "egui",
  "egui-winit",
  "math",
+ "smallvec",
  "util",
  "winit",
 ]
