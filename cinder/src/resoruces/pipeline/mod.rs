@@ -200,7 +200,6 @@ impl GraphicsPipeline {
             .render_pass(desc.render_pass.render_pass)
             .build();
 
-        // TODO: investigate the error return type here
         let graphics_pipelines = unsafe {
             device.create_graphics_pipelines(pipeline_cache, &[graphic_pipeline_infos], None)
         }

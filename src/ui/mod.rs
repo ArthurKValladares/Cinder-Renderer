@@ -59,7 +59,6 @@ impl Ui {
         if let Some(selected_tab) = self.selected_tab {
             match selected_tab {
                 Tab::App => {
-                    // TODO: window type configurable
                     egui::Window::new(Tab::App.name())
                         .resizable(true)
                         .show(context, |ui| {

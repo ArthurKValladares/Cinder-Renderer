@@ -10,7 +10,6 @@ use std::{
     os::raw::c_char,
 };
 
-// TODO: This is rough for now, will be configurable later
 fn layer_names() -> Vec<CString> {
     let mut layers = Vec::new();
     layers.push(CString::new("VK_LAYER_KHRONOS_validation").unwrap());
@@ -40,14 +39,12 @@ impl Instance {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
         let entry = unsafe { ash::Entry::load()? };
 
-        // TODO: Configurable layers
         let layers = layer_names();
         let layers = layers
             .iter()
             .map(|raw_name| raw_name.as_ptr())
             .collect::<Vec<*const c_char>>();
 
-        // TODO: Configurable
         let extensions = extensions();
         let extensions = {
             let window_extensions =
@@ -60,7 +57,6 @@ impl Instance {
             extensions
         };
 
-        // TODO: Configurable
         let app_info = vk::ApplicationInfo::builder().api_version(vk::make_api_version(0, 1, 3, 0));
         let create_flags = if cfg!(any(target_os = "macos", target_os = "ios")) {
             vk::InstanceCreateFlags::ENUMERATE_PORTABILITY_KHR
@@ -76,7 +72,7 @@ impl Instance {
         let instance = unsafe { entry.create_instance(&instance_ci, None)? };
 
         let debug_utils = ash::extensions::ext::DebugUtils::new(&entry, &instance);
-        // TODO: Configurable
+
         let debug_utils_messenger_ci = vk::DebugUtilsMessengerCreateInfoEXT::builder()
             .message_severity(
                 vk::DebugUtilsMessageSeverityFlagsEXT::ERROR

@@ -122,7 +122,6 @@ fn create_render_pass_objects(
     depth_image: &Image,
     desc: &RenderPassDescription,
 ) -> Result<(vk::RenderPass, Vec<vk::Framebuffer>)> {
-    // TODO: image transitions should be determined automatically.
     let renderpass_attachments = if let Some(depth_attachment) = desc.depth_attachment {
         vec![desc.color_attachment.compile(), depth_attachment.compile()]
     } else {
@@ -224,7 +223,6 @@ impl RenderPass {
         Ok(())
     }
 
-    // TODO: All cleamn functions should take ownership
     pub(crate) fn clean(&mut self, device: &ash::Device) {
         unsafe {
             for framebuffer in self.framebuffers.drain(..) {
