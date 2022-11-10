@@ -1,6 +1,6 @@
 use super::ContextShared;
 use crate::{
-    cinder::{self, Cinder},
+    cinder::Cinder,
     device::Device,
     profiling::QueryPool,
     resoruces::{

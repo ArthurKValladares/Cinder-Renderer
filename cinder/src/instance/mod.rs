@@ -2,7 +2,9 @@ mod debug;
 
 use self::debug::vulkan_debug_callback;
 use anyhow::Result;
-use ash::vk::{self, KhrGetPhysicalDeviceProperties2Fn, KhrPortabilityEnumerationFn};
+use ash::vk;
+#[cfg(any(target_os = "macos", target_os = "ios"))]
+use ash::vk::{KhrGetPhysicalDeviceProperties2Fn, KhrPortabilityEnumerationFn};
 use raw_window_handle::HasRawDisplayHandle;
 use std::{
     ffi::{CStr, CString},
@@ -31,8 +33,8 @@ fn extensions() -> Vec<&'static CStr> {
 pub struct Instance {
     entry: ash::Entry,
     instance: ash::Instance,
-    debug_utils: ash::extensions::ext::DebugUtils,
-    debug_utils_messenger: vk::DebugUtilsMessengerEXT,
+    _debug_utils: ash::extensions::ext::DebugUtils,
+    _debug_utils_messenger: vk::DebugUtilsMessengerEXT,
 }
 
 impl Instance {
@@ -89,8 +91,8 @@ impl Instance {
         Ok(Self {
             entry,
             instance,
-            debug_utils,
-            debug_utils_messenger,
+            _debug_utils: debug_utils,
+            _debug_utils_messenger: debug_utils_messenger,
         })
     }
 

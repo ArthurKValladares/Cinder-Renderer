@@ -2,7 +2,7 @@ mod ui;
 
 use crate::ui::Ui;
 use camera::{CameraMatrices, Direction, PerspectiveData, MOVEMENT_DELTA, ROTATION_DELTA};
-use cgmath::{Deg, Matrix4, Point3, Vector3};
+use cgmath::{Deg, Matrix4, Vector3};
 use cinder::{
     cinder::{Cinder, Vertex},
     context::{render_context::RenderContextDescription, upload_context::UploadContextDescription},
@@ -36,7 +36,7 @@ use tracing::Level;
 use util::*;
 use winit::{
     dpi::PhysicalSize,
-    event::{ElementState, Event, KeyboardInput, StartCause, VirtualKeyCode, WindowEvent},
+    event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{ControlFlow, EventLoop},
     window::WindowBuilder,
 };
@@ -126,7 +126,7 @@ fn main() {
 
     // Load model
     let scene_load_start = Instant::now();
-    let (mut scene, image_buffers) = scene::ObjScene::load_or_achive(
+    let (scene, image_buffers) = scene::ObjScene::load_or_achive(
         PathBuf::from("assets").join("models").join("sponza"),
         "sponza.obj",
     )
@@ -181,8 +181,6 @@ fn main() {
 
     // Create and upload uniform buffer
     let surface_size = cinder.surface_size();
-    let mut camera_matrices =
-        camera.get_matrices(surface_size.width() as f32, surface_size.height() as f32);
 
     let uniform_buffer = cinder
         .create_buffer(BufferDescription {
@@ -194,7 +192,10 @@ fn main() {
         })
         .expect("Could not create uniform buffer");
     uniform_buffer
-        .mem_copy(std::slice::from_ref(&camera_matrices))
+        .mem_copy(std::slice::from_ref(&camera.get_matrices(
+            surface_size.width() as f32,
+            surface_size.height() as f32,
+        )))
         .expect("Could not write to uniform buffer");
 
     upload_context
@@ -309,8 +310,6 @@ fn main() {
     let mut egui = EguiIntegration::new(&event_loop, &mut cinder, cinder_ui.visuals())
         .expect("Could not create event loop");
 
-    // TODO: need this `is_init` hack until winit fiexes their long-standing resize on startup bug :(
-    let mut is_init = false;
     let mut lock_movement = true;
     let mut keyboard_state = KeyboardState::default();
     let init_time = init_start.elapsed().as_secs_f32();
@@ -329,10 +328,6 @@ fn main() {
                 egui.on_event(&window_event);
                 match window_event {
                     WindowEvent::Resized(size) => {
-                        if is_init {
-                            return;
-                        }
-
                         cinder
                             .resize(Size2D::new(size.width, size.height))
                             .expect("Could not resize device");
@@ -485,7 +480,8 @@ fn main() {
                                 });
                             })
                         },
-                    );
+                    )
+                    .expect("Could not run egui");
 
                     render_context.write_timestamp(
                         cinder.device(),
@@ -504,7 +500,7 @@ fn main() {
                     )
                     .expect("Could not end graphics context");
                 cinder
-                    .present(&render_context, present_index)
+                    .present(present_index)
                     .expect("Could not submit graphics work");
             }
             Event::DeviceEvent { event, .. } => match event {
@@ -516,13 +512,6 @@ fn main() {
                 }
                 _ => {}
             },
-            Event::NewEvents(cause) => {
-                if cause == StartCause::Init {
-                    is_init = true;
-                } else {
-                    is_init = false;
-                }
-            }
             _ => {}
         }
 
@@ -548,11 +537,12 @@ fn main() {
             }
 
             let surface_size = cinder.surface_size();
-            camera_matrices =
-                camera.get_matrices(surface_size.width() as f32, surface_size.height() as f32);
 
             uniform_buffer
-                .mem_copy(std::slice::from_ref(&camera_matrices))
+                .mem_copy(std::slice::from_ref(&camera.get_matrices(
+                    surface_size.width() as f32,
+                    surface_size.height() as f32,
+                )))
                 .expect("Could not write to uniform buffer");
         }
 

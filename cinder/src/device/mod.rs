@@ -1,4 +1,4 @@
-use std::{ops::Deref, slice};
+use std::ops::Deref;
 
 use crate::{
     instance::Instance, profiling::QueryPool, resoruces::image::ImageCreateError, surface::Surface,
@@ -139,7 +139,7 @@ impl Device {
                 count,
                 &mut ret,
                 vk::QueryResultFlags::empty(),
-            );
+            )?;
         }
         Ok(ret)
     }
@@ -159,7 +159,7 @@ impl Device {
                 count,
                 &mut results,
                 vk::QueryResultFlags::TYPE_64,
-            );
+            )?;
         }
         Ok(results)
     }

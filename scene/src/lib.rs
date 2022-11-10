@@ -2,8 +2,7 @@ use anyhow::Result;
 use cinder::cinder::Vertex;
 use memmap::MmapOptions;
 use meshopt::VertexDataAdapter;
-use normpath::PathExt;
-use rkyv::{with::Skip, AlignedVec, Archive, Deserialize, Fallible, Serialize};
+use rkyv::{with::Skip, AlignedVec, Archive, Deserialize, Serialize};
 use std::{
     fs::File,
     io::Write,
@@ -149,7 +148,7 @@ impl ObjScene {
                 let mut indices =
                     meshopt::remap_index_buffer(Some(&mesh.indices), total_vertices, &vertex_remap);
 
-                let mut vertices =
+                let vertices =
                     meshopt::remap_vertex_buffer(&src_vertices, src_vertices.len(), &vertex_remap);
 
                 meshopt::optimize_vertex_cache_in_place(&mut indices, vertices.len());

@@ -15,8 +15,8 @@ use cinder::{
             GraphicsPipelineDescription, VertexAttributeDesc, VertexInputStateDesc,
         },
         render_pass::{
-            AttachmentLoadOp, AttachmentStoreOp, ClearValue, Layout, RenderPass,
-            RenderPassAttachmentDesc, RenderPassDescription,
+            AttachmentLoadOp, AttachmentStoreOp, Layout, RenderPass, RenderPassAttachmentDesc,
+            RenderPassDescription,
         },
         sampler::Sampler,
         shader::{ShaderDescription, ShaderStage},
@@ -26,7 +26,7 @@ use cinder::{
 pub use egui;
 use egui::{
     epaint::{ImageDelta, Primitive},
-    ClippedPrimitive, ImageData, Mesh, RawInput, Rect, TextureId, TexturesDelta,
+    ClippedPrimitive, ImageData, Mesh, TextureId, TexturesDelta,
 };
 use math::{point::Point2D, rect::Rect2D, size::Size2D, vec::Vec2};
 use smallvec::smallvec;
@@ -48,7 +48,7 @@ pub struct EguiIntegration {
     egui_winit: egui_winit::State,
     render_pass: RenderPass,
     push_constant: PushConstant,
-    bind_group_layout: BindGroupLayout,
+    _bind_group_layout: BindGroupLayout,
     bind_group_set: BindGroupSet,
     pipeline: GraphicsPipeline,
     sampler: Sampler,
@@ -161,7 +161,7 @@ impl EguiIntegration {
             render_pass,
             sampler,
             push_constant,
-            bind_group_layout,
+            _bind_group_layout: bind_group_layout,
             bind_group_set,
             pipeline,
             image_staging_buffer: None,
@@ -185,12 +185,12 @@ impl EguiIntegration {
         f: impl FnOnce(&egui::Context),
     ) -> Result<()> {
         let raw_input = self.egui_winit.take_egui_input(window);
-        // TODO: Hook up needs_repaint
+        // TODO: Hook up repaint_after
         let egui::FullOutput {
             platform_output,
             textures_delta,
             shapes,
-            repaint_after,
+            repaint_after: _,
         } = self.egui_context.run(raw_input, f);
 
         let clipped_primitives = self.egui_context.tessellate(shapes);
@@ -303,15 +303,13 @@ impl EguiIntegration {
                         self.paint_mesh(
                             cinder,
                             render_context,
-                            window,
                             present_index,
-                            clip_rect,
                             mesh,
                             &mut vertex_buffer_ptr,
                             &mut vertex_base,
                             &mut index_buffer_ptr,
                             &mut index_base,
-                        );
+                        )?;
                     }
                     Primitive::Callback(_) => {
                         todo!("Custom rendering callbacks are not implemented");
@@ -328,9 +326,7 @@ impl EguiIntegration {
         &mut self,
         cinder: &Cinder,
         render_context: &RenderContext,
-        window: &Window,
         present_index: u32,
-        clip_rect: &Rect,
         mesh: &Mesh,
         vertex_buffer_ptr: &mut MemoryMappablePointer,
         vertex_base: &mut i32,
@@ -393,7 +389,9 @@ impl EguiIntegration {
         Ok(())
     }
 
-    pub fn clean(&mut self, cinder: &Cinder) {}
+    pub fn clean(&mut self, _cinder: &Cinder) {
+        // TODO
+    }
 
     fn set_image(
         &mut self,

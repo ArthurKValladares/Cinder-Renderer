@@ -5,7 +5,7 @@ use crate::{
     },
     device::Device,
     instance::Instance,
-    profiling::{self, Profiling},
+    profiling::Profiling,
     resoruces::{
         bind_group::{BindGroupAllocator, BindGroupLayoutCache},
         buffer::{Buffer, BufferDescription},
@@ -35,7 +35,7 @@ pub struct Vertex {
 
 pub struct Cinder {
     init_data: InitData,
-    instance: Instance,
+    _instance: Instance,
     device: Device,
     surface: Surface,
     swapchain: Swapchain,
@@ -121,7 +121,7 @@ impl Cinder {
 
         Ok(Self {
             init_data,
-            instance,
+            _instance: instance,
             device,
             surface,
             swapchain,
@@ -226,7 +226,7 @@ impl Cinder {
         &self,
         desc: GraphicsPipelineDescription,
     ) -> Result<GraphicsPipeline> {
-        GraphicsPipeline::create(&self.device, self.pipeline_cache, &self.surface_data, desc)
+        GraphicsPipeline::create(&self.device, self.pipeline_cache, desc)
     }
 
     pub fn create_render_context(&self, _desc: RenderContextDescription) -> Result<RenderContext> {
@@ -259,7 +259,7 @@ impl Cinder {
         Ok(UploadContext::from_command_buffer(command_buffer))
     }
 
-    pub fn present(&self, context: &RenderContext, present_index: u32) -> Result<bool> {
+    pub fn present(&self, present_index: u32) -> Result<bool> {
         let present_info = vk::PresentInfoKHR::builder()
             .wait_semaphores(std::slice::from_ref(&self.rendering_complete_semaphore))
             .swapchains(std::slice::from_ref(&self.swapchain.swapchain))

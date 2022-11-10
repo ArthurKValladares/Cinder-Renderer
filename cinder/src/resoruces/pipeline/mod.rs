@@ -3,7 +3,6 @@ pub mod push_constant;
 use self::push_constant::PushConstant;
 
 use super::{image::Format, render_pass::RenderPass, shader::Shader};
-use crate::surface::SurfaceData;
 use anyhow::Result;
 use ash::vk;
 use smallvec::SmallVec;
@@ -91,7 +90,6 @@ impl GraphicsPipeline {
     pub(crate) fn create(
         device: &ash::Device,
         pipeline_cache: vk::PipelineCache,
-        surface_data: &SurfaceData,
         desc: GraphicsPipelineDescription,
     ) -> Result<Self> {
         //

@@ -3,27 +3,6 @@
 version = 3
 
 [[package]]
-name = "Cinder-Renderer"
-version = "0.1.0"
-dependencies = [
- "camera",
- "cgmath",
- "cinder",
- "egui-integration",
- "home",
- "image",
- "input",
- "math",
- "rust-shader-tools",
- "scene",
- "smallvec",
- "tracing",
- "tracing-subscriber",
- "util",
- "winit",
-]
-
-[[package]]
 name = "ab_glyph"
 version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -292,6 +271,27 @@ dependencies = [
  "smallvec",
  "thiserror",
  "tracing",
+ "util",
+ "winit",
+]
+
+[[package]]
+name = "cinder_renderer"
+version = "0.1.0"
+dependencies = [
+ "camera",
+ "cgmath",
+ "cinder",
+ "egui-integration",
+ "home",
+ "image",
+ "input",
+ "math",
+ "rust-shader-tools",
+ "scene",
+ "smallvec",
+ "tracing",
+ "tracing-subscriber",
  "util",
  "winit",
 ]

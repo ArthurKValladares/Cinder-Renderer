@@ -1,7 +1,4 @@
-use math::{
-    mat::Mat4,
-    vec::{Vec2, Vec3},
-};
+use math::{mat::Mat4, vec::Vec3};
 
 pub static ROTATION_DELTA: f32 = 0.01;
 pub static MOVEMENT_DELTA: f32 = 0.001;
