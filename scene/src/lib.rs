@@ -30,6 +30,18 @@ fn archive_to_file(bytes: AlignedVec, path: impl AsRef<Path>) -> Result<()> {
     Ok(())
 }
 
+macro_rules! from_archive_file {
+    () => {
+        pub fn from_archive_file(path: impl AsRef<Path>) -> Result<Self> {
+            let file = File::open(path)?;
+            let mmap = unsafe { MmapOptions::new().map(&file)? };
+            let archived = unsafe { rkyv::archived_root::<Self>(&mmap[..]) };
+            let ret = archived.deserialize(&mut rkyv::Infallible)?;
+            Ok(ret)
+        }
+    };
+}
+
 #[derive(Debug, Archive, Deserialize, Serialize)]
 pub struct ImageBuffer {
     pub width: u32,
@@ -38,15 +50,9 @@ pub struct ImageBuffer {
 }
 
 impl ImageBuffer {
-    // TODO: this can be a much more general pattern
-    pub fn from_archive_file(path: impl AsRef<Path>) -> Result<Self> {
-        let file = File::open(path)?;
-        let mmap = unsafe { MmapOptions::new().map(&file)? };
-        let archived = unsafe { rkyv::archived_root::<Self>(&mmap[..]) };
-        let ret = archived.deserialize(&mut rkyv::Infallible)?;
-        Ok(ret)
-    }
+    from_archive_file!();
 }
+
 #[derive(Debug, Archive, Deserialize, Serialize)]
 pub struct Material {
     pub diffuse_texture: String,
@@ -69,6 +75,8 @@ pub struct ObjScene {
 }
 
 impl ObjScene {
+    from_archive_file!();
+
     pub fn from_obj_path(
         root: impl AsRef<Path>,
         obj_relative: impl AsRef<Path>,
@@ -170,14 +178,6 @@ impl ObjScene {
             meshes,
             materials,
         })
-    }
-
-    pub fn from_archive_file(path: impl AsRef<Path>) -> Result<Self> {
-        let file = File::open(path)?;
-        let mmap = unsafe { MmapOptions::new().map(&file)? };
-        let archived = unsafe { rkyv::archived_root::<Self>(&mmap[..]) };
-        let ret = archived.deserialize(&mut rkyv::Infallible)?;
-        Ok(ret)
     }
 
     pub fn load_or_achive(
