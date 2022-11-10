@@ -208,6 +208,16 @@ impl Cinder {
         )
     }
 
+    pub fn recreate_render_pass(&self, render_pass: &mut RenderPass) -> Result<()> {
+        self.clean_render_pass(render_pass);
+        render_pass.recreate(
+            &self.device,
+            &self.swapchain,
+            &self.surface_data,
+            &self.depth_image,
+        )
+    }
+
     pub fn clean_render_pass(&self, render_pass: &mut RenderPass) {
         render_pass.clean(&self.device);
     }

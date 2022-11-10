@@ -79,7 +79,7 @@ impl Surface {
             self.surface_loader
                 .get_physical_device_surface_present_modes(p_device, self.surface)
         }?;
-        // TODO: vsyc or not vsync option
+
         let present_mode_preference = if !vsync {
             vec![vk::PresentModeKHR::FIFO_RELAXED, vk::PresentModeKHR::FIFO]
         } else {

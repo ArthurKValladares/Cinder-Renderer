@@ -163,7 +163,6 @@ impl RenderContext {
         }
     }
 
-    // TODO: maybe make generics f32, f32
     pub fn bind_viewport(&self, cinder: &Cinder, rect: Rect2D<i32, u32>, flipped: bool) {
         let (y, height) = if flipped {
             (

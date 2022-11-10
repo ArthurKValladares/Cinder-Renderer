@@ -336,25 +336,9 @@ fn main() {
                         cinder
                             .resize(Size2D::new(size.width, size.height))
                             .expect("Could not resize device");
-                        // TODO: easier way to re-create render passes
-                        cinder.clean_render_pass(&mut render_pass);
-                        render_pass = cinder
-                            .create_render_pass(RenderPassDescription {
-                                color_attachment: RenderPassAttachmentDesc::new(
-                                    cinder.surface_format(),
-                                )
-                                .load_op(AttachmentLoadOp::Clear)
-                                .store_op(AttachmentStoreOp::Store)
-                                .final_layout(Layout::ColorAttachment),
-                                depth_attachment: Some(
-                                    RenderPassAttachmentDesc::new(Format::D32_SFloat)
-                                        .load_op(AttachmentLoadOp::Clear)
-                                        .store_op(AttachmentStoreOp::Store)
-                                        .initial_layout(Layout::DepthAttachment)
-                                        .final_layout(Layout::DepthAttachment),
-                                ),
-                            })
-                            .expect("Could not create render pass");
+                        cinder
+                            .recreate_render_pass(&mut render_pass)
+                            .expect("Could not recreate render pass");
                         egui.resize(&cinder)
                             .expect("Could not resize egui integration");
                         // TODO: This could be better
