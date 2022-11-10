@@ -134,7 +134,6 @@ impl EguiIntegration {
             let mut vertex_buffers = Vec::with_capacity(len);
             let mut index_buffers = Vec::with_capacity(len);
             for _ in 0..len {
-                // TODO: Should these be GPU-side?
                 let vertex_buffer = cinder.create_buffer(BufferDescription {
                     size: VERTEX_BUFFER_SIZE,
                     usage: BufferUsage::Vertex,

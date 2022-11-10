@@ -184,8 +184,6 @@ impl ObjScene {
         root: impl AsRef<Path>,
         obj_relative: impl AsRef<Path>,
     ) -> Result<(Self, Vec<ImageBuffer>)> {
-        const N: usize = 256;
-
         let root = root.as_ref();
         let obj_relative = obj_relative.as_ref();
         let file_stem = obj_relative
