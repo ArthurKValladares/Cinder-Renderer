@@ -133,37 +133,100 @@ fn main() {
     .unwrap_or_else(|err| panic!("Could not load mesh: {}", err));
     let scene_load_time = scene_load_start.elapsed().as_secs_f32();
 
-    // Create and bind index buffer
+    let max_index_size = scene
+        .meshes
+        .iter()
+        .fold(0, |max, mesh| size_of_slice(&mesh.indices).max(max));
+    let index_staging_buffer = cinder
+        .create_buffer(BufferDescription {
+            size: max_index_size,
+            usage: BufferUsage::empty().transfer_src(),
+            memory_desc: MemoryDescription {
+                ty: MemoryType::CpuVisible,
+            },
+        })
+        .expect("Could not create index staging buffer");
+    let max_vertex_size = scene
+        .meshes
+        .iter()
+        .fold(0, |max, mesh| size_of_slice(&mesh.vertices).max(max));
+    let vertex_staging_buffer = cinder
+        .create_buffer(BufferDescription {
+            size: max_vertex_size,
+            usage: BufferUsage::empty().transfer_src(),
+            memory_desc: MemoryDescription {
+                ty: MemoryType::CpuVisible,
+            },
+        })
+        .expect("Could not create index staging buffer");
     let mesh_draws = scene
         .meshes
         .iter()
         .map(|mesh| {
-            let index_buffer = cinder
-                .create_buffer(BufferDescription {
-                    size: size_of_slice(&mesh.indices),
-                    usage: BufferUsage::Index,
-                    memory_desc: MemoryDescription {
-                        ty: MemoryType::CpuVisible,
-                    },
-                })
-                .expect("Could not create index buffer");
-            index_buffer
-                .mem_copy(&mesh.indices)
-                .expect("Could not write to index buffer");
+            upload_context
+                .begin(&cinder)
+                .expect("Could not begin upload context");
 
-            // Create and bind vertex buffer
-            let vertex_buffer = cinder
-                .create_buffer(BufferDescription {
-                    size: size_of_slice(&mesh.vertices),
-                    usage: BufferUsage::Vertex,
-                    memory_desc: MemoryDescription {
-                        ty: MemoryType::CpuVisible,
-                    },
-                })
-                .expect("Could not create vertex buffer");
-            vertex_buffer
-                .mem_copy(&mesh.vertices)
-                .expect("Could not write to vertex buffer");
+            let index_buffer = {
+                index_staging_buffer
+                    .mem_copy(&mesh.indices)
+                    .expect("Could not write to index buffer");
+                let index_buffer_size = size_of_slice(&mesh.indices);
+                let index_buffer = cinder
+                    .create_buffer(BufferDescription {
+                        size: index_buffer_size,
+                        usage: BufferUsage::empty().index().transfer_dst(),
+                        memory_desc: MemoryDescription {
+                            ty: MemoryType::GpuOnly,
+                        },
+                    })
+                    .expect("Could not create index buffer");
+                upload_context.copy_buffer(
+                    &cinder,
+                    &index_staging_buffer,
+                    &index_buffer,
+                    0,
+                    0,
+                    index_buffer_size,
+                );
+                index_buffer
+            };
+
+            let vertex_buffer = {
+                let vertex_buffer_size = size_of_slice(&mesh.vertices);
+                let vertex_buffer = cinder
+                    .create_buffer(BufferDescription {
+                        size: vertex_buffer_size,
+                        usage: BufferUsage::empty().vertex().transfer_dst(),
+                        memory_desc: MemoryDescription {
+                            ty: MemoryType::GpuOnly,
+                        },
+                    })
+                    .expect("Could not create vertex buffer");
+                vertex_staging_buffer
+                    .mem_copy(&mesh.vertices)
+                    .expect("Could not write to vertex buffer");
+                upload_context.copy_buffer(
+                    &cinder,
+                    &vertex_staging_buffer,
+                    &vertex_buffer,
+                    0,
+                    0,
+                    vertex_buffer_size,
+                );
+                vertex_buffer
+            };
+
+            upload_context
+                .end(
+                    &cinder,
+                    cinder.setup_fence(),
+                    cinder.present_queue(),
+                    &[],
+                    &[],
+                    &[],
+                )
+                .expect("could not end command context");
 
             let num_indices = mesh.indices.len();
             let image_index = mesh.material_index.unwrap_or_else(|| 0); //TODO: Actually handle this the right way, or use a white texture
@@ -185,7 +248,7 @@ fn main() {
     let uniform_buffer = cinder
         .create_buffer(BufferDescription {
             size: std::mem::size_of::<CameraMatrices>() as u64,
-            usage: BufferUsage::Uniform,
+            usage: BufferUsage::empty().uniform(),
             memory_desc: MemoryDescription {
                 ty: MemoryType::CpuVisible,
             },
@@ -208,7 +271,7 @@ fn main() {
             let image_buffer = cinder
                 .create_buffer(BufferDescription {
                     size: size_of_slice(&image.data),
-                    usage: BufferUsage::TransferSrc,
+                    usage: BufferUsage::empty().transfer_src(),
                     memory_desc: MemoryDescription {
                         ty: MemoryType::CpuVisible,
                     },

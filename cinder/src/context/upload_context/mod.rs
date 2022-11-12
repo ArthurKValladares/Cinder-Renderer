@@ -153,4 +153,27 @@ impl UploadContext {
             )
         };
     }
+
+    pub fn copy_buffer(
+        &self,
+        cinder: &Cinder,
+        src: &Buffer,
+        dst: &Buffer,
+        src_offset: u64,
+        dst_offset: u64,
+        size: u64,
+    ) {
+        unsafe {
+            cinder.device().cmd_copy_buffer(
+                self.shared.command_buffer,
+                src.raw,
+                dst.raw,
+                &[vk::BufferCopy {
+                    src_offset,
+                    dst_offset,
+                    size,
+                }],
+            );
+        }
+    }
 }

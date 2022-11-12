@@ -15,22 +15,53 @@ pub enum BufferError {
     NotMemoryMappable,
 }
 
+#[repr(C)]
 #[derive(Debug, Clone, Copy)]
-pub enum BufferUsage {
-    Vertex,
-    Index,
-    Uniform,
-    TransferSrc,
+pub struct BufferUsage {
+    raw: vk::BufferUsageFlags,
+}
+
+impl BufferUsage {
+    pub fn empty() -> Self {
+        Self {
+            raw: vk::BufferUsageFlags::empty(),
+        }
+    }
+
+    pub fn vertex(self) -> Self {
+        Self {
+            raw: self.raw | vk::BufferUsageFlags::VERTEX_BUFFER,
+        }
+    }
+
+    pub fn index(self) -> Self {
+        Self {
+            raw: self.raw | vk::BufferUsageFlags::INDEX_BUFFER,
+        }
+    }
+
+    pub fn uniform(self) -> Self {
+        Self {
+            raw: self.raw | vk::BufferUsageFlags::UNIFORM_BUFFER,
+        }
+    }
+
+    pub fn transfer_src(self) -> Self {
+        Self {
+            raw: self.raw | vk::BufferUsageFlags::TRANSFER_SRC,
+        }
+    }
+
+    pub fn transfer_dst(self) -> Self {
+        Self {
+            raw: self.raw | vk::BufferUsageFlags::TRANSFER_DST,
+        }
+    }
 }
 
 impl From<BufferUsage> for vk::BufferUsageFlags {
     fn from(usage: BufferUsage) -> Self {
-        match usage {
-            BufferUsage::Vertex => vk::BufferUsageFlags::VERTEX_BUFFER,
-            BufferUsage::Index => vk::BufferUsageFlags::INDEX_BUFFER,
-            BufferUsage::Uniform => vk::BufferUsageFlags::UNIFORM_BUFFER,
-            BufferUsage::TransferSrc => vk::BufferUsageFlags::TRANSFER_SRC,
-        }
+        usage.raw
     }
 }
 

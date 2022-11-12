@@ -136,7 +136,7 @@ impl EguiIntegration {
             for _ in 0..len {
                 let vertex_buffer = cinder.create_buffer(BufferDescription {
                     size: VERTEX_BUFFER_SIZE,
-                    usage: BufferUsage::Vertex,
+                    usage: BufferUsage::empty().vertex(),
                     memory_desc: MemoryDescription {
                         ty: MemoryType::CpuVisible,
                     },
@@ -145,7 +145,7 @@ impl EguiIntegration {
 
                 let index_buffer = cinder.create_buffer(BufferDescription {
                     size: INDEX_BUFFER_SIZE,
-                    usage: BufferUsage::Index,
+                    usage: BufferUsage::empty().index(),
                     memory_desc: MemoryDescription {
                         ty: MemoryType::CpuVisible,
                     },
@@ -415,7 +415,7 @@ impl EguiIntegration {
         }
         let image_staging_buffer = cinder.create_buffer(BufferDescription {
             size: size_of_slice(&data),
-            usage: BufferUsage::TransferSrc,
+            usage: BufferUsage::empty().transfer_src(),
             memory_desc: MemoryDescription {
                 ty: MemoryType::CpuVisible,
             },
