@@ -63,10 +63,13 @@ impl EguiIntegration {
         event_loop: &EventLoopWindowTarget<T>,
         cinder: &mut Cinder,
         visuals: egui::Visuals,
+        pixels_per_point: f32,
     ) -> Result<Self> {
         let egui_context = egui::Context::default();
         egui_context.set_visuals(visuals);
-        let egui_winit = egui_winit::State::new(event_loop);
+        let mut egui_winit = egui_winit::State::new(event_loop);
+        egui_context.set_pixels_per_point(pixels_per_point);
+        egui_winit.set_pixels_per_point(pixels_per_point);
 
         let render_pass = cinder.create_render_pass(RenderPassDescription {
             color_attachment: RenderPassAttachmentDesc::new(cinder.surface_format())

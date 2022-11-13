@@ -1,6 +1,9 @@
-use egui_integration::{egui, EguiIntegration};
+use egui_integration::egui;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+const EGUI_FILE: &str = "egui.json";
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 enum Tab {
     App,
     Egui,
@@ -15,27 +18,45 @@ impl Tab {
     }
 }
 
+#[derive(Debug, Deserialize, Serialize)]
 pub struct Ui {
     tabs: [Tab; 2],
     selected_tab: Tab,
-    visuals: egui::Visuals,
+    dark_mode: bool,
     ui_scale: f32,
     open: bool,
 }
 
-impl Ui {
-    pub fn new() -> Self {
+impl Default for Ui {
+    fn default() -> Self {
         Self {
             tabs: [Tab::App, Tab::Egui],
             selected_tab: Tab::App,
-            visuals: egui::Visuals::light(),
+            dark_mode: false,
             ui_scale: 1.0,
             open: true,
         }
     }
+}
+
+impl Ui {
+    pub fn new() -> Self {
+        if let Ok(buf) = std::fs::read(EGUI_FILE) {
+            serde_json::from_slice(&buf).unwrap_or_default()
+        } else {
+            Default::default()
+        }
+    }
 
     pub fn visuals(&self) -> egui::Visuals {
-        self.visuals.clone()
+        match self.dark_mode {
+            true => egui::Visuals::dark(),
+            false => egui::Visuals::light(),
+        }
+    }
+
+    pub fn ui_scale(&self) -> f32 {
+        self.ui_scale
     }
 
     pub fn show_tabs(&mut self, ui: &mut egui::Ui) {
@@ -72,18 +93,12 @@ impl Ui {
                     .show(context, |ui| {
                         ui.horizontal(|ui| {
                             ui.label("Style:");
-                            if ui
-                                .selectable_label(self.visuals.dark_mode, "dark")
-                                .clicked()
-                            {
-                                self.visuals = egui::Visuals::dark();
+                            if ui.selectable_label(self.dark_mode, "dark").clicked() {
+                                self.dark_mode = true;
                                 context.set_visuals(self.visuals());
                             }
-                            if ui
-                                .selectable_label(!self.visuals.dark_mode, "light")
-                                .clicked()
-                            {
-                                self.visuals = egui::Visuals::light();
+                            if ui.selectable_label(!self.dark_mode, "light").clicked() {
+                                self.dark_mode = false;
                                 context.set_visuals(self.visuals());
                             }
                         });
@@ -99,5 +114,13 @@ impl Ui {
             }
         }
         self.open = open;
+    }
+}
+
+impl Drop for Ui {
+    fn drop(&mut self) {
+        if let Ok(as_string) = serde_json::to_string_pretty(self) {
+            std::fs::write(EGUI_FILE, as_string).ok();
+        }
     }
 }

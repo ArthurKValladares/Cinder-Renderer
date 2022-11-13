@@ -370,8 +370,13 @@ fn main() {
 
     // Egui integration
     let mut cinder_ui = Ui::new();
-    let mut egui = EguiIntegration::new(&event_loop, &mut cinder, cinder_ui.visuals())
-        .expect("Could not create event loop");
+    let mut egui = EguiIntegration::new(
+        &event_loop,
+        &mut cinder,
+        cinder_ui.visuals(),
+        cinder_ui.ui_scale(),
+    )
+    .expect("Could not create event loop");
 
     let mut lock_movement = true;
     let mut keyboard_state = KeyboardState::default();
