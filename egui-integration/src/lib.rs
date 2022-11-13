@@ -26,7 +26,7 @@ use cinder::{
 pub use egui;
 use egui::{
     epaint::{ImageDelta, Primitive},
-    ClippedPrimitive, ImageData, Mesh, TextureId, TexturesDelta,
+    ClippedPrimitive, ImageData, Mesh, Rect, TextureId, TexturesDelta,
 };
 use math::{point::Point2D, rect::Rect2D, size::Size2D, vec::Vec2};
 use smallvec::smallvec;
@@ -184,6 +184,9 @@ impl EguiIntegration {
         window: &Window,
         f: impl FnOnce(&egui::Context),
     ) -> Result<()> {
+        self.egui_winit
+            .set_pixels_per_point(self.egui_context.pixels_per_point());
+
         let raw_input = self.egui_winit.take_egui_input(window);
         // TODO: Hook up repaint_after
         let egui::FullOutput {
@@ -271,19 +274,19 @@ impl EguiIntegration {
             } in clipped_primitives
             {
                 {
-                    let size = window.inner_size();
                     let min = {
                         let min = clip_rect.min;
+
                         egui::Pos2 {
-                            x: f32::clamp(min.x, 0.0, size.width as f32),
-                            y: f32::clamp(min.y, 0.0, size.height as f32),
+                            x: f32::clamp(min.x * pixels_per_point, 0.0, size.width as f32),
+                            y: f32::clamp(min.y * pixels_per_point, 0.0, size.height as f32),
                         }
                     };
                     let max = {
                         let max = clip_rect.max;
                         egui::Pos2 {
-                            x: f32::clamp(max.x, min.x, size.width as f32),
-                            y: f32::clamp(max.y, min.y, size.height as f32),
+                            x: f32::clamp(max.x * pixels_per_point, min.x, size.width as f32),
+                            y: f32::clamp(max.y * pixels_per_point, min.y, size.height as f32),
                         }
                     };
                     render_context.bind_scissor(
@@ -468,4 +471,9 @@ impl EguiIntegration {
     }
 
     fn free_textures(&mut self, _textures_delta: TexturesDelta) {}
+
+    pub fn set_ui_scale(&mut self, scale: f32) {
+        self.egui_context.set_pixels_per_point(scale);
+        self.egui_winit.set_pixels_per_point(scale);
+    }
 }

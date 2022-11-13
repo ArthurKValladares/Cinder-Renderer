@@ -1,4 +1,4 @@
-use egui_integration::egui;
+use egui_integration::{egui, EguiIntegration};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
 enum Tab {
@@ -19,6 +19,7 @@ pub struct Ui {
     tabs: [Tab; 2],
     selected_tab: Option<Tab>,
     visuals: egui::Visuals,
+    ui_scale: f32,
 }
 
 impl Ui {
@@ -27,6 +28,7 @@ impl Ui {
             tabs: [Tab::App, Tab::Egui],
             selected_tab: Some(Tab::App),
             visuals: egui::Visuals::light(),
+            ui_scale: 1.0,
         }
     }
 
@@ -84,6 +86,14 @@ impl Ui {
                                 {
                                     self.visuals = egui::Visuals::light();
                                     context.set_visuals(self.visuals());
+                                }
+                            });
+
+                            ui.horizontal(|ui| {
+                                ui.label("UI Scale:");
+                                let res = ui.add(egui::Slider::new(&mut self.ui_scale, 0.5..=3.0));
+                                if res.drag_released() {
+                                    context.set_pixels_per_point(self.ui_scale);
                                 }
                             })
                         });
