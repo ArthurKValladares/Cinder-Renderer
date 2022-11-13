@@ -17,18 +17,20 @@ impl Tab {
 
 pub struct Ui {
     tabs: [Tab; 2],
-    selected_tab: Option<Tab>,
+    selected_tab: Tab,
     visuals: egui::Visuals,
     ui_scale: f32,
+    open: bool,
 }
 
 impl Ui {
     pub fn new() -> Self {
         Self {
             tabs: [Tab::App, Tab::Egui],
-            selected_tab: Some(Tab::App),
+            selected_tab: Tab::App,
             visuals: egui::Visuals::light(),
             ui_scale: 1.0,
+            open: true,
         }
     }
 
@@ -40,14 +42,11 @@ impl Ui {
         ui.horizontal(|ui| {
             for tab in self.tabs.iter() {
                 if ui
-                    .selectable_label(
-                        self.selected_tab
-                            .map_or_else(|| false, |selected_tab| selected_tab == *tab),
-                        tab.name(),
-                    )
+                    .selectable_label(self.selected_tab == *tab, tab.name())
                     .clicked()
                 {
-                    self.selected_tab = Some(*tab);
+                    self.selected_tab = *tab;
+                    self.open = true;
                 }
             }
         });
@@ -58,47 +57,47 @@ impl Ui {
         context: &egui::Context,
         app_callback: impl FnOnce(&mut egui::Ui),
     ) {
-        if let Some(selected_tab) = self.selected_tab {
-            match selected_tab {
-                Tab::App => {
-                    egui::Window::new(Tab::App.name())
-                        .resizable(true)
-                        .show(context, |ui| {
-                            app_callback(ui);
+        let mut open = self.open;
+        match self.selected_tab {
+            Tab::App => {
+                egui::Window::new(Tab::App.name())
+                    .open(&mut open)
+                    .show(context, |ui| {
+                        app_callback(ui);
+                    });
+            }
+            Tab::Egui => {
+                egui::Window::new(Tab::Egui.name())
+                    .open(&mut open)
+                    .show(context, |ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("Style:");
+                            if ui
+                                .selectable_label(self.visuals.dark_mode, "dark")
+                                .clicked()
+                            {
+                                self.visuals = egui::Visuals::dark();
+                                context.set_visuals(self.visuals());
+                            }
+                            if ui
+                                .selectable_label(!self.visuals.dark_mode, "light")
+                                .clicked()
+                            {
+                                self.visuals = egui::Visuals::light();
+                                context.set_visuals(self.visuals());
+                            }
                         });
-                }
-                Tab::Egui => {
-                    egui::Window::new(Tab::Egui.name())
-                        .resizable(true)
-                        .show(context, |ui| {
-                            ui.horizontal(|ui| {
-                                ui.label("Style:");
-                                if ui
-                                    .selectable_label(self.visuals.dark_mode, "dark")
-                                    .clicked()
-                                {
-                                    self.visuals = egui::Visuals::dark();
-                                    context.set_visuals(self.visuals());
-                                }
-                                if ui
-                                    .selectable_label(!self.visuals.dark_mode, "light")
-                                    .clicked()
-                                {
-                                    self.visuals = egui::Visuals::light();
-                                    context.set_visuals(self.visuals());
-                                }
-                            });
 
-                            ui.horizontal(|ui| {
-                                ui.label("UI Scale:");
-                                let res = ui.add(egui::Slider::new(&mut self.ui_scale, 0.5..=3.0));
-                                if res.drag_released() {
-                                    context.set_pixels_per_point(self.ui_scale);
-                                }
-                            })
-                        });
-                }
+                        ui.horizontal(|ui| {
+                            ui.label("UI Scale:");
+                            let res = ui.add(egui::Slider::new(&mut self.ui_scale, 0.5..=3.0));
+                            if res.drag_released() {
+                                context.set_pixels_per_point(self.ui_scale);
+                            }
+                        })
+                    });
             }
         }
+        self.open = open;
     }
 }
