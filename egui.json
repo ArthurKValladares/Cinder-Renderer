@@ -3,8 +3,8 @@
     "App",
     "Egui"
   ],
-  "selected_tab": "Egui",
-  "dark_mode": true,
+  "selected_tab": "App",
+  "dark_mode": false,
   "ui_scale": 2.0,
   "open": true
 }
