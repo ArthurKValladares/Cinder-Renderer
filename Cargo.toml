@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 cinder = {path = "./cinder"}
+ember = {path = "./ember"}
 util = {path = "./util"}
 scene = {path = "./scene"}
 egui-integration = {path = "./egui-integration"}

@@ -283,6 +283,7 @@ dependencies = [
  "cgmath",
  "cinder",
  "egui-integration",
+ "ember",
  "home",
  "image",
  "input",
@@ -627,6 +628,14 @@ name = "emath"
 version = "0.19.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9542a40106fdba943a055f418d1746a050e1a903a049b030c2b097d4686a33cf"
+
+[[package]]
+name = "ember"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cinder",
+]
 
 [[package]]
 name = "epaint"

@@ -99,11 +99,11 @@ impl Buffer {
         self.ptr.map(|ptr| ptr.add(self.size_bytes as usize))
     }
 
-    pub fn mem_copy<T: Copy>(&self, data: &[T]) -> Result<(), BufferError> {
+    pub fn mem_copy<T: Copy>(&self, offset: u64, data: &[T]) -> Result<(), BufferError> {
         self.ptr.map_or_else(
             || Err(BufferError::NotMemoryMappable),
             |ptr| {
-                ptr.mem_copy(&data);
+                ptr.add(offset as usize).mem_copy(&data);
                 Ok(())
             },
         )

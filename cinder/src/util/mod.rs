@@ -1,6 +1,21 @@
 use ash::vk;
 use std::ffi::c_void;
 
+fn calc_padding(adr: vk::DeviceSize, align: vk::DeviceSize) -> vk::DeviceSize {
+    (align - adr % align) % align
+}
+
+pub fn elem_size<T>(alignment: vk::DeviceSize) -> u64 {
+    let padding = calc_padding(std::mem::size_of::<T>() as vk::DeviceSize, alignment);
+    std::mem::size_of::<T>() as vk::DeviceSize + padding
+}
+
+pub fn align_size<T>(data: &[T]) -> u64 {
+    let raw_elem_size = std::mem::size_of::<T>() as u64;
+    let elem_size = elem_size::<T>(raw_elem_size as vk::DeviceSize);
+    elem_size * data.len() as u64
+}
+
 pub fn find_memory_type_index(
     memory_req: &vk::MemoryRequirements,
     memory_prop: &vk::PhysicalDeviceMemoryProperties,

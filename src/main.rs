@@ -24,6 +24,7 @@ use cinder::{
     InitData, Resolution,
 };
 use egui_integration::{egui, EguiIntegration};
+use ember::GpuStagingBuffer;
 use input::keyboard::KeyboardState;
 use math::size::Size2D;
 use render_pass::Layout;
@@ -133,44 +134,20 @@ fn main() {
     .unwrap_or_else(|err| panic!("Could not load mesh: {}", err));
     let scene_load_time = scene_load_start.elapsed().as_secs_f32();
 
-    let max_index_size = scene
-        .meshes
-        .iter()
-        .fold(0, |max, mesh| size_of_slice(&mesh.indices).max(max));
-    let index_staging_buffer = cinder
-        .create_buffer(BufferDescription {
-            size: max_index_size,
-            usage: BufferUsage::empty().transfer_src(),
-            memory_desc: MemoryDescription {
-                ty: MemoryType::CpuVisible,
-            },
-        })
-        .expect("Could not create index staging buffer");
-    let max_vertex_size = scene
-        .meshes
-        .iter()
-        .fold(0, |max, mesh| size_of_slice(&mesh.vertices).max(max));
-    let vertex_staging_buffer = cinder
-        .create_buffer(BufferDescription {
-            size: max_vertex_size,
-            usage: BufferUsage::empty().transfer_src(),
-            memory_desc: MemoryDescription {
-                ty: MemoryType::CpuVisible,
-            },
-        })
-        .expect("Could not create index staging buffer");
+    let mut staging_buffer =
+        GpuStagingBuffer::new(&cinder).expect("Could not create GPU staging buffer");
+
+    upload_context
+        .begin(&cinder)
+        .expect("Could not begin upload context");
     let mesh_draws = scene
         .meshes
         .iter()
         .map(|mesh| {
-            upload_context
-                .begin(&cinder)
-                .expect("Could not begin upload context");
-
             let index_buffer = {
-                index_staging_buffer
-                    .mem_copy(&mesh.indices)
-                    .expect("Could not write to index buffer");
+                let buffer_region = staging_buffer
+                    .copy_data(&mesh.indices)
+                    .expect("could not write to staging buffer");
                 let index_buffer_size = size_of_slice(&mesh.indices);
                 let index_buffer = cinder
                     .create_buffer(BufferDescription {
@@ -183,9 +160,9 @@ fn main() {
                     .expect("Could not create index buffer");
                 upload_context.copy_buffer(
                     &cinder,
-                    &index_staging_buffer,
+                    staging_buffer.buffer(),
                     &index_buffer,
-                    0,
+                    buffer_region.offset,
                     0,
                     index_buffer_size,
                 );
@@ -193,6 +170,9 @@ fn main() {
             };
 
             let vertex_buffer = {
+                let buffer_region = staging_buffer
+                    .copy_data(&mesh.vertices)
+                    .expect("could not write to staging buffer");
                 let vertex_buffer_size = size_of_slice(&mesh.vertices);
                 let vertex_buffer = cinder
                     .create_buffer(BufferDescription {
@@ -203,30 +183,16 @@ fn main() {
                         },
                     })
                     .expect("Could not create vertex buffer");
-                vertex_staging_buffer
-                    .mem_copy(&mesh.vertices)
-                    .expect("Could not write to vertex buffer");
                 upload_context.copy_buffer(
                     &cinder,
-                    &vertex_staging_buffer,
+                    staging_buffer.buffer(),
                     &vertex_buffer,
-                    0,
+                    buffer_region.offset,
                     0,
                     vertex_buffer_size,
                 );
                 vertex_buffer
             };
-
-            upload_context
-                .end(
-                    &cinder,
-                    cinder.setup_fence(),
-                    cinder.present_queue(),
-                    &[],
-                    &[],
-                    &[],
-                )
-                .expect("could not end command context");
 
             let num_indices = mesh.indices.len();
             let image_index = mesh.material_index.unwrap_or_else(|| 0); //TODO: Actually handle this the right way, or use a white texture
@@ -239,6 +205,16 @@ fn main() {
             }
         })
         .collect::<Vec<_>>();
+    upload_context
+        .end(
+            &cinder,
+            cinder.setup_fence(),
+            cinder.present_queue(),
+            &[],
+            &[],
+            &[],
+        )
+        .expect("could not end command context");
 
     let mut camera = camera::Camera::from_data(PerspectiveData::default());
 
@@ -255,10 +231,12 @@ fn main() {
         })
         .expect("Could not create uniform buffer");
     uniform_buffer
-        .mem_copy(std::slice::from_ref(&camera.get_matrices(
-            surface_size.width() as f32,
-            surface_size.height() as f32,
-        )))
+        .mem_copy(
+            0,
+            std::slice::from_ref(
+                &camera.get_matrices(surface_size.width() as f32, surface_size.height() as f32),
+            ),
+        )
         .expect("Could not write to uniform buffer");
 
     upload_context
@@ -278,7 +256,7 @@ fn main() {
                 })
                 .expect("Could not create image buffer");
             image_buffer
-                .mem_copy(&image.data)
+                .mem_copy(0, &image.data)
                 .expect("Could not write to image buffer");
 
             let texture = cinder
@@ -607,10 +585,15 @@ fn main() {
             let surface_size = cinder.surface_size();
 
             uniform_buffer
-                .mem_copy(std::slice::from_ref(&camera.get_matrices(
-                    surface_size.width() as f32,
-                    surface_size.height() as f32,
-                )))
+                .mem_copy(
+                    0,
+                    std::slice::from_ref(
+                        &camera.get_matrices(
+                            surface_size.width() as f32,
+                            surface_size.height() as f32,
+                        ),
+                    ),
+                )
                 .expect("Could not write to uniform buffer");
         }
 

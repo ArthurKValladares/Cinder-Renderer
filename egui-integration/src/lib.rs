@@ -426,7 +426,8 @@ impl EguiIntegration {
                 ty: MemoryType::CpuVisible,
             },
         })?;
-        image_staging_buffer.mem_copy(&data)?;
+        // TODO: Use staging buffer
+        image_staging_buffer.mem_copy(0, &data)?;
 
         let image = cinder.create_image(ImageDescription {
             format: Format::R8_G8_B8_A8_Unorm,
