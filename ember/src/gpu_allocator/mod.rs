@@ -24,13 +24,15 @@ pub struct GpuStagingBuffer {
 }
 
 impl GpuStagingBuffer {
-    pub fn new(cinder: &Cinder) -> Result<Self> {
+    pub fn new(
+        cinder: &Cinder,
+        usage: BufferUsage,
+        memory_desc: MemoryDescription,
+    ) -> Result<Self> {
         let buffer = cinder.create_buffer(BufferDescription {
             size: STAGING_BYTES,
-            usage: BufferUsage::empty().transfer_src(),
-            memory_desc: MemoryDescription {
-                ty: MemoryType::CpuVisible,
-            },
+            usage,
+            memory_desc,
         })?;
 
         Ok(Self { buffer, offset: 0 })
@@ -49,5 +51,13 @@ impl GpuStagingBuffer {
         };
         self.offset += total_size;
         Ok(region)
+    }
+
+    pub fn reset(&mut self) {
+        self.offset = 0;
+    }
+
+    pub fn available_bytes(&self) -> u64 {
+        self.buffer.size_bytes - self.offset
     }
 }

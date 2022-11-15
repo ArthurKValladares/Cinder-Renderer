@@ -134,8 +134,14 @@ fn main() {
     .unwrap_or_else(|err| panic!("Could not load mesh: {}", err));
     let scene_load_time = scene_load_start.elapsed().as_secs_f32();
 
-    let mut staging_buffer =
-        GpuStagingBuffer::new(&cinder).expect("Could not create GPU staging buffer");
+    let mut staging_buffer = GpuStagingBuffer::new(
+        &cinder,
+        BufferUsage::empty().transfer_src(),
+        MemoryDescription {
+            ty: MemoryType::CpuVisible,
+        },
+    )
+    .expect("Could not create GPU staging buffer");
 
     upload_context
         .begin(&cinder)
