@@ -46,6 +46,12 @@ impl BufferUsage {
         }
     }
 
+    pub fn storage(self) -> Self {
+        Self {
+            raw: self.raw | vk::BufferUsageFlags::STORAGE_BUFFER,
+        }
+    }
+
     pub fn transfer_src(self) -> Self {
         Self {
             raw: self.raw | vk::BufferUsageFlags::TRANSFER_SRC,

@@ -11,6 +11,7 @@ use std::collections::HashMap;
 pub enum BindGroupType {
     ImageSampler,
     UniformBuffer,
+    StorageBuffer,
 }
 
 impl From<BindGroupType> for vk::DescriptorType {
@@ -18,6 +19,7 @@ impl From<BindGroupType> for vk::DescriptorType {
         match ty {
             BindGroupType::ImageSampler => vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
             BindGroupType::UniformBuffer => vk::DescriptorType::UNIFORM_BUFFER,
+            BindGroupType::StorageBuffer => vk::DescriptorType::STORAGE_BUFFER,
         }
     }
 }
@@ -330,11 +332,11 @@ impl BindGroupSet {
 }
 
 #[derive(Debug, Default)]
-pub struct BindGroupSetBuilder {
+pub struct BindGroupWriteBuilder {
     writes: Vec<vk::WriteDescriptorSet>,
 }
 
-impl BindGroupSetBuilder {
+impl BindGroupWriteBuilder {
     pub fn bind_buffer(
         mut self,
         binding: u32,
@@ -375,23 +377,5 @@ impl BindGroupSetBuilder {
         unsafe {
             cinder.device().update_descriptor_sets(&self.writes, &[]);
         }
-    }
-
-    pub fn build_and_update(
-        mut self,
-        cinder: &mut Cinder,
-        layout: &BindGroupLayout,
-    ) -> Result<BindGroupSet> {
-        let set = cinder.create_descriptor_set(&layout.layout)?;
-
-        for write in &mut self.writes {
-            write.dst_set = set;
-        }
-
-        unsafe {
-            cinder.device().update_descriptor_sets(&self.writes, &[]);
-        }
-
-        Ok(BindGroupSet { set })
     }
 }

@@ -4,8 +4,8 @@ use cinder::{
     context::{render_context::RenderContext, upload_context::UploadContext},
     resoruces::{
         bind_group::{
-            BindGroupLayout, BindGroupLayoutBuilder, BindGroupSet, BindGroupSetBuilder,
-            BindGroupType,
+            BindGroupLayout, BindGroupLayoutBuilder, BindGroupSet, BindGroupType,
+            BindGroupWriteBuilder,
         },
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, Usage},
@@ -26,7 +26,7 @@ use cinder::{
 pub use egui;
 use egui::{
     epaint::{ImageDelta, Primitive},
-    ClippedPrimitive, ImageData, Mesh, Rect, TextureId, TexturesDelta,
+    ClippedPrimitive, ImageData, Mesh, TextureId, TexturesDelta,
 };
 use math::{point::Point2D, rect::Rect2D, size::Size2D, vec::Vec2};
 use smallvec::smallvec;
@@ -439,7 +439,7 @@ impl EguiIntegration {
         upload_context.copy_buffer_to_image(&cinder, &image_staging_buffer, &image);
         upload_context.image_barrier_end(&cinder, &image);
 
-        BindGroupSetBuilder::default()
+        BindGroupWriteBuilder::default()
             .bind_image(
                 0,
                 &image.bind_info(&self.sampler),

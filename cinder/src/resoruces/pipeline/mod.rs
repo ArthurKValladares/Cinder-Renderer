@@ -123,9 +123,14 @@ impl GraphicsPipeline {
                 offset: att.offset,
             })
             .collect::<Vec<_>>();
-        let vertex_input_state_info = vk::PipelineVertexInputStateCreateInfo::builder()
-            .vertex_attribute_descriptions(&vertex_input_attribute_descriptions)
-            .vertex_binding_descriptions(&vertex_input_binding_descriptions);
+        let vertex_input_state_info = if !desc.vertex_state.attributes.is_empty() {
+            vk::PipelineVertexInputStateCreateInfo::builder()
+                .vertex_attribute_descriptions(&vertex_input_attribute_descriptions)
+                .vertex_binding_descriptions(&vertex_input_binding_descriptions)
+                .build()
+        } else {
+            vk::PipelineVertexInputStateCreateInfo::builder().build()
+        };
 
         let vertex_input_assembly_state_info = vk::PipelineInputAssemblyStateCreateInfo::builder()
             .topology(vk::PrimitiveTopology::TRIANGLE_LIST);

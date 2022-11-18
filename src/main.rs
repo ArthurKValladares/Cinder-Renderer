@@ -7,7 +7,7 @@ use cinder::{
     cinder::{Cinder, Vertex},
     context::{render_context::RenderContextDescription, upload_context::UploadContextDescription},
     resoruces::{
-        bind_group::{BindGroupLayoutBuilder, BindGroupSetBuilder, BindGroupType},
+        bind_group::{BindGroupLayoutBuilder, BindGroupSet, BindGroupType, BindGroupWriteBuilder},
         buffer::{vk, Buffer, BufferDescription, BufferUsage},
         image::{Format, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
@@ -124,6 +124,11 @@ fn main() {
             ),
         })
         .expect("Could not create render pass");
+    let bind_group_layout = BindGroupLayoutBuilder::default()
+        .bind_buffer(0, BindGroupType::UniformBuffer, ShaderStage::Vertex)
+        .bind_image(1, BindGroupType::ImageSampler, ShaderStage::Fragment)
+        .build(&mut cinder)
+        .expect("Could not create BindGroup");
 
     // Load model
     let scene_load_start = Instant::now();
@@ -294,22 +299,18 @@ fn main() {
 
     let sampler = cinder.create_sampler().expect("Could not create sampler");
 
-    let buffer_info = uniform_buffer.bind_info();
-    let bind_group_layout = BindGroupLayoutBuilder::default()
-        .bind_buffer(0, BindGroupType::UniformBuffer, ShaderStage::Vertex)
-        .bind_image(1, BindGroupType::ImageSampler, ShaderStage::Fragment)
-        .build(&mut cinder)
-        .expect("Could not create BindGroup");
+    let uniform_buffer_info = uniform_buffer.bind_info();
     let bind_group_sets = images
         .iter()
         .map(|image| {
             let image_info = image.bind_info(&sampler);
 
-            BindGroupSetBuilder::default()
-                .bind_buffer(0, &buffer_info, BindGroupType::UniformBuffer)
+            let bind_group_set = BindGroupSet::allocate(&mut cinder, &bind_group_layout).unwrap();
+            BindGroupWriteBuilder::default()
+                .bind_buffer(0, &uniform_buffer_info, BindGroupType::UniformBuffer)
                 .bind_image(1, &image_info, BindGroupType::ImageSampler)
-                .build_and_update(&mut cinder, &bind_group_layout)
-                .expect("Could not create bind group set")
+                .update(&cinder, &bind_group_set);
+            bind_group_set
         })
         .collect::<Vec<_>>();
     let model_push_constant = PushConstant {
