@@ -83,6 +83,7 @@ impl ObjScene {
                             mesh.positions[i * 3],
                             mesh.positions[i * 3 + 1],
                             mesh.positions[i * 3 + 2],
+                            1.0,
                         ];
                         let color = if mesh.vertex_color.is_empty() {
                             [1.0, 1.0, 1.0, 1.0]
@@ -99,7 +100,12 @@ impl ObjScene {
                         } else {
                             [mesh.texcoords[i * 2], mesh.texcoords[i * 2 + 1]]
                         };
-                        Vertex { pos, color, uv }
+                        Vertex {
+                            pos,
+                            color,
+                            uv,
+                            pad: [0.0, 0.0],
+                        }
                     })
                     .collect::<Vec<_>>();
 

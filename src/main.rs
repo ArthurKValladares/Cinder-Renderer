@@ -126,7 +126,8 @@ fn main() {
         .expect("Could not create render pass");
     let bind_group_layout = BindGroupLayoutBuilder::default()
         .bind_buffer(0, BindGroupType::UniformBuffer, ShaderStage::Vertex)
-        .bind_image(1, BindGroupType::ImageSampler, ShaderStage::Fragment)
+        .bind_buffer(1, BindGroupType::StorageBuffer, ShaderStage::Vertex)
+        .bind_image(2, BindGroupType::ImageSampler, ShaderStage::Fragment)
         .build(&mut cinder)
         .expect("Could not create BindGroup");
 
@@ -188,7 +189,7 @@ fn main() {
                 let vertex_buffer = cinder
                     .create_buffer(BufferDescription {
                         size: vertex_buffer_size,
-                        usage: BufferUsage::empty().vertex().transfer_dst(),
+                        usage: BufferUsage::empty().storage().transfer_dst(),
                         memory_desc: MemoryDescription {
                             ty: MemoryType::GpuOnly,
                         },
@@ -300,15 +301,19 @@ fn main() {
     let sampler = cinder.create_sampler().expect("Could not create sampler");
 
     let uniform_buffer_info = uniform_buffer.bind_info();
-    let bind_group_sets = images
+    let bind_group_sets = mesh_draws
         .iter()
-        .map(|image| {
+        .map(|mesh_draw| {
+            let image = &images[mesh_draw.image_index];
+
             let image_info = image.bind_info(&sampler);
+            let vertex_buffer_info = mesh_draw.vertex_buffer.bind_info();
 
             let bind_group_set = BindGroupSet::allocate(&mut cinder, &bind_group_layout).unwrap();
             BindGroupWriteBuilder::default()
                 .bind_buffer(0, &uniform_buffer_info, BindGroupType::UniformBuffer)
-                .bind_image(1, &image_info, BindGroupType::ImageSampler)
+                .bind_buffer(1, &vertex_buffer_info, BindGroupType::StorageBuffer)
+                .bind_image(2, &image_info, BindGroupType::ImageSampler)
                 .update(&cinder, &bind_group_set);
             bind_group_set
         })
@@ -325,20 +330,7 @@ fn main() {
             vertex_state: VertexInputStateDesc {
                 binding: 0,
                 stride: std::mem::size_of::<Vertex>() as u32,
-                attributes: smallvec![
-                    VertexAttributeDesc {
-                        format: Format::R32_G32_B32_SFloat,
-                        offset: offset_of!(Vertex, pos) as u32,
-                    },
-                    VertexAttributeDesc {
-                        format: Format::R32_G32_SFloat,
-                        offset: offset_of!(Vertex, uv) as u32,
-                    },
-                    VertexAttributeDesc {
-                        format: Format::R32_G32_B32_A32_SFloat,
-                        offset: offset_of!(Vertex, color) as u32,
-                    },
-                ],
+                attributes: smallvec![],
             },
             blending: ColorBlendState::add(),
             render_pass: &render_pass,
@@ -466,14 +458,13 @@ fn main() {
                         render_context.bind_viewport(&cinder, surface_rect, true);
                         render_context.bind_scissor(&cinder, surface_rect);
 
-                        for draw in &mesh_draws {
+                        for (idx, draw) in mesh_draws.iter().enumerate() {
                             render_context.bind_descriptor_sets(
                                 &cinder,
                                 &pipeline,
-                                &[bind_group_sets[draw.image_index].set],
+                                &[bind_group_sets[idx].set],
                             );
 
-                            render_context.bind_vertex_buffer(&cinder, &draw.vertex_buffer);
                             render_context.bind_index_buffer(&cinder, &draw.index_buffer);
                             render_context.push_constant(
                                 &cinder,
