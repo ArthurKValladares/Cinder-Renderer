@@ -1,7 +1,11 @@
 use anyhow::Result;
 use ash::vk;
 use rust_shader_tools::ShaderData;
-use std::{fs::File, io::BufReader, path::Path};
+use std::{
+    fs::File,
+    io::{BufReader, Cursor},
+    path::Path,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub enum ShaderStage {
@@ -20,7 +24,7 @@ impl From<ShaderStage> for vk::ShaderStageFlags {
 
 pub struct ShaderDescription {
     pub stage: ShaderStage,
-    pub path: &'static Path,
+    pub bytes: &'static [u8],
 }
 
 pub struct Shader {
@@ -30,9 +34,9 @@ pub struct Shader {
 
 impl Shader {
     pub(crate) fn create(device: &ash::Device, desc: ShaderDescription) -> Result<Self> {
-        let mut spv_file = File::open(desc.path)?;
+        let reflect_data = ShaderData::from_spv(desc.bytes)?;
+        let mut spv_file = Cursor::new(desc.bytes);
         let code = ash::util::read_spv(&mut spv_file)?;
-        let reflect_data = ShaderData::from_spv(&code)?;
         let shader_info = vk::ShaderModuleCreateInfo::builder().code(&code);
         let module = unsafe { device.create_shader_module(&shader_info, None)? };
         Ok(Shader {

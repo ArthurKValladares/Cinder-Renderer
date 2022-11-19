@@ -88,11 +88,11 @@ impl EguiIntegration {
 
         let vertex_shader = cinder.create_shader(ShaderDescription {
             stage: ShaderStage::Vertex,
-            path: Path::new("egui-integration/shaders/spv/egui.vert.spv"),
+            bytes: include_bytes!("../shaders/spv/egui.vert.spv"),
         })?;
         let fragment_shader = cinder.create_shader(ShaderDescription {
             stage: ShaderStage::Fragment,
-            path: Path::new("egui-integration/shaders/spv/egui.frag.spv"),
+            bytes: include_bytes!("../shaders/spv/egui.frag.spv"),
         })?;
 
         let bind_group_layout = BindGroupLayoutBuilder::default()

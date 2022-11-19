@@ -1660,9 +1660,9 @@ dependencies = [
 
 [[package]]
 name = "rayon-core"
-version = "1.10.0"
+version = "1.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7ebf1bc4b691de61bd5a8ba170bfd6a1d363ff3cb595a51798d107aab25d2466"
+checksum = "cac410af5d00ab6884528b4ab69d1e8e146e8d471201800fa1b4524126de6ad3"
 dependencies = [
  "crossbeam-channel",
  "crossbeam-deque",
@@ -1725,7 +1725,7 @@ dependencies = [
 [[package]]
 name = "rust-shader-tools"
 version = "0.1.0"
-source = "git+https://github.com/ArthurKValladares/Rust-Shader-Tools#aaf3ba7bd7528a8138492a91abf18143accdeb8e"
+source = "git+https://github.com/ArthurKValladares/Rust-Shader-Tools#e914b0c62af51e6efaa9773e594feb0cbea7b66e"
 dependencies = [
  "anyhow",
  "shaderc",

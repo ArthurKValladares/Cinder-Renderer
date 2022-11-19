@@ -100,13 +100,13 @@ fn main() {
     let vertex_shader = cinder
         .create_shader(ShaderDescription {
             stage: ShaderStage::Vertex,
-            path: Path::new("shaders/spv/default.vert.spv"),
+            bytes: include_bytes!("../shaders/spv/default.vert.spv"),
         })
         .expect("Could not create vertex shader");
     let fragment_shader = cinder
         .create_shader(ShaderDescription {
             stage: ShaderStage::Fragment,
-            path: Path::new("shaders/spv/default.frag.spv"),
+            bytes: include_bytes!("../shaders/spv/default.frag.spv"),
         })
         .expect("Could not create fragment shader");
     let mut render_pass = cinder
