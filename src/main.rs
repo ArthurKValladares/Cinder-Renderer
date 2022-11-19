@@ -97,18 +97,21 @@ fn main() {
         .create_upload_context(UploadContextDescription {})
         .expect("could not create upload context");
 
-    let vertex_shader = cinder
-        .create_shader(ShaderDescription {
-            stage: ShaderStage::Vertex,
-            bytes: include_bytes!("../shaders/spv/default.vert.spv"),
-        })
-        .expect("Could not create vertex shader");
+    println!("HEllo");
     let fragment_shader = cinder
         .create_shader(ShaderDescription {
             stage: ShaderStage::Fragment,
             bytes: include_bytes!("../shaders/spv/default.frag.spv"),
         })
         .expect("Could not create fragment shader");
+    println!("HEllo");
+    let vertex_shader = cinder
+        .create_shader(ShaderDescription {
+            stage: ShaderStage::Vertex,
+            bytes: include_bytes!("../shaders/spv/default.vert.spv"),
+        })
+        .expect("Could not create vertex shader");
+    println!("HEllo");
     let mut render_pass = cinder
         .create_render_pass(RenderPassDescription {
             color_attachment: RenderPassAttachmentDesc::new(cinder.surface_format())

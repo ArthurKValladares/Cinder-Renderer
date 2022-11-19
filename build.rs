@@ -4,7 +4,7 @@ use rust_shader_tools::{EnvVersion, OptimizationLevel, ShaderCompiler, ShaderSta
 
 fn main() {
     let shader_compiler = ShaderCompiler::new(
-        EnvVersion::Vulkan1_2,
+        EnvVersion::Vulkan1_0,
         OptimizationLevel::Zero,
         Some(PathBuf::from("shaders")),
     )
