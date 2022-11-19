@@ -2,7 +2,6 @@
 #version 460
 
 #extension GL_GOOGLE_include_directive: require
-#extension GL_ARB_shader_draw_parameters: require
 
 #include "shared.glsl"
 
@@ -16,10 +15,10 @@ layout(set = 0, binding = 1) readonly buffer Vertices
 	Vertex vertices[];
 };
 
-layout( push_constant ) uniform constants
+layout(push_constant) uniform constants
 {
 	vec4 model;
-} PushConstants;
+};
 
 layout (location = 0) out vec4 o_color;
 layout (location = 1) out vec2 o_uv;
