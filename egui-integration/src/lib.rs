@@ -87,11 +87,9 @@ impl EguiIntegration {
         };
 
         let vertex_shader = cinder.create_shader(ShaderDescription {
-            stage: ShaderStage::Vertex,
             bytes: include_bytes!("../shaders/spv/egui.vert.spv"),
         })?;
         let fragment_shader = cinder.create_shader(ShaderDescription {
-            stage: ShaderStage::Fragment,
             bytes: include_bytes!("../shaders/spv/egui.frag.spv"),
         })?;
 

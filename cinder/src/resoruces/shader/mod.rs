@@ -1,11 +1,7 @@
 use anyhow::Result;
 use ash::vk;
-use rust_shader_tools::ShaderData;
-use std::{
-    fs::File,
-    io::{BufReader, Cursor},
-    path::Path,
-};
+use rust_shader_tools::{ReflectShaderStageFlags, ShaderData};
+use std::io::Cursor;
 
 #[derive(Debug, Clone, Copy)]
 pub enum ShaderStage {
@@ -22,8 +18,17 @@ impl From<ShaderStage> for vk::ShaderStageFlags {
     }
 }
 
+impl From<ReflectShaderStageFlags> for ShaderStage {
+    fn from(flags: ReflectShaderStageFlags) -> Self {
+        match flags {
+            ReflectShaderStageFlags::VERTEX => ShaderStage::Vertex,
+            ReflectShaderStageFlags::FRAGMENT => ShaderStage::Fragment,
+            _ => panic!("Shader stage not yet supported"),
+        }
+    }
+}
+
 pub struct ShaderDescription {
-    pub stage: ShaderStage,
     pub bytes: &'static [u8],
 }
 
@@ -43,5 +48,9 @@ impl Shader {
             module,
             reflect_data,
         })
+    }
+
+    pub fn stage(&self) -> ShaderStage {
+        self.reflect_data.stage().into()
     }
 }
