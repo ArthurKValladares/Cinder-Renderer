@@ -97,16 +97,16 @@ fn main() {
         .create_upload_context(UploadContextDescription {})
         .expect("could not create upload context");
 
-    let fragment_shader = cinder
-        .create_shader(ShaderDescription {
-            bytes: include_bytes!("../shaders/spv/default.frag.spv"),
-        })
-        .expect("Could not create fragment shader");
     let vertex_shader = cinder
         .create_shader(ShaderDescription {
             bytes: include_bytes!("../shaders/spv/default.vert.spv"),
         })
         .expect("Could not create vertex shader");
+    let fragment_shader = cinder
+        .create_shader(ShaderDescription {
+            bytes: include_bytes!("../shaders/spv/default.frag.spv"),
+        })
+        .expect("Could not create fragment shader");
 
     let mut render_pass = cinder
         .create_render_pass(RenderPassDescription {
