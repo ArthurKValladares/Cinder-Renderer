@@ -47,7 +47,6 @@ pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_winit: egui_winit::State,
     render_pass: RenderPass,
-    push_constant: PushConstant,
     _bind_group_layout: BindGroupLayout,
     bind_group_set: BindGroupSet,
     pipeline: GraphicsPipeline,
@@ -123,7 +122,6 @@ impl EguiIntegration {
             blending: ColorBlendState::pma(),
             render_pass: &render_pass,
             desc_set_layouts: vec![bind_group_layout.layout],
-            push_constants: vec![&push_constant],
             depth_testing_enabled: false,
             backface_culling: false,
         })?;
@@ -161,7 +159,6 @@ impl EguiIntegration {
             egui_winit,
             render_pass,
             sampler,
-            push_constant,
             _bind_group_layout: bind_group_layout,
             bind_group_set,
             pipeline,
@@ -260,7 +257,8 @@ impl EguiIntegration {
             render_context.push_constant(
                 cinder,
                 &self.pipeline,
-                &self.push_constant,
+                ShaderStage::Vertex,
+                0,
                 as_u8_slice(&EguiPushConstantData {
                     size: Vec2::new(
                         size.width as f32 / pixels_per_point,

@@ -1,9 +1,11 @@
+use super::pipeline::push_constant::PushConstant;
 use anyhow::Result;
 use ash::vk;
 use rust_shader_tools::{ReflectShaderStageFlags, ShaderData};
 use std::io::Cursor;
+use thiserror::Error;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum ShaderStage {
     Vertex,
     Fragment,
@@ -26,6 +28,12 @@ impl From<ReflectShaderStageFlags> for ShaderStage {
             _ => panic!("Shader stage not yet supported"),
         }
     }
+}
+
+#[derive(Debug, Error)]
+pub enum ShaderError {
+    #[error("{0}")]
+    ReflectionError(&'static str),
 }
 
 pub struct ShaderDescription {
@@ -52,5 +60,20 @@ impl Shader {
 
     pub fn stage(&self) -> ShaderStage {
         self.reflect_data.stage().into()
+    }
+
+    pub fn push_constants(&self) -> Result<Vec<PushConstant>> {
+        Ok(self
+            .reflect_data
+            .module()
+            .enumerate_push_constant_blocks(None)
+            .map_err(ShaderError::ReflectionError)?
+            .iter()
+            .map(|block| PushConstant {
+                stage: self.stage(),
+                offset: block.offset,
+                size: block.size * 4,
+            })
+            .collect::<Vec<_>>())
     }
 }

@@ -2,11 +2,15 @@ pub mod push_constant;
 
 use self::push_constant::PushConstant;
 
-use super::{image::Format, render_pass::RenderPass, shader::Shader};
+use super::{
+    image::Format,
+    render_pass::RenderPass,
+    shader::{Shader, ShaderStage},
+};
 use anyhow::Result;
 use ash::vk;
 use smallvec::SmallVec;
-use std::ffi::CStr;
+use std::{collections::HashMap, ffi::CStr};
 
 #[repr(C)]
 #[derive(Debug, Default)]
@@ -72,7 +76,6 @@ pub struct GraphicsPipelineDescription<'a> {
     pub blending: ColorBlendState,
     pub render_pass: &'a RenderPass,
     pub desc_set_layouts: Vec<vk::DescriptorSetLayout>,
-    pub push_constants: Vec<&'a PushConstant>,
     pub depth_testing_enabled: bool,
     pub backface_culling: bool,
 }
@@ -84,6 +87,8 @@ pub struct PipelineCommon {
 
 pub struct GraphicsPipeline {
     pub common: PipelineCommon,
+    // TODO: Think of a better key
+    push_constants: HashMap<(ShaderStage, u32), PushConstant>,
 }
 
 impl GraphicsPipeline {
@@ -95,9 +100,23 @@ impl GraphicsPipeline {
         //
         // Pipeline stuff, pretty temp
         //
-        let push_constant_ranges = desc
-            .push_constants
-            .iter()
+        let push_constants = {
+            let mut map = HashMap::new();
+            for (idx, pc) in desc.vertex_shader.push_constants()?.into_iter().enumerate() {
+                map.insert((ShaderStage::Vertex, idx as u32), pc);
+            }
+            for (idx, pc) in desc
+                .fragment_shader
+                .push_constants()?
+                .into_iter()
+                .enumerate()
+            {
+                map.insert((ShaderStage::Fragment, idx as u32), pc);
+            }
+            map
+        };
+        let push_constant_ranges = push_constants
+            .values()
             .map(|pc| pc.to_raw())
             .collect::<Vec<_>>();
         let layout_create_info = vk::PipelineLayoutCreateInfo::builder()
@@ -219,6 +238,11 @@ impl GraphicsPipeline {
                 pipeline_layout,
                 pipeline,
             },
+            push_constants,
         })
+    }
+
+    pub fn get_push_constant(&self, shader_stage: ShaderStage, idx: u32) -> Option<&PushConstant> {
+        self.push_constants.get(&(shader_stage, idx))
     }
 }

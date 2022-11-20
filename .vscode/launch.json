@@ -5,7 +5,7 @@
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceRoot}/target/debug/Cinder-Renderer.exe",
+            "program": "${workspaceRoot}/target/debug/cinder_renderer.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",

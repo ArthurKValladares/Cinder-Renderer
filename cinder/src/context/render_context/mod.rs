@@ -5,13 +5,21 @@ use crate::{
     profiling::QueryPool,
     resoruces::{
         buffer::Buffer,
-        pipeline::{push_constant::PushConstant, GraphicsPipeline},
+        pipeline::GraphicsPipeline,
         render_pass::{ClearValue, RenderPass},
+        shader::ShaderStage,
     },
 };
 use anyhow::Result;
 use ash::vk::{self};
 use math::rect::Rect2D;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum PipelineError {
+    #[error("invalid push constant")]
+    InvalidPushConstant,
+}
 
 pub struct RenderContextDescription {}
 
@@ -215,17 +223,23 @@ impl RenderContext {
         &self,
         cinder: &Cinder,
         pipeline: &GraphicsPipeline,
-        push_constant: &PushConstant,
+        shader_stage: ShaderStage,
+        idx: u32,
         data: &[u8],
-    ) {
-        unsafe {
-            cinder.device().cmd_push_constants(
-                self.shared.command_buffer,
-                pipeline.common.pipeline_layout,
-                push_constant.stage.into(),
-                push_constant.offset,
-                data,
-            );
+    ) -> Result<(), PipelineError> {
+        if let Some(push_constant) = pipeline.get_push_constant(shader_stage, idx) {
+            unsafe {
+                cinder.device().cmd_push_constants(
+                    self.shared.command_buffer,
+                    pipeline.common.pipeline_layout,
+                    push_constant.stage.into(),
+                    push_constant.offset,
+                    data,
+                );
+            };
+            Ok(())
+        } else {
+            Err(PipelineError::InvalidPushConstant)
         }
     }
 

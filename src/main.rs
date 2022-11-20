@@ -317,11 +317,6 @@ fn main() {
             bind_group_set
         })
         .collect::<Vec<_>>();
-    let model_push_constant = PushConstant {
-        stage: ShaderStage::Vertex,
-        offset: 0,
-        size: std::mem::size_of::<ModelPushConstant>() as u32,
-    };
     let pipeline = cinder
         .create_graphics_pipeline(GraphicsPipelineDescription {
             vertex_shader,
@@ -334,7 +329,6 @@ fn main() {
             blending: ColorBlendState::add(),
             render_pass: &render_pass,
             desc_set_layouts: vec![bind_group_layout.layout],
-            push_constants: vec![&model_push_constant],
             depth_testing_enabled: true,
             backface_culling: true,
         })
@@ -468,7 +462,8 @@ fn main() {
                             render_context.push_constant(
                                 &cinder,
                                 &pipeline,
-                                &model_push_constant,
+                                ShaderStage::Vertex,
+                                0,
                                 util::as_u8_slice(&color),
                             );
                             render_context.draw(&cinder, draw.num_indices as u32);
