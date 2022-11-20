@@ -123,12 +123,6 @@ fn main() {
             ),
         })
         .expect("Could not create render pass");
-    let bind_group_layout = BindGroupLayoutBuilder::default()
-        .bind_buffer(0, BindGroupType::UniformBuffer, ShaderStage::Vertex)
-        .bind_buffer(1, BindGroupType::StorageBuffer, ShaderStage::Vertex)
-        .bind_image(2, BindGroupType::ImageSampler, ShaderStage::Fragment)
-        .build(&mut cinder)
-        .expect("Could not create BindGroup");
 
     // Load model
     let scene_load_start = Instant::now();
@@ -299,24 +293,6 @@ fn main() {
 
     let sampler = cinder.create_sampler().expect("Could not create sampler");
 
-    let uniform_buffer_info = uniform_buffer.bind_info();
-    let bind_group_sets = mesh_draws
-        .iter()
-        .map(|mesh_draw| {
-            let image = &images[mesh_draw.image_index];
-
-            let image_info = image.bind_info(&sampler);
-            let vertex_buffer_info = mesh_draw.vertex_buffer.bind_info();
-
-            let bind_group_set = BindGroupSet::allocate(&mut cinder, &bind_group_layout).unwrap();
-            BindGroupWriteBuilder::default()
-                .bind_buffer(0, &uniform_buffer_info, BindGroupType::UniformBuffer)
-                .bind_buffer(1, &vertex_buffer_info, BindGroupType::StorageBuffer)
-                .bind_image(2, &image_info, BindGroupType::ImageSampler)
-                .update(&cinder, &bind_group_set);
-            bind_group_set
-        })
-        .collect::<Vec<_>>();
     let pipeline = cinder
         .create_graphics_pipeline(GraphicsPipelineDescription {
             vertex_shader,
@@ -328,11 +304,31 @@ fn main() {
             },
             blending: ColorBlendState::add(),
             render_pass: &render_pass,
-            desc_set_layouts: vec![bind_group_layout.layout],
             depth_testing_enabled: true,
             backface_culling: true,
         })
         .expect("Could not create graphics pipeline");
+
+    let uniform_buffer_info = uniform_buffer.bind_info();
+    let bind_group_sets = mesh_draws
+        .iter()
+        .map(|mesh_draw| {
+            let image = &images[mesh_draw.image_index];
+
+            let image_info = image.bind_info(&sampler);
+            let vertex_buffer_info = mesh_draw.vertex_buffer.bind_info();
+
+            // TODO: bind group layout stuff is bad here
+            let bind_group_set =
+                BindGroupSet::allocate(&mut cinder, &pipeline.bind_group_layouts()[0]).unwrap();
+            BindGroupWriteBuilder::default()
+                .bind_buffer(0, &uniform_buffer_info, BindGroupType::UniformBuffer)
+                .bind_buffer(1, &vertex_buffer_info, BindGroupType::StorageBuffer)
+                .bind_image(2, &image_info, BindGroupType::ImageSampler)
+                .update(&cinder, &bind_group_set);
+            bind_group_set
+        })
+        .collect::<Vec<_>>();
 
     let mut color = ModelPushConstant {
         mat: Matrix4::from_axis_angle(Vector3::new(0.0, 0.0, 1.0), Deg(0.0)),

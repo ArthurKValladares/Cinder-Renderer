@@ -264,9 +264,15 @@ impl BindGroupLayoutCache {
     }
 }
 
-pub struct BindGroupLayout {
-    pub layout: vk::DescriptorSetLayout,
+#[derive(Debug, Clone, Copy)]
+pub struct BindGroupData {
+    pub binding: u32,
+    pub ty: BindGroupType,
+    pub shader_stage: ShaderStage,
 }
+
+#[repr(C)]
+pub struct BindGroupLayout(vk::DescriptorSetLayout);
 
 #[derive(Debug, Default)]
 pub struct BindGroupLayoutBuilder {
@@ -274,12 +280,7 @@ pub struct BindGroupLayoutBuilder {
 }
 
 impl BindGroupLayoutBuilder {
-    pub fn bind_buffer(
-        mut self,
-        binding: u32,
-        ty: BindGroupType,
-        shader_stage: ShaderStage,
-    ) -> Self {
+    pub fn bind(mut self, binding: u32, ty: BindGroupType, shader_stage: ShaderStage) -> Self {
         let new_binding = vk::DescriptorSetLayoutBinding::builder()
             .binding(binding)
             .descriptor_type(ty.into())
@@ -291,31 +292,14 @@ impl BindGroupLayoutBuilder {
         self
     }
 
-    pub fn bind_image(
-        mut self,
-        binding: u32,
-        ty: BindGroupType,
-        shader_stage: ShaderStage,
-    ) -> Self {
-        let new_binding = vk::DescriptorSetLayoutBinding::builder()
-            .binding(binding)
-            .descriptor_type(ty.into())
-            .descriptor_count(1)
-            .stage_flags(shader_stage.into())
-            .build();
-        self.bindings.push(new_binding);
-
-        self
-    }
-
-    pub fn build(self, cinder: &mut Cinder) -> Result<BindGroupLayout> {
+    pub fn build(self, device: &ash::Device) -> Result<BindGroupLayout> {
         let layout_info = vk::DescriptorSetLayoutCreateInfo::builder()
             .bindings(&self.bindings)
             .build();
 
-        let layout = cinder.create_descriptor_set_layout(layout_info)?;
+        let layout = unsafe { device.create_descriptor_set_layout(&layout_info, None)? };
 
-        Ok(BindGroupLayout { layout })
+        Ok(BindGroupLayout(layout))
     }
 }
 
@@ -326,7 +310,7 @@ pub struct BindGroupSet {
 
 impl BindGroupSet {
     pub fn allocate(cinder: &mut Cinder, layout: &BindGroupLayout) -> Result<Self> {
-        let set = cinder.create_descriptor_set(&layout.layout)?;
+        let set = cinder.create_descriptor_set(&layout.0)?;
         Ok(Self { set })
     }
 }

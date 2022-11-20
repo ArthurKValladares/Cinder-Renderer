@@ -1,8 +1,11 @@
-use super::pipeline::push_constant::PushConstant;
+use super::{
+    bind_group::{BindGroupData, BindGroupType},
+    pipeline::push_constant::PushConstant,
+};
 use anyhow::Result;
 use ash::vk;
-use rust_shader_tools::{ReflectShaderStageFlags, ShaderData};
-use std::io::Cursor;
+use rust_shader_tools::{ReflectDescriptorType, ReflectShaderStageFlags, ShaderData};
+use std::{collections::BTreeMap, io::Cursor};
 use thiserror::Error;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -75,5 +78,41 @@ impl Shader {
                 size: block.size * 4,
             })
             .collect::<Vec<_>>())
+    }
+
+    pub fn bind_group_layouts(&self) -> Result<BTreeMap<u32, Vec<BindGroupData>>> {
+        let shader_stage = self.stage();
+        Ok(self
+            .reflect_data
+            .module()
+            .enumerate_descriptor_sets(None)
+            .map_err(ShaderError::ReflectionError)?
+            .iter()
+            .map(|set| {
+                let data = set
+                    .bindings
+                    .iter()
+                    .map(|reflect_binding| {
+                        let ty = match reflect_binding.descriptor_type {
+                            ReflectDescriptorType::CombinedImageSampler => {
+                                BindGroupType::ImageSampler
+                            }
+                            ReflectDescriptorType::UniformBuffer => BindGroupType::UniformBuffer,
+                            ReflectDescriptorType::StorageBuffer => BindGroupType::StorageBuffer,
+                            _ => {
+                                // TODO: need a better way to handle returning errors from here later
+                                unreachable!()
+                            }
+                        };
+                        BindGroupData {
+                            binding: reflect_binding.binding,
+                            ty,
+                            shader_stage,
+                        }
+                    })
+                    .collect::<Vec<_>>();
+                (set.set, data)
+            })
+            .collect::<BTreeMap<_, _>>())
     }
 }

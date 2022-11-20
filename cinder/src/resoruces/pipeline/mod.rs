@@ -1,8 +1,11 @@
 pub mod push_constant;
 
+use crate::cinder::Cinder;
+
 use self::push_constant::PushConstant;
 
 use super::{
+    bind_group::{BindGroupLayout, BindGroupLayoutBuilder},
     image::Format,
     render_pass::RenderPass,
     shader::{Shader, ShaderStage},
@@ -75,7 +78,6 @@ pub struct GraphicsPipelineDescription<'a> {
     pub vertex_state: VertexInputStateDesc,
     pub blending: ColorBlendState,
     pub render_pass: &'a RenderPass,
-    pub desc_set_layouts: Vec<vk::DescriptorSetLayout>,
     pub depth_testing_enabled: bool,
     pub backface_culling: bool,
 }
@@ -89,6 +91,8 @@ pub struct GraphicsPipeline {
     pub common: PipelineCommon,
     // TODO: Think of a better key
     push_constants: HashMap<(ShaderStage, u32), PushConstant>,
+    // TODO: Also need a better way to get these
+    bind_group_layouts: Vec<BindGroupLayout>,
 }
 
 impl GraphicsPipeline {
@@ -115,12 +119,34 @@ impl GraphicsPipeline {
             }
             map
         };
+        let bind_group_layouts = {
+            let mut data_map = desc.vertex_shader.bind_group_layouts()?;
+            for (set, data) in desc.fragment_shader.bind_group_layouts()? {
+                let entry = data_map.entry(set).or_insert_with(|| Vec::new());
+                entry.extend(data);
+            }
+            data_map
+                .values()
+                .map(|data_vecs| {
+                    let mut builder = BindGroupLayoutBuilder::default();
+                    for data in data_vecs {
+                        builder = builder.bind(data.binding, data.ty, data.shader_stage);
+                    }
+                    builder.build(device)
+                })
+                .collect::<Result<Vec<_>>>()
+        }?;
+        let set_layouts = unsafe {
+            std::mem::transmute::<&[BindGroupLayout], &[vk::DescriptorSetLayout]>(
+                &bind_group_layouts,
+            )
+        };
         let push_constant_ranges = push_constants
             .values()
             .map(|pc| pc.to_raw())
             .collect::<Vec<_>>();
         let layout_create_info = vk::PipelineLayoutCreateInfo::builder()
-            .set_layouts(&desc.desc_set_layouts)
+            .set_layouts(&set_layouts)
             .push_constant_ranges(&push_constant_ranges);
 
         let pipeline_layout = unsafe { device.create_pipeline_layout(&layout_create_info, None) }?;
@@ -239,10 +265,15 @@ impl GraphicsPipeline {
                 pipeline,
             },
             push_constants,
+            bind_group_layouts,
         })
     }
 
     pub fn get_push_constant(&self, shader_stage: ShaderStage, idx: u32) -> Option<&PushConstant> {
         self.push_constants.get(&(shader_stage, idx))
+    }
+
+    pub fn bind_group_layouts(&self) -> &[BindGroupLayout] {
+        &self.bind_group_layouts
     }
 }

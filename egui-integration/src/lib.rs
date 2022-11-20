@@ -47,7 +47,6 @@ pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_winit: egui_winit::State,
     render_pass: RenderPass,
-    _bind_group_layout: BindGroupLayout,
     bind_group_set: BindGroupSet,
     pipeline: GraphicsPipeline,
     sampler: Sampler,
@@ -92,11 +91,6 @@ impl EguiIntegration {
             bytes: include_bytes!("../shaders/spv/egui.frag.spv"),
         })?;
 
-        let bind_group_layout = BindGroupLayoutBuilder::default()
-            .bind_image(0, BindGroupType::ImageSampler, ShaderStage::Fragment)
-            .build(cinder)?;
-        let bind_group_set = BindGroupSet::allocate(cinder, &bind_group_layout)?;
-
         let pipeline = cinder.create_graphics_pipeline(GraphicsPipelineDescription {
             vertex_shader,
             fragment_shader,
@@ -121,10 +115,11 @@ impl EguiIntegration {
             },
             blending: ColorBlendState::pma(),
             render_pass: &render_pass,
-            desc_set_layouts: vec![bind_group_layout.layout],
             depth_testing_enabled: false,
             backface_culling: false,
         })?;
+        // TODO: bind group layout stuff is bad here
+        let bind_group_set = BindGroupSet::allocate(cinder, &pipeline.bind_group_layouts()[0])?;
 
         let sampler = cinder.create_sampler()?;
 
@@ -159,7 +154,6 @@ impl EguiIntegration {
             egui_winit,
             render_pass,
             sampler,
-            _bind_group_layout: bind_group_layout,
             bind_group_set,
             pipeline,
             image_staging_buffer: None,

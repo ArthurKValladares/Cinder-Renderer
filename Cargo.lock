@@ -1725,7 +1725,7 @@ dependencies = [
 [[package]]
 name = "rust-shader-tools"
 version = "0.1.0"
-source = "git+https://github.com/ArthurKValladares/Rust-Shader-Tools#88c8f85d994abb5a77d672483ee24ac3f6ec1cdf"
+source = "git+https://github.com/ArthurKValladares/Rust-Shader-Tools#ab7e61ff9cd3d5b22864e472ebffddcdc2f25583"
 dependencies = [
  "anyhow",
  "shaderc",
