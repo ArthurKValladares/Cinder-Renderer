@@ -30,9 +30,14 @@ fn main() {
         .into_iter()
         .map(|stct| {
             let struct_name = rust_shader_tools::standardized_struct_name("default", &stct.name);
-            rust_shader_tools::shader_struct_to_rust(&struct_name, &stct)
+            let is_vertex = stct.name.contains("Vertex");
+            rust_shader_tools::shader_struct_to_rust(&struct_name, &stct, is_vertex)
         })
         .collect::<Vec<_>>();
-    rust_shader_tools::structs_to_file("test.rs", &rust_vert_structs)
-        .expect("Could not write structs to file");
+
+    rust_shader_tools::structs_to_file(
+        PathBuf::from("gen").join("shader_structs.rs"),
+        &rust_vert_structs,
+    )
+    .expect("Could not write structs to file");
 }

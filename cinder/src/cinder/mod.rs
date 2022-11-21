@@ -22,18 +22,12 @@ use crate::{
 use anyhow::Result;
 use ash::vk;
 use math::{rect::Rect2D, size::Size2D};
-use rkyv::{Archive, Deserialize, Serialize};
 use tracing::{span, Level};
 
-// TODO: Get this from the shader later on
-#[repr(C)]
-#[derive(Clone, Debug, Default, Copy, Archive, Deserialize, Serialize)]
-pub struct Vertex {
-    pub pos: [f32; 4],
-    pub color: [f32; 4],
-    pub uv: [f32; 2],
-    pub pad: [f32; 2],
-}
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../gen/shader_structs.rs"
+));
 
 pub struct Cinder {
     init_data: InitData,

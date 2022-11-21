@@ -4,7 +4,7 @@ use crate::ui::Ui;
 use camera::{CameraMatrices, Direction, PerspectiveData, MOVEMENT_DELTA, ROTATION_DELTA};
 use cgmath::{Deg, Matrix4, Vector3};
 use cinder::{
-    cinder::{Cinder, Vertex},
+    cinder::{Cinder, DefaultVertex},
     context::{render_context::RenderContextDescription, upload_context::UploadContextDescription},
     resoruces::{
         bind_group::{BindGroupLayoutBuilder, BindGroupSet, BindGroupType, BindGroupWriteBuilder},
@@ -299,7 +299,7 @@ fn main() {
             fragment_shader,
             vertex_state: VertexInputStateDesc {
                 binding: 0,
-                stride: std::mem::size_of::<Vertex>() as u32,
+                stride: std::mem::size_of::<DefaultVertex>() as u32,
                 attributes: smallvec![],
             },
             blending: ColorBlendState::add(),
