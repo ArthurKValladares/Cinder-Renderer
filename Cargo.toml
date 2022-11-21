@@ -25,4 +25,4 @@ serde_json = "1"
 
 [build-dependencies]
 home = "0.5.3"
-rust-shader-tools = { git = "https://github.com/ArthurKValladares/Rust-Shader-Tools" }
+rust-shader-tools = { git = "https://github.com/ArthurKValladares/Rust-Shader-Tools", features = ["shader-structs"] }

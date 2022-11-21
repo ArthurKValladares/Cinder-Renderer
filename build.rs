@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rust_shader_tools::{EnvVersion, OptimizationLevel, ShaderCompiler, ShaderStage};
+use rust_shader_tools::{EnvVersion, OptimizationLevel, ShaderCompiler, ShaderData, ShaderStage};
 
 fn main() {
     let shader_compiler = ShaderCompiler::new(
@@ -21,4 +21,18 @@ fn main() {
     shader_compiler
         .compile_shader("egui-integration/shaders/egui.frag", ShaderStage::Fragment)
         .expect("Could not compile shader");
+
+    // TODO: contain this logic better later
+    let vert_module =
+        ShaderData::from_spv(include_bytes!("./shaders/spv/default.vert.spv")).unwrap();
+    let vert_structs = vert_module.get_shader_structs();
+    let rust_vert_structs = vert_structs
+        .into_iter()
+        .map(|stct| {
+            let struct_name = rust_shader_tools::standardized_struct_name("default", &stct.name);
+            rust_shader_tools::shader_struct_to_rust(&struct_name, &stct)
+        })
+        .collect::<Vec<_>>();
+    rust_shader_tools::structs_to_file("test.rs", &rust_vert_structs)
+        .expect("Could not write structs to file");
 }
