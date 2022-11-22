@@ -1,8 +1,8 @@
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 pub struct DefaultUniformBufferObject {
-    pub proj: [f32; 4],
-    pub view: [f32; 4],
+    pub proj: [[f32; 4]; 4],
+    pub view: [[f32; 4]; 4],
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]

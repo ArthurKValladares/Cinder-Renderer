@@ -1,10 +1,10 @@
 mod ui;
 
 use crate::ui::Ui;
-use camera::{CameraMatrices, Direction, PerspectiveData, MOVEMENT_DELTA, ROTATION_DELTA};
+use camera::{Direction, PerspectiveData, MOVEMENT_DELTA, ROTATION_DELTA};
 use cgmath::{Deg, Matrix4, Vector3};
 use cinder::{
-    cinder::{Cinder, DefaultVertex},
+    cinder::{Cinder, DefaultUniformBufferObject, DefaultVertex},
     context::{render_context::RenderContextDescription, upload_context::UploadContextDescription},
     resoruces::{
         bind_group::{BindGroupLayoutBuilder, BindGroupSet, BindGroupType, BindGroupWriteBuilder},
@@ -228,7 +228,7 @@ fn main() {
 
     let uniform_buffer = cinder
         .create_buffer(BufferDescription {
-            size: std::mem::size_of::<CameraMatrices>() as u64,
+            size: std::mem::size_of::<DefaultUniformBufferObject>() as u64,
             usage: BufferUsage::empty().uniform(),
             memory_desc: MemoryDescription {
                 ty: MemoryType::CpuVisible,

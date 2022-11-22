@@ -1,3 +1,4 @@
+use cinder::cinder::DefaultUniformBufferObject;
 use math::{mat::Mat4, vec::Vec3};
 
 pub static ROTATION_DELTA: f32 = 0.01;
@@ -56,13 +57,6 @@ impl Default for PerspectiveData {
             z_near: 0.01,
         }
     }
-}
-
-#[repr(C)]
-#[derive(Copy, Clone, Debug)]
-pub struct CameraMatrices {
-    proj: Mat4,
-    view: Mat4,
 }
 
 #[derive(Debug, Copy, Clone)]
@@ -142,7 +136,11 @@ impl Camera {
         );
     }
 
-    pub fn get_matrices(&self, window_width: f32, window_height: f32) -> CameraMatrices {
+    pub fn get_matrices(
+        &self,
+        window_width: f32,
+        window_height: f32,
+    ) -> DefaultUniformBufferObject {
         let eye = self.pos;
         let front = self.front;
 
@@ -153,6 +151,9 @@ impl Camera {
             self.data.z_near,
         );
 
-        CameraMatrices { proj, view }
+        DefaultUniformBufferObject {
+            proj: proj.into(),
+            view: view.into(),
+        }
     }
 }
