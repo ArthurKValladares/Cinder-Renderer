@@ -17,7 +17,7 @@ layout(set = 0, binding = 1) readonly buffer Vertices
 
 layout(push_constant) uniform constants
 {
-	vec4 model;
+	vec4 pc_color;
 };
 
 layout (location = 0) out vec4 o_color;
@@ -26,7 +26,7 @@ layout (location = 1) out vec2 o_uv;
 void main() {
     Vertex v = vertices[gl_VertexIndex];
 
-    o_color = v.color;
+    o_color = v.color + (pc_color * 0.2);
     o_uv = v.uv;
     gl_Position = ubo.proj * ubo.view * v.pos;
 }

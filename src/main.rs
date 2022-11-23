@@ -4,7 +4,7 @@ use crate::ui::Ui;
 use camera::{Direction, PerspectiveData, MOVEMENT_DELTA, ROTATION_DELTA};
 use cgmath::{Deg, Matrix4, Vector3};
 use cinder::{
-    cinder::{Cinder, DefaultUniformBufferObject, DefaultVertex},
+    cinder::{Cinder, DefaultUniformBufferObject, DefaultVertex, Defaultconstants},
     context::{render_context::RenderContextDescription, upload_context::UploadContextDescription},
     resoruces::{
         bind_group::{BindGroupLayoutBuilder, BindGroupSet, BindGroupType, BindGroupWriteBuilder},
@@ -50,16 +50,6 @@ struct MeshDraw {
 }
 
 // TODO: verify that all triple buffering stuff is working
-
-#[repr(C)]
-#[derive(Clone, Debug, Copy)]
-pub struct ModelPushConstant {
-    mat: Matrix4<f32>,
-}
-
-fn update_model_push_constant(model: &mut ModelPushConstant, delta_time: f32) {
-    model.mat = Matrix4::from_axis_angle(Vector3::new(0.0, 0.0, 1.0), Deg(90.0) * delta_time);
-}
 
 fn main() {
     let collector = tracing_subscriber::fmt()
@@ -330,10 +320,6 @@ fn main() {
         })
         .collect::<Vec<_>>();
 
-    let mut color = ModelPushConstant {
-        mat: Matrix4::from_axis_angle(Vector3::new(0.0, 0.0, 1.0), Deg(0.0)),
-    };
-
     // Egui integration
     let mut cinder_ui = Ui::new();
     let mut egui = EguiIntegration::new(
@@ -427,7 +413,7 @@ fn main() {
                     );
 
                     let delta_time = start.elapsed().as_secs_f32() / 2.0;
-                    update_model_push_constant(&mut color, delta_time);
+                    let color = [delta_time.sin(), 0.0, 0.0, 0.0];
 
                     let surface_rect = cinder.surface_rect();
 

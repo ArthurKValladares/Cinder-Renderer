@@ -13,3 +13,8 @@ pub struct DefaultVertex {
     pub uv: [f32; 2],
     pub pad: [f32; 2],
 }
+#[repr(C)]
+#[derive(Debug, Default, Copy, Clone)]
+pub struct Defaultconstants {
+    pub pc_color: [f32; 4],
+}

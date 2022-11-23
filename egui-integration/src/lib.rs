@@ -259,7 +259,7 @@ impl EguiIntegration {
                         size.height as f32 / pixels_per_point,
                     ),
                 }),
-            );
+            )?;
 
             for egui::ClippedPrimitive {
                 clip_rect,

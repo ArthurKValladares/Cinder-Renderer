@@ -25,7 +25,13 @@ fn main() {
     // TODO: contain this logic better later
     let vert_module =
         ShaderData::from_spv(include_bytes!("./shaders/spv/default.vert.spv")).unwrap();
-    let vert_structs = vert_module.get_shader_structs();
+    let vert_structs = {
+        let mut descriptor_structs = vert_module.get_shader_structs();
+        let mut pc_structs = vert_module.get_push_constant_structs();
+        descriptor_structs.append(&mut pc_structs);
+        descriptor_structs
+    };
+
     let rust_vert_structs = vert_structs
         .into_iter()
         .map(|stct| {
