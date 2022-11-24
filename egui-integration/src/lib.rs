@@ -1,12 +1,10 @@
 use anyhow::Result;
 use cinder::{
     cinder::Cinder,
+    cinder::Eguiconstants,
     context::{render_context::RenderContext, upload_context::UploadContext},
     resoruces::{
-        bind_group::{
-            BindGroupLayout, BindGroupLayoutBuilder, BindGroupSet, BindGroupType,
-            BindGroupWriteBuilder,
-        },
+        bind_group::{BindGroupSet, BindGroupType, BindGroupWriteBuilder},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
@@ -36,12 +34,6 @@ use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Windo
 
 static VERTEX_BUFFER_SIZE: u64 = 1024 * 1024 * 4;
 static INDEX_BUFFER_SIZE: u64 = 1024 * 1024 * 2;
-
-#[repr(C)]
-#[derive(Clone, Debug, Copy)]
-struct EguiPushConstantData {
-    size: Vec2,
-}
 
 pub struct EguiIntegration {
     egui_context: egui::Context,
@@ -81,7 +73,7 @@ impl EguiIntegration {
         let push_constant = PushConstant {
             stage: ShaderStage::Vertex,
             offset: 0,
-            size: std::mem::size_of::<EguiPushConstantData>() as u32,
+            size: std::mem::size_of::<Eguiconstants>() as u32,
         };
 
         let vertex_shader = cinder.create_shader(ShaderDescription {
@@ -253,11 +245,11 @@ impl EguiIntegration {
                 &self.pipeline,
                 ShaderStage::Vertex,
                 0,
-                as_u8_slice(&EguiPushConstantData {
-                    size: Vec2::new(
+                as_u8_slice(&Eguiconstants {
+                    screen_size: [
                         size.width as f32 / pixels_per_point,
                         size.height as f32 / pixels_per_point,
-                    ),
+                    ],
                 }),
             )?;
 

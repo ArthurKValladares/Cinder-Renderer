@@ -26,7 +26,11 @@ use tracing::{span, Level};
 
 include!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../gen/shader_structs.rs"
+    "/../gen/default_shader_structs.rs"
+));
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/../gen/egui_shader_structs.rs"
 ));
 
 pub struct Cinder {
