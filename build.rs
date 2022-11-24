@@ -4,15 +4,15 @@ use rust_shader_tools::{EnvVersion, OptimizationLevel, ShaderCompiler, ShaderDat
 
 fn write_shader_structs(bytes: &[u8], prefix: &'static str) {
     // TODO: contain this logic better later
-    let default_vert_module = ShaderData::from_spv(bytes).unwrap();
+    let vert_module = ShaderData::from_spv(bytes).unwrap();
     let vert_structs = {
-        let mut descriptor_structs = default_vert_module.get_shader_structs();
-        let mut pc_structs = default_vert_module.get_push_constant_structs();
+        let mut descriptor_structs = vert_module.get_shader_structs();
+        let mut pc_structs = vert_module.get_push_constant_structs();
         descriptor_structs.append(&mut pc_structs);
         descriptor_structs
     };
 
-    let rust_vert_structs = vert_structs
+    let mut rust_vert_structs = vert_structs
         .into_iter()
         .map(|stct| {
             let struct_name = rust_shader_tools::standardized_struct_name(prefix, &stct.name);
@@ -20,6 +20,16 @@ fn write_shader_structs(bytes: &[u8], prefix: &'static str) {
             rust_shader_tools::shader_struct_to_rust(&struct_name, &stct, is_vertex)
         })
         .collect::<Vec<_>>();
+
+    let vert_attributes = vert_module.get_vertex_attributes();
+    if !vert_attributes.atts.is_empty() {
+        let stct = rust_shader_tools::vertex_attributes_to_struct(
+            &rust_shader_tools::standardized_struct_name(prefix, "Vertex"),
+            &vert_attributes.atts,
+            true,
+        );
+        rust_vert_structs.push(stct);
+    }
 
     rust_shader_tools::structs_to_file(
         PathBuf::from("gen").join(format!("{}_shader_structs.rs", prefix)),
@@ -48,9 +58,10 @@ fn main() {
         .compile_shader("egui-integration/shaders/egui.frag", ShaderStage::Fragment)
         .expect("Could not compile shader");
 
-    write_shader_structs(include_bytes!("./shaders/spv/default.vert.spv"), "default");
+    // TODO: These paths don't exist before this build script runs, need to fix it
     write_shader_structs(
         include_bytes!("./egui-integration/shaders/spv/egui.vert.spv"),
         "egui",
     );
+    write_shader_structs(include_bytes!("./shaders/spv/default.vert.spv"), "default");
 }

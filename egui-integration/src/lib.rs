@@ -8,10 +8,7 @@ use cinder::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
-        pipeline::{
-            push_constant::PushConstant, ColorBlendState, GraphicsPipeline,
-            GraphicsPipelineDescription, VertexAttributeDesc, VertexInputStateDesc,
-        },
+        pipeline::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         render_pass::{
             AttachmentLoadOp, AttachmentStoreOp, Layout, RenderPass, RenderPassAttachmentDesc,
             RenderPassDescription,
@@ -26,9 +23,8 @@ use egui::{
     epaint::{ImageDelta, Primitive},
     ClippedPrimitive, ImageData, Mesh, TextureId, TexturesDelta,
 };
-use math::{point::Point2D, rect::Rect2D, size::Size2D, vec::Vec2};
-use smallvec::smallvec;
-use std::{collections::HashMap, path::Path};
+use math::{point::Point2D, rect::Rect2D, size::Size2D};
+use std::collections::HashMap;
 use util::{as_u8_slice, size_of_slice};
 use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Window};
 
@@ -70,12 +66,6 @@ impl EguiIntegration {
             depth_attachment: None,
         })?;
 
-        let push_constant = PushConstant {
-            stage: ShaderStage::Vertex,
-            offset: 0,
-            size: std::mem::size_of::<Eguiconstants>() as u32,
-        };
-
         let vertex_shader = cinder.create_shader(ShaderDescription {
             bytes: include_bytes!("../shaders/spv/egui.vert.spv"),
         })?;
@@ -86,25 +76,6 @@ impl EguiIntegration {
         let pipeline = cinder.create_graphics_pipeline(GraphicsPipelineDescription {
             vertex_shader,
             fragment_shader,
-            vertex_state: VertexInputStateDesc {
-                binding: 0,
-                stride: 4 * std::mem::size_of::<f32>() as u32
-                    + 4 * std::mem::size_of::<u8>() as u32,
-                attributes: smallvec![
-                    VertexAttributeDesc {
-                        format: Format::R32_G32_SFloat,
-                        offset: 0,
-                    },
-                    VertexAttributeDesc {
-                        format: Format::R32_G32_SFloat,
-                        offset: 8,
-                    },
-                    VertexAttributeDesc {
-                        format: Format::R8_G8_B8_A8_Unorm,
-                        offset: 16,
-                    },
-                ],
-            },
             blending: ColorBlendState::pma(),
             render_pass: &render_pass,
             depth_testing_enabled: false,

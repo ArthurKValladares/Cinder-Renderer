@@ -45,7 +45,7 @@ pub struct ShaderDescription {
 
 pub struct Shader {
     pub(crate) module: vk::ShaderModule,
-    reflect_data: ShaderData,
+    pub(crate) reflect_data: ShaderData,
 }
 
 impl Shader {

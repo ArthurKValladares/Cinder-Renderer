@@ -1,0 +1,143 @@
+ReflectInterfaceVariable {
+    name: "i_uv",
+    location: 1,
+    format: R32G32_SFLOAT,
+},
+
+ReflectInterfaceVariable {
+    name: "i_color",
+    location: 2,
+    numeric: ReflectNumericTraits {
+        scalar: ReflectNumericTraitsScalar {
+            width: 32,
+            signedness: 0,
+        },
+        vector: ReflectNumericTraitsVector {
+            component_count: 4,
+        },
+        matrix: ReflectNumericTraitsMatrix {
+            column_count: 0,
+            row_count: 0,
+            stride: 0,
+        },
+    },
+    format: R32G32B32A32_SFLOAT,
+    type_description: Some(
+        ReflectTypeDescription {
+            id: 49,
+            op: ReflectOp(
+                TypeVector,
+            ),
+            type_name: "",
+            struct_member_name: "",
+            storage_class: Undefined,
+            type_flags: FLOAT | VECTOR,
+            decoration_flags: NONE,
+            traits: ReflectTypeDescriptionTraits {
+                numeric: ReflectNumericTraits {
+                    scalar: ReflectNumericTraitsScalar {
+                        width: 32,
+                        signedness: 0,
+                    },
+                    vector: ReflectNumericTraitsVector {
+                        component_count: 4,
+                    },
+                    matrix: ReflectNumericTraitsMatrix {
+                        column_count: 0,
+                        row_count: 0,
+                        stride: 0,
+                    },
+                },
+                image: ReflectImageTraits {
+                    dim: Type1d,
+                    depth: 0,
+                    arrayed: 0,
+                    ms: 0,
+                    sampled: 0,
+                    image_format: Undefined,
+                },
+                array: ReflectArrayTraits {
+                    dims: [],
+                    stride: 0,
+                },
+            },
+            members: [],
+        },
+    ),
+},
+
+ReflectInterfaceVariable {
+    spirv_id: 75,
+    name: "i_pos",
+    location: 0,
+    storage_class: Input,
+    semantic: "",
+    decoration_flags: NONE,
+    built_in: ReflectBuiltIn(
+        Position,
+    ),
+    numeric: ReflectNumericTraits {
+        scalar: ReflectNumericTraitsScalar {
+            width: 32,
+            signedness: 0,
+        },
+        vector: ReflectNumericTraitsVector {
+            component_count: 2,
+        },
+        matrix: ReflectNumericTraitsMatrix {
+            column_count: 0,
+            row_count: 0,
+            stride: 0,
+        },
+    },
+    array: ReflectArrayTraits {
+        dims: [],
+        stride: 0,
+    },
+    members: [],
+    format: R32G32_SFLOAT,
+    type_description: Some(
+        ReflectTypeDescription {
+            id: 43,
+            op: ReflectOp(
+                TypeVector,
+            ),
+            type_name: "",
+            struct_member_name: "",
+            storage_class: Undefined,
+            type_flags: FLOAT | VECTOR,
+            decoration_flags: NONE,
+            traits: ReflectTypeDescriptionTraits {
+                numeric: ReflectNumericTraits {
+                    scalar: ReflectNumericTraitsScalar {
+                        width: 32,
+                        signedness: 0,
+                    },
+                    vector: ReflectNumericTraitsVector {
+                        component_count: 2,
+                    },
+                    matrix: ReflectNumericTraitsMatrix {
+                        column_count: 0,
+                        row_count: 0,
+                        stride: 0,
+                    },
+                },
+                image: ReflectImageTraits {
+                    dim: Type1d,
+                    depth: 0,
+                    arrayed: 0,
+                    ms: 0,
+                    sampled: 0,
+                    image_format: Undefined,
+                },
+                array: ReflectArrayTraits {
+                    dims: [],
+                    stride: 0,
+                },
+            },
+            members: [],
+        },
+    ),
+    word_offset: 194,
+    internal_data: 0x000001bd7babeeb0,
+},

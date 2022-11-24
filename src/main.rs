@@ -11,10 +11,7 @@ use cinder::{
         buffer::{vk, Buffer, BufferDescription, BufferUsage},
         image::{Format, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
-        pipeline::{
-            push_constant::PushConstant, ColorBlendState, GraphicsPipelineDescription,
-            VertexAttributeDesc, VertexInputStateDesc,
-        },
+        pipeline::{push_constant::PushConstant, ColorBlendState, GraphicsPipelineDescription},
         render_pass::{
             self, AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderPassAttachmentDesc,
             RenderPassDescription,
@@ -287,11 +284,6 @@ fn main() {
         .create_graphics_pipeline(GraphicsPipelineDescription {
             vertex_shader,
             fragment_shader,
-            vertex_state: VertexInputStateDesc {
-                binding: 0,
-                stride: std::mem::size_of::<DefaultVertex>() as u32,
-                attributes: smallvec![],
-            },
             blending: ColorBlendState::add(),
             render_pass: &render_pass,
             depth_testing_enabled: true,

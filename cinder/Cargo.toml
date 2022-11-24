@@ -16,4 +16,4 @@ util = { path = "../util" }
 tracing = "0.1"
 raw-window-handle = "0.5"
 rkyv = { version = "0.7", features = ["validation"] }
-rust-shader-tools = { git = "https://github.com/ArthurKValladares/Rust-Shader-Tools" }
+rust-shader-tools = { git = "https://github.com/ArthurKValladares/Rust-Shader-Tools", features = ["shader-structs"] }

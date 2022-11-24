@@ -3,12 +3,34 @@ use crate::util::find_memory_type_index;
 use anyhow::Result;
 use ash::vk;
 use math::size::Size2D;
+use rust_shader_tools::ReflectFormat;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum ImageCreateError {
     #[error("No suitable memory type found")]
     NoSuitableMemoryType,
+}
+
+pub fn reflect_format_to_vk(fmt: ReflectFormat, low_precision: bool) -> vk::Format {
+    match (fmt, low_precision) {
+        (ReflectFormat::Undefined, _) => vk::Format::UNDEFINED,
+        (ReflectFormat::R32_UINT, _) => vk::Format::R32_UINT,
+        (ReflectFormat::R32_SINT, _) => vk::Format::R32_SINT,
+        (ReflectFormat::R32_SFLOAT, _) => vk::Format::R32_SFLOAT,
+        (ReflectFormat::R32G32_UINT, _) => vk::Format::R32G32_UINT,
+        (ReflectFormat::R32G32_SINT, _) => vk::Format::R32G32_SINT,
+        (ReflectFormat::R32G32B32_UINT, _) => vk::Format::R32G32B32_UINT,
+        (ReflectFormat::R32G32B32_SINT, _) => vk::Format::R32G32B32_SINT,
+        (ReflectFormat::R32G32B32A32_UINT, _) => vk::Format::R32G32B32A32_UINT,
+        (ReflectFormat::R32G32B32A32_SINT, _) => vk::Format::R32G32B32A32_SINT,
+        (ReflectFormat::R32G32_SFLOAT, false) => vk::Format::R32G32_SFLOAT,
+        (ReflectFormat::R32G32B32_SFLOAT, false) => vk::Format::R32G32B32_SFLOAT,
+        (ReflectFormat::R32G32B32A32_SFLOAT, false) => vk::Format::R32G32B32A32_SFLOAT,
+        (ReflectFormat::R32G32_SFLOAT, true) => vk::Format::R8G8_UNORM,
+        (ReflectFormat::R32G32B32_SFLOAT, true) => vk::Format::R8G8B8_UNORM,
+        (ReflectFormat::R32G32B32A32_SFLOAT, true) => vk::Format::R8G8B8A8_UNORM,
+    }
 }
 
 #[allow(non_camel_case_types)]

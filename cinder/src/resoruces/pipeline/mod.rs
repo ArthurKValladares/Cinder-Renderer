@@ -1,12 +1,9 @@
 pub mod push_constant;
 
-use crate::cinder::Cinder;
-
 use self::push_constant::PushConstant;
-
 use super::{
     bind_group::{BindGroupLayout, BindGroupLayoutBuilder},
-    image::Format,
+    image::{reflect_format_to_vk, Format},
     render_pass::RenderPass,
     shader::{Shader, ShaderStage},
 };
@@ -59,23 +56,9 @@ impl ColorBlendState {
     }
 }
 
-#[derive(Debug)]
-pub struct VertexAttributeDesc {
-    pub format: Format,
-    pub offset: u32,
-}
-
-#[derive(Debug)]
-pub struct VertexInputStateDesc {
-    pub binding: u32,
-    pub stride: u32,
-    pub attributes: SmallVec<[VertexAttributeDesc; 6]>,
-}
-
 pub struct GraphicsPipelineDescription<'a> {
     pub vertex_shader: Shader,
     pub fragment_shader: Shader,
-    pub vertex_state: VertexInputStateDesc,
     pub blending: ColorBlendState,
     pub render_pass: &'a RenderPass,
     pub depth_testing_enabled: bool,
@@ -151,24 +134,25 @@ impl GraphicsPipeline {
 
         let pipeline_layout = unsafe { device.create_pipeline_layout(&layout_create_info, None) }?;
 
+        let atttributes = desc.vertex_shader.reflect_data.get_vertex_attributes();
+        let binding = 0; // TODO: Support non-zero bindings
         let vertex_input_binding_descriptions = [vk::VertexInputBindingDescription {
-            binding: desc.vertex_state.binding,
-            stride: desc.vertex_state.stride,
+            binding,
+            stride: atttributes.stride / 8,
             input_rate: vk::VertexInputRate::VERTEX,
         }];
-        let vertex_input_attribute_descriptions = desc
-            .vertex_state
-            .attributes
+        let vertex_input_attribute_descriptions = atttributes
+            .atts
             .iter()
             .enumerate()
             .map(|(location, att)| vk::VertexInputAttributeDescription {
                 location: location as u32,
-                binding: desc.vertex_state.binding,
-                format: att.format.into(),
-                offset: att.offset,
+                binding,
+                format: reflect_format_to_vk(att.format, att.low_precision),
+                offset: att.offset / 8,
             })
             .collect::<Vec<_>>();
-        let vertex_input_state_info = if !desc.vertex_state.attributes.is_empty() {
+        let vertex_input_state_info = if !vertex_input_attribute_descriptions.is_empty() {
             vk::PipelineVertexInputStateCreateInfo::builder()
                 .vertex_attribute_descriptions(&vertex_input_attribute_descriptions)
                 .vertex_binding_descriptions(&vertex_input_binding_descriptions)
