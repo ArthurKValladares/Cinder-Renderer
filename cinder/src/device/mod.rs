@@ -73,6 +73,7 @@ impl Device {
 
         let device_extension_names = [
             ash::extensions::khr::Swapchain::name(),
+            ash::extensions::khr::DynamicRendering::name(),
             #[cfg(any(target_os = "macos", target_os = "ios"))]
             KhrPortabilitySubsetFn::name(),
         ];
@@ -87,7 +88,11 @@ impl Device {
             .queue_family_index(queue_family_index)
             .queue_priorities(&priorities)
             .build()];
+        let mut dynamic_rending_feature = vk::PhysicalDeviceDynamicRenderingFeatures::builder()
+            .dynamic_rendering(true)
+            .build();
         let device_create_info = vk::DeviceCreateInfo::builder()
+            .push_next(&mut dynamic_rending_feature)
             .queue_create_infos(&queue_info)
             .enabled_extension_names(&device_extension_names_raw)
             .enabled_features(&features);

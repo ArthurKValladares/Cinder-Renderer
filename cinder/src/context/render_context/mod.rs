@@ -3,17 +3,123 @@ use crate::{
     cinder::Cinder,
     device::Device,
     profiling::QueryPool,
-    resoruces::{
-        buffer::Buffer,
-        pipeline::GraphicsPipeline,
-        render_pass::{ClearValue, RenderPass},
-        shader::ShaderStage,
-    },
+    resoruces::{buffer::Buffer, image::Image, pipeline::GraphicsPipeline, shader::ShaderStage},
+    swapchain::Swapchain,
+    util::rect_to_vk,
 };
 use anyhow::Result;
-use ash::vk::{self};
+use ash::vk;
 use math::rect::Rect2D;
 use thiserror::Error;
+
+pub enum Layout {
+    Undefined,
+    General,
+    ColorAttachment,
+    DepthAttachment,
+    Present,
+}
+
+impl From<Layout> for vk::ImageLayout {
+    fn from(layout: Layout) -> Self {
+        match layout {
+            Layout::Undefined => vk::ImageLayout::UNDEFINED,
+            Layout::General => vk::ImageLayout::GENERAL,
+            Layout::ColorAttachment => vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+            Layout::DepthAttachment => vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            Layout::Present => vk::ImageLayout::PRESENT_SRC_KHR,
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct ClearValue(vk::ClearValue);
+
+impl ClearValue {
+    pub fn color(vals: [f32; 4]) -> Self {
+        Self(vk::ClearValue {
+            color: vk::ClearColorValue { float32: vals },
+        })
+    }
+
+    pub fn depth(depth: f32, stencil: u32) -> Self {
+        Self(vk::ClearValue {
+            depth_stencil: vk::ClearDepthStencilValue { depth, stencil },
+        })
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum AttachmentLoadOp {
+    Clear,
+    Load,
+    DontCare,
+}
+
+impl From<AttachmentLoadOp> for vk::AttachmentLoadOp {
+    fn from(op: AttachmentLoadOp) -> Self {
+        match op {
+            AttachmentLoadOp::Clear => vk::AttachmentLoadOp::CLEAR,
+            AttachmentLoadOp::Load => vk::AttachmentLoadOp::LOAD,
+            AttachmentLoadOp::DontCare => vk::AttachmentLoadOp::DONT_CARE,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum AttachmentStoreOp {
+    Store,
+    DontCare,
+}
+
+impl From<AttachmentStoreOp> for vk::AttachmentStoreOp {
+    fn from(op: AttachmentStoreOp) -> Self {
+        match op {
+            AttachmentStoreOp::Store => vk::AttachmentStoreOp::STORE,
+            AttachmentStoreOp::DontCare => vk::AttachmentStoreOp::DONT_CARE,
+        }
+    }
+}
+pub struct RenderAttachment(vk::RenderingAttachmentInfo);
+
+impl RenderAttachment {
+    pub fn color(swapchain: &Swapchain, present_index: u32) -> Self {
+        RenderAttachment(
+            vk::RenderingAttachmentInfo::builder()
+                .image_view(swapchain.present_image_views[present_index as usize])
+                .build(),
+        )
+    }
+
+    pub fn depth(depth_image: &Image) -> Self {
+        RenderAttachment(
+            vk::RenderingAttachmentInfo::builder()
+                .image_view(depth_image.view)
+                .build(),
+        )
+    }
+
+    pub fn load_op(mut self, op: AttachmentLoadOp) -> Self {
+        self.0.load_op = op.into();
+        self
+    }
+
+    pub fn store_op(mut self, op: AttachmentStoreOp) -> Self {
+        self.0.store_op = op.into();
+        self
+    }
+
+    pub fn clear_value(mut self, clear_value: ClearValue) -> Self {
+        self.0.clear_value = clear_value.0;
+        self
+    }
+
+    pub fn layout(mut self, layout: Layout) -> Self {
+        self.0.image_layout = layout.into();
+        self
+    }
+}
 
 #[derive(Debug, Error)]
 pub enum PipelineError {
@@ -58,48 +164,42 @@ impl RenderContext {
         )
     }
 
-    pub fn begin_render_pass(
+    pub fn begin_rendering(
         &self,
         cinder: &Cinder,
-        render_pass: &RenderPass,
-        present_index: u32,
         render_area: Rect2D<i32, u32>,
-        clear_values: &[ClearValue],
+        color_attachments: &[RenderAttachment],
+        depth_attahcment: Option<RenderAttachment>,
     ) {
-        let render_area = vk::Rect2D {
-            offset: vk::Offset2D {
-                x: render_area.offset().x(),
-                y: render_area.offset().y(),
-            },
-            extent: vk::Extent2D {
-                width: render_area.width(),
-                height: render_area.height(),
-            },
-        };
-        let clear_values =
-            unsafe { std::mem::transmute::<&[ClearValue], &[vk::ClearValue]>(clear_values) };
-
-        let create_info = vk::RenderPassBeginInfo::builder()
-            .render_pass(render_pass.render_pass)
-            .framebuffer(render_pass.framebuffers[present_index as usize])
-            .render_area(render_area.into())
-            .clear_values(clear_values);
-
-        unsafe {
-            cinder.device().cmd_begin_render_pass(
-                self.shared.command_buffer,
-                &create_info,
-                vk::SubpassContents::INLINE,
+        let color_attachments = unsafe {
+            std::mem::transmute::<&[RenderAttachment], &[vk::RenderingAttachmentInfo]>(
+                color_attachments,
             )
-        }
-    }
+        };
 
-    pub fn end_render_pass(&self, cinder: &Cinder) {
+        let rendering_info = vk::RenderingInfo::builder()
+            .render_area(rect_to_vk(render_area).unwrap())
+            .color_attachments(color_attachments)
+            .layer_count(1);
+        let rendering_info = if let Some(depth_attachment) = &depth_attahcment {
+            rendering_info.depth_attachment(&depth_attachment.0).build()
+        } else {
+            rendering_info.build()
+        };
+
         unsafe {
             cinder
                 .device()
-                .cmd_end_render_pass(self.shared.command_buffer)
+                .cmd_begin_rendering(self.shared.command_buffer, &rendering_info);
         }
+    }
+
+    pub fn end_rendering(&self, cinder: &Cinder) {
+        unsafe {
+            cinder
+                .device()
+                .cmd_end_rendering(self.shared.command_buffer)
+        };
     }
 
     pub fn bind_graphics_pipeline(&self, cinder: &Cinder, pipeline: &GraphicsPipeline) {
@@ -263,5 +363,62 @@ impl RenderContext {
                 query_pool.count,
             )
         }
+    }
+
+    // TODO: helpers
+    pub fn transition_undefined_to_color(&self, cinder: &Cinder, present_index: u32) {
+        let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
+            .image(cinder.swapchain().present_images[present_index as usize])
+            .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
+            .old_layout(vk::ImageLayout::UNDEFINED)
+            .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+            .subresource_range(
+                vk::ImageSubresourceRange::builder()
+                    .aspect_mask(vk::ImageAspectFlags::COLOR)
+                    .layer_count(1)
+                    .level_count(1)
+                    .build(),
+            )
+            .build();
+
+        unsafe {
+            cinder.device().cmd_pipeline_barrier(
+                self.shared.command_buffer,
+                vk::PipelineStageFlags::TOP_OF_PIPE,
+                vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+                vk::DependencyFlags::empty(),
+                &[],
+                &[],
+                &[layout_transition_barriers],
+            )
+        };
+    }
+
+    pub fn transition_color_to_present(&self, cinder: &Cinder, present_index: u32) {
+        let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
+            .image(cinder.swapchain().present_images[present_index as usize])
+            .src_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
+            .old_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
+            .new_layout(vk::ImageLayout::PRESENT_SRC_KHR)
+            .subresource_range(
+                vk::ImageSubresourceRange::builder()
+                    .aspect_mask(vk::ImageAspectFlags::COLOR)
+                    .layer_count(1)
+                    .level_count(1)
+                    .build(),
+            )
+            .build();
+
+        unsafe {
+            cinder.device().cmd_pipeline_barrier(
+                self.shared.command_buffer,
+                vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
+                vk::PipelineStageFlags::BOTTOM_OF_PIPE,
+                vk::DependencyFlags::empty(),
+                &[],
+                &[],
+                &[layout_transition_barriers],
+            )
+        };
     }
 }

@@ -2,20 +2,20 @@ mod ui;
 
 use crate::ui::Ui;
 use camera::{Direction, PerspectiveData, MOVEMENT_DELTA, ROTATION_DELTA};
-use cgmath::{Deg, Matrix4, Vector3};
 use cinder::{
-    cinder::{Cinder, DefaultUniformBufferObject, DefaultVertex, Defaultconstants},
-    context::{render_context::RenderContextDescription, upload_context::UploadContextDescription},
+    cinder::{Cinder, DefaultUniformBufferObject},
+    context::{
+        render_context::{
+            AttachmentLoadOp, AttachmentStoreOp, Layout, RenderAttachment, RenderContextDescription,
+        },
+        upload_context::UploadContextDescription,
+    },
     resoruces::{
-        bind_group::{BindGroupLayoutBuilder, BindGroupSet, BindGroupType, BindGroupWriteBuilder},
+        bind_group::{BindGroupSet, BindGroupType, BindGroupWriteBuilder},
         buffer::{vk, Buffer, BufferDescription, BufferUsage},
         image::{Format, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
-        pipeline::{push_constant::PushConstant, ColorBlendState, GraphicsPipelineDescription},
-        render_pass::{
-            self, AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderPassAttachmentDesc,
-            RenderPassDescription,
-        },
+        pipeline::{ColorBlendState, GraphicsPipelineDescription},
         shader::{ShaderDescription, ShaderStage},
     },
     InitData, Resolution,
@@ -24,12 +24,7 @@ use egui_integration::{egui, EguiIntegration};
 use ember::GpuStagingBuffer;
 use input::keyboard::KeyboardState;
 use math::size::Size2D;
-use render_pass::Layout;
-use smallvec::smallvec;
-use std::{
-    path::{Path, PathBuf},
-    time::Instant,
-};
+use std::{path::PathBuf, time::Instant};
 use tracing::Level;
 use util::*;
 use winit::{
@@ -94,22 +89,6 @@ fn main() {
             bytes: include_bytes!("../shaders/spv/default.frag.spv"),
         })
         .expect("Could not create fragment shader");
-
-    let mut render_pass = cinder
-        .create_render_pass(RenderPassDescription {
-            color_attachment: RenderPassAttachmentDesc::new(cinder.surface_format())
-                .load_op(AttachmentLoadOp::Clear)
-                .store_op(AttachmentStoreOp::Store)
-                .final_layout(Layout::ColorAttachment),
-            depth_attachment: Some(
-                RenderPassAttachmentDesc::new(Format::D32_SFloat)
-                    .load_op(AttachmentLoadOp::Clear)
-                    .store_op(AttachmentStoreOp::Store)
-                    .initial_layout(Layout::DepthAttachment)
-                    .final_layout(Layout::DepthAttachment),
-            ),
-        })
-        .expect("Could not create render pass");
 
     // Load model
     let scene_load_start = Instant::now();
@@ -285,9 +264,9 @@ fn main() {
             vertex_shader,
             fragment_shader,
             blending: ColorBlendState::add(),
-            render_pass: &render_pass,
             depth_testing_enabled: true,
             backface_culling: true,
+            uses_depth: true,
         })
         .expect("Could not create graphics pipeline");
 
@@ -343,9 +322,6 @@ fn main() {
                         cinder
                             .resize(Size2D::new(size.width, size.height))
                             .expect("Could not resize device");
-                        cinder
-                            .recreate_render_pass(&mut render_pass)
-                            .expect("Could not recreate render pass");
                         egui.resize(&cinder)
                             .expect("Could not resize egui integration");
                         // TODO: This could be better
@@ -409,16 +385,21 @@ fn main() {
 
                     let surface_rect = cinder.surface_rect();
 
-                    // Main render pass
-                    render_context.begin_render_pass(
+                    render_context.transition_undefined_to_color(&cinder, present_index);
+
+                    render_context.begin_rendering(
                         &cinder,
-                        &render_pass,
-                        present_index,
                         surface_rect,
-                        &[
-                            ClearValue::color([1.0, 0.0, 1.0, 1.0]),
-                            ClearValue::depth(0.0, 0),
-                        ],
+                        &[RenderAttachment::color(cinder.swapchain(), present_index)
+                            .load_op(AttachmentLoadOp::Clear)
+                            .store_op(AttachmentStoreOp::Store)
+                            .layout(Layout::ColorAttachment)],
+                        Some(
+                            RenderAttachment::depth(cinder.depth_image())
+                                .load_op(AttachmentLoadOp::Clear)
+                                .store_op(AttachmentStoreOp::DontCare)
+                                .layout(Layout::DepthAttachment),
+                        ),
                     );
                     {
                         render_context.bind_graphics_pipeline(&cinder, &pipeline);
@@ -443,7 +424,7 @@ fn main() {
                             render_context.draw(&cinder, draw.num_indices as u32);
                         }
                     }
-                    render_context.end_render_pass(&cinder);
+                    render_context.end_rendering(&cinder);
 
                     // Ui/egui render pass
                     egui.run(
@@ -500,6 +481,8 @@ fn main() {
                         &cinder.profiling.timestamp_query_pool,
                         1,
                     );
+
+                    render_context.transition_color_to_present(&cinder, present_index);
                 }
                 render_context
                     .end(

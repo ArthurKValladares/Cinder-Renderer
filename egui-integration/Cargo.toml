@@ -6,7 +6,6 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-smallvec = "1.10.0"
 cinder = {path = "../cinder"}
 util = {path = "../util"}
 egui = "0.19"

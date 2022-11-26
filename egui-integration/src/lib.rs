@@ -2,17 +2,18 @@ use anyhow::Result;
 use cinder::{
     cinder::Cinder,
     cinder::Eguiconstants,
-    context::{render_context::RenderContext, upload_context::UploadContext},
+    context::{
+        render_context::{
+            AttachmentLoadOp, AttachmentStoreOp, Layout, RenderAttachment, RenderContext,
+        },
+        upload_context::UploadContext,
+    },
     resoruces::{
         bind_group::{BindGroupSet, BindGroupType, BindGroupWriteBuilder},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
         pipeline::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
-        render_pass::{
-            AttachmentLoadOp, AttachmentStoreOp, Layout, RenderPass, RenderPassAttachmentDesc,
-            RenderPassDescription,
-        },
         sampler::Sampler,
         shader::{ShaderDescription, ShaderStage},
     },
@@ -34,7 +35,6 @@ static INDEX_BUFFER_SIZE: u64 = 1024 * 1024 * 2;
 pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_winit: egui_winit::State,
-    render_pass: RenderPass,
     bind_group_set: BindGroupSet,
     pipeline: GraphicsPipeline,
     sampler: Sampler,
@@ -57,15 +57,6 @@ impl EguiIntegration {
         egui_context.set_pixels_per_point(pixels_per_point);
         egui_winit.set_pixels_per_point(pixels_per_point);
 
-        let render_pass = cinder.create_render_pass(RenderPassDescription {
-            color_attachment: RenderPassAttachmentDesc::new(cinder.surface_format())
-                .load_op(AttachmentLoadOp::Load)
-                .store_op(AttachmentStoreOp::Store)
-                .initial_layout(Layout::ColorAttachment)
-                .final_layout(Layout::Present),
-            depth_attachment: None,
-        })?;
-
         let vertex_shader = cinder.create_shader(ShaderDescription {
             bytes: include_bytes!("../shaders/spv/egui.vert.spv"),
         })?;
@@ -77,9 +68,9 @@ impl EguiIntegration {
             vertex_shader,
             fragment_shader,
             blending: ColorBlendState::pma(),
-            render_pass: &render_pass,
             depth_testing_enabled: false,
             backface_culling: false,
+            uses_depth: false,
         })?;
         // TODO: bind group layout stuff is bad here
         let bind_group_set = BindGroupSet::allocate(cinder, &pipeline.bind_group_layouts()[0])?;
@@ -87,7 +78,7 @@ impl EguiIntegration {
         let sampler = cinder.create_sampler()?;
 
         let (vertex_buffers, index_buffers) = {
-            let len = render_pass.framebuffers.len();
+            let len = cinder.swapchain().present_image_views.len();
             let mut vertex_buffers = Vec::with_capacity(len);
             let mut index_buffers = Vec::with_capacity(len);
             for _ in 0..len {
@@ -115,7 +106,6 @@ impl EguiIntegration {
         Ok(Self {
             egui_context,
             egui_winit,
-            render_pass,
             sampler,
             bind_group_set,
             pipeline,
@@ -194,12 +184,14 @@ impl EguiIntegration {
         let vertex_buffer = &self.vertex_buffers[present_index as usize];
         let index_buffer = &self.index_buffers[present_index as usize];
 
-        render_context.begin_render_pass(
-            cinder,
-            &self.render_pass,
-            present_index,
-            cinder.surface_rect(),
-            &[],
+        render_context.begin_rendering(
+            &cinder,
+            cinder.surface_rect(), // TODO: Might be able to use a better rect
+            &[RenderAttachment::color(cinder.swapchain(), present_index)
+                .load_op(AttachmentLoadOp::Load)
+                .store_op(AttachmentStoreOp::Store)
+                .layout(Layout::ColorAttachment)],
+            None,
         );
         {
             render_context.bind_graphics_pipeline(cinder, &self.pipeline);
@@ -276,7 +268,7 @@ impl EguiIntegration {
                 }
             }
         }
-        render_context.end_render_pass(cinder);
+        render_context.end_rendering(&cinder);
 
         Ok(())
     }
@@ -336,15 +328,6 @@ impl EguiIntegration {
     }
 
     pub fn resize(&mut self, cinder: &Cinder) -> Result<()> {
-        cinder.clean_render_pass(&mut self.render_pass);
-        self.render_pass = cinder.create_render_pass(RenderPassDescription {
-            color_attachment: RenderPassAttachmentDesc::new(cinder.surface_format())
-                .load_op(AttachmentLoadOp::Load)
-                .store_op(AttachmentStoreOp::Store)
-                .initial_layout(Layout::ColorAttachment)
-                .final_layout(Layout::Present),
-            depth_attachment: None,
-        })?;
         Ok(())
     }
 

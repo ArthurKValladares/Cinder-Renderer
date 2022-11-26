@@ -1,4 +1,6 @@
 use ash::vk;
+use math::rect::Rect2D;
+use num::ToPrimitive;
 use std::ffi::c_void;
 
 fn calc_padding(adr: vk::DeviceSize, align: vk::DeviceSize) -> vk::DeviceSize {
@@ -59,4 +61,19 @@ impl MemoryMappablePointer {
     pub fn copy_from<T: Copy>(&self, data: &[T], size: usize) {
         unsafe { self.0.copy_from(data.as_ptr() as *mut c_void, size) };
     }
+}
+
+pub fn rect_to_vk<N: num::Num + Copy + ToPrimitive, M: num::Num + Copy + ToPrimitive>(
+    rect: Rect2D<N, M>,
+) -> Option<vk::Rect2D> {
+    Some(vk::Rect2D {
+        offset: vk::Offset2D {
+            x: rect.offset().x().to_i32()?,
+            y: rect.offset().y().to_i32()?,
+        },
+        extent: vk::Extent2D {
+            width: rect.width().to_u32()?,
+            height: rect.height().to_u32()?,
+        },
+    })
 }

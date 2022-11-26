@@ -3,13 +3,11 @@ pub mod push_constant;
 use self::push_constant::PushConstant;
 use super::{
     bind_group::{BindGroupLayout, BindGroupLayoutBuilder},
-    image::{reflect_format_to_vk, Format},
-    render_pass::RenderPass,
+    image::reflect_format_to_vk,
     shader::{Shader, ShaderStage},
 };
 use anyhow::Result;
 use ash::vk;
-use smallvec::SmallVec;
 use std::{collections::HashMap, ffi::CStr};
 
 #[repr(C)]
@@ -56,13 +54,13 @@ impl ColorBlendState {
     }
 }
 
-pub struct GraphicsPipelineDescription<'a> {
+pub struct GraphicsPipelineDescription {
     pub vertex_shader: Shader,
     pub fragment_shader: Shader,
     pub blending: ColorBlendState,
-    pub render_pass: &'a RenderPass,
     pub depth_testing_enabled: bool,
     pub backface_culling: bool,
+    pub uses_depth: bool,
 }
 
 pub struct PipelineCommon {
@@ -81,6 +79,7 @@ pub struct GraphicsPipeline {
 impl GraphicsPipeline {
     pub(crate) fn create(
         device: &ash::Device,
+        surface_format: vk::Format,
         pipeline_cache: vk::PipelineCache,
         desc: GraphicsPipelineDescription,
     ) -> Result<Self> {
@@ -218,7 +217,19 @@ impl GraphicsPipeline {
                 ..Default::default()
             },
         ];
+
+        // TODO: Will make this better
+        let pipeline_rendering_ci = vk::PipelineRenderingCreateInfo::builder()
+            .color_attachment_formats(std::slice::from_ref(&surface_format));
+        let mut pipeline_rendering_ci = if desc.uses_depth {
+            pipeline_rendering_ci
+                .depth_attachment_format(vk::Format::D32_SFLOAT) // TODO: get from depth image
+                .build()
+        } else {
+            pipeline_rendering_ci.build()
+        };
         let graphic_pipeline_infos = vk::GraphicsPipelineCreateInfo::builder()
+            .push_next(&mut pipeline_rendering_ci)
             .stages(&shader_stage_create_infos)
             .vertex_input_state(&vertex_input_state_info)
             .input_assembly_state(&vertex_input_assembly_state_info)
@@ -229,7 +240,6 @@ impl GraphicsPipeline {
             .color_blend_state(&color_blend_state)
             .dynamic_state(&dynamic_state_info)
             .layout(pipeline_layout)
-            .render_pass(desc.render_pass.render_pass)
             .build();
 
         let graphics_pipelines = unsafe {

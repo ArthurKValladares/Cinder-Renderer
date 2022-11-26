@@ -3,7 +3,7 @@ use cinder::{
     cinder::Cinder,
     resoruces::{
         buffer::{Buffer, BufferDescription, BufferUsage},
-        memory::{MemoryDescription, MemoryType},
+        memory::MemoryDescription,
     },
     util::align_size,
 };

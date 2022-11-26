@@ -11,7 +11,6 @@ use crate::{
         buffer::{Buffer, BufferDescription},
         image::{self, Image, ImageDescription},
         pipeline::{GraphicsPipeline, GraphicsPipelineDescription},
-        render_pass::{RenderPass, RenderPassDescription},
         sampler::Sampler,
         shader::{Shader, ShaderDescription},
     },
@@ -143,6 +142,14 @@ impl Cinder {
         &self.device
     }
 
+    pub fn swapchain(&self) -> &Swapchain {
+        &self.swapchain
+    }
+
+    pub fn depth_image(&self) -> &Image {
+        &self.depth_image
+    }
+
     pub fn setup_fence(&self) -> vk::Fence {
         self.setup_commands_reuse_fence
     }
@@ -198,35 +205,16 @@ impl Cinder {
         Shader::create(&self.device, desc)
     }
 
-    pub fn create_render_pass(&self, desc: RenderPassDescription) -> Result<RenderPass> {
-        RenderPass::create(
-            &self.device,
-            &self.swapchain,
-            &self.surface_data,
-            &self.depth_image,
-            desc,
-        )
-    }
-
-    pub fn recreate_render_pass(&self, render_pass: &mut RenderPass) -> Result<()> {
-        self.clean_render_pass(render_pass);
-        render_pass.recreate(
-            &self.device,
-            &self.swapchain,
-            &self.surface_data,
-            &self.depth_image,
-        )
-    }
-
-    pub fn clean_render_pass(&self, render_pass: &mut RenderPass) {
-        render_pass.clean(&self.device);
-    }
-
     pub fn create_graphics_pipeline(
         &self,
         desc: GraphicsPipelineDescription,
     ) -> Result<GraphicsPipeline> {
-        GraphicsPipeline::create(&self.device, self.pipeline_cache, desc)
+        GraphicsPipeline::create(
+            &self.device,
+            self.surface_format(),
+            self.pipeline_cache,
+            desc,
+        )
     }
 
     pub fn create_render_context(&self, _desc: RenderContextDescription) -> Result<RenderContext> {
@@ -328,13 +316,6 @@ impl Cinder {
     }
 
     // TODO: Will refactor pretty much all descriptor set stuff
-    pub(crate) fn create_descriptor_set_layout(
-        &mut self,
-        ci: vk::DescriptorSetLayoutCreateInfo,
-    ) -> Result<vk::DescriptorSetLayout, vk::Result> {
-        self.bind_group_cache
-            .create_bind_group_layout(&self.device, ci)
-    }
     pub(crate) fn create_descriptor_set(
         &mut self,
         layout: &vk::DescriptorSetLayout,
