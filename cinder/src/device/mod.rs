@@ -82,20 +82,28 @@ impl Device {
             .map(|raw_name| raw_name.as_ptr())
             .collect();
 
-        let features = vk::PhysicalDeviceFeatures::builder();
+        let mut descriptor_indexing = vk::PhysicalDeviceDescriptorIndexingFeaturesEXT::builder()
+            .descriptor_binding_partially_bound(true)
+            .runtime_descriptor_array(true)
+            .build();
+        let mut dynamic_rendering = vk::PhysicalDeviceDynamicRenderingFeatures::builder()
+            .dynamic_rendering(true)
+            .build();
+        let mut features = vk::PhysicalDeviceFeatures2::builder()
+            .push_next(&mut descriptor_indexing)
+            .push_next(&mut dynamic_rendering)
+            .build();
+
         let priorities = [1.0];
         let queue_info = [vk::DeviceQueueCreateInfo::builder()
             .queue_family_index(queue_family_index)
             .queue_priorities(&priorities)
             .build()];
-        let mut dynamic_rending_feature = vk::PhysicalDeviceDynamicRenderingFeatures::builder()
-            .dynamic_rendering(true)
-            .build();
+
         let device_create_info = vk::DeviceCreateInfo::builder()
-            .push_next(&mut dynamic_rending_feature)
+            .push_next(&mut features)
             .queue_create_infos(&queue_info)
-            .enabled_extension_names(&device_extension_names_raw)
-            .enabled_features(&features);
+            .enabled_extension_names(&device_extension_names_raw);
         let device = unsafe { instance.create_device(p_device, &device_create_info, None) }?;
 
         let present_queue = unsafe { device.get_device_queue(queue_family_index, 0) };
