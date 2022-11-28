@@ -1,7 +1,7 @@
 use anyhow::Result;
 use cinder::{
     cinder::Cinder,
-    cinder::Eguiconstants,
+    cinder::EguiConstants,
     context::{
         render_context::{
             AttachmentLoadOp, AttachmentStoreOp, Layout, RenderAttachment, RenderContext,
@@ -208,7 +208,7 @@ impl EguiIntegration {
                 &self.pipeline,
                 ShaderStage::Vertex,
                 0,
-                as_u8_slice(&Eguiconstants {
+                as_u8_slice(&EguiConstants {
                     screen_size: [
                         size.width as f32 / pixels_per_point,
                         size.height as f32 / pixels_per_point,

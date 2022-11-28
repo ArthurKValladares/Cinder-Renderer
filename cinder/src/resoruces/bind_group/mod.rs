@@ -129,7 +129,7 @@ impl BindGroupAllocator {
                 device,
                 &self.descriptor_sizes,
                 1000, // TODO: arbitrary number
-                vk::DescriptorPoolCreateFlags::empty(),
+                vk::DescriptorPoolCreateFlags::UPDATE_AFTER_BIND,
             )
         }
     }

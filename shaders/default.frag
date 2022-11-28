@@ -7,6 +7,10 @@ layout (location = 1) in vec2 i_uv;
 
 layout (location = 0) out vec4 uFragColor;
 
+layout(push_constant) uniform constants
+{
+	layout (offset=16) uint texture_idx;
+};
 
 void main() {
     uFragColor = texture(albedo_texture, i_uv) * i_color;

@@ -72,10 +72,18 @@ impl Shader {
             .enumerate_push_constant_blocks(None)
             .map_err(ShaderError::ReflectionError)?
             .iter()
-            .map(|block| PushConstant {
-                stage: self.stage(),
-                offset: block.offset,
-                size: block.size * 4,
+            .map(|block| {
+                assert!(!block.members.is_empty());
+                let offset = block.members[0].offset;
+                let mut size = 0;
+                for member in &block.members {
+                    size += member.size;
+                }
+                PushConstant {
+                    stage: self.stage(),
+                    offset,
+                    size,
+                }
             })
             .collect::<Vec<_>>())
     }

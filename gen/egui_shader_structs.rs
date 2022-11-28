@@ -1,6 +1,6 @@
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
-pub struct Eguiconstants {
+pub struct EguiConstants {
     pub screen_size: [f32; 2],
 }
 #[repr(C)]

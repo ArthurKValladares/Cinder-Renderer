@@ -15,6 +15,6 @@ pub struct DefaultVertex {
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
-pub struct Defaultconstants {
+pub struct DefaultConstants {
     pub pc_color: [f32; 4],
 }
