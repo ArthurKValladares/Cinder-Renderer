@@ -285,7 +285,7 @@ fn main() {
             BindGroupWriteBuilder::default()
                 .bind_buffer(0, &uniform_buffer_info, BindGroupType::UniformBuffer)
                 .bind_buffer(1, &vertex_buffer_info, BindGroupType::StorageBuffer)
-                .bind_image(2, &image_info, BindGroupType::ImageSampler)
+                //.bind_image(2, &image_info, BindGroupType::ImageSampler)
                 .update(&cinder, &bind_group_set);
             bind_group_set
         })
@@ -414,14 +414,16 @@ fn main() {
                             );
 
                             render_context.bind_index_buffer(&cinder, &draw.index_buffer);
-                            render_context.push_constant(
-                                &cinder,
-                                &pipeline,
-                                ShaderStage::Vertex,
-                                0,
-                                util::as_u8_slice(&color),
-                            );
-                            render_context.draw(&cinder, draw.num_indices as u32);
+                            render_context
+                                .push_constant(
+                                    &cinder,
+                                    &pipeline,
+                                    ShaderStage::Vertex,
+                                    0,
+                                    util::as_u8_slice(&color),
+                                )
+                                .unwrap();
+                            render_context.draw_offset(&cinder, draw.num_indices as u32, 0, 0);
                         }
                     }
                     render_context.end_rendering(&cinder);

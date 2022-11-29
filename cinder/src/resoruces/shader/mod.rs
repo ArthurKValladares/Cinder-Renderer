@@ -4,7 +4,9 @@ use super::{
 };
 use anyhow::Result;
 use ash::vk;
-use rust_shader_tools::{ReflectDescriptorType, ReflectShaderStageFlags, ShaderData};
+use rust_shader_tools::{
+    is_runtime_array, ReflectDescriptorType, ReflectShaderStageFlags, ShaderData,
+};
 use std::{collections::BTreeMap, io::Cursor};
 use thiserror::Error;
 
@@ -112,10 +114,17 @@ impl Shader {
                                 unreachable!()
                             }
                         };
+                        let array =
+                            if let Some(type_description) = &reflect_binding.type_description {
+                                is_runtime_array(type_description.op)
+                            } else {
+                                false
+                            };
                         BindGroupData {
                             binding: reflect_binding.binding,
                             ty,
                             shader_stage,
+                            array,
                         }
                     })
                     .collect::<Vec<_>>();

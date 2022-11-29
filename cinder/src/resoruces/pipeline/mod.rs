@@ -82,6 +82,7 @@ impl GraphicsPipeline {
         surface_format: vk::Format,
         pipeline_cache: vk::PipelineCache,
         desc: GraphicsPipelineDescription,
+        max_bindless: u32,
     ) -> Result<Self> {
         //
         // Pipeline stuff, pretty temp
@@ -112,7 +113,12 @@ impl GraphicsPipeline {
                 .map(|data_vecs| {
                     let mut builder = BindGroupLayoutBuilder::default();
                     for data in data_vecs {
-                        builder = builder.bind(data.binding, data.ty, data.shader_stage);
+                        builder = builder.bind(
+                            data.binding,
+                            data.ty,
+                            data.shader_stage,
+                            if data.array { max_bindless } else { 1 },
+                        );
                     }
                     builder.build(device)
                 })

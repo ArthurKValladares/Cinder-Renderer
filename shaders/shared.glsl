@@ -1,7 +1,7 @@
 struct Vertex
 {
 	vec4 pos;
-    vec4 color;    
+    vec3 color;
+    vec3 normal;
     vec2 uv;
-    vec2 pad;
 };

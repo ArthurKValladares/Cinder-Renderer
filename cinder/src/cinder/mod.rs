@@ -32,6 +32,8 @@ include!(concat!(
     "/../gen/egui_shader_structs.rs"
 ));
 
+pub const RESERVED_DESCRIPTOR_COUNT: u32 = 32;
+
 pub struct Cinder {
     init_data: InitData,
     _instance: Instance,
@@ -214,6 +216,7 @@ impl Cinder {
             self.surface_format(),
             self.pipeline_cache,
             desc,
+            self.max_bindless_descriptor_count(),
         )
     }
 
@@ -316,6 +319,16 @@ impl Cinder {
     }
 
     // TODO: Will refactor pretty much all descriptor set stuff
+    pub fn max_bindless_descriptor_count(&self) -> u32 {
+        (512 * 1024).min(
+            self.device
+                .properties()
+                .limits
+                .max_per_stage_descriptor_sampled_images
+                - RESERVED_DESCRIPTOR_COUNT,
+        )
+    }
+
     pub(crate) fn create_descriptor_set(
         &mut self,
         layout: &vk::DescriptorSetLayout,

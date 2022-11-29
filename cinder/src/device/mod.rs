@@ -82,6 +82,9 @@ impl Device {
             .map(|raw_name| raw_name.as_ptr())
             .collect();
 
+        let mut scalar_block = vk::PhysicalDeviceScalarBlockLayoutFeaturesEXT::builder()
+            .scalar_block_layout(true)
+            .build();
         let mut descriptor_indexing = vk::PhysicalDeviceDescriptorIndexingFeaturesEXT::builder()
             .descriptor_binding_partially_bound(true)
             .runtime_descriptor_array(true)
@@ -90,6 +93,7 @@ impl Device {
             .dynamic_rendering(true)
             .build();
         let mut features = vk::PhysicalDeviceFeatures2::builder()
+            .push_next(&mut scalar_block)
             .push_next(&mut descriptor_indexing)
             .push_next(&mut dynamic_rendering)
             .build();

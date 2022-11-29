@@ -269,6 +269,7 @@ pub struct BindGroupData {
     pub binding: u32,
     pub ty: BindGroupType,
     pub shader_stage: ShaderStage,
+    pub array: bool,
 }
 
 #[repr(C)]
@@ -280,11 +281,17 @@ pub struct BindGroupLayoutBuilder {
 }
 
 impl BindGroupLayoutBuilder {
-    pub fn bind(mut self, binding: u32, ty: BindGroupType, shader_stage: ShaderStage) -> Self {
+    pub fn bind(
+        mut self,
+        binding: u32,
+        ty: BindGroupType,
+        shader_stage: ShaderStage,
+        count: u32,
+    ) -> Self {
         let new_binding = vk::DescriptorSetLayoutBinding::builder()
             .binding(binding)
             .descriptor_type(ty.into())
-            .descriptor_count(1)
+            .descriptor_count(count)
             .stage_flags(shader_stage.into())
             .build();
         self.bindings.push(new_binding);

@@ -296,10 +296,6 @@ impl RenderContext {
         }
     }
 
-    pub fn draw(&self, cinder: &Cinder, index_count: u32) {
-        Self::draw_offset(&self, cinder, index_count, 0, 0)
-    }
-
     pub fn draw_offset(
         &self,
         cinder: &Cinder,

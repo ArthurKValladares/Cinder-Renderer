@@ -86,13 +86,21 @@ impl ObjScene {
                             1.0,
                         ];
                         let color = if mesh.vertex_color.is_empty() {
-                            [1.0, 1.0, 1.0, 1.0]
+                            [1.0, 1.0, 1.0]
                         } else {
                             [
                                 mesh.vertex_color[i * 3],
                                 mesh.vertex_color[i * 3 + 1],
                                 mesh.vertex_color[i * 3 + 2],
-                                1.0,
+                            ]
+                        };
+                        let normal = if mesh.normals.is_empty() {
+                            [1.0, 1.0, 1.0]
+                        } else {
+                            [
+                                mesh.normals[i * 3],
+                                mesh.normals[i * 3 + 1],
+                                mesh.normals[i * 3 + 2],
                             ]
                         };
                         let uv = if mesh.texcoords.is_empty() {
@@ -100,11 +108,12 @@ impl ObjScene {
                         } else {
                             [mesh.texcoords[i * 2], mesh.texcoords[i * 2 + 1]]
                         };
+
                         DefaultVertex {
                             pos,
                             color,
+                            normal,
                             uv,
-                            pad: [0.0, 0.0],
                         }
                     })
                     .collect::<Vec<_>>();

@@ -43,63 +43,6 @@ impl UploadContext {
         )
     }
 
-    // TODO: helpers
-    pub fn transition_undefined_to_color(&self, cinder: &Cinder, present_index: u32) {
-        let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
-            .image(cinder.swapchain().present_images[present_index as usize])
-            .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
-            .old_layout(vk::ImageLayout::UNDEFINED)
-            .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-            .subresource_range(
-                vk::ImageSubresourceRange::builder()
-                    .aspect_mask(vk::ImageAspectFlags::COLOR)
-                    .layer_count(1)
-                    .level_count(1)
-                    .build(),
-            )
-            .build();
-
-        unsafe {
-            cinder.device().cmd_pipeline_barrier(
-                self.shared.command_buffer,
-                vk::PipelineStageFlags::TOP_OF_PIPE,
-                vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-                vk::DependencyFlags::empty(),
-                &[],
-                &[],
-                &[layout_transition_barriers],
-            )
-        };
-    }
-
-    pub fn transition_color_to_present(&self, cinder: &Cinder, present_index: u32) {
-        let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
-            .image(cinder.swapchain().present_images[present_index as usize])
-            .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
-            .old_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
-            .new_layout(vk::ImageLayout::PRESENT_SRC_KHR)
-            .subresource_range(
-                vk::ImageSubresourceRange::builder()
-                    .aspect_mask(vk::ImageAspectFlags::COLOR)
-                    .layer_count(1)
-                    .level_count(1)
-                    .build(),
-            )
-            .build();
-
-        unsafe {
-            cinder.device().cmd_pipeline_barrier(
-                self.shared.command_buffer,
-                vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
-                vk::PipelineStageFlags::BOTTOM_OF_PIPE,
-                vk::DependencyFlags::empty(),
-                &[],
-                &[],
-                &[layout_transition_barriers],
-            )
-        };
-    }
-
     pub fn transition_depth_image(&self, cinder: &Cinder) {
         let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
             .image(cinder.depth_image.raw)
