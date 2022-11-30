@@ -3,7 +3,7 @@ mod ui;
 use crate::ui::Ui;
 use camera::{Direction, PerspectiveData, MOVEMENT_DELTA, ROTATION_DELTA};
 use cinder::{
-    cinder::{Cinder, DefaultUniformBufferObject},
+    cinder::{Cinder, DefaultUniformBufferObject, DefaultVertex},
     context::{
         render_context::{
             AttachmentLoadOp, AttachmentStoreOp, Layout, RenderAttachment, RenderContextDescription,
@@ -12,7 +12,7 @@ use cinder::{
     },
     resoruces::{
         bind_group::{BindGroupSet, BindGroupType, BindGroupWriteBuilder},
-        buffer::{vk, Buffer, BufferDescription, BufferUsage},
+        buffer::{vk, BufferDescription, BufferUsage},
         image::{Format, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
         pipeline::{ColorBlendState, GraphicsPipelineDescription},
@@ -35,9 +35,9 @@ use winit::{
 };
 
 struct MeshDraw {
-    index_buffer: Buffer,
+    index_buffer_offset: u32,
     num_indices: usize,
-    vertex_buffer: Buffer,
+    vertex_buffer_offset: i32,
     image_index: usize,
 }
 
@@ -99,6 +99,30 @@ fn main() {
     .unwrap_or_else(|err| panic!("Could not load mesh: {}", err));
     let scene_load_time = scene_load_start.elapsed().as_secs_f32();
 
+    let (num_vertices, num_indices) =
+        scene.meshes.iter().fold((0, 0), |(n_vert, n_index), mesh| {
+            (n_vert + mesh.vertices.len(), n_index + mesh.indices.len())
+        });
+
+    let index_buffer = cinder
+        .create_buffer(BufferDescription {
+            size: (num_indices * std::mem::size_of::<u32>()) as u64,
+            usage: BufferUsage::empty().index().transfer_dst(),
+            memory_desc: MemoryDescription {
+                ty: MemoryType::GpuOnly,
+            },
+        })
+        .expect("Could not create index buffer");
+    let vertex_buffer = cinder
+        .create_buffer(BufferDescription {
+            size: (num_vertices * std::mem::size_of::<DefaultVertex>()) as u64,
+            usage: BufferUsage::empty().storage().transfer_dst(),
+            memory_desc: MemoryDescription {
+                ty: MemoryType::GpuOnly,
+            },
+        })
+        .expect("Could not create vertex buffer");
+    // TODO: Revisit this staging buffer idea, it could be good with some tweaks
     let mut staging_buffer = GpuStagingBuffer::new(
         &cinder,
         BufferUsage::empty().transfer_src(),
@@ -107,7 +131,8 @@ fn main() {
         },
     )
     .expect("Could not create GPU staging buffer");
-
+    let mut vertex_buffer_offset = 0;
+    let mut index_buffer_offset = 0;
     upload_context
         .begin(&cinder)
         .expect("Could not begin upload context");
@@ -115,65 +140,44 @@ fn main() {
         .meshes
         .iter()
         .map(|mesh| {
-            let index_buffer = {
-                let buffer_region = staging_buffer
-                    .copy_data(&mesh.indices)
-                    .expect("could not write to staging buffer");
-                let index_buffer_size = size_of_slice(&mesh.indices);
-                let index_buffer = cinder
-                    .create_buffer(BufferDescription {
-                        size: index_buffer_size,
-                        usage: BufferUsage::empty().index().transfer_dst(),
-                        memory_desc: MemoryDescription {
-                            ty: MemoryType::GpuOnly,
-                        },
-                    })
-                    .expect("Could not create index buffer");
-                upload_context.copy_buffer(
-                    &cinder,
-                    staging_buffer.buffer(),
-                    &index_buffer,
-                    buffer_region.offset,
-                    0,
-                    index_buffer_size,
-                );
-                index_buffer
-            };
+            let buffer_region = staging_buffer
+                .copy_data(&mesh.indices)
+                .expect("could not write to staging buffer");
+            let index_buffer_size = size_of_slice(&mesh.indices);
+            upload_context.copy_buffer(
+                &cinder,
+                staging_buffer.buffer(),
+                &index_buffer,
+                buffer_region.offset,
+                (index_buffer_offset * std::mem::size_of::<u32>()) as u64,
+                index_buffer_size,
+            );
 
-            let vertex_buffer = {
-                let buffer_region = staging_buffer
-                    .copy_data(&mesh.vertices)
-                    .expect("could not write to staging buffer");
-                let vertex_buffer_size = size_of_slice(&mesh.vertices);
-                let vertex_buffer = cinder
-                    .create_buffer(BufferDescription {
-                        size: vertex_buffer_size,
-                        usage: BufferUsage::empty().storage().transfer_dst(),
-                        memory_desc: MemoryDescription {
-                            ty: MemoryType::GpuOnly,
-                        },
-                    })
-                    .expect("Could not create vertex buffer");
-                upload_context.copy_buffer(
-                    &cinder,
-                    staging_buffer.buffer(),
-                    &vertex_buffer,
-                    buffer_region.offset,
-                    0,
-                    vertex_buffer_size,
-                );
-                vertex_buffer
-            };
+            let buffer_region = staging_buffer
+                .copy_data(&mesh.vertices)
+                .expect("could not write to staging buffer");
+            let vertex_buffer_size = size_of_slice(&mesh.vertices);
+            upload_context.copy_buffer(
+                &cinder,
+                staging_buffer.buffer(),
+                &vertex_buffer,
+                buffer_region.offset,
+                (vertex_buffer_offset * std::mem::size_of::<DefaultVertex>()) as u64,
+                vertex_buffer_size,
+            );
 
             let num_indices = mesh.indices.len();
             let image_index = mesh.material_index.unwrap_or_else(|| 0); //TODO: Actually handle this the right way, or use a white texture
 
-            MeshDraw {
-                index_buffer,
+            let ret = MeshDraw {
+                index_buffer_offset: index_buffer_offset as u32,
                 num_indices,
-                vertex_buffer,
+                vertex_buffer_offset: vertex_buffer_offset as i32,
                 image_index,
-            }
+            };
+            index_buffer_offset += mesh.indices.len();
+            vertex_buffer_offset += mesh.vertices.len();
+            ret
         })
         .collect::<Vec<_>>();
     upload_context
@@ -269,27 +273,16 @@ fn main() {
             uses_depth: true,
         })
         .expect("Could not create graphics pipeline");
-
+    // TODO: bind group layout stuff is bad here
+    let bind_group_set =
+        BindGroupSet::allocate(&mut cinder, &pipeline.bind_group_layouts()[0]).unwrap();
+    let vertex_buffer_info = vertex_buffer.bind_info();
     let uniform_buffer_info = uniform_buffer.bind_info();
-    let bind_group_sets = mesh_draws
-        .iter()
-        .map(|mesh_draw| {
-            let image = &images[mesh_draw.image_index];
-
-            let image_info = image.bind_info(&sampler);
-            let vertex_buffer_info = mesh_draw.vertex_buffer.bind_info();
-
-            // TODO: bind group layout stuff is bad here
-            let bind_group_set =
-                BindGroupSet::allocate(&mut cinder, &pipeline.bind_group_layouts()[0]).unwrap();
-            BindGroupWriteBuilder::default()
-                .bind_buffer(0, &uniform_buffer_info, BindGroupType::UniformBuffer)
-                .bind_buffer(1, &vertex_buffer_info, BindGroupType::StorageBuffer)
-                //.bind_image(2, &image_info, BindGroupType::ImageSampler)
-                .update(&cinder, &bind_group_set);
-            bind_group_set
-        })
-        .collect::<Vec<_>>();
+    BindGroupWriteBuilder::default()
+        .bind_buffer(0, &uniform_buffer_info, BindGroupType::UniformBuffer)
+        .bind_buffer(1, &vertex_buffer_info, BindGroupType::StorageBuffer)
+        //.bind_image(2, &image_info, BindGroupType::ImageSampler)
+        .update(&cinder, &bind_group_set);
 
     // Egui integration
     let mut cinder_ui = Ui::new();
@@ -405,15 +398,15 @@ fn main() {
                         render_context.bind_graphics_pipeline(&cinder, &pipeline);
                         render_context.bind_viewport(&cinder, surface_rect, true);
                         render_context.bind_scissor(&cinder, surface_rect);
+                        render_context.bind_index_buffer(&cinder, &index_buffer);
 
-                        for (idx, draw) in mesh_draws.iter().enumerate() {
+                        for draw in &mesh_draws {
                             render_context.bind_descriptor_sets(
                                 &cinder,
                                 &pipeline,
-                                &[bind_group_sets[idx].set],
+                                &[bind_group_set.set],
                             );
 
-                            render_context.bind_index_buffer(&cinder, &draw.index_buffer);
                             render_context
                                 .push_constant(
                                     &cinder,
@@ -423,7 +416,13 @@ fn main() {
                                     util::as_u8_slice(&color),
                                 )
                                 .unwrap();
-                            render_context.draw_offset(&cinder, draw.num_indices as u32, 0, 0);
+
+                            render_context.draw_offset(
+                                &cinder,
+                                draw.num_indices as u32,
+                                draw.index_buffer_offset,
+                                draw.vertex_buffer_offset,
+                            );
                         }
                     }
                     render_context.end_rendering(&cinder);
