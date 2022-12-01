@@ -87,6 +87,8 @@ impl Device {
             .build();
         let mut descriptor_indexing = vk::PhysicalDeviceDescriptorIndexingFeaturesEXT::builder()
             .descriptor_binding_partially_bound(true)
+            .descriptor_binding_sampled_image_update_after_bind(true)
+            .descriptor_binding_variable_descriptor_count(true)
             .runtime_descriptor_array(true)
             .build();
         let mut dynamic_rendering = vk::PhysicalDeviceDynamicRenderingFeatures::builder()

@@ -11,7 +11,10 @@ use cinder::{
         upload_context::UploadContextDescription,
     },
     resoruces::{
-        bind_group::{BindGroupSet, BindGroupType, BindGroupWriteBuilder},
+        bind_group::{
+            BindGroupSet, BindGroupType, BindGroupWriteBuilder, NewBindGroup, NewBindGroupLayout,
+            NewBindGroupPool,
+        },
         buffer::{vk, BufferDescription, BufferUsage},
         image::{Format, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
@@ -273,6 +276,7 @@ fn main() {
             uses_depth: true,
         })
         .expect("Could not create graphics pipeline");
+
     // TODO: bind group layout stuff is bad here
     let bind_group_set =
         BindGroupSet::allocate(&mut cinder, &pipeline.bind_group_layouts()[0]).unwrap();
@@ -283,6 +287,10 @@ fn main() {
         .bind_buffer(1, &vertex_buffer_info, BindGroupType::StorageBuffer)
         //.bind_image(2, &image_info, BindGroupType::ImageSampler)
         .update(&cinder, &bind_group_set);
+    // new layout stuff
+    let new_pool = NewBindGroupPool::new(&cinder).unwrap();
+    let new_layout = NewBindGroupLayout::new(&cinder).unwrap();
+    let new_set = NewBindGroup::new(&cinder, &new_pool, &new_layout).unwrap();
 
     // Egui integration
     let mut cinder_ui = Ui::new();

@@ -1,3 +1,7 @@
+mod new;
+
+pub use new::*;
+
 use super::{buffer::BindBufferInfo, image::BindImageInfo, shader::ShaderStage};
 use crate::cinder::Cinder;
 use anyhow::Result;
