@@ -2,7 +2,7 @@ pub mod push_constant;
 
 use self::push_constant::PushConstant;
 use super::{
-    bind_group::{BindGroupLayout, BindGroupLayoutBuilder},
+    bind_group::{BindGroupLayout, BindGroupLayoutBuilder, NewBindGroupLayout},
     image::reflect_format_to_vk,
     shader::{Shader, ShaderStage},
 };
@@ -61,6 +61,8 @@ pub struct GraphicsPipelineDescription {
     pub depth_testing_enabled: bool,
     pub backface_culling: bool,
     pub uses_depth: bool,
+    // TODO: Very temp, just need this before fully moving to a new BindGroup API
+    pub bind_group_layout: Option<NewBindGroupLayout>,
 }
 
 pub struct PipelineCommon {
@@ -133,9 +135,15 @@ impl GraphicsPipeline {
             .values()
             .map(|pc| pc.to_raw())
             .collect::<Vec<_>>();
-        let layout_create_info = vk::PipelineLayoutCreateInfo::builder()
-            .set_layouts(&set_layouts)
-            .push_constant_ranges(&push_constant_ranges);
+        let layout_create_info = if let Some(layout) = &desc.bind_group_layout {
+            vk::PipelineLayoutCreateInfo::builder()
+                .set_layouts(std::slice::from_ref(&layout.0))
+                .push_constant_ranges(&push_constant_ranges)
+        } else {
+            vk::PipelineLayoutCreateInfo::builder()
+                .set_layouts(&set_layouts)
+                .push_constant_ranges(&push_constant_ranges)
+        };
 
         let pipeline_layout = unsafe { device.create_pipeline_layout(&layout_create_info, None) }?;
 

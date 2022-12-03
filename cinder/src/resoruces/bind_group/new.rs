@@ -1,7 +1,12 @@
-use crate::{cinder::Cinder, resoruces::image::BindImageInfo};
+use crate::{
+    cinder::Cinder,
+    resoruces::{buffer::BindBufferInfo, image::BindImageInfo},
+};
 use anyhow::Result;
 use ash::vk;
 
+const UNIFORM_BUFFER_BINDING: u32 = 0;
+const VERTEX_BUFFER_BINDING: u32 = 1;
 const BINDLESS_IMAGE_BINDING: u32 = 2;
 
 pub struct NewBindGroupPool(vk::DescriptorPool);
@@ -40,7 +45,7 @@ impl NewBindGroupPool {
     }
 }
 
-pub struct NewBindGroupLayout(vk::DescriptorSetLayout);
+pub struct NewBindGroupLayout(pub vk::DescriptorSetLayout);
 
 impl NewBindGroupLayout {
     pub fn new(cinder: &Cinder) -> Result<Self> {
@@ -95,7 +100,7 @@ impl NewBindGroupLayout {
     }
 }
 
-pub struct NewBindGroup(vk::DescriptorSet);
+pub struct NewBindGroup(pub vk::DescriptorSet);
 
 impl NewBindGroup {
     pub fn new(
@@ -118,6 +123,36 @@ impl NewBindGroup {
         let set = unsafe { cinder.device().allocate_descriptor_sets(&desc_alloc_info) }?[0];
 
         Ok(Self(set))
+    }
+
+    pub fn write_uniform_buffer(&self, cinder: &Cinder, buffer_info: &BindBufferInfo) {
+        let write = vk::WriteDescriptorSet::builder()
+            .dst_set(self.0)
+            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+            .buffer_info(std::slice::from_ref(&buffer_info.0))
+            .dst_binding(UNIFORM_BUFFER_BINDING)
+            .build();
+
+        unsafe {
+            cinder
+                .device()
+                .update_descriptor_sets(std::slice::from_ref(&write), &[]);
+        }
+    }
+
+    pub fn write_vertex_buffer(&self, cinder: &Cinder, buffer_info: &BindBufferInfo) {
+        let write = vk::WriteDescriptorSet::builder()
+            .dst_set(self.0)
+            .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+            .buffer_info(std::slice::from_ref(&buffer_info.0))
+            .dst_binding(VERTEX_BUFFER_BINDING)
+            .build();
+
+        unsafe {
+            cinder
+                .device()
+                .update_descriptor_sets(std::slice::from_ref(&write), &[]);
+        }
     }
 
     pub fn write_images(&self, cinder: &Cinder, image_infos: &[BindImageInfo]) {

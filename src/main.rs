@@ -217,13 +217,15 @@ fn main() {
         )
         .expect("Could not write to uniform buffer");
 
+    let sampler = cinder.create_sampler().expect("Could not create sampler");
     upload_context
         .begin(&cinder)
         .expect("could not begin upload context");
     // Create and upload image
-    let images = image_buffers
+    let (images, image_bind_infos): (Vec<_>, Vec<_>) = image_buffers
         .iter()
-        .map(|image| {
+        .enumerate()
+        .map(|(idx, image)| {
             let image_buffer = cinder
                 .create_buffer(BufferDescription {
                     size: size_of_slice(&image.data),
@@ -249,9 +251,11 @@ fn main() {
             upload_context.copy_buffer_to_image(&cinder, &image_buffer, &texture);
             upload_context.image_barrier_end(&cinder, &texture);
 
-            texture
+            let info = texture.bind_info(&sampler, idx as u32);
+
+            (texture, info)
         })
-        .collect::<Vec<_>>();
+        .unzip();
     upload_context.transition_depth_image(&cinder);
     upload_context
         .end(
@@ -264,7 +268,17 @@ fn main() {
         )
         .expect("could not end upload context");
 
-    let sampler = cinder.create_sampler().expect("Could not create sampler");
+    // TODO: bind group layout stuff is bad here
+    let vertex_buffer_info = vertex_buffer.bind_info();
+    let uniform_buffer_info = uniform_buffer.bind_info();
+
+    let new_pool = NewBindGroupPool::new(&cinder).unwrap();
+    let new_layout = NewBindGroupLayout::new(&cinder).unwrap();
+    let new_set = NewBindGroup::new(&cinder, &new_pool, &new_layout).unwrap();
+
+    new_set.write_uniform_buffer(&cinder, &uniform_buffer_info);
+    new_set.write_vertex_buffer(&cinder, &vertex_buffer_info);
+    new_set.write_images(&cinder, &image_bind_infos);
 
     let pipeline = cinder
         .create_graphics_pipeline(GraphicsPipelineDescription {
@@ -274,23 +288,9 @@ fn main() {
             depth_testing_enabled: true,
             backface_culling: true,
             uses_depth: true,
+            bind_group_layout: Some(new_layout),
         })
         .expect("Could not create graphics pipeline");
-
-    // TODO: bind group layout stuff is bad here
-    let bind_group_set =
-        BindGroupSet::allocate(&mut cinder, &pipeline.bind_group_layouts()[0]).unwrap();
-    let vertex_buffer_info = vertex_buffer.bind_info();
-    let uniform_buffer_info = uniform_buffer.bind_info();
-    BindGroupWriteBuilder::default()
-        .bind_buffer(0, &uniform_buffer_info, BindGroupType::UniformBuffer)
-        .bind_buffer(1, &vertex_buffer_info, BindGroupType::StorageBuffer)
-        //.bind_image(2, &image_info, BindGroupType::ImageSampler)
-        .update(&cinder, &bind_group_set);
-    // new layout stuff
-    let new_pool = NewBindGroupPool::new(&cinder).unwrap();
-    let new_layout = NewBindGroupLayout::new(&cinder).unwrap();
-    let new_set = NewBindGroup::new(&cinder, &new_pool, &new_layout).unwrap();
 
     // Egui integration
     let mut cinder_ui = Ui::new();
@@ -407,14 +407,9 @@ fn main() {
                         render_context.bind_viewport(&cinder, surface_rect, true);
                         render_context.bind_scissor(&cinder, surface_rect);
                         render_context.bind_index_buffer(&cinder, &index_buffer);
+                        render_context.bind_descriptor_sets(&cinder, &pipeline, &[new_set.0]);
 
                         for draw in &mesh_draws {
-                            render_context.bind_descriptor_sets(
-                                &cinder,
-                                &pipeline,
-                                &[bind_group_set.set],
-                            );
-
                             render_context
                                 .push_constant(
                                     &cinder,
@@ -422,6 +417,16 @@ fn main() {
                                     ShaderStage::Vertex,
                                     0,
                                     util::as_u8_slice(&color),
+                                )
+                                .unwrap();
+
+                            render_context
+                                .push_constant(
+                                    &cinder,
+                                    &pipeline,
+                                    ShaderStage::Fragment,
+                                    0,
+                                    util::as_u8_slice(&draw.image_index),
                                 )
                                 .unwrap();
 

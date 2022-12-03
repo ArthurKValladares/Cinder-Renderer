@@ -71,6 +71,7 @@ impl EguiIntegration {
             depth_testing_enabled: false,
             backface_culling: false,
             uses_depth: false,
+            bind_group_layout: None,
         })?;
         // TODO: bind group layout stuff is bad here
         let bind_group_set = BindGroupSet::allocate(cinder, &pipeline.bind_group_layouts()[0])?;
