@@ -1,7 +1,8 @@
+use crate::{cinder::Cinder, resoruces::image::BindImageInfo};
 use anyhow::Result;
 use ash::vk;
 
-use crate::cinder::Cinder;
+const BINDLESS_IMAGE_BINDING: u32 = 2;
 
 pub struct NewBindGroupPool(vk::DescriptorPool);
 
@@ -58,7 +59,7 @@ impl NewBindGroupLayout {
             .build();
 
         let image = vk::DescriptorSetLayoutBinding::builder()
-            .binding(2)
+            .binding(BINDLESS_IMAGE_BINDING)
             .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
             .descriptor_count(cinder.max_bindless_descriptor_count())
             .stage_flags(vk::ShaderStageFlags::FRAGMENT)
@@ -117,5 +118,23 @@ impl NewBindGroup {
         let set = unsafe { cinder.device().allocate_descriptor_sets(&desc_alloc_info) }?[0];
 
         Ok(Self(set))
+    }
+
+    pub fn write_images(&self, cinder: &Cinder, image_infos: &[BindImageInfo]) {
+        let writes = image_infos
+            .iter()
+            .map(|info| {
+                vk::WriteDescriptorSet::builder()
+                    .dst_set(self.0)
+                    .dst_binding(BINDLESS_IMAGE_BINDING)
+                    .dst_array_element(info.index)
+                    .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                    .image_info(std::slice::from_ref(&info.info))
+                    .build()
+            })
+            .collect::<Vec<_>>();
+        unsafe {
+            cinder.device().update_descriptor_sets(&writes, &[]);
+        }
     }
 }

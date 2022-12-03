@@ -180,14 +180,20 @@ impl Image {
     }
 }
 
-pub struct BindImageInfo(pub vk::DescriptorImageInfo);
+pub struct BindImageInfo {
+    pub info: vk::DescriptorImageInfo,
+    pub index: u32,
+}
 
 impl Image {
-    pub fn bind_info(&self, sampler: &Sampler) -> BindImageInfo {
-        BindImageInfo(vk::DescriptorImageInfo {
-            image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-            image_view: self.view,
-            sampler: sampler.raw,
-        })
+    pub fn bind_info(&self, sampler: &Sampler, index: u32) -> BindImageInfo {
+        BindImageInfo {
+            info: vk::DescriptorImageInfo {
+                image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                image_view: self.view,
+                sampler: sampler.raw,
+            },
+            index,
+        }
     }
 }

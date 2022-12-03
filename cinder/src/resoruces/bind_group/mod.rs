@@ -356,7 +356,7 @@ impl BindGroupWriteBuilder {
     ) -> Self {
         let new_write = vk::WriteDescriptorSet::builder()
             .descriptor_type(ty.into())
-            .image_info(std::slice::from_ref(&image_info.0))
+            .image_info(std::slice::from_ref(&image_info.info))
             .dst_binding(binding)
             .build();
         self.writes.push(new_write);

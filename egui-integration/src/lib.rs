@@ -377,7 +377,7 @@ impl EguiIntegration {
         BindGroupWriteBuilder::default()
             .bind_image(
                 0,
-                &image.bind_info(&self.sampler),
+                &image.bind_info(&self.sampler, 0),
                 BindGroupType::ImageSampler,
             )
             .update(cinder, &self.bind_group_set);
