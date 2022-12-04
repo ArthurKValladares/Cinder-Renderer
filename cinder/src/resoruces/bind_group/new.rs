@@ -1,13 +1,10 @@
+use super::BindGroupType;
 use crate::{
     cinder::Cinder,
-    resoruces::{buffer::BindBufferInfo, image::BindImageInfo},
+    resoruces::{buffer::BindBufferInfo, image::BindImageInfo, shader::ShaderStage},
 };
 use anyhow::Result;
 use ash::vk;
-
-const UNIFORM_BUFFER_BINDING: u32 = 0;
-const VERTEX_BUFFER_BINDING: u32 = 1;
-const BINDLESS_IMAGE_BINDING: u32 = 2;
 
 pub struct NewBindGroupPool(vk::DescriptorPool);
 
@@ -45,43 +42,43 @@ impl NewBindGroupPool {
     }
 }
 
+#[derive(Debug)]
+pub struct BindGroupLayoutData {
+    pub binding: u32,
+    pub ty: BindGroupType,
+    pub count: u32,
+    pub shader_stage: ShaderStage,
+    pub flags: vk::DescriptorBindingFlags,
+}
+
+pub fn bindless_bind_group_flags() -> vk::DescriptorBindingFlags {
+    vk::DescriptorBindingFlags::PARTIALLY_BOUND
+        | vk::DescriptorBindingFlags::VARIABLE_DESCRIPTOR_COUNT
+        | vk::DescriptorBindingFlags::UPDATE_AFTER_BIND
+}
+
 pub struct NewBindGroupLayout(pub vk::DescriptorSetLayout);
 
 impl NewBindGroupLayout {
-    pub fn new(cinder: &Cinder) -> Result<Self> {
-        let uniform = vk::DescriptorSetLayoutBinding::builder()
-            .binding(0)
-            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-            .descriptor_count(1)
-            .stage_flags(vk::ShaderStageFlags::VERTEX)
-            .build();
+    pub fn new(cinder: &Cinder, layout_data: &[BindGroupLayoutData]) -> Result<Self> {
+        let bindings = layout_data
+            .iter()
+            .map(|data| {
+                vk::DescriptorSetLayoutBinding::builder()
+                    .binding(data.binding)
+                    .descriptor_type(data.ty.into())
+                    .descriptor_count(data.count)
+                    .stage_flags(data.shader_stage.into())
+                    .build()
+            })
+            .collect::<Vec<_>>();
 
-        let storage = vk::DescriptorSetLayoutBinding::builder()
-            .binding(1)
-            .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-            .descriptor_count(1)
-            .stage_flags(vk::ShaderStageFlags::VERTEX)
-            .build();
-
-        let image = vk::DescriptorSetLayoutBinding::builder()
-            .binding(BINDLESS_IMAGE_BINDING)
-            .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
-            .descriptor_count(cinder.max_bindless_descriptor_count())
-            .stage_flags(vk::ShaderStageFlags::FRAGMENT)
-            .build();
-
-        let bindings = [uniform, storage, image];
-
-        let bindless_flags = vk::DescriptorBindingFlags::PARTIALLY_BOUND
-            | vk::DescriptorBindingFlags::VARIABLE_DESCRIPTOR_COUNT
-            | vk::DescriptorBindingFlags::UPDATE_AFTER_BIND;
-
+        let binding_flags = layout_data
+            .iter()
+            .map(|data| data.flags)
+            .collect::<Vec<_>>();
         let mut extended_info = vk::DescriptorSetLayoutBindingFlagsCreateInfo::builder()
-            .binding_flags(&[
-                vk::DescriptorBindingFlags::empty(),
-                vk::DescriptorBindingFlags::empty(),
-                bindless_flags,
-            ])
+            .binding_flags(&binding_flags)
             .build();
 
         let layout_info = vk::DescriptorSetLayoutCreateInfo::builder()
@@ -100,6 +97,19 @@ impl NewBindGroupLayout {
     }
 }
 
+#[derive(Debug)]
+pub enum BindGroupWriteData {
+    Storage(BindBufferInfo),
+    Uniform(BindBufferInfo),
+    Image(BindImageInfo),
+}
+
+#[derive(Debug)]
+pub struct BindGroupBindInfo {
+    pub dst_binding: u32,
+    pub data: BindGroupWriteData,
+}
+
 pub struct NewBindGroup(pub vk::DescriptorSet);
 
 impl NewBindGroup {
@@ -110,6 +120,7 @@ impl NewBindGroup {
     ) -> Result<Self> {
         let max_binding = cinder.max_bindless_descriptor_count() - 1;
 
+        // TODO: Shold the count here be [0, 0, max_binding] instead?
         let mut count_info = vk::DescriptorSetVariableDescriptorCountAllocateInfo::builder()
             .descriptor_counts(&[max_binding])
             .build();
@@ -125,49 +136,29 @@ impl NewBindGroup {
         Ok(Self(set))
     }
 
-    pub fn write_uniform_buffer(&self, cinder: &Cinder, buffer_info: &BindBufferInfo) {
-        let write = vk::WriteDescriptorSet::builder()
-            .dst_set(self.0)
-            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-            .buffer_info(std::slice::from_ref(&buffer_info.0))
-            .dst_binding(UNIFORM_BUFFER_BINDING)
-            .build();
-
-        unsafe {
-            cinder
-                .device()
-                .update_descriptor_sets(std::slice::from_ref(&write), &[]);
-        }
-    }
-
-    pub fn write_vertex_buffer(&self, cinder: &Cinder, buffer_info: &BindBufferInfo) {
-        let write = vk::WriteDescriptorSet::builder()
-            .dst_set(self.0)
-            .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-            .buffer_info(std::slice::from_ref(&buffer_info.0))
-            .dst_binding(VERTEX_BUFFER_BINDING)
-            .build();
-
-        unsafe {
-            cinder
-                .device()
-                .update_descriptor_sets(std::slice::from_ref(&write), &[]);
-        }
-    }
-
-    pub fn write_images(&self, cinder: &Cinder, image_infos: &[BindImageInfo]) {
-        let writes = image_infos
+    pub fn write(&self, cinder: &Cinder, infos: &[BindGroupBindInfo]) {
+        let writes = infos
             .iter()
             .map(|info| {
-                vk::WriteDescriptorSet::builder()
+                let mut write = vk::WriteDescriptorSet::builder()
                     .dst_set(self.0)
-                    .dst_binding(BINDLESS_IMAGE_BINDING)
-                    .dst_array_element(info.index)
-                    .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
-                    .image_info(std::slice::from_ref(&info.info))
-                    .build()
+                    .dst_binding(info.dst_binding);
+                write = match &info.data {
+                    BindGroupWriteData::Uniform(buffer_info) => write
+                        .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                        .buffer_info(std::slice::from_ref(&buffer_info.0)),
+                    BindGroupWriteData::Storage(buffer_info) => write
+                        .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                        .buffer_info(std::slice::from_ref(&buffer_info.0)),
+                    BindGroupWriteData::Image(info) => write
+                        .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                        .dst_array_element(info.index)
+                        .image_info(std::slice::from_ref(&info.info)),
+                };
+                write.build()
             })
             .collect::<Vec<_>>();
+
         unsafe {
             cinder.device().update_descriptor_sets(&writes, &[]);
         }

@@ -117,6 +117,7 @@ impl Buffer {
 }
 
 #[repr(transparent)]
+#[derive(Debug)]
 pub struct BindBufferInfo(pub vk::DescriptorBufferInfo);
 
 impl Buffer {

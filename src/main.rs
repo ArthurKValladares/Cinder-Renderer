@@ -12,8 +12,9 @@ use cinder::{
     },
     resoruces::{
         bind_group::{
-            BindGroupSet, BindGroupType, BindGroupWriteBuilder, NewBindGroup, NewBindGroupLayout,
-            NewBindGroupPool,
+            bindless_bind_group_flags, BindGroupBindInfo, BindGroupLayoutData, BindGroupSet,
+            BindGroupType, BindGroupWriteBuilder, BindGroupWriteData, NewBindGroup,
+            NewBindGroupLayout, NewBindGroupPool,
         },
         buffer::{vk, BufferDescription, BufferUsage},
         image::{Format, ImageDescription, Usage},
@@ -253,7 +254,13 @@ fn main() {
 
             let info = texture.bind_info(&sampler, idx as u32);
 
-            (texture, info)
+            (
+                texture,
+                BindGroupBindInfo {
+                    dst_binding: 2,
+                    data: BindGroupWriteData::Image(info),
+                },
+            )
         })
         .unzip();
     upload_context.transition_depth_image(&cinder);
@@ -273,12 +280,49 @@ fn main() {
     let uniform_buffer_info = uniform_buffer.bind_info();
 
     let new_pool = NewBindGroupPool::new(&cinder).unwrap();
-    let new_layout = NewBindGroupLayout::new(&cinder).unwrap();
+    let new_layout = NewBindGroupLayout::new(
+        &cinder,
+        &[
+            BindGroupLayoutData {
+                binding: 0,
+                ty: BindGroupType::UniformBuffer,
+                count: 1,
+                shader_stage: ShaderStage::Vertex,
+                flags: Default::default(),
+            },
+            BindGroupLayoutData {
+                binding: 1,
+                ty: BindGroupType::StorageBuffer,
+                count: 1,
+                shader_stage: ShaderStage::Vertex,
+                flags: Default::default(),
+            },
+            BindGroupLayoutData {
+                binding: 2,
+                ty: BindGroupType::ImageSampler,
+                count: cinder.max_bindless_descriptor_count(),
+                shader_stage: ShaderStage::Fragment,
+                flags: bindless_bind_group_flags(),
+            },
+        ],
+    )
+    .unwrap();
     let new_set = NewBindGroup::new(&cinder, &new_pool, &new_layout).unwrap();
 
-    new_set.write_uniform_buffer(&cinder, &uniform_buffer_info);
-    new_set.write_vertex_buffer(&cinder, &vertex_buffer_info);
-    new_set.write_images(&cinder, &image_bind_infos);
+    new_set.write(
+        &cinder,
+        &[
+            BindGroupBindInfo {
+                dst_binding: 0,
+                data: BindGroupWriteData::Uniform(uniform_buffer_info),
+            },
+            BindGroupBindInfo {
+                dst_binding: 1,
+                data: BindGroupWriteData::Storage(vertex_buffer_info),
+            },
+        ],
+    );
+    new_set.write(&cinder, &image_bind_infos);
 
     let pipeline = cinder
         .create_graphics_pipeline(GraphicsPipelineDescription {

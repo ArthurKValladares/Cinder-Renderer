@@ -180,6 +180,7 @@ impl Image {
     }
 }
 
+#[derive(Debug)]
 pub struct BindImageInfo {
     pub info: vk::DescriptorImageInfo,
     pub index: u32,
