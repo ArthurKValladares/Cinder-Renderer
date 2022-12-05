@@ -36,11 +36,14 @@ use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Windo
 static VERTEX_BUFFER_SIZE: u64 = 1024 * 1024 * 4;
 static INDEX_BUFFER_SIZE: u64 = 1024 * 1024 * 2;
 
+// TODO: Share image buffer with rest of the codebase
 pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_winit: egui_winit::State,
-    bind_group_set: NewBindGroup,
     pipeline: GraphicsPipeline,
+    // TODO: won't need separate pool in the future, set will be a part of GraphicsPipeline?
+    bind_group_pool: NewBindGroupPool,
+    bind_group_set: NewBindGroup,
     sampler: Sampler,
     image_staging_buffer: Option<Buffer>,
     image_map: HashMap<TextureId, Image>,
@@ -68,20 +71,7 @@ impl EguiIntegration {
             bytes: include_bytes!("../shaders/spv/egui.frag.spv"),
         })?;
 
-        let new_pool = NewBindGroupPool::new(&cinder).unwrap();
-        let new_layout = NewBindGroupLayout::new(
-            &cinder,
-            &[BindGroupLayoutData {
-                binding: 0,
-                ty: BindGroupType::ImageSampler,
-                count: 1,
-                shader_stage: ShaderStage::Fragment,
-                flags: Default::default(),
-            }],
-        )
-        .unwrap();
-        let bind_group_set = NewBindGroup::new(&cinder, &new_pool, &new_layout).unwrap();
-
+        let bind_group_pool = NewBindGroupPool::new(&cinder).unwrap();
         let pipeline = cinder.create_graphics_pipeline(GraphicsPipelineDescription {
             vertex_shader,
             fragment_shader,
@@ -89,8 +79,14 @@ impl EguiIntegration {
             depth_testing_enabled: false,
             backface_culling: false,
             uses_depth: false,
-            bind_group_layout: Some(new_layout),
         })?;
+        let bind_group_set = NewBindGroup::new(
+            &cinder,
+            &bind_group_pool,
+            &pipeline.bind_group_layouts()[0],
+            false,
+        )
+        .unwrap();
 
         let sampler = cinder.create_sampler()?;
 
@@ -124,6 +120,7 @@ impl EguiIntegration {
             egui_context,
             egui_winit,
             sampler,
+            bind_group_pool,
             bind_group_set,
             pipeline,
             image_staging_buffer: None,

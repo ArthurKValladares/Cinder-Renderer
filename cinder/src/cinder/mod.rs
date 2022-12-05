@@ -216,7 +216,6 @@ impl Cinder {
             self.surface_format(),
             self.pipeline_cache,
             desc,
-            self.max_bindless_descriptor_count(),
         )
     }
 

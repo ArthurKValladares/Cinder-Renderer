@@ -2,7 +2,7 @@ pub mod push_constant;
 
 use self::push_constant::PushConstant;
 use super::{
-    bind_group::{BindGroupLayout, BindGroupLayoutBuilder, NewBindGroupLayout},
+    bind_group::{BindGroupLayout, BindGroupLayoutData, NewBindGroupLayout},
     image::reflect_format_to_vk,
     shader::{Shader, ShaderStage},
 };
@@ -61,8 +61,6 @@ pub struct GraphicsPipelineDescription {
     pub depth_testing_enabled: bool,
     pub backface_culling: bool,
     pub uses_depth: bool,
-    // TODO: Very temp, just need this before fully moving to a new BindGroup API
-    pub bind_group_layout: Option<NewBindGroupLayout>,
 }
 
 pub struct PipelineCommon {
@@ -75,7 +73,7 @@ pub struct GraphicsPipeline {
     // TODO: Think of a better key
     push_constants: HashMap<(ShaderStage, u32), PushConstant>,
     // TODO: Also need a better way to get these
-    bind_group_layouts: Vec<BindGroupLayout>,
+    bind_group_layouts: Vec<NewBindGroupLayout>,
 }
 
 impl GraphicsPipeline {
@@ -84,7 +82,6 @@ impl GraphicsPipeline {
         surface_format: vk::Format,
         pipeline_cache: vk::PipelineCache,
         desc: GraphicsPipelineDescription,
-        max_bindless: u32,
     ) -> Result<Self> {
         //
         // Pipeline stuff, pretty temp
@@ -110,24 +107,30 @@ impl GraphicsPipeline {
                 let entry = data_map.entry(set).or_insert_with(|| Vec::new());
                 entry.extend(data);
             }
+
             data_map
                 .values()
                 .map(|data_vecs| {
-                    let mut builder = BindGroupLayoutBuilder::default();
-                    for data in data_vecs {
-                        builder = builder.bind(
-                            data.binding,
-                            data.ty,
-                            data.shader_stage,
-                            if data.array { max_bindless } else { 1 },
-                        );
-                    }
-                    builder.build(device)
+                    let layout_data = data_vecs
+                        .iter()
+                        .map(|data| {
+                            if data.array {
+                                BindGroupLayoutData::new_bindless(
+                                    data.binding,
+                                    data.ty,
+                                    data.shader_stage,
+                                )
+                            } else {
+                                BindGroupLayoutData::new(data.binding, data.ty, data.shader_stage)
+                            }
+                        })
+                        .collect::<Vec<_>>();
+                    NewBindGroupLayout::new(device, &layout_data)
                 })
                 .collect::<Result<Vec<_>>>()
         }?;
         let set_layouts = unsafe {
-            std::mem::transmute::<&[BindGroupLayout], &[vk::DescriptorSetLayout]>(
+            std::mem::transmute::<&[NewBindGroupLayout], &[vk::DescriptorSetLayout]>(
                 &bind_group_layouts,
             )
         };
@@ -135,15 +138,10 @@ impl GraphicsPipeline {
             .values()
             .map(|pc| pc.to_raw())
             .collect::<Vec<_>>();
-        let layout_create_info = if let Some(layout) = &desc.bind_group_layout {
-            vk::PipelineLayoutCreateInfo::builder()
-                .set_layouts(std::slice::from_ref(&layout.layout))
-                .push_constant_ranges(&push_constant_ranges)
-        } else {
-            vk::PipelineLayoutCreateInfo::builder()
-                .set_layouts(&set_layouts)
-                .push_constant_ranges(&push_constant_ranges)
-        };
+        let layout_create_info = vk::PipelineLayoutCreateInfo::builder()
+            .set_layouts(&set_layouts)
+            .push_constant_ranges(&push_constant_ranges)
+            .build();
 
         let pipeline_layout = unsafe { device.create_pipeline_layout(&layout_create_info, None) }?;
 
@@ -281,7 +279,7 @@ impl GraphicsPipeline {
         self.push_constants.get(&(shader_stage, idx))
     }
 
-    pub fn bind_group_layouts(&self) -> &[BindGroupLayout] {
+    pub fn bind_group_layouts(&self) -> &[NewBindGroupLayout] {
         &self.bind_group_layouts
     }
 }

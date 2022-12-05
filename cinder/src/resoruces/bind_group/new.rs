@@ -6,28 +6,29 @@ use crate::{
 use anyhow::Result;
 use ash::vk;
 
+pub const MAX_BINDLESS_RESOURCES: u32 = 16536;
+
 pub struct NewBindGroupPool(vk::DescriptorPool);
 
 impl NewBindGroupPool {
     pub fn new(cinder: &Cinder) -> Result<Self> {
-        let descriptor_count = cinder.max_bindless_descriptor_count();
         let pool_sizes = [
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                descriptor_count,
+                descriptor_count: MAX_BINDLESS_RESOURCES,
             },
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::STORAGE_BUFFER,
-                descriptor_count,
+                descriptor_count: MAX_BINDLESS_RESOURCES,
             },
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::UNIFORM_BUFFER,
-                descriptor_count,
+                descriptor_count: MAX_BINDLESS_RESOURCES,
             },
         ];
 
         let descriptor_pool_info = vk::DescriptorPoolCreateInfo::builder()
-            .max_sets(descriptor_count * pool_sizes.len() as u32)
+            .max_sets(MAX_BINDLESS_RESOURCES * pool_sizes.len() as u32)
             .pool_sizes(&pool_sizes)
             .flags(vk::DescriptorPoolCreateFlags::UPDATE_AFTER_BIND)
             .build();
@@ -51,6 +52,28 @@ pub struct BindGroupLayoutData {
     pub flags: vk::DescriptorBindingFlags,
 }
 
+impl BindGroupLayoutData {
+    pub fn new(binding: u32, ty: BindGroupType, shader_stage: ShaderStage) -> Self {
+        Self {
+            binding,
+            ty,
+            count: 1,
+            shader_stage,
+            flags: Default::default(),
+        }
+    }
+
+    pub fn new_bindless(binding: u32, ty: BindGroupType, shader_stage: ShaderStage) -> Self {
+        Self {
+            binding,
+            ty,
+            count: MAX_BINDLESS_RESOURCES,
+            shader_stage,
+            flags: bindless_bind_group_flags(),
+        }
+    }
+}
+
 pub fn bindless_bind_group_flags() -> vk::DescriptorBindingFlags {
     vk::DescriptorBindingFlags::PARTIALLY_BOUND
         | vk::DescriptorBindingFlags::VARIABLE_DESCRIPTOR_COUNT
@@ -59,11 +82,10 @@ pub fn bindless_bind_group_flags() -> vk::DescriptorBindingFlags {
 
 pub struct NewBindGroupLayout {
     pub layout: vk::DescriptorSetLayout,
-    pub variable_count: bool,
 }
 
 impl NewBindGroupLayout {
-    pub fn new(cinder: &Cinder, layout_data: &[BindGroupLayoutData]) -> Result<Self> {
+    pub fn new(device: &ash::Device, layout_data: &[BindGroupLayoutData]) -> Result<Self> {
         let bindings = layout_data
             .iter()
             .map(|data| {
@@ -76,15 +98,9 @@ impl NewBindGroupLayout {
             })
             .collect::<Vec<_>>();
 
-        let mut variable_count = false;
         let binding_flags = layout_data
             .iter()
-            .map(|data| {
-                variable_count |= data
-                    .flags
-                    .contains(vk::DescriptorBindingFlags::VARIABLE_DESCRIPTOR_COUNT);
-                data.flags
-            })
+            .map(|data| data.flags)
             .collect::<Vec<_>>();
         let mut extended_info = vk::DescriptorSetLayoutBindingFlagsCreateInfo::builder()
             .binding_flags(&binding_flags)
@@ -96,16 +112,9 @@ impl NewBindGroupLayout {
             .push_next(&mut extended_info)
             .build();
 
-        let layout = unsafe {
-            cinder
-                .device()
-                .create_descriptor_set_layout(&layout_info, None)
-        }?;
+        let layout = unsafe { device.create_descriptor_set_layout(&layout_info, None) }?;
 
-        Ok(Self {
-            layout,
-            variable_count,
-        })
+        Ok(Self { layout })
     }
 }
 
@@ -129,8 +138,9 @@ impl NewBindGroup {
         cinder: &Cinder,
         pool: &NewBindGroupPool,
         layout: &NewBindGroupLayout,
+        variable_count: bool,
     ) -> Result<Self> {
-        let max_binding = cinder.max_bindless_descriptor_count() - 1;
+        let max_binding = MAX_BINDLESS_RESOURCES - 1;
 
         let mut count_info = vk::DescriptorSetVariableDescriptorCountAllocateInfo::builder()
             .descriptor_counts(&[max_binding])
@@ -139,7 +149,7 @@ impl NewBindGroup {
         let desc_alloc_info = vk::DescriptorSetAllocateInfo::builder()
             .descriptor_pool(pool.0)
             .set_layouts(std::slice::from_ref(&layout.layout));
-        let desc_alloc_info = if layout.variable_count {
+        let desc_alloc_info = if variable_count {
             desc_alloc_info.push_next(&mut count_info).build()
         } else {
             desc_alloc_info.build()

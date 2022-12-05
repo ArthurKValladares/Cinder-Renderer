@@ -279,36 +279,24 @@ fn main() {
     let vertex_buffer_info = vertex_buffer.bind_info();
     let uniform_buffer_info = uniform_buffer.bind_info();
 
-    let new_pool = NewBindGroupPool::new(&cinder).unwrap();
-    let new_layout = NewBindGroupLayout::new(
+    let pipeline = cinder
+        .create_graphics_pipeline(GraphicsPipelineDescription {
+            vertex_shader,
+            fragment_shader,
+            blending: ColorBlendState::add(),
+            depth_testing_enabled: true,
+            backface_culling: true,
+            uses_depth: true,
+        })
+        .expect("Could not create graphics pipeline");
+    let bind_group_pool = NewBindGroupPool::new(&cinder).unwrap();
+    let new_set = NewBindGroup::new(
         &cinder,
-        &[
-            BindGroupLayoutData {
-                binding: 0,
-                ty: BindGroupType::UniformBuffer,
-                count: 1,
-                shader_stage: ShaderStage::Vertex,
-                flags: Default::default(),
-            },
-            BindGroupLayoutData {
-                binding: 1,
-                ty: BindGroupType::StorageBuffer,
-                count: 1,
-                shader_stage: ShaderStage::Vertex,
-                flags: Default::default(),
-            },
-            BindGroupLayoutData {
-                binding: 2,
-                ty: BindGroupType::ImageSampler,
-                count: cinder.max_bindless_descriptor_count(),
-                shader_stage: ShaderStage::Fragment,
-                flags: bindless_bind_group_flags(),
-            },
-        ],
+        &bind_group_pool,
+        &pipeline.bind_group_layouts()[0],
+        true,
     )
     .unwrap();
-    let new_set = NewBindGroup::new(&cinder, &new_pool, &new_layout).unwrap();
-
     new_set.write(
         &cinder,
         &[
@@ -323,18 +311,6 @@ fn main() {
         ],
     );
     new_set.write(&cinder, &image_bind_infos);
-
-    let pipeline = cinder
-        .create_graphics_pipeline(GraphicsPipelineDescription {
-            vertex_shader,
-            fragment_shader,
-            blending: ColorBlendState::add(),
-            depth_testing_enabled: true,
-            backface_culling: true,
-            uses_depth: true,
-            bind_group_layout: Some(new_layout),
-        })
-        .expect("Could not create graphics pipeline");
 
     // Egui integration
     let mut cinder_ui = Ui::new();
