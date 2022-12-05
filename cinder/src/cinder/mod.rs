@@ -7,7 +7,6 @@ use crate::{
     instance::Instance,
     profiling::Profiling,
     resoruces::{
-        bind_group::{BindGroupAllocator, BindGroupLayoutCache},
         buffer::{Buffer, BufferDescription},
         image::{self, Image, ImageDescription},
         pipeline::{GraphicsPipeline, GraphicsPipelineDescription},
@@ -45,9 +44,6 @@ pub struct Cinder {
 
     pub depth_image: Image,
     command_pool: vk::CommandPool,
-
-    pub bind_group_alloc: BindGroupAllocator,
-    pub bind_group_cache: BindGroupLayoutCache,
 
     // TODO: Probably will have better syncronization in the future
     present_complete_semaphore: vk::Semaphore,
@@ -115,9 +111,6 @@ impl Cinder {
 
         let command_pool = unsafe { device.create_command_pool(&pool_create_info, None) }?;
 
-        let bind_group_alloc = BindGroupAllocator::default();
-        let bind_group_cache = BindGroupLayoutCache::default();
-
         let profiling = Profiling::new(&device)?;
 
         Ok(Self {
@@ -134,8 +127,6 @@ impl Cinder {
             draw_commands_reuse_fence,
             setup_commands_reuse_fence,
             command_pool,
-            bind_group_alloc,
-            bind_group_cache,
             profiling,
         })
     }
@@ -315,23 +306,5 @@ impl Cinder {
         }
 
         Ok(())
-    }
-
-    // TODO: Will refactor pretty much all descriptor set stuff
-    pub fn max_bindless_descriptor_count(&self) -> u32 {
-        (512 * 1024).min(
-            self.device
-                .properties()
-                .limits
-                .max_per_stage_descriptor_sampled_images
-                - RESERVED_DESCRIPTOR_COUNT,
-        )
-    }
-
-    pub(crate) fn create_descriptor_set(
-        &mut self,
-        layout: &vk::DescriptorSetLayout,
-    ) -> Result<vk::DescriptorSet, vk::Result> {
-        self.bind_group_alloc.allocate(&self.device, layout)
     }
 }

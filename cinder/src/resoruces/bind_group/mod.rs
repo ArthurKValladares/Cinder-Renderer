@@ -1,14 +1,11 @@
-mod new;
-
-pub use new::*;
-
-use super::{buffer::BindBufferInfo, image::BindImageInfo, shader::ShaderStage};
-use crate::cinder::Cinder;
+use crate::{
+    cinder::Cinder,
+    resoruces::{buffer::BindBufferInfo, image::BindImageInfo, shader::ShaderStage},
+};
 use anyhow::Result;
 use ash::vk;
-use std::collections::HashMap;
 
-// TODO: This whole layer doesn't quite work
+pub const MAX_BINDLESS_RESOURCES: u32 = 16536;
 
 // TODO, maybe could be separate enums, to make bind_buffer, bind_image, etc type-safe
 #[derive(Debug, Copy, Clone)]
@@ -28,349 +25,183 @@ impl From<BindGroupType> for vk::DescriptorType {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
-struct BindGroupDesc {
-    ty: vk::DescriptorType,
-    multiplier: f32,
-}
+pub struct BindGroupPool(vk::DescriptorPool);
 
-#[derive(Debug)]
-struct PoolSizes {
-    sizes: Vec<BindGroupDesc>,
-}
+impl BindGroupPool {
+    pub fn new(cinder: &Cinder) -> Result<Self> {
+        let pool_sizes = [
+            vk::DescriptorPoolSize {
+                ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+                descriptor_count: MAX_BINDLESS_RESOURCES,
+            },
+            vk::DescriptorPoolSize {
+                ty: vk::DescriptorType::STORAGE_BUFFER,
+                descriptor_count: MAX_BINDLESS_RESOURCES,
+            },
+            vk::DescriptorPoolSize {
+                ty: vk::DescriptorType::UNIFORM_BUFFER,
+                descriptor_count: MAX_BINDLESS_RESOURCES,
+            },
+        ];
 
-impl Default for PoolSizes {
-    fn default() -> Self {
-        Self {
-            sizes: vec![
-                BindGroupDesc {
-                    ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                    multiplier: 4.,
-                },
-                BindGroupDesc {
-                    ty: vk::DescriptorType::SAMPLER,
-                    multiplier: 0.5,
-                },
-                BindGroupDesc {
-                    ty: vk::DescriptorType::SAMPLED_IMAGE,
-                    multiplier: 4.,
-                },
-                BindGroupDesc {
-                    ty: vk::DescriptorType::STORAGE_IMAGE,
-                    multiplier: 1.,
-                },
-                BindGroupDesc {
-                    ty: vk::DescriptorType::UNIFORM_TEXEL_BUFFER,
-                    multiplier: 1.,
-                },
-                BindGroupDesc {
-                    ty: vk::DescriptorType::STORAGE_TEXEL_BUFFER,
-                    multiplier: 1.,
-                },
-                BindGroupDesc {
-                    ty: vk::DescriptorType::UNIFORM_BUFFER,
-                    multiplier: 2.,
-                },
-                BindGroupDesc {
-                    ty: vk::DescriptorType::STORAGE_BUFFER,
-                    multiplier: 2.,
-                },
-                BindGroupDesc {
-                    ty: vk::DescriptorType::UNIFORM_BUFFER_DYNAMIC,
-                    multiplier: 1.,
-                },
-                BindGroupDesc {
-                    ty: vk::DescriptorType::STORAGE_BUFFER_DYNAMIC,
-                    multiplier: 1.,
-                },
-                BindGroupDesc {
-                    ty: vk::DescriptorType::INPUT_ATTACHMENT,
-                    multiplier: 0.5,
-                },
-            ],
-        }
-    }
-}
+        let descriptor_pool_info = vk::DescriptorPoolCreateInfo::builder()
+            .max_sets(MAX_BINDLESS_RESOURCES * pool_sizes.len() as u32)
+            .pool_sizes(&pool_sizes)
+            .flags(vk::DescriptorPoolCreateFlags::UPDATE_AFTER_BIND)
+            .build();
 
-fn create_pool(
-    device: &ash::Device,
-    pool_sizes: &PoolSizes,
-    count: u32,
-    flags: vk::DescriptorPoolCreateFlags,
-) -> Result<vk::DescriptorPool, vk::Result> {
-    let sizes = pool_sizes
-        .sizes
-        .iter()
-        .map(|desc| vk::DescriptorPoolSize {
-            ty: desc.ty,
-            descriptor_count: (count as f32 * desc.multiplier) as u32,
-        })
-        .collect::<Vec<_>>();
+        let pool = unsafe {
+            cinder
+                .device()
+                .create_descriptor_pool(&descriptor_pool_info, None)?
+        };
 
-    let descriptor_pool_info = vk::DescriptorPoolCreateInfo::builder()
-        .max_sets(count)
-        .pool_sizes(&sizes)
-        .flags(flags)
-        .build();
-
-    unsafe { device.create_descriptor_pool(&descriptor_pool_info, None) }
-}
-
-#[derive(Debug, Default)]
-pub struct BindGroupAllocator {
-    current_pool: Option<vk::DescriptorPool>,
-    descriptor_sizes: PoolSizes,
-    used_pools: Vec<vk::DescriptorPool>,
-    free_pools: Vec<vk::DescriptorPool>,
-}
-
-impl BindGroupAllocator {
-    fn grab_pool(&mut self, device: &ash::Device) -> Result<vk::DescriptorPool, vk::Result> {
-        if let Some(pool) = self.free_pools.pop() {
-            Ok(pool)
-        } else {
-            create_pool(
-                device,
-                &self.descriptor_sizes,
-                1000, // TODO: arbitrary number
-                vk::DescriptorPoolCreateFlags::UPDATE_AFTER_BIND,
-            )
-        }
-    }
-
-    fn try_allocate_desc_set(
-        &mut self,
-        device: &ash::Device,
-        desc_set_layout: &vk::DescriptorSetLayout,
-    ) -> Result<vk::DescriptorSet, vk::Result> {
-        if self.current_pool.is_none() {
-            let pool = self.grab_pool(device)?;
-            self.current_pool = Some(pool);
-            self.used_pools.push(pool);
-        }
-
-        let current_pool = self.current_pool.unwrap();
-
-        let desc_alloc_info = vk::DescriptorSetAllocateInfo::builder()
-            .descriptor_pool(current_pool)
-            .set_layouts(std::slice::from_ref(desc_set_layout));
-
-        let sets = unsafe { device.allocate_descriptor_sets(&desc_alloc_info) }?;
-
-        Ok(sets[0])
-    }
-
-    pub fn allocate(
-        &mut self,
-        device: &ash::Device,
-        desc_set_layout: &vk::DescriptorSetLayout,
-    ) -> Result<vk::DescriptorSet, vk::Result> {
-        let res = self.try_allocate_desc_set(device, desc_set_layout);
-
-        match res {
-            Ok(set) => Ok(set),
-            Err(result) => {
-                if result == vk::Result::ERROR_FRAGMENTED_POOL
-                    || result == vk::Result::ERROR_OUT_OF_POOL_MEMORY
-                {
-                    self.try_allocate_desc_set(device, desc_set_layout)
-                } else {
-                    Err(result)
-                }
-            }
-        }
-    }
-
-    pub fn reset(&mut self, device: &ash::Device) -> Result<()> {
-        unsafe {
-            for pool in self.used_pools.drain(..) {
-                device.reset_descriptor_pool(pool, vk::DescriptorPoolResetFlags::empty())?;
-                self.free_pools.push(pool);
-            }
-        }
-        self.current_pool = None;
-        Ok(())
-    }
-
-    pub fn cleanup(&mut self, device: &ash::Device) {
-        unsafe {
-            for pool in self.used_pools.drain(..) {
-                device.destroy_descriptor_pool(pool, None);
-            }
-            for pool in self.free_pools.drain(..) {
-                device.destroy_descriptor_pool(pool, None);
-            }
-        }
+        Ok(Self(pool))
     }
 }
 
 #[derive(Debug)]
-pub struct BindGroupLayoutBinding(vk::DescriptorSetLayoutBinding);
-
-impl Eq for BindGroupLayoutBinding {}
-impl PartialEq for BindGroupLayoutBinding {
-    fn eq(&self, other: &Self) -> bool {
-        self.0.binding == other.0.binding
-            && self.0.descriptor_type == other.0.descriptor_type
-            && self.0.descriptor_count == other.0.descriptor_count
-            && self.0.stage_flags == other.0.stage_flags
-            && self.0.p_immutable_samplers == other.0.p_immutable_samplers
-    }
-}
-
-impl std::hash::Hash for BindGroupLayoutBinding {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        self.0.binding.hash(state);
-        self.0.descriptor_type.hash(state);
-        self.0.descriptor_count.hash(state);
-        self.0.stage_flags.hash(state);
-        self.0.p_immutable_samplers.hash(state);
-    }
-}
-
-#[derive(Debug, PartialEq, Eq, Hash)]
-pub struct BindGroupLayoutInfo {
-    bindings: Vec<BindGroupLayoutBinding>,
-}
-
-#[derive(Debug, Default)]
-pub struct BindGroupLayoutCache {
-    cache: HashMap<BindGroupLayoutInfo, vk::DescriptorSetLayout>,
-}
-
-impl BindGroupLayoutCache {
-    pub fn create_bind_group_layout(
-        &mut self,
-        device: &ash::Device,
-        info: vk::DescriptorSetLayoutCreateInfo,
-    ) -> Result<vk::DescriptorSetLayout, vk::Result> {
-        let mut bindings = Vec::with_capacity(info.binding_count as usize);
-        for _ in 0..info.binding_count {
-            bindings.push(BindGroupLayoutBinding(unsafe { *info.p_bindings }));
-        }
-        bindings.sort_by(|left, right| left.0.binding.partial_cmp(&right.0.binding).unwrap());
-        let layout_info = BindGroupLayoutInfo { bindings };
-        if let Some(layout) = self.cache.get(&layout_info) {
-            Ok(*layout)
-        } else {
-            let layout = unsafe { device.create_descriptor_set_layout(&info, None) }?;
-            self.cache.insert(layout_info, layout);
-            Ok(layout)
-        }
-    }
-
-    pub fn cleanup(&mut self, device: &ash::Device) {
-        unsafe {
-            for (_, layout) in self.cache.drain() {
-                device.destroy_descriptor_set_layout(layout, None);
-            }
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct BindGroupData {
+pub struct BindGroupLayoutData {
     pub binding: u32,
     pub ty: BindGroupType,
+    pub count: u32,
     pub shader_stage: ShaderStage,
-    pub array: bool,
+    pub flags: vk::DescriptorBindingFlags,
 }
 
-#[repr(C)]
-pub struct BindGroupLayout(vk::DescriptorSetLayout);
-
-#[derive(Debug, Default)]
-pub struct BindGroupLayoutBuilder {
-    bindings: Vec<vk::DescriptorSetLayoutBinding>,
-}
-
-impl BindGroupLayoutBuilder {
-    pub fn bind(
-        mut self,
-        binding: u32,
-        ty: BindGroupType,
-        shader_stage: ShaderStage,
-        count: u32,
-    ) -> Self {
-        let new_binding = vk::DescriptorSetLayoutBinding::builder()
-            .binding(binding)
-            .descriptor_type(ty.into())
-            .descriptor_count(count)
-            .stage_flags(shader_stage.into())
-            .build();
-        self.bindings.push(new_binding);
-
-        self
-    }
-
-    pub fn build(self, device: &ash::Device) -> Result<BindGroupLayout> {
-        let layout_info = vk::DescriptorSetLayoutCreateInfo::builder()
-            .bindings(&self.bindings)
-            .build();
-
-        let layout = unsafe { device.create_descriptor_set_layout(&layout_info, None)? };
-
-        Ok(BindGroupLayout(layout))
-    }
-}
-
-// TODO: temp, just testing it out
-pub struct BindGroupSet {
-    pub set: vk::DescriptorSet,
-}
-
-impl BindGroupSet {
-    pub fn allocate(cinder: &mut Cinder, layout: &BindGroupLayout) -> Result<Self> {
-        let set = cinder.create_descriptor_set(&layout.0)?;
-        Ok(Self { set })
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct BindGroupWriteBuilder {
-    writes: Vec<vk::WriteDescriptorSet>,
-}
-
-impl BindGroupWriteBuilder {
-    pub fn bind_buffer(
-        mut self,
-        binding: u32,
-        buffer_info: &BindBufferInfo,
-        ty: BindGroupType,
-    ) -> Self {
-        let new_write = vk::WriteDescriptorSet::builder()
-            .descriptor_type(ty.into())
-            .buffer_info(std::slice::from_ref(&buffer_info.0))
-            .dst_binding(binding)
-            .build();
-        self.writes.push(new_write);
-
-        self
-    }
-
-    pub fn bind_image(
-        mut self,
-        binding: u32,
-        image_info: &BindImageInfo,
-        ty: BindGroupType,
-    ) -> Self {
-        let new_write = vk::WriteDescriptorSet::builder()
-            .descriptor_type(ty.into())
-            .image_info(std::slice::from_ref(&image_info.info))
-            .dst_binding(binding)
-            .build();
-        self.writes.push(new_write);
-
-        self
-    }
-
-    pub fn update(mut self, cinder: &Cinder, set: &BindGroupSet) {
-        for write in &mut self.writes {
-            write.dst_set = set.set;
+impl BindGroupLayoutData {
+    pub fn new(binding: u32, ty: BindGroupType, shader_stage: ShaderStage) -> Self {
+        Self {
+            binding,
+            ty,
+            count: 1,
+            shader_stage,
+            flags: Default::default(),
         }
+    }
+
+    pub fn new_bindless(binding: u32, ty: BindGroupType, shader_stage: ShaderStage) -> Self {
+        Self {
+            binding,
+            ty,
+            count: MAX_BINDLESS_RESOURCES,
+            shader_stage,
+            flags: bindless_bind_group_flags(),
+        }
+    }
+}
+
+pub fn bindless_bind_group_flags() -> vk::DescriptorBindingFlags {
+    vk::DescriptorBindingFlags::PARTIALLY_BOUND
+        | vk::DescriptorBindingFlags::VARIABLE_DESCRIPTOR_COUNT
+        | vk::DescriptorBindingFlags::UPDATE_AFTER_BIND
+}
+
+pub struct BindGroupLayout {
+    pub layout: vk::DescriptorSetLayout,
+}
+
+impl BindGroupLayout {
+    pub fn new(device: &ash::Device, layout_data: &[BindGroupLayoutData]) -> Result<Self> {
+        let bindings = layout_data
+            .iter()
+            .map(|data| {
+                vk::DescriptorSetLayoutBinding::builder()
+                    .binding(data.binding)
+                    .descriptor_type(data.ty.into())
+                    .descriptor_count(data.count)
+                    .stage_flags(data.shader_stage.into())
+                    .build()
+            })
+            .collect::<Vec<_>>();
+
+        let binding_flags = layout_data
+            .iter()
+            .map(|data| data.flags)
+            .collect::<Vec<_>>();
+        let mut extended_info = vk::DescriptorSetLayoutBindingFlagsCreateInfo::builder()
+            .binding_flags(&binding_flags)
+            .build();
+
+        let layout_info = vk::DescriptorSetLayoutCreateInfo::builder()
+            .bindings(&bindings)
+            .flags(vk::DescriptorSetLayoutCreateFlags::UPDATE_AFTER_BIND_POOL)
+            .push_next(&mut extended_info)
+            .build();
+
+        let layout = unsafe { device.create_descriptor_set_layout(&layout_info, None) }?;
+
+        Ok(Self { layout })
+    }
+}
+
+#[derive(Debug)]
+pub enum BindGroupWriteData {
+    Storage(BindBufferInfo),
+    Uniform(BindBufferInfo),
+    Image(BindImageInfo),
+}
+
+#[derive(Debug)]
+pub struct BindGroupBindInfo {
+    pub dst_binding: u32,
+    pub data: BindGroupWriteData,
+}
+
+pub struct BindGroup(pub vk::DescriptorSet);
+
+impl BindGroup {
+    pub fn new(
+        cinder: &Cinder,
+        pool: &BindGroupPool,
+        layout: &BindGroupLayout,
+        variable_count: bool,
+    ) -> Result<Self> {
+        let max_binding = MAX_BINDLESS_RESOURCES - 1;
+
+        let mut count_info = vk::DescriptorSetVariableDescriptorCountAllocateInfo::builder()
+            .descriptor_counts(&[max_binding])
+            .build();
+
+        let desc_alloc_info = vk::DescriptorSetAllocateInfo::builder()
+            .descriptor_pool(pool.0)
+            .set_layouts(std::slice::from_ref(&layout.layout));
+        let desc_alloc_info = if variable_count {
+            desc_alloc_info.push_next(&mut count_info).build()
+        } else {
+            desc_alloc_info.build()
+        };
+
+        let set = unsafe { cinder.device().allocate_descriptor_sets(&desc_alloc_info) }?[0];
+
+        Ok(Self(set))
+    }
+
+    pub fn write(&self, cinder: &Cinder, infos: &[BindGroupBindInfo]) {
+        let writes = infos
+            .iter()
+            .map(|info| {
+                let mut write = vk::WriteDescriptorSet::builder()
+                    .dst_set(self.0)
+                    .dst_binding(info.dst_binding);
+                write = match &info.data {
+                    BindGroupWriteData::Uniform(buffer_info) => write
+                        .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                        .buffer_info(std::slice::from_ref(&buffer_info.0)),
+                    BindGroupWriteData::Storage(buffer_info) => write
+                        .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                        .buffer_info(std::slice::from_ref(&buffer_info.0)),
+                    BindGroupWriteData::Image(info) => write
+                        .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                        .dst_array_element(info.index)
+                        .image_info(std::slice::from_ref(&info.info)),
+                };
+                write.build()
+            })
+            .collect::<Vec<_>>();
 
         unsafe {
-            cinder.device().update_descriptor_sets(&self.writes, &[]);
+            cinder.device().update_descriptor_sets(&writes, &[]);
         }
     }
 }

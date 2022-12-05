@@ -11,11 +11,7 @@ use cinder::{
         upload_context::UploadContextDescription,
     },
     resoruces::{
-        bind_group::{
-            bindless_bind_group_flags, BindGroupBindInfo, BindGroupLayoutData, BindGroupSet,
-            BindGroupType, BindGroupWriteBuilder, BindGroupWriteData, NewBindGroup,
-            NewBindGroupLayout, NewBindGroupPool,
-        },
+        bind_group::{BindGroup, BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{vk, BufferDescription, BufferUsage},
         image::{Format, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
@@ -289,8 +285,8 @@ fn main() {
             uses_depth: true,
         })
         .expect("Could not create graphics pipeline");
-    let bind_group_pool = NewBindGroupPool::new(&cinder).unwrap();
-    let new_set = NewBindGroup::new(
+    let bind_group_pool = BindGroupPool::new(&cinder).unwrap();
+    let new_set = BindGroup::new(
         &cinder,
         &bind_group_pool,
         &pipeline.bind_group_layouts()[0],

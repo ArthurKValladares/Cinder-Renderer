@@ -1,5 +1,5 @@
 use super::{
-    bind_group::{BindGroupData, BindGroupType},
+    bind_group::{BindGroupLayoutData, BindGroupType},
     pipeline::push_constant::PushConstant,
 };
 use anyhow::Result;
@@ -90,7 +90,7 @@ impl Shader {
             .collect::<Vec<_>>())
     }
 
-    pub fn bind_group_layouts(&self) -> Result<BTreeMap<u32, Vec<BindGroupData>>> {
+    pub fn bind_group_layouts(&self) -> Result<BTreeMap<u32, Vec<BindGroupLayoutData>>> {
         let shader_stage = self.stage();
         Ok(self
             .reflect_data
@@ -120,11 +120,14 @@ impl Shader {
                             } else {
                                 false
                             };
-                        BindGroupData {
-                            binding: reflect_binding.binding,
-                            ty,
-                            shader_stage,
-                            array,
+                        if array {
+                            BindGroupLayoutData::new_bindless(
+                                reflect_binding.binding,
+                                ty,
+                                shader_stage,
+                            )
+                        } else {
+                            BindGroupLayoutData::new(reflect_binding.binding, ty, shader_stage)
                         }
                     })
                     .collect::<Vec<_>>();

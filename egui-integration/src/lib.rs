@@ -9,11 +9,7 @@ use cinder::{
         upload_context::UploadContext,
     },
     resoruces::{
-        bind_group::{
-            BindGroupBindInfo, BindGroupLayoutData, BindGroupSet, BindGroupType,
-            BindGroupWriteBuilder, BindGroupWriteData, NewBindGroup, NewBindGroupLayout,
-            NewBindGroupPool,
-        },
+        bind_group::{BindGroup, BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
@@ -42,8 +38,8 @@ pub struct EguiIntegration {
     egui_winit: egui_winit::State,
     pipeline: GraphicsPipeline,
     // TODO: won't need separate pool in the future, set will be a part of GraphicsPipeline?
-    bind_group_pool: NewBindGroupPool,
-    bind_group_set: NewBindGroup,
+    bind_group_pool: BindGroupPool,
+    bind_group_set: BindGroup,
     sampler: Sampler,
     image_staging_buffer: Option<Buffer>,
     image_map: HashMap<TextureId, Image>,
@@ -71,7 +67,7 @@ impl EguiIntegration {
             bytes: include_bytes!("../shaders/spv/egui.frag.spv"),
         })?;
 
-        let bind_group_pool = NewBindGroupPool::new(&cinder).unwrap();
+        let bind_group_pool = BindGroupPool::new(&cinder).unwrap();
         let pipeline = cinder.create_graphics_pipeline(GraphicsPipelineDescription {
             vertex_shader,
             fragment_shader,
@@ -80,7 +76,7 @@ impl EguiIntegration {
             backface_culling: false,
             uses_depth: false,
         })?;
-        let bind_group_set = NewBindGroup::new(
+        let bind_group_set = BindGroup::new(
             &cinder,
             &bind_group_pool,
             &pipeline.bind_group_layouts()[0],
