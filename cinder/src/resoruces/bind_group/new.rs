@@ -57,7 +57,10 @@ pub fn bindless_bind_group_flags() -> vk::DescriptorBindingFlags {
         | vk::DescriptorBindingFlags::UPDATE_AFTER_BIND
 }
 
-pub struct NewBindGroupLayout(pub vk::DescriptorSetLayout);
+pub struct NewBindGroupLayout {
+    pub layout: vk::DescriptorSetLayout,
+    pub variable_count: bool,
+}
 
 impl NewBindGroupLayout {
     pub fn new(cinder: &Cinder, layout_data: &[BindGroupLayoutData]) -> Result<Self> {
@@ -73,9 +76,15 @@ impl NewBindGroupLayout {
             })
             .collect::<Vec<_>>();
 
+        let mut variable_count = false;
         let binding_flags = layout_data
             .iter()
-            .map(|data| data.flags)
+            .map(|data| {
+                variable_count |= data
+                    .flags
+                    .contains(vk::DescriptorBindingFlags::VARIABLE_DESCRIPTOR_COUNT);
+                data.flags
+            })
             .collect::<Vec<_>>();
         let mut extended_info = vk::DescriptorSetLayoutBindingFlagsCreateInfo::builder()
             .binding_flags(&binding_flags)
@@ -93,7 +102,10 @@ impl NewBindGroupLayout {
                 .create_descriptor_set_layout(&layout_info, None)
         }?;
 
-        Ok(Self(layout))
+        Ok(Self {
+            layout,
+            variable_count,
+        })
     }
 }
 
@@ -120,16 +132,18 @@ impl NewBindGroup {
     ) -> Result<Self> {
         let max_binding = cinder.max_bindless_descriptor_count() - 1;
 
-        // TODO: Shold the count here be [0, 0, max_binding] instead?
         let mut count_info = vk::DescriptorSetVariableDescriptorCountAllocateInfo::builder()
             .descriptor_counts(&[max_binding])
             .build();
 
         let desc_alloc_info = vk::DescriptorSetAllocateInfo::builder()
             .descriptor_pool(pool.0)
-            .set_layouts(std::slice::from_ref(&layout.0))
-            .push_next(&mut count_info)
-            .build();
+            .set_layouts(std::slice::from_ref(&layout.layout));
+        let desc_alloc_info = if layout.variable_count {
+            desc_alloc_info.push_next(&mut count_info).build()
+        } else {
+            desc_alloc_info.build()
+        };
 
         let set = unsafe { cinder.device().allocate_descriptor_sets(&desc_alloc_info) }?[0];
 

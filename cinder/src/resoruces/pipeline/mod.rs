@@ -137,7 +137,7 @@ impl GraphicsPipeline {
             .collect::<Vec<_>>();
         let layout_create_info = if let Some(layout) = &desc.bind_group_layout {
             vk::PipelineLayoutCreateInfo::builder()
-                .set_layouts(std::slice::from_ref(&layout.0))
+                .set_layouts(std::slice::from_ref(&layout.layout))
                 .push_constant_ranges(&push_constant_ranges)
         } else {
             vk::PipelineLayoutCreateInfo::builder()

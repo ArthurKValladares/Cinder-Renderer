@@ -9,7 +9,11 @@ use cinder::{
         upload_context::UploadContext,
     },
     resoruces::{
-        bind_group::{BindGroupSet, BindGroupType, BindGroupWriteBuilder},
+        bind_group::{
+            BindGroupBindInfo, BindGroupLayoutData, BindGroupSet, BindGroupType,
+            BindGroupWriteBuilder, BindGroupWriteData, NewBindGroup, NewBindGroupLayout,
+            NewBindGroupPool,
+        },
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
@@ -35,7 +39,7 @@ static INDEX_BUFFER_SIZE: u64 = 1024 * 1024 * 2;
 pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_winit: egui_winit::State,
-    bind_group_set: BindGroupSet,
+    bind_group_set: NewBindGroup,
     pipeline: GraphicsPipeline,
     sampler: Sampler,
     image_staging_buffer: Option<Buffer>,
@@ -64,6 +68,20 @@ impl EguiIntegration {
             bytes: include_bytes!("../shaders/spv/egui.frag.spv"),
         })?;
 
+        let new_pool = NewBindGroupPool::new(&cinder).unwrap();
+        let new_layout = NewBindGroupLayout::new(
+            &cinder,
+            &[BindGroupLayoutData {
+                binding: 0,
+                ty: BindGroupType::ImageSampler,
+                count: 1,
+                shader_stage: ShaderStage::Fragment,
+                flags: Default::default(),
+            }],
+        )
+        .unwrap();
+        let bind_group_set = NewBindGroup::new(&cinder, &new_pool, &new_layout).unwrap();
+
         let pipeline = cinder.create_graphics_pipeline(GraphicsPipelineDescription {
             vertex_shader,
             fragment_shader,
@@ -71,10 +89,8 @@ impl EguiIntegration {
             depth_testing_enabled: false,
             backface_culling: false,
             uses_depth: false,
-            bind_group_layout: None,
+            bind_group_layout: Some(new_layout),
         })?;
-        // TODO: bind group layout stuff is bad here
-        let bind_group_set = BindGroupSet::allocate(cinder, &pipeline.bind_group_layouts()[0])?;
 
         let sampler = cinder.create_sampler()?;
 
@@ -317,7 +333,7 @@ impl EguiIntegration {
         if let egui::TextureId::User(_id) = mesh.texture_id {
             todo!();
         } else {
-            render_context.bind_descriptor_sets(cinder, &self.pipeline, &[self.bind_group_set.set]);
+            render_context.bind_descriptor_sets(cinder, &self.pipeline, &[self.bind_group_set.0]);
         }
 
         render_context.draw_offset(cinder, indices.len() as u32, *index_base, *vertex_base);
@@ -375,13 +391,13 @@ impl EguiIntegration {
         upload_context.copy_buffer_to_image(&cinder, &image_staging_buffer, &image);
         upload_context.image_barrier_end(&cinder, &image);
 
-        BindGroupWriteBuilder::default()
-            .bind_image(
-                0,
-                &image.bind_info(&self.sampler, 0),
-                BindGroupType::ImageSampler,
-            )
-            .update(cinder, &self.bind_group_set);
+        self.bind_group_set.write(
+            &cinder,
+            &[BindGroupBindInfo {
+                dst_binding: 0,
+                data: BindGroupWriteData::Image(image.bind_info(&self.sampler, 0)),
+            }],
+        );
 
         self.image_map.insert(*id, image);
         self.image_staging_buffer = Some(image_staging_buffer);
