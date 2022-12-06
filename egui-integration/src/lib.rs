@@ -38,7 +38,7 @@ pub struct EguiIntegration {
     egui_winit: egui_winit::State,
     pipeline: GraphicsPipeline,
     // TODO: won't need separate pool in the future, set will be a part of GraphicsPipeline?
-    bind_group_pool: BindGroupPool,
+    _bind_group_pool: BindGroupPool,
     bind_group_set: BindGroup,
     sampler: Sampler,
     image_staging_buffer: Option<Buffer>,
@@ -116,7 +116,7 @@ impl EguiIntegration {
             egui_context,
             egui_winit,
             sampler,
-            bind_group_pool,
+            _bind_group_pool: bind_group_pool,
             bind_group_set,
             pipeline,
             image_staging_buffer: None,
@@ -337,7 +337,7 @@ impl EguiIntegration {
         Ok(())
     }
 
-    pub fn resize(&mut self, cinder: &Cinder) -> Result<()> {
+    pub fn resize(&mut self, _cinder: &Cinder) -> Result<()> {
         Ok(())
     }
 

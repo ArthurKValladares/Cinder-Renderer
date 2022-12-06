@@ -219,7 +219,7 @@ fn main() {
         .begin(&cinder)
         .expect("could not begin upload context");
     // Create and upload image
-    let (images, image_bind_infos): (Vec<_>, Vec<_>) = image_buffers
+    let (_images, image_bind_infos): (Vec<_>, Vec<_>) = image_buffers
         .iter()
         .enumerate()
         .map(|(idx, image)| {

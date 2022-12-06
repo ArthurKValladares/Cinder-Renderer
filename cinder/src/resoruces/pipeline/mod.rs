@@ -2,7 +2,7 @@ pub mod push_constant;
 
 use self::push_constant::PushConstant;
 use super::{
-    bind_group::{BindGroupLayout, BindGroupLayoutData},
+    bind_group::BindGroupLayout,
     image::reflect_format_to_vk,
     shader::{Shader, ShaderStage},
 };
