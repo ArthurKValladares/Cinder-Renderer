@@ -167,7 +167,7 @@ fn main() {
             );
 
             let num_indices = mesh.indices.len();
-            let image_index = mesh.material_index.unwrap_or_else(|| 0); //TODO: Actually handle this the right way, or use a white texture
+            let image_index = mesh.material_index.unwrap_or(0); //TODO: Actually handle this the right way, or use a white texture
 
             let ret = MeshDraw {
                 index_buffer_offset: index_buffer_offset as u32,
@@ -534,6 +534,9 @@ fn main() {
                     if !lock_movement {
                         camera.rotate(delta);
                     }
+                }
+                winit::event::DeviceEvent::MouseWheel { delta } => {
+                    println!("{:?}", delta)
                 }
                 _ => {}
             },
