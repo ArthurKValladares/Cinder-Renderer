@@ -281,6 +281,7 @@ dependencies = [
 name = "cinder_renderer"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
  "camera",
  "cgmath",
  "cinder",
