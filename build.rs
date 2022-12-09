@@ -58,10 +58,12 @@ fn main() {
         .compile_shader("egui-integration/shaders/egui.frag", ShaderStage::Fragment)
         .expect("Could not compile shader");
 
-    // TODO: These paths don't exist before this build script runs, need to fix it
     write_shader_structs(
-        include_bytes!("./egui-integration/shaders/spv/egui.vert.spv"),
+        &std::fs::read("./egui-integration/shaders/spv/egui.vert.spv").unwrap(),
         "egui",
     );
-    write_shader_structs(include_bytes!("./shaders/spv/default.vert.spv"), "default");
+    write_shader_structs(
+        &std::fs::read("./shaders/spv/default.vert.spv").unwrap(),
+        "default",
+    );
 }
