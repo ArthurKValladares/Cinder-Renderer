@@ -21,22 +21,18 @@ use cinder::{
     InitData, Resolution,
 };
 use egui_integration::EguiIntegration;
-use ember::GpuStagingBuffer;
 use input::keyboard::KeyboardState;
 use math::size::Size2D;
 use scene::{ImageBuffer, ObjScene};
 use util::size_of_slice;
-use winit::{
-    dpi::PhysicalSize,
-    event_loop::EventLoop,
-    window::{Window, WindowBuilder},
-};
+use winit::{event_loop::EventLoop, window::Window};
 
 pub struct App {
     pub cinder: Cinder,
     pub render_context: RenderContext,
     pub upload_context: UploadContext,
     pub scene: ObjScene,
+    pub scene_load_time: f32,
     pub image_buffers: Vec<ImageBuffer>,
     pub index_buffer: Buffer,
     pub vertex_buffer: Buffer,
@@ -246,6 +242,7 @@ impl App {
             render_context,
             upload_context,
             scene,
+            scene_load_time,
             image_buffers,
             index_buffer,
             vertex_buffer,

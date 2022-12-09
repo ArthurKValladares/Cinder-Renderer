@@ -1,32 +1,21 @@
 mod app;
 mod ui;
 
-use crate::ui::Ui;
 use app::App;
-use camera::{Direction, PerspectiveData, MOVEMENT_DELTA, ROTATION_DELTA};
+use camera::{Direction, MOVEMENT_DELTA, ROTATION_DELTA};
 use cinder::{
-    cinder::{Cinder, DefaultUniformBufferObject, DefaultVertex},
-    context::{
-        render_context::{
-            AttachmentLoadOp, AttachmentStoreOp, Layout, RenderAttachment, RenderContextDescription,
-        },
-        upload_context::UploadContextDescription,
-    },
+    cinder::DefaultVertex,
+    context::render_context::{AttachmentLoadOp, AttachmentStoreOp, Layout, RenderAttachment},
     resoruces::{
-        bind_group::{BindGroup, BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
-        buffer::{vk, BufferDescription, BufferUsage},
-        image::{Format, ImageDescription, Usage},
+        buffer::{vk, BufferUsage},
         memory::{MemoryDescription, MemoryType},
-        pipeline::{ColorBlendState, GraphicsPipelineDescription},
-        shader::{ShaderDescription, ShaderStage},
+        shader::ShaderStage,
     },
-    InitData, Resolution,
 };
-use egui_integration::{egui, EguiIntegration};
+use egui_integration::egui;
 use ember::GpuStagingBuffer;
-use input::keyboard::KeyboardState;
 use math::size::Size2D;
-use std::{path::PathBuf, time::Instant};
+use std::time::Instant;
 use tracing::Level;
 use util::*;
 use winit::{
@@ -324,7 +313,7 @@ fn main() {
                                     });
                                     ui.collapsing("init", |ui| {
                                         ui.label(format!("total time: {} s", init_time));
-                                        //ui.label(format!("scene load: {} s", scene_load_time));
+                                        ui.label(format!("scene load: {} s", app.scene_load_time));
                                     });
                                     ui.collapsing("camera", |ui| {
                                         ui.horizontal(|ui| {
