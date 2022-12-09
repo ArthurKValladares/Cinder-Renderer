@@ -60,7 +60,7 @@ impl App {
             },
             vsync: true,
         };
-        let mut cinder = Cinder::new(&window, init_data).expect("could not create cinder device");
+        let mut cinder = Cinder::new(window, init_data).expect("could not create cinder device");
         let render_context = cinder
             .create_render_context(RenderContextDescription {})
             .expect("Could not create graphics context");
@@ -112,10 +112,6 @@ impl App {
             })
             .expect("Could not create vertex buffer");
 
-        upload_context
-            .begin(&cinder)
-            .expect("Could not begin upload context");
-
         let camera = camera::Camera::from_data(PerspectiveData::default());
 
         // Create and upload uniform buffer
@@ -140,6 +136,7 @@ impl App {
             .expect("Could not write to uniform buffer");
 
         let sampler = cinder.create_sampler().expect("Could not create sampler");
+
         upload_context
             .begin(&cinder)
             .expect("could not begin upload context");

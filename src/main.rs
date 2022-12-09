@@ -80,6 +80,9 @@ fn main() {
 
     let mut vertex_buffer_offset = 0;
     let mut index_buffer_offset = 0;
+    app.upload_context
+        .begin(&app.cinder)
+        .expect("Could not begin upload context");
     let mesh_draws = app
         .scene
         .meshes
@@ -125,6 +128,16 @@ fn main() {
             ret
         })
         .collect::<Vec<_>>();
+    app.upload_context
+        .end(
+            &app.cinder,
+            app.cinder.setup_fence(),
+            app.cinder.present_queue(),
+            &[],
+            &[],
+            &[],
+        )
+        .expect("could not end command context");
 
     let mut lock_movement = true;
     let init_time = init_start.elapsed().as_secs_f32();
