@@ -1,31 +1,38 @@
-use std::{path::PathBuf, time::Instant};
-
-use crate::{ui::Ui, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::{ui::Ui, MeshDraw, WINDOW_HEIGHT, WINDOW_WIDTH};
 use anyhow::Result;
-use camera::{Camera, PerspectiveData};
+use camera::{Camera, Direction, PerspectiveData, MOVEMENT_DELTA, ROTATION_DELTA};
 use cinder::{
     cinder::{Cinder, DefaultUniformBufferObject, DefaultVertex},
     context::{
-        render_context::{RenderContext, RenderContextDescription},
+        render_context::{
+            AttachmentLoadOp, AttachmentStoreOp, Layout, RenderAttachment, RenderContext,
+            RenderContextDescription,
+        },
         upload_context::{UploadContext, UploadContextDescription},
     },
     resoruces::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
-        buffer::{Buffer, BufferDescription, BufferUsage},
+        buffer::{vk, Buffer, BufferDescription, BufferUsage},
         image::{Format, ImageDescription, Usage},
         memory::{MemoryDescription, MemoryType},
         pipeline::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
-        shader::ShaderDescription,
+        shader::{ShaderDescription, ShaderStage},
     },
     InitData, Resolution,
 };
+use egui_integration::egui;
 use egui_integration::EguiIntegration;
-use input::keyboard::KeyboardState;
+use input::keyboard::{ElementState, KeyboardState, VirtualKeyCode};
 use math::size::Size2D;
 use scene::{ImageBuffer, ObjScene};
+use std::{path::PathBuf, time::Instant};
 use util::size_of_slice;
-use winit::{event_loop::EventLoop, window::Window};
+use winit::{
+    event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoop},
+    window::Window,
+};
 
 pub struct App {
     pub cinder: Cinder,
@@ -229,7 +236,7 @@ impl App {
         // Egui integration
         let cinder_ui = Ui::new();
         let egui = EguiIntegration::new(
-            &event_loop,
+            event_loop,
             &mut cinder,
             cinder_ui.visuals(),
             cinder_ui.ui_scale(),
@@ -255,6 +262,329 @@ impl App {
             cinder_ui,
             egui,
             keyboard_state,
+        })
+    }
+
+    pub fn run(
+        mut self,
+        window: Window,
+        event_loop: EventLoop<()>,
+        mesh_draws: Vec<MeshDraw>, // TODO: This is bad
+    ) -> ! {
+        let mut lock_movement = true;
+        let start = Instant::now();
+        let mut frame_cpu_average = f32::MAX;
+        let mut frame_gpu_average = f32::MAX;
+        event_loop.run(move |event, _, control_flow| {
+            *control_flow = ControlFlow::Poll;
+
+            let frame_start = Instant::now();
+            match event {
+                Event::WindowEvent {
+                    event: window_event,
+                    ..
+                } => {
+                    self.egui.on_event(&window_event);
+                    match window_event {
+                        WindowEvent::Resized(size) => {
+                            self.cinder
+                                .resize(Size2D::new(size.width, size.height))
+                                .expect("Could not resize device");
+                            self.egui
+                                .resize(&self.cinder)
+                                .expect("Could not resize egui integration");
+                            // TODO: This could be better
+                            self.upload_context
+                                .begin(&self.cinder)
+                                .expect("could not begin upload context");
+                            {
+                                self.upload_context.transition_depth_image(&self.cinder);
+                            }
+                            self.upload_context
+                                .end(
+                                    &self.cinder,
+                                    self.cinder.setup_fence(),
+                                    self.cinder.present_queue(),
+                                    &[],
+                                    &[],
+                                    &[],
+                                )
+                                .expect("could not end upload context");
+                        }
+                        WindowEvent::KeyboardInput { input, .. } => {
+                            self.keyboard_state.update(input);
+                            if let Some(virtual_keycode) = input.virtual_keycode {
+                                match virtual_keycode {
+                                    VirtualKeyCode::Escape => {
+                                        *control_flow = ControlFlow::Exit;
+                                    }
+                                    VirtualKeyCode::C => {
+                                        if input.state == ElementState::Pressed {
+                                            lock_movement = !lock_movement;
+                                        }
+                                    }
+                                    _ => {}
+                                }
+                            }
+                        }
+                        WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                        _ => {}
+                    }
+                }
+                Event::RedrawRequested(_) => {
+                    // TODO: Handle is_suboptimal
+                    let (present_index, _is_suboptimal) = self
+                        .cinder
+                        .acquire_next_image()
+                        .expect("Could not acquire swapchain image");
+
+                    self.render_context
+                        .begin(&self.cinder)
+                        .expect("Could not begin graphics context");
+                    {
+                        self.render_context.reset_query_pool(
+                            self.cinder.device(),
+                            &self.cinder.profiling.timestamp_query_pool,
+                        );
+                        self.render_context.write_timestamp(
+                            self.cinder.device(),
+                            &self.cinder.profiling.timestamp_query_pool,
+                            0,
+                        );
+
+                        let delta_time = start.elapsed().as_secs_f32();
+                        let color = [delta_time.sin() / 2.0, 0.0, 0.0, 0.0];
+
+                        let surface_rect = self.cinder.surface_rect();
+
+                        self.render_context
+                            .transition_undefined_to_color(&self.cinder, present_index);
+
+                        self.render_context.begin_rendering(
+                            &self.cinder,
+                            surface_rect,
+                            &[
+                                RenderAttachment::color(self.cinder.swapchain(), present_index)
+                                    .load_op(AttachmentLoadOp::Clear)
+                                    .store_op(AttachmentStoreOp::Store)
+                                    .layout(Layout::ColorAttachment),
+                            ],
+                            Some(
+                                RenderAttachment::depth(self.cinder.depth_image())
+                                    .load_op(AttachmentLoadOp::Clear)
+                                    .store_op(AttachmentStoreOp::DontCare)
+                                    .layout(Layout::DepthAttachment),
+                            ),
+                        );
+                        {
+                            self.render_context
+                                .bind_graphics_pipeline(&self.cinder, &self.graphics_pipeline);
+                            self.render_context
+                                .bind_viewport(&self.cinder, surface_rect, true);
+                            self.render_context.bind_scissor(&self.cinder, surface_rect);
+                            self.render_context
+                                .bind_index_buffer(&self.cinder, &self.index_buffer);
+                            self.render_context.bind_descriptor_sets(
+                                &self.cinder,
+                                &self.graphics_pipeline,
+                                &[self.bind_group.0],
+                            );
+
+                            for draw in &mesh_draws {
+                                self.render_context
+                                    .push_constant(
+                                        &self.cinder,
+                                        &self.graphics_pipeline,
+                                        ShaderStage::Vertex,
+                                        0,
+                                        util::as_u8_slice(&color),
+                                    )
+                                    .unwrap();
+
+                                self.render_context
+                                    .push_constant(
+                                        &self.cinder,
+                                        &self.graphics_pipeline,
+                                        ShaderStage::Fragment,
+                                        0,
+                                        util::as_u8_slice(&draw.image_index),
+                                    )
+                                    .unwrap();
+
+                                self.render_context.draw_offset(
+                                    &self.cinder,
+                                    draw.num_indices as u32,
+                                    draw.index_buffer_offset,
+                                    draw.vertex_buffer_offset,
+                                );
+                            }
+                        }
+                        self.render_context.end_rendering(&self.cinder);
+
+                        // Ui/egui render pass
+                        self.egui
+                            .run(
+                                &self.cinder,
+                                &self.upload_context,
+                                &self.render_context,
+                                present_index,
+                                &window,
+                                |egui_context| {
+                                    egui::TopBottomPanel::top("Cinder").show(egui_context, |ui| {
+                                        self.cinder_ui.show_tabs(ui);
+                                    });
+
+                                    self.cinder_ui.show_selected_tab(egui_context, |ui| {
+                                        ui.horizontal(|ui| {
+                                            ui.label("lock movement");
+                                            ui.checkbox(&mut lock_movement, "toggle with `C`");
+                                        });
+                                        ui.collapsing("profiling", |ui| {
+                                            ui.label(format!(
+                                                "FPS: {}",
+                                                (1e3 / frame_cpu_average).round() as u32
+                                            ));
+                                            ui.label(format!(
+                                                "Average CPU: {:.5} ms",
+                                                frame_cpu_average
+                                            ));
+                                            ui.label(format!(
+                                                "Average GPU: {:.5} ms",
+                                                frame_gpu_average
+                                            ));
+                                        });
+                                        ui.collapsing("init", |ui| {
+                                            // TODO: Better time profiling tool
+                                            ui.label(format!(
+                                                "scene load: {} s",
+                                                self.scene_load_time
+                                            ));
+                                        });
+                                        ui.collapsing("camera", |ui| {
+                                            ui.horizontal(|ui| {
+                                                ui.label("movement speed: ");
+                                                ui.add(
+                                                    egui::DragValue::new(
+                                                        &mut self.camera.movement_speed,
+                                                    )
+                                                    .speed(MOVEMENT_DELTA),
+                                                );
+                                            });
+                                            ui.horizontal(|ui| {
+                                                ui.label("rotation speed: ");
+                                                ui.add(
+                                                    egui::DragValue::new(
+                                                        &mut self.camera.rotation_speed,
+                                                    )
+                                                    .speed(ROTATION_DELTA),
+                                                );
+                                            });
+                                        });
+                                    })
+                                },
+                            )
+                            .expect("Could not run egui");
+
+                        self.render_context.write_timestamp(
+                            self.cinder.device(),
+                            &self.cinder.profiling.timestamp_query_pool,
+                            1,
+                        );
+
+                        self.render_context
+                            .transition_color_to_present(&self.cinder, present_index);
+                    }
+                    self.render_context
+                        .end(
+                            &self.cinder,
+                            self.cinder.draw_fence(),
+                            self.cinder.present_queue(),
+                            &[vk::PipelineStageFlags::BOTTOM_OF_PIPE], // TODO: Abstract later
+                            &[self.cinder.present_semaphore()],
+                            &[self.cinder.render_semaphore()],
+                        )
+                        .expect("Could not end graphics context");
+                    self.cinder
+                        .present(present_index)
+                        .expect("Could not submit graphics work");
+                }
+                Event::DeviceEvent { event, .. } => match event {
+                    winit::event::DeviceEvent::MouseMotion { delta } => {
+                        // TODO: Maybe using the mouse_state concept makes more sense
+                        if !lock_movement {
+                            self.camera.rotate(delta);
+                        }
+                    }
+                    winit::event::DeviceEvent::MouseWheel { delta } => {
+                        println!("{:?}", delta)
+                    }
+                    _ => {}
+                },
+                _ => {}
+            }
+
+            if !lock_movement {
+                // TODO: Clean this up
+                if self.keyboard_state.is_down(VirtualKeyCode::W) {
+                    self.camera.update_position(Direction::Front);
+                }
+                if self.keyboard_state.is_down(VirtualKeyCode::S) {
+                    self.camera.update_position(Direction::Back);
+                }
+                if self.keyboard_state.is_down(VirtualKeyCode::A) {
+                    self.camera.update_position(Direction::Left);
+                }
+                if self.keyboard_state.is_down(VirtualKeyCode::D) {
+                    self.camera.update_position(Direction::Right);
+                }
+                if self.keyboard_state.is_down(VirtualKeyCode::Space) {
+                    self.camera.update_position(Direction::Up);
+                }
+                if self.keyboard_state.is_down(VirtualKeyCode::LShift) {
+                    self.camera.update_position(Direction::Down);
+                }
+
+                let surface_size = self.cinder.surface_size();
+
+                self.uniform_buffer
+                    .mem_copy(
+                        0,
+                        std::slice::from_ref(&self.camera.get_matrices(
+                            surface_size.width() as f32,
+                            surface_size.height() as f32,
+                        )),
+                    )
+                    .expect("Could not write to uniform buffer");
+            }
+
+            let frame_dt = frame_start.elapsed().as_millis() as f32;
+            if frame_cpu_average == f32::MAX {
+                frame_cpu_average = frame_dt;
+            } else {
+                frame_cpu_average = frame_cpu_average * 0.95 + frame_dt * 0.05;
+            }
+
+            let timestamp_results = self
+                .cinder
+                .device()
+                .get_query_pool_results_u64(&self.cinder.profiling.timestamp_query_pool, 0, 2)
+                .unwrap_or_else(|_| vec![]);
+            if !timestamp_results.is_empty() {
+                let gpu_begin = timestamp_results[0] as f32
+                    * self.cinder.device().properties().limits.timestamp_period
+                    * 1e-6;
+                let gpu_end = timestamp_results[1] as f32
+                    * self.cinder.device().properties().limits.timestamp_period
+                    * 1e-6;
+                let gpu_dt = gpu_end - gpu_begin;
+                if frame_gpu_average == f32::MAX {
+                    frame_gpu_average = gpu_dt;
+                } else {
+                    frame_gpu_average = frame_gpu_average * 0.95 + gpu_dt * 0.05;
+                }
+            }
+
+            window.request_redraw();
         })
     }
 }
