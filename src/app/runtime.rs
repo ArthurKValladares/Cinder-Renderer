@@ -1,0 +1,85 @@
+use crate::ui::Ui;
+use anyhow::Result;
+use camera::{Camera, Direction, PerspectiveData};
+use cinder::{
+    cinder::Cinder,
+    cinder::DefaultUniformBufferObject,
+    context::{render_context::RenderContext, upload_context::UploadContext},
+};
+use egui_integration::EguiIntegration;
+use input::keyboard::{KeyboardInput, KeyboardState, VirtualKeyCode};
+use math::size::Size2D;
+use winit::{event::WindowEvent, event_loop::EventLoop};
+
+pub struct RuntimeState {
+    pub camera: Camera,
+    pub cinder_ui: Ui,
+    pub egui: EguiIntegration,
+    pub keyboard_state: KeyboardState,
+    // TODO: MouseState, Keymap, move scene stuff here?
+}
+
+impl RuntimeState {
+    pub fn new(event_loop: &EventLoop<()>, cinder: &mut Cinder) -> Self {
+        let camera = camera::Camera::from_data(PerspectiveData::default());
+        let cinder_ui = Ui::new();
+        let egui = EguiIntegration::new(
+            event_loop,
+            cinder,
+            cinder_ui.visuals(),
+            cinder_ui.ui_scale(),
+        )
+        .expect("Could not create event loop");
+        let keyboard_state = KeyboardState::default();
+        Self {
+            camera,
+            cinder_ui,
+            egui,
+            keyboard_state,
+        }
+    }
+
+    pub fn resize(&mut self, cinder: &Cinder) -> Result<()> {
+        self.egui.resize(cinder)?;
+        Ok(())
+    }
+
+    pub fn poll_event(&mut self, window_event: &WindowEvent) {
+        self.egui.on_event(window_event);
+    }
+
+    pub fn get_camera_matrices(&self, surface_size: Size2D<u32>) -> DefaultUniformBufferObject {
+        self.camera
+            .get_matrices(surface_size.width() as f32, surface_size.height() as f32)
+    }
+
+    pub fn update_keyboard_state(&mut self, keyboard_input: KeyboardInput) {
+        self.keyboard_state.update(keyboard_input);
+    }
+
+    pub fn update_position(&mut self) {
+        // TODO: Clean this up
+        if self.keyboard_state.is_down(VirtualKeyCode::W) {
+            self.camera.update_position(Direction::Front);
+        }
+        if self.keyboard_state.is_down(VirtualKeyCode::S) {
+            self.camera.update_position(Direction::Back);
+        }
+        if self.keyboard_state.is_down(VirtualKeyCode::A) {
+            self.camera.update_position(Direction::Left);
+        }
+        if self.keyboard_state.is_down(VirtualKeyCode::D) {
+            self.camera.update_position(Direction::Right);
+        }
+        if self.keyboard_state.is_down(VirtualKeyCode::Space) {
+            self.camera.update_position(Direction::Up);
+        }
+        if self.keyboard_state.is_down(VirtualKeyCode::LShift) {
+            self.camera.update_position(Direction::Down);
+        }
+    }
+
+    pub fn rotate_camera(&mut self, delta: (f64, f64)) {
+        self.camera.rotate(delta);
+    }
+}

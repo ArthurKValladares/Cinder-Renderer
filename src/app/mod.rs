@@ -1,3 +1,5 @@
+mod runtime;
+
 use crate::{ui::Ui, MeshDraw, WINDOW_HEIGHT, WINDOW_WIDTH};
 use anyhow::Result;
 use camera::{Camera, Direction, PerspectiveData, MOVEMENT_DELTA, ROTATION_DELTA};
@@ -34,6 +36,8 @@ use winit::{
     window::Window,
 };
 
+use self::runtime::RuntimeState;
+
 pub struct App {
     pub cinder: Cinder,
     pub render_context: RenderContext,
@@ -44,14 +48,11 @@ pub struct App {
     pub index_buffer: Buffer,
     pub vertex_buffer: Buffer,
     pub uniform_buffer: Buffer,
-    pub camera: Camera,
     pub sampler: Sampler,
     pub graphics_pipeline: GraphicsPipeline,
     pub bind_group_pool: BindGroupPool,
     pub bind_group: BindGroup,
-    pub cinder_ui: Ui,
-    pub egui: EguiIntegration,
-    pub keyboard_state: KeyboardState,
+    pub runtime_state: RuntimeState,
 }
 
 impl App {
@@ -115,11 +116,6 @@ impl App {
             })
             .expect("Could not create vertex buffer");
 
-        let camera = camera::Camera::from_data(PerspectiveData::default());
-
-        // Create and upload uniform buffer
-        let surface_size = cinder.surface_size();
-
         let uniform_buffer = cinder
             .create_buffer(BufferDescription {
                 size: std::mem::size_of::<DefaultUniformBufferObject>() as u64,
@@ -129,14 +125,6 @@ impl App {
                 },
             })
             .expect("Could not create uniform buffer");
-        uniform_buffer
-            .mem_copy(
-                0,
-                std::slice::from_ref(
-                    &camera.get_matrices(surface_size.width() as f32, surface_size.height() as f32),
-                ),
-            )
-            .expect("Could not write to uniform buffer");
 
         let sampler = cinder.create_sampler().expect("Could not create sampler");
 
@@ -233,16 +221,7 @@ impl App {
         );
         bind_group.write(&cinder, &image_bind_infos);
 
-        // Egui integration
-        let cinder_ui = Ui::new();
-        let egui = EguiIntegration::new(
-            event_loop,
-            &mut cinder,
-            cinder_ui.visuals(),
-            cinder_ui.ui_scale(),
-        )
-        .expect("Could not create event loop");
-        let keyboard_state = KeyboardState::default();
+        let runtime_state = RuntimeState::new(event_loop, &mut cinder);
 
         Ok(App {
             cinder,
@@ -254,14 +233,11 @@ impl App {
             index_buffer,
             vertex_buffer,
             uniform_buffer,
-            camera,
             sampler,
             graphics_pipeline,
             bind_group_pool,
             bind_group,
-            cinder_ui,
-            egui,
-            keyboard_state,
+            runtime_state,
         })
     }
 
@@ -279,20 +255,40 @@ impl App {
             *control_flow = ControlFlow::Poll;
 
             let frame_start = Instant::now();
+            //
+            // Update
+            //
+            if !lock_movement {
+                self.runtime_state.update_position();
+            }
+
+            // TODO: Dont need to update every frame, only when camera changes
+            self.uniform_buffer
+                .mem_copy(
+                    0,
+                    std::slice::from_ref(
+                        &self
+                            .runtime_state
+                            .get_camera_matrices(self.cinder.surface_size()),
+                    ),
+                )
+                .expect("Could not write to uniform buffer");
+
+            //
+            // Render
+            //
             match event {
                 Event::WindowEvent {
                     event: window_event,
                     ..
                 } => {
-                    self.egui.on_event(&window_event);
+                    self.runtime_state.poll_event(&window_event);
                     match window_event {
                         WindowEvent::Resized(size) => {
                             self.cinder
                                 .resize(Size2D::new(size.width, size.height))
                                 .expect("Could not resize device");
-                            self.egui
-                                .resize(&self.cinder)
-                                .expect("Could not resize egui integration");
+                            self.runtime_state.resize(&self.cinder);
                             // TODO: This could be better
                             self.upload_context
                                 .begin(&self.cinder)
@@ -312,7 +308,7 @@ impl App {
                                 .expect("could not end upload context");
                         }
                         WindowEvent::KeyboardInput { input, .. } => {
-                            self.keyboard_state.update(input);
+                            self.runtime_state.update_keyboard_state(input);
                             if let Some(virtual_keycode) = input.virtual_keycode {
                                 match virtual_keycode {
                                     VirtualKeyCode::Escape => {
@@ -422,7 +418,8 @@ impl App {
                         self.render_context.end_rendering(&self.cinder);
 
                         // Ui/egui render pass
-                        self.egui
+                        self.runtime_state
+                            .egui
                             .run(
                                 &self.cinder,
                                 &self.upload_context,
@@ -431,56 +428,66 @@ impl App {
                                 &window,
                                 |egui_context| {
                                     egui::TopBottomPanel::top("Cinder").show(egui_context, |ui| {
-                                        self.cinder_ui.show_tabs(ui);
+                                        self.runtime_state.cinder_ui.show_tabs(ui);
                                     });
 
-                                    self.cinder_ui.show_selected_tab(egui_context, |ui| {
-                                        ui.horizontal(|ui| {
-                                            ui.label("lock movement");
-                                            ui.checkbox(&mut lock_movement, "toggle with `C`");
-                                        });
-                                        ui.collapsing("profiling", |ui| {
-                                            ui.label(format!(
-                                                "FPS: {}",
-                                                (1e3 / frame_cpu_average).round() as u32
-                                            ));
-                                            ui.label(format!(
-                                                "Average CPU: {:.5} ms",
-                                                frame_cpu_average
-                                            ));
-                                            ui.label(format!(
-                                                "Average GPU: {:.5} ms",
-                                                frame_gpu_average
-                                            ));
-                                        });
-                                        ui.collapsing("init", |ui| {
-                                            // TODO: Better time profiling tool
-                                            ui.label(format!(
-                                                "scene load: {} s",
-                                                self.scene_load_time
-                                            ));
-                                        });
-                                        ui.collapsing("camera", |ui| {
+                                    // TODO: Move this logic to RuntimeState
+                                    self.runtime_state.cinder_ui.show_selected_tab(
+                                        egui_context,
+                                        |ui| {
                                             ui.horizontal(|ui| {
-                                                ui.label("movement speed: ");
-                                                ui.add(
-                                                    egui::DragValue::new(
-                                                        &mut self.camera.movement_speed,
-                                                    )
-                                                    .speed(MOVEMENT_DELTA),
-                                                );
+                                                ui.label("lock movement");
+                                                ui.checkbox(&mut lock_movement, "toggle with `C`");
                                             });
-                                            ui.horizontal(|ui| {
-                                                ui.label("rotation speed: ");
-                                                ui.add(
-                                                    egui::DragValue::new(
-                                                        &mut self.camera.rotation_speed,
-                                                    )
-                                                    .speed(ROTATION_DELTA),
-                                                );
+                                            ui.collapsing("profiling", |ui| {
+                                                ui.label(format!(
+                                                    "FPS: {}",
+                                                    (1e3 / frame_cpu_average).round() as u32
+                                                ));
+                                                ui.label(format!(
+                                                    "Average CPU: {:.5} ms",
+                                                    frame_cpu_average
+                                                ));
+                                                ui.label(format!(
+                                                    "Average GPU: {:.5} ms",
+                                                    frame_gpu_average
+                                                ));
                                             });
-                                        });
-                                    })
+                                            ui.collapsing("init", |ui| {
+                                                // TODO: Better time profiling tool
+                                                ui.label(format!(
+                                                    "scene load: {} s",
+                                                    self.scene_load_time
+                                                ));
+                                            });
+                                            ui.collapsing("camera", |ui| {
+                                                ui.horizontal(|ui| {
+                                                    ui.label("movement speed: ");
+                                                    ui.add(
+                                                        egui::DragValue::new(
+                                                            &mut self
+                                                                .runtime_state
+                                                                .camera
+                                                                .movement_speed,
+                                                        )
+                                                        .speed(MOVEMENT_DELTA),
+                                                    );
+                                                });
+                                                ui.horizontal(|ui| {
+                                                    ui.label("rotation speed: ");
+                                                    ui.add(
+                                                        egui::DragValue::new(
+                                                            &mut self
+                                                                .runtime_state
+                                                                .camera
+                                                                .rotation_speed,
+                                                        )
+                                                        .speed(ROTATION_DELTA),
+                                                    );
+                                                });
+                                            });
+                                        },
+                                    )
                                 },
                             )
                             .expect("Could not run egui");
@@ -512,7 +519,7 @@ impl App {
                     winit::event::DeviceEvent::MouseMotion { delta } => {
                         // TODO: Maybe using the mouse_state concept makes more sense
                         if !lock_movement {
-                            self.camera.rotate(delta);
+                            self.runtime_state.rotate_camera(delta);
                         }
                     }
                     winit::event::DeviceEvent::MouseWheel { delta } => {
@@ -521,40 +528,6 @@ impl App {
                     _ => {}
                 },
                 _ => {}
-            }
-
-            if !lock_movement {
-                // TODO: Clean this up
-                if self.keyboard_state.is_down(VirtualKeyCode::W) {
-                    self.camera.update_position(Direction::Front);
-                }
-                if self.keyboard_state.is_down(VirtualKeyCode::S) {
-                    self.camera.update_position(Direction::Back);
-                }
-                if self.keyboard_state.is_down(VirtualKeyCode::A) {
-                    self.camera.update_position(Direction::Left);
-                }
-                if self.keyboard_state.is_down(VirtualKeyCode::D) {
-                    self.camera.update_position(Direction::Right);
-                }
-                if self.keyboard_state.is_down(VirtualKeyCode::Space) {
-                    self.camera.update_position(Direction::Up);
-                }
-                if self.keyboard_state.is_down(VirtualKeyCode::LShift) {
-                    self.camera.update_position(Direction::Down);
-                }
-
-                let surface_size = self.cinder.surface_size();
-
-                self.uniform_buffer
-                    .mem_copy(
-                        0,
-                        std::slice::from_ref(&self.camera.get_matrices(
-                            surface_size.width() as f32,
-                            surface_size.height() as f32,
-                        )),
-                    )
-                    .expect("Could not write to uniform buffer");
             }
 
             let frame_dt = frame_start.elapsed().as_millis() as f32;
