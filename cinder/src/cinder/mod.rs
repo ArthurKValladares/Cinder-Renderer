@@ -205,6 +205,7 @@ impl Cinder {
         GraphicsPipeline::create(
             &self.device,
             self.surface_format(),
+            self.depth_image.desc.format.into(),
             self.pipeline_cache,
             desc,
         )

@@ -80,6 +80,7 @@ impl GraphicsPipeline {
     pub(crate) fn create(
         device: &ash::Device,
         surface_format: vk::Format,
+        depth_format: vk::Format,
         pipeline_cache: vk::PipelineCache,
         desc: GraphicsPipelineDescription,
     ) -> Result<Self> {
@@ -219,7 +220,7 @@ impl GraphicsPipeline {
             .color_attachment_formats(std::slice::from_ref(&surface_format));
         let mut pipeline_rendering_ci = if desc.uses_depth {
             pipeline_rendering_ci
-                .depth_attachment_format(vk::Format::D32_SFLOAT) // TODO: get from depth image
+                .depth_attachment_format(depth_format)
                 .build()
         } else {
             pipeline_rendering_ci.build()
