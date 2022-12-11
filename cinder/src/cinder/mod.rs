@@ -8,7 +8,7 @@ use crate::{
     profiling::Profiling,
     resoruces::{
         buffer::{Buffer, BufferDescription},
-        image::{self, Image, ImageDescription},
+        image::{self, Image, ImageDescription, ImageViewDescription},
         pipeline::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
         shader::{Shader, ShaderDescription},
@@ -79,7 +79,7 @@ impl Cinder {
             unsafe { device.create_pipeline_cache(&ci, None)? }
         };
 
-        let depth_image = Image::create(
+        let mut depth_image = Image::create(
             &device,
             &device.memopry_properties(),
             ImageDescription {
@@ -89,6 +89,13 @@ impl Cinder {
                     surface_data.surface_resolution.width,
                     surface_data.surface_resolution.height,
                 ),
+            },
+        )?;
+        depth_image.add_view(
+            &device,
+            ImageViewDescription {
+                format: image::Format::D32_SFloat,
+                usage: image::Usage::Depth,
             },
         )?;
 
@@ -304,6 +311,13 @@ impl Cinder {
                     size: backbuffer_resolution,
                 },
             )?;
+            self.depth_image.add_view(
+                &self.device,
+                ImageViewDescription {
+                    format: image::Format::D32_SFloat,
+                    usage: image::Usage::Depth,
+                },
+            )?
         }
 
         Ok(())

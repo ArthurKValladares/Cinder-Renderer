@@ -3,7 +3,12 @@ use crate::{
     cinder::Cinder,
     device::Device,
     profiling::QueryPool,
-    resoruces::{buffer::Buffer, image::Image, pipeline::GraphicsPipeline, shader::ShaderStage},
+    resoruces::{
+        buffer::Buffer,
+        image::{Image, ImageViewDescription},
+        pipeline::GraphicsPipeline,
+        shader::ShaderStage,
+    },
     swapchain::Swapchain,
     util::rect_to_vk,
 };
@@ -92,10 +97,10 @@ impl RenderAttachment {
         )
     }
 
-    pub fn depth(depth_image: &Image) -> Self {
+    pub fn depth(depth_image: &Image, image_view_desc: ImageViewDescription) -> Self {
         RenderAttachment(
             vk::RenderingAttachmentInfo::builder()
-                .image_view(depth_image.view)
+                .image_view(*depth_image.views.get(&image_view_desc).unwrap())
                 .build(),
         )
     }

@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use super::{memory::Memory, sampler::Sampler};
 use crate::util::find_memory_type_index;
 use anyhow::Result;
@@ -34,7 +36,7 @@ pub fn reflect_format_to_vk(fmt: ReflectFormat, low_precision: bool) -> vk::Form
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Format {
     R8_G8_B8_A8_Unorm,
     D32_SFloat,
@@ -59,7 +61,7 @@ impl From<Format> for vk::Format {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Usage {
     Depth,
     Texture,
@@ -89,11 +91,18 @@ pub struct ImageDescription {
     pub size: Size2D<u32>,
 }
 
+#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
+pub struct ImageViewDescription {
+    pub format: Format,
+    pub usage: Usage,
+}
+
 pub struct Image {
     pub raw: vk::Image,
-    pub view: vk::ImageView,
-    pub memory: Memory,
     pub desc: ImageDescription,
+    pub views: HashMap<ImageViewDescription, vk::ImageView>,
+    // TODO: Have memory live somewhere else, and manage it all together?
+    pub memory: Memory,
 }
 
 impl Image {
@@ -137,20 +146,6 @@ impl Image {
             device.bind_image_memory(image, memory, 0)?;
         }
 
-        let image_view_info = vk::ImageViewCreateInfo::builder()
-            .subresource_range(
-                vk::ImageSubresourceRange::builder()
-                    .aspect_mask(desc.usage.into())
-                    .level_count(1)
-                    .layer_count(1)
-                    .build(),
-            )
-            .image(image)
-            .format(create_info.format)
-            .view_type(vk::ImageViewType::TYPE_2D);
-
-        let image_view = unsafe { device.create_image_view(&image_view_info, None) }?;
-
         let memory = Memory {
             raw: memory,
             req: memory_req,
@@ -158,16 +153,42 @@ impl Image {
 
         Ok(Image {
             raw: image,
-            view: image_view,
+            views: Default::default(),
             memory,
             desc,
         })
     }
 
+    // TODO: Return Handle? Better aspect mask abstraction?
+    pub fn add_view(
+        &mut self,
+        device: &ash::Device,
+        view_desc: ImageViewDescription,
+    ) -> Result<()> {
+        let image_view_info = vk::ImageViewCreateInfo::builder()
+            .subresource_range(
+                vk::ImageSubresourceRange::builder()
+                    .aspect_mask(view_desc.usage.into())
+                    .level_count(1)
+                    .layer_count(1)
+                    .build(),
+            )
+            .image(self.raw)
+            .format(view_desc.format.into())
+            .view_type(vk::ImageViewType::TYPE_2D);
+
+        let image_view = unsafe { device.create_image_view(&image_view_info, None) }?;
+        self.views.insert(view_desc, image_view);
+        Ok(())
+    }
+
     pub(crate) fn clean(&mut self, device: &ash::Device) {
         unsafe {
             device.destroy_image(self.raw, None);
-            device.destroy_image_view(self.view, None);
+            for view in self.views.values() {
+                device.destroy_image_view(*view, None);
+            }
+            self.views.clear();
             self.memory.clean(device);
         }
     }
@@ -187,11 +208,16 @@ pub struct BindImageInfo {
 }
 
 impl Image {
-    pub fn bind_info(&self, sampler: &Sampler, index: u32) -> BindImageInfo {
+    pub fn bind_info(
+        &self,
+        sampler: &Sampler,
+        image_view_desc: ImageViewDescription,
+        index: u32,
+    ) -> BindImageInfo {
         BindImageInfo {
             info: vk::DescriptorImageInfo {
                 image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-                image_view: self.view,
+                image_view: *self.views.get(&image_view_desc).unwrap(),
                 sampler: sampler.raw,
             },
             index,

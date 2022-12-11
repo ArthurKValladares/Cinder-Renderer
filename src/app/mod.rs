@@ -15,7 +15,7 @@ use cinder::{
     resoruces::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{vk, Buffer, BufferDescription, BufferUsage},
-        image::{Format, ImageDescription, Usage},
+        image::{Format, ImageDescription, ImageViewDescription, Usage},
         memory::{MemoryDescription, MemoryType},
         pipeline::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
@@ -149,19 +149,23 @@ impl App {
                     .mem_copy(0, &image.data)
                     .expect("Could not write to image buffer");
 
-                let texture = cinder
+                let mut texture = cinder
                     .create_image(ImageDescription {
                         format: Format::R8_G8_B8_A8_Unorm,
                         usage: Usage::Texture,
                         size: Size2D::new(image.width, image.height),
                     })
                     .expect("could not create texture");
-
+                let image_view_desc = ImageViewDescription {
+                    format: Format::R8_G8_B8_A8_Unorm,
+                    usage: Usage::Texture,
+                };
+                texture.add_view(cinder.device(), image_view_desc);
                 upload_context.image_barrier_start(&cinder, &texture);
                 upload_context.copy_buffer_to_image(&cinder, &image_buffer, &texture);
                 upload_context.image_barrier_end(&cinder, &texture);
 
-                let info = texture.bind_info(&sampler, idx as u32);
+                let info = texture.bind_info(&sampler, image_view_desc, idx as u32);
 
                 (
                     texture,
@@ -184,7 +188,6 @@ impl App {
             )
             .expect("could not end upload context");
 
-        // TODO: bind group layout stuff is bad here
         let vertex_buffer_info = vertex_buffer.bind_info();
         let uniform_buffer_info = uniform_buffer.bind_info();
 
@@ -290,7 +293,9 @@ impl App {
                             self.cinder
                                 .resize(Size2D::new(size.width, size.height))
                                 .expect("Could not resize device");
-                            self.runtime_state.resize(&self.cinder);
+                            self.runtime_state
+                                .resize(&self.cinder)
+                                .expect("could not resize RuntimeState");
                             // TODO: This could be better
                             self.upload_context
                                 .begin(&self.cinder)
@@ -358,6 +363,7 @@ impl App {
                         self.render_context
                             .transition_undefined_to_color(&self.cinder, present_index);
 
+                        // TODO: Pretty bad, make better
                         self.render_context.begin_rendering(
                             &self.cinder,
                             surface_rect,
@@ -368,10 +374,16 @@ impl App {
                                     .layout(Layout::ColorAttachment),
                             ],
                             Some(
-                                RenderAttachment::depth(self.cinder.depth_image())
-                                    .load_op(AttachmentLoadOp::Clear)
-                                    .store_op(AttachmentStoreOp::DontCare)
-                                    .layout(Layout::DepthAttachment),
+                                RenderAttachment::depth(
+                                    self.cinder.depth_image(),
+                                    ImageViewDescription {
+                                        format: Format::D32_SFloat,
+                                        usage: Usage::Depth,
+                                    },
+                                )
+                                .load_op(AttachmentLoadOp::Clear)
+                                .store_op(AttachmentStoreOp::DontCare)
+                                .layout(Layout::DepthAttachment),
                             ),
                         );
                         {

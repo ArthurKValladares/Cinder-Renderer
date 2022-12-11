@@ -11,7 +11,7 @@ use cinder::{
     resoruces::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
-        image::{Format, Image, ImageDescription, Usage},
+        image::{Format, Image, ImageDescription, ImageViewDescription, Usage},
         memory::{MemoryDescription, MemoryType},
         pipeline::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
@@ -374,12 +374,16 @@ impl EguiIntegration {
         })?;
         image_staging_buffer.mem_copy(0, &data)?;
 
-        let image = cinder.create_image(ImageDescription {
+        let mut image = cinder.create_image(ImageDescription {
             format: Format::R8_G8_B8_A8_Unorm,
             usage: Usage::Texture,
             size: Size2D::new(width, height),
         })?;
-
+        let image_view_desc = ImageViewDescription {
+            format: Format::R8_G8_B8_A8_Unorm,
+            usage: Usage::Texture,
+        };
+        image.add_view(cinder.device(), image_view_desc)?;
         upload_context.image_barrier_start(&cinder, &image);
         upload_context.copy_buffer_to_image(&cinder, &image_staging_buffer, &image);
         upload_context.image_barrier_end(&cinder, &image);
@@ -388,7 +392,7 @@ impl EguiIntegration {
             &cinder,
             &[BindGroupBindInfo {
                 dst_binding: 0,
-                data: BindGroupWriteData::Image(image.bind_info(&self.sampler, 0)),
+                data: BindGroupWriteData::Image(image.bind_info(&self.sampler, image_view_desc, 0)),
             }],
         );
 

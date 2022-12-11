@@ -4,7 +4,6 @@ use rkyv::{AlignedVec, Archive, Deserialize, Serialize};
 use std::{fs::File, io::Write, path::Path};
 use thiserror::Error;
 
-// TODO: figure out N, use ScratchTracker.
 pub const N: usize = 256;
 pub const COMPILED_DIR: &str = "compiled_scenes";
 
