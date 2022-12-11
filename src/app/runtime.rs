@@ -1,13 +1,12 @@
 use crate::ui::Ui;
 use anyhow::Result;
 use camera::{Camera, Direction, PerspectiveData};
-use cinder::{
-    cinder::Cinder,
-    cinder::DefaultUniformBufferObject,
-    context::{render_context::RenderContext, upload_context::UploadContext},
-};
+use cinder::{cinder::Cinder, cinder::DefaultUniformBufferObject};
 use egui_integration::EguiIntegration;
-use input::keyboard::{KeyboardInput, KeyboardState, VirtualKeyCode};
+use input::{
+    keyboard::{KeyboardInput, KeyboardState, VirtualKeyCode},
+    mouse::MouseState,
+};
 use math::size::Size2D;
 use winit::{event::WindowEvent, event_loop::EventLoop};
 
@@ -16,7 +15,7 @@ pub struct RuntimeState {
     pub cinder_ui: Ui,
     pub egui: EguiIntegration,
     pub keyboard_state: KeyboardState,
-    // TODO: MouseState, Keymap, move scene stuff here?
+    pub mouse_state: MouseState, // TODO: Keymap, move scene stuff here?
 }
 
 impl RuntimeState {
@@ -31,11 +30,13 @@ impl RuntimeState {
         )
         .expect("Could not create event loop");
         let keyboard_state = KeyboardState::default();
+        let mouse_state = MouseState::default();
         Self {
             camera,
             cinder_ui,
             egui,
             keyboard_state,
+            mouse_state,
         }
     }
 
