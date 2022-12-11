@@ -258,8 +258,10 @@ impl App {
             //
             // Update
             //
+            self.runtime_state.mouse_state.update(&event);
             if !lock_movement {
                 self.runtime_state.update_position();
+                self.runtime_state.rotate_camera();
             }
 
             // TODO: Dont need to update every frame, only when camera changes
@@ -515,18 +517,6 @@ impl App {
                         .present(present_index)
                         .expect("Could not submit graphics work");
                 }
-                Event::DeviceEvent { event, .. } => match event {
-                    winit::event::DeviceEvent::MouseMotion { delta } => {
-                        // TODO: Maybe using the mouse_state concept makes more sense
-                        if !lock_movement {
-                            self.runtime_state.rotate_camera(delta);
-                        }
-                    }
-                    winit::event::DeviceEvent::MouseWheel { delta } => {
-                        println!("{:?}", delta)
-                    }
-                    _ => {}
-                },
                 _ => {}
             }
 

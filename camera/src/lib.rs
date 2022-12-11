@@ -121,10 +121,9 @@ impl Camera {
         }
     }
 
-    pub fn rotate(&mut self, delta: (f64, f64)) {
-        let (x, y) = delta;
-        self.yaw -= x as f32 * self.rotation_speed;
-        self.pitch += y as f32 * self.rotation_speed;
+    pub fn rotate(&mut self, x: f32, y: f32) {
+        self.yaw -= x * self.rotation_speed;
+        self.pitch += y * self.rotation_speed;
         self.pitch = self.pitch.clamp(-89.0, 89.0);
 
         let yaw_r = self.yaw.to_radians();

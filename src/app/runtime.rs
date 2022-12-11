@@ -80,7 +80,8 @@ impl RuntimeState {
         }
     }
 
-    pub fn rotate_camera(&mut self, delta: (f64, f64)) {
-        self.camera.rotate(delta);
+    pub fn rotate_camera(&mut self) {
+        let delta = self.mouse_state.delta;
+        self.camera.rotate(delta.x, delta.y);
     }
 }

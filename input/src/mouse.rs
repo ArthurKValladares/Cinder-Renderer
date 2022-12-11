@@ -24,43 +24,41 @@ fn button_id(mouse_button: &MouseButton) -> u32 {
 }
 
 impl MouseState {
-    pub fn update(&mut self, events: &[Event<'_, ()>]) {
+    pub fn update(&mut self, event: &Event<'_, ()>) {
         self.delta = Vec2::zero();
 
         self.buttons_released = 0;
         self.buttons_pressed = 0;
 
-        for event in events {
-            match event {
-                Event::WindowEvent { event, .. } => match event {
-                    WindowEvent::CursorMoved { position, .. } => {
-                        self.position = *position;
-                    }
-                    WindowEvent::MouseInput { state, button, .. } => {
-                        let button_id = button_id(button);
+        match event {
+            Event::WindowEvent { event, .. } => match event {
+                WindowEvent::CursorMoved { position, .. } => {
+                    self.position = *position;
+                }
+                WindowEvent::MouseInput { state, button, .. } => {
+                    let button_id = button_id(button);
 
-                        match state {
-                            ElementState::Pressed => {
-                                self.buttons_held |= 1 << button_id;
-                                self.buttons_pressed |= 1 << button_id;
-                            }
-                            ElementState::Released => {
-                                self.buttons_held &= !(1 << button_id);
-                                self.buttons_released |= 1 << button_id;
-                            }
+                    match state {
+                        ElementState::Pressed => {
+                            self.buttons_held |= 1 << button_id;
+                            self.buttons_pressed |= 1 << button_id;
+                        }
+                        ElementState::Released => {
+                            self.buttons_held &= !(1 << button_id);
+                            self.buttons_released |= 1 << button_id;
                         }
                     }
-                    _ => (),
-                },
-                Event::DeviceEvent {
-                    device_id: _,
-                    event: winit::event::DeviceEvent::MouseMotion { delta },
-                } => {
-                    self.delta.x += delta.0 as f32;
-                    self.delta.y += delta.1 as f32;
                 }
                 _ => (),
+            },
+            Event::DeviceEvent {
+                device_id: _,
+                event: winit::event::DeviceEvent::MouseMotion { delta },
+            } => {
+                self.delta.x += delta.0 as f32;
+                self.delta.y += delta.1 as f32;
             }
+            _ => (),
         }
     }
 
