@@ -448,6 +448,7 @@ impl App {
                                     // TODO: Move this logic to RuntimeState
                                     self.runtime_state.cinder_ui.show_selected_tab(
                                         egui_context,
+                                        self.cinder.surface_size(),
                                         |ui| {
                                             ui.horizontal(|ui| {
                                                 ui.label("lock movement");

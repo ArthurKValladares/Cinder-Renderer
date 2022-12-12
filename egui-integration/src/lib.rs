@@ -273,7 +273,7 @@ impl EguiIntegration {
                         )?;
                     }
                     Primitive::Callback(_) => {
-                        todo!("Custom rendering callbacks are not implemented");
+                        // TODO: Custom callback
                     }
                 }
             }

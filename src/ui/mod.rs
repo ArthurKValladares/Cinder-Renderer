@@ -1,8 +1,11 @@
 use egui_integration::egui;
+use math::size::Size2D;
 use serde::{Deserialize, Serialize};
 
+// TODO: Tab abstraction
 const EGUI_FILE: &str = "egui.json";
 const TABS: [Tab; 2] = [Tab::App, Tab::Egui];
+const CINDER_TABS: [CinderUiTab; 1] = [CinderUiTab::DepthBuffer];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 enum Tab {
@@ -13,8 +16,8 @@ enum Tab {
 impl Tab {
     pub fn name(&self) -> &'static str {
         match self {
-            Tab::App => "app",
-            Tab::Egui => "egui",
+            Self::App => "app",
+            Self::Egui => "egui",
         }
     }
 }
@@ -34,21 +37,88 @@ impl Default for UiData {
     }
 }
 
-#[derive(Debug, Deserialize, Serialize)]
-pub struct Ui {
-    cinder: bool,
-    selected_tab: Option<Tab>,
-    ui_data: UiData,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
+pub enum CinderUiTab {
+    DepthBuffer,
 }
 
-impl Default for Ui {
-    fn default() -> Self {
-        Self {
-            cinder: false,
-            selected_tab: None,
-            ui_data: Default::default(),
+impl CinderUiTab {
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::DepthBuffer => "Depth Buffer",
         }
     }
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct CinderUi {
+    open: bool,
+    selected_tab: Option<CinderUiTab>,
+}
+
+impl CinderUi {
+    fn render_depth_buffer_window(&self, context: &egui::Context, render_target_size: Size2D<u32>) {
+        egui::Window::new("Depth Buffer").show(context, |ui| {
+            egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                let (rect, _response) = ui.allocate_exact_size(
+                    egui::Vec2::new(
+                        render_target_size.width() as f32 / 4.0,
+                        render_target_size.height() as f32 / 4.0,
+                    ),
+                    egui::Sense::drag(),
+                );
+
+                let callback = egui::PaintCallback {
+                    rect,
+                    callback: std::sync::Arc::new(()),
+                };
+                ui.painter().add(callback);
+            });
+        });
+    }
+
+    pub fn render_gui(&mut self, context: &egui::Context, render_target_size: Size2D<u32>) {
+        egui::SidePanel::left("cinder")
+            .resizable(false)
+            .show_animated(context, self.open, |ui| {
+                for tab in CINDER_TABS.iter() {
+                    if ui
+                        .selectable_label(
+                            self.selected_tab
+                                .map_or(false, |selected_tab| selected_tab == *tab),
+                            tab.name(),
+                        )
+                        .clicked()
+                    {
+                        // TODO: Fix with if-let chains
+                        if let Some(selected_tab) = self.selected_tab {
+                            if selected_tab == *tab {
+                                self.selected_tab = None;
+                            } else {
+                                self.selected_tab = Some(*tab);
+                            }
+                        } else {
+                            self.selected_tab = Some(*tab);
+                        }
+                    }
+                }
+
+                if let Some(tab) = self.selected_tab {
+                    match tab {
+                        CinderUiTab::DepthBuffer => {
+                            self.render_depth_buffer_window(context, render_target_size);
+                        }
+                    }
+                }
+            });
+    }
+}
+
+#[derive(Debug, Default, Deserialize, Serialize)]
+pub struct Ui {
+    cinder_ui: CinderUi,
+    selected_tab: Option<Tab>,
+    ui_data: UiData,
 }
 
 impl Ui {
@@ -73,8 +143,8 @@ impl Ui {
 
     pub fn show_tabs(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
-            if ui.selectable_label(self.cinder, "cinder").clicked() {
-                self.cinder = !self.cinder;
+            if ui.selectable_label(self.cinder_ui.open, "cinder").clicked() {
+                self.cinder_ui.open = !self.cinder_ui.open;
             }
             ui.separator();
             for tab in TABS.iter() {
@@ -104,13 +174,10 @@ impl Ui {
     pub fn show_selected_tab(
         &mut self,
         context: &egui::Context,
+        render_target_size: Size2D<u32>,
         app_callback: impl FnOnce(&mut egui::Ui),
     ) {
-        egui::SidePanel::left("cinder")
-            .resizable(false)
-            .show_animated(context, self.cinder, |ui| {
-                ui.label("test");
-            });
+        self.cinder_ui.render_gui(context, render_target_size);
 
         let mut open = self.selected_tab.is_some();
         if let Some(tab) = self.selected_tab {

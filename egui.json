@@ -1,5 +1,8 @@
 {
-  "cinder": false,
+  "cinder_ui": {
+    "open": true,
+    "selected_tab": "DepthBuffer"
+  },
   "selected_tab": null,
   "ui_data": {
     "dark_mode": false,
