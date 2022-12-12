@@ -1,10 +1,7 @@
 {
-  "tabs": [
-    "App",
-    "Egui"
-  ],
-  "selected_tab": "App",
-  "dark_mode": false,
-  "ui_scale": 2.0,
-  "open": false
+  "selected_tab": null,
+  "ui_data": {
+    "dark_mode": false,
+    "ui_scale": 2.0
+  }
 }
