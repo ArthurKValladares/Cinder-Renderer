@@ -356,7 +356,7 @@ impl EguiIntegration {
             ImageData::Color(_) => todo!(),
             ImageData::Font(font_data) => {
                 let dimensions = (font_data.width() as u32, font_data.height() as u32);
-                let data = font_data.srgba_pixels(1.0).collect::<Vec<_>>();
+                let data = font_data.srgba_pixels(Some(1.0)).collect::<Vec<_>>();
                 (dimensions, data)
             }
         };

@@ -36,6 +36,7 @@ impl Default for UiData {
 
 #[derive(Debug, Deserialize, Serialize)]
 pub struct Ui {
+    cinder: bool,
     selected_tab: Option<Tab>,
     ui_data: UiData,
 }
@@ -43,6 +44,7 @@ pub struct Ui {
 impl Default for Ui {
     fn default() -> Self {
         Self {
+            cinder: false,
             selected_tab: None,
             ui_data: Default::default(),
         }
@@ -71,6 +73,9 @@ impl Ui {
 
     pub fn show_tabs(&mut self, ui: &mut egui::Ui) {
         ui.horizontal(|ui| {
+            if ui.selectable_label(self.cinder, "cinder").clicked() {
+                self.cinder = !self.cinder;
+            }
             ui.separator();
             for tab in TABS.iter() {
                 if ui
@@ -81,7 +86,16 @@ impl Ui {
                     )
                     .clicked()
                 {
-                    self.selected_tab = Some(*tab);
+                    // TODO: Fix with if-let chains
+                    if let Some(selected_tab) = self.selected_tab {
+                        if selected_tab == *tab {
+                            self.selected_tab = None;
+                        } else {
+                            self.selected_tab = Some(*tab);
+                        }
+                    } else {
+                        self.selected_tab = Some(*tab);
+                    }
                 }
             }
         });
@@ -92,6 +106,12 @@ impl Ui {
         context: &egui::Context,
         app_callback: impl FnOnce(&mut egui::Ui),
     ) {
+        egui::SidePanel::left("cinder")
+            .resizable(false)
+            .show_animated(context, self.cinder, |ui| {
+                ui.label("test");
+            });
+
         let mut open = self.selected_tab.is_some();
         if let Some(tab) = self.selected_tab {
             match tab {

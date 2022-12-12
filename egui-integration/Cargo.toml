@@ -8,7 +8,7 @@ edition = "2021"
 anyhow = "1"
 cinder = {path = "../cinder"}
 util = {path = "../util"}
-egui = "0.19"
-egui-winit = "0.19"
+egui = "0.20"
+egui-winit = "0.20"
 winit = "0.27"
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
