@@ -61,7 +61,7 @@ impl Renderer {
 
         let mut depth_image = Image::create(
             &device,
-            &device.memopry_properties(),
+            device.memopry_properties(),
             ImageDescription {
                 format: Format::D32_SFloat,
                 usage: Usage::Depth,
@@ -248,7 +248,7 @@ impl Renderer {
             self.depth_image.clean(&self.device);
             self.depth_image = Image::create(
                 &self.device,
-                &self.device.memopry_properties(),
+                self.device.memopry_properties(),
                 ImageDescription {
                     format: Format::D32_SFloat,
                     usage: Usage::Depth,

@@ -1,8 +1,8 @@
 mod runtime;
 
-use crate::{renderer::Renderer, ui::Ui, MeshDraw, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::{renderer::Renderer, MeshDraw, WINDOW_HEIGHT, WINDOW_WIDTH};
 use anyhow::Result;
-use camera::{Camera, Direction, PerspectiveData, MOVEMENT_DELTA, ROTATION_DELTA};
+use camera::{MOVEMENT_DELTA, ROTATION_DELTA};
 use cinder::{
     cinder::{DefaultUniformBufferObject, DefaultVertex},
     context::{
@@ -24,8 +24,7 @@ use cinder::{
     InitData, Resolution,
 };
 use egui_integration::egui;
-use egui_integration::EguiIntegration;
-use input::keyboard::{ElementState, KeyboardState, VirtualKeyCode};
+use input::keyboard::{ElementState, VirtualKeyCode};
 use math::size::Size2D;
 use scene::{ImageBuffer, ObjScene};
 use std::{path::PathBuf, time::Instant};
@@ -81,7 +80,7 @@ impl App {
             PathBuf::from("assets").join("models").join("sponza"),
             "sponza.obj",
         )
-        .unwrap_or_else(|err| panic!("Could not load mesh: {}", err));
+        .unwrap_or_else(|err| panic!("Could not load mesh: {err}"));
         let scene_load_time = scene_load_start.elapsed().as_secs_f32();
 
         let (num_vertices, num_indices) =
@@ -160,7 +159,9 @@ impl App {
                     format: Format::R8_G8_B8_A8_Unorm,
                     usage: Usage::Texture,
                 };
-                texture.add_view(renderer.device(), image_view_desc);
+                texture
+                    .add_view(renderer.device(), image_view_desc)
+                    .unwrap();
                 upload_context.image_barrier_start(renderer.device(), &texture);
                 upload_context.copy_buffer_to_image(renderer.device(), &image_buffer, &texture);
                 upload_context.image_barrier_end(renderer.device(), &texture);
@@ -479,12 +480,10 @@ impl App {
                                                     (1e3 / frame_cpu_average).round() as u32
                                                 ));
                                                 ui.label(format!(
-                                                    "Average CPU: {:.5} ms",
-                                                    frame_cpu_average
+                                                    "Average CPU: {frame_cpu_average:.5} ms",
                                                 ));
                                                 ui.label(format!(
-                                                    "Average GPU: {:.5} ms",
-                                                    frame_gpu_average
+                                                    "Average GPU: {frame_gpu_average:.5} ms",
                                                 ));
                                             });
                                             ui.collapsing("init", |ui| {

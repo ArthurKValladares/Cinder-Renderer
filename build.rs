@@ -32,7 +32,7 @@ fn write_shader_structs(bytes: &[u8], prefix: &'static str) {
     }
 
     rust_shader_tools::structs_to_file(
-        PathBuf::from("gen").join(format!("{}_shader_structs.rs", prefix)),
+        PathBuf::from("gen").join(format!("{prefix}_shader_structs.rs")),
         &rust_vert_structs,
     )
     .expect("Could not write structs to file");

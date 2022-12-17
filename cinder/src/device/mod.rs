@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use crate::{
     instance::Instance,
     profiling::QueryPool,
