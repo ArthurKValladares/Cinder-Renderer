@@ -1,6 +1,6 @@
 use anyhow::Result;
 use cinder::{
-    cinder::Cinder,
+    device::Device,
     resoruces::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         memory::MemoryDescription,
@@ -25,11 +25,11 @@ pub struct GpuStagingBuffer {
 
 impl GpuStagingBuffer {
     pub fn new(
-        cinder: &Cinder,
+        device: &Device,
         usage: BufferUsage,
         memory_desc: MemoryDescription,
     ) -> Result<Self> {
-        let buffer = cinder.create_buffer(BufferDescription {
+        let buffer = device.create_buffer(BufferDescription {
             size: STAGING_BYTES,
             usage,
             memory_desc,

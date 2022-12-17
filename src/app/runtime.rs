@@ -1,7 +1,7 @@
-use crate::ui::Ui;
+use crate::{renderer::Renderer, ui::Ui};
 use anyhow::Result;
 use camera::{Camera, Direction, PerspectiveData};
-use cinder::{cinder::Cinder, cinder::DefaultUniformBufferObject};
+use cinder::cinder::DefaultUniformBufferObject;
 use egui_integration::EguiIntegration;
 use input::{
     keyboard::{KeyboardInput, KeyboardState, VirtualKeyCode},
@@ -12,36 +12,39 @@ use winit::{event::WindowEvent, event_loop::EventLoop};
 
 pub struct RuntimeState {
     pub camera: Camera,
-    pub cinder_ui: Ui,
+    pub ui: Ui,
     pub egui: EguiIntegration,
     pub keyboard_state: KeyboardState,
     pub mouse_state: MouseState, // TODO: Keymap, move scene stuff here?
 }
 
 impl RuntimeState {
-    pub fn new(event_loop: &EventLoop<()>, cinder: &mut Cinder) -> Self {
+    pub fn new(event_loop: &EventLoop<()>, renderer: &mut Renderer) -> Self {
         let camera = camera::Camera::from_data(PerspectiveData::default());
-        let cinder_ui = Ui::new();
+        let ui = Ui::new();
         let egui = EguiIntegration::new(
             event_loop,
-            cinder,
-            cinder_ui.visuals(),
-            cinder_ui.ui_scale(),
+            renderer.device(),
+            renderer.swapchain(),
+            renderer.pipeline_cache(),
+            renderer.surface_format(),
+            ui.visuals(),
+            ui.ui_scale(),
         )
         .expect("Could not create event loop");
         let keyboard_state = KeyboardState::default();
         let mouse_state = MouseState::default();
         Self {
             camera,
-            cinder_ui,
+            ui,
             egui,
             keyboard_state,
             mouse_state,
         }
     }
 
-    pub fn resize(&mut self, cinder: &Cinder) -> Result<()> {
-        self.egui.resize(cinder)?;
+    pub fn resize(&mut self, renderer: &Renderer) -> Result<()> {
+        self.egui.resize(renderer.device())?;
         Ok(())
     }
 

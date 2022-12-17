@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use super::{memory::Memory, sampler::Sampler};
-use crate::util::find_memory_type_index;
+use crate::{device::Device, util::find_memory_type_index};
 use anyhow::Result;
 use ash::vk;
 use math::size::Size2D;
@@ -39,6 +39,7 @@ pub fn reflect_format_to_vk(fmt: ReflectFormat, low_precision: bool) -> vk::Form
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Format {
     R8_G8_B8_A8_Unorm,
+    B8_G8_R8_A8_Unorm,
     D32_SFloat,
     D16Unorm,
     R32_G32_B32_A32_SFloat,
@@ -51,12 +52,29 @@ impl From<Format> for vk::Format {
     fn from(format: Format) -> Self {
         match format {
             Format::R8_G8_B8_A8_Unorm => vk::Format::R8G8B8A8_UNORM,
+            Format::B8_G8_R8_A8_Unorm => vk::Format::B8G8R8A8_UNORM,
             Format::D32_SFloat => vk::Format::D32_SFLOAT,
             Format::D16Unorm => vk::Format::D16_UNORM,
             Format::R32_G32_B32_A32_SFloat => vk::Format::R32G32B32A32_SFLOAT,
             Format::R32_G32_B32_SFloat => vk::Format::R32G32B32_SFLOAT,
             Format::R32_G32_SFloat => vk::Format::R32G32_SFLOAT,
             Format::R32_SFloat => vk::Format::R32_SFLOAT,
+        }
+    }
+}
+
+impl From<vk::Format> for Format {
+    fn from(vk: vk::Format) -> Self {
+        match vk {
+            vk::Format::R8G8B8A8_UNORM => Self::R8_G8_B8_A8_Unorm,
+            vk::Format::B8G8R8A8_UNORM => Self::B8_G8_R8_A8_Unorm,
+            vk::Format::D32_SFLOAT => Self::D32_SFloat,
+            vk::Format::D16_UNORM => Self::D16Unorm,
+            vk::Format::R32G32B32A32_SFLOAT => Self::R32_G32_B32_A32_SFloat,
+            vk::Format::R32G32B32_SFLOAT => Self::R32_G32_B32_SFloat,
+            vk::Format::R32G32_SFLOAT => Self::R32_G32_SFloat,
+            vk::Format::R32_SFLOAT => Self::R32_SFloat,
+            _ => panic!("Unsupported image format: {:?}", vk),
         }
     }
 }
@@ -106,8 +124,8 @@ pub struct Image {
 }
 
 impl Image {
-    pub(crate) fn create(
-        device: &ash::Device,
+    pub fn create(
+        device: &Device,
         p_device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
         desc: ImageDescription,
     ) -> Result<Self> {
@@ -127,8 +145,8 @@ impl Image {
             .sharing_mode(vk::SharingMode::EXCLUSIVE)
             .build();
 
-        let image = unsafe { device.create_image(&create_info, None) }?;
-        let memory_req = unsafe { device.get_image_memory_requirements(image) };
+        let image = unsafe { device.raw().create_image(&create_info, None) }?;
+        let memory_req = unsafe { device.raw().get_image_memory_requirements(image) };
         let memory_index = find_memory_type_index(
             &memory_req,
             p_device_memory_properties,
@@ -141,9 +159,9 @@ impl Image {
             memory_type_index: memory_index,
             ..Default::default()
         };
-        let memory = unsafe { device.allocate_memory(&allocate_info, None) }?;
+        let memory = unsafe { device.raw().allocate_memory(&allocate_info, None) }?;
         unsafe {
-            device.bind_image_memory(image, memory, 0)?;
+            device.raw().bind_image_memory(image, memory, 0)?;
         }
 
         let memory = Memory {
@@ -160,11 +178,7 @@ impl Image {
     }
 
     // TODO: Return Handle? Better aspect mask abstraction?
-    pub fn add_view(
-        &mut self,
-        device: &ash::Device,
-        view_desc: ImageViewDescription,
-    ) -> Result<()> {
+    pub fn add_view(&mut self, device: &Device, view_desc: ImageViewDescription) -> Result<()> {
         let image_view_info = vk::ImageViewCreateInfo::builder()
             .subresource_range(
                 vk::ImageSubresourceRange::builder()
@@ -177,19 +191,19 @@ impl Image {
             .format(view_desc.format.into())
             .view_type(vk::ImageViewType::TYPE_2D);
 
-        let image_view = unsafe { device.create_image_view(&image_view_info, None) }?;
+        let image_view = unsafe { device.raw().create_image_view(&image_view_info, None) }?;
         self.views.insert(view_desc, image_view);
         Ok(())
     }
 
-    pub(crate) fn clean(&mut self, device: &ash::Device) {
+    pub fn clean(&mut self, device: &Device) {
         unsafe {
-            device.destroy_image(self.raw, None);
+            device.raw().destroy_image(self.raw, None);
             for view in self.views.values() {
-                device.destroy_image_view(*view, None);
+                device.raw().destroy_image_view(*view, None);
             }
             self.views.clear();
-            self.memory.clean(device);
+            self.memory.clean(device.raw());
         }
     }
 

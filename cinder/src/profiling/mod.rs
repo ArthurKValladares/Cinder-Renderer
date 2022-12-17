@@ -20,8 +20,11 @@ impl Profiling {
             .query_count(TIMESTAMP_COUNT)
             .build();
 
-        let timestamp_query_pool =
-            unsafe { device.create_query_pool(&timestamp_query_pool_ci, None) }?;
+        let timestamp_query_pool = unsafe {
+            device
+                .raw()
+                .create_query_pool(&timestamp_query_pool_ci, None)
+        }?;
 
         Ok(Self {
             timestamp_query_pool: QueryPool {

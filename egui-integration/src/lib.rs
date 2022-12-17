@@ -1,6 +1,5 @@
 use anyhow::Result;
 use cinder::{
-    cinder::Cinder,
     cinder::EguiConstants,
     context::{
         render_context::{
@@ -8,15 +7,17 @@ use cinder::{
         },
         upload_context::UploadContext,
     },
+    device::Device,
     resoruces::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
-        buffer::{Buffer, BufferDescription, BufferUsage},
+        buffer::{vk::Fence, Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageViewDescription, Usage},
         memory::{MemoryDescription, MemoryType},
-        pipeline::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
+        pipeline::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription, PipelineCache},
         sampler::Sampler,
         shader::{ShaderDescription, ShaderStage},
     },
+    swapchain::Swapchain,
     util::MemoryMappablePointer,
 };
 pub use egui;
@@ -50,7 +51,10 @@ pub struct EguiIntegration {
 impl EguiIntegration {
     pub fn new<T>(
         event_loop: &EventLoopWindowTarget<T>,
-        cinder: &mut Cinder,
+        device: &Device,
+        swapchain: &Swapchain,
+        pipeline_cache: PipelineCache,
+        surface_format: Format,
         visuals: egui::Visuals,
         pixels_per_point: f32,
     ) -> Result<Self> {
@@ -60,38 +64,41 @@ impl EguiIntegration {
         egui_context.set_pixels_per_point(pixels_per_point);
         egui_winit.set_pixels_per_point(pixels_per_point);
 
-        let vertex_shader = cinder.create_shader(ShaderDescription {
+        let vertex_shader = device.create_shader(ShaderDescription {
             bytes: include_bytes!("../shaders/spv/egui.vert.spv"),
         })?;
-        let fragment_shader = cinder.create_shader(ShaderDescription {
+        let fragment_shader = device.create_shader(ShaderDescription {
             bytes: include_bytes!("../shaders/spv/egui.frag.spv"),
         })?;
 
-        let bind_group_pool = BindGroupPool::new(&cinder).unwrap();
-        let pipeline = cinder.create_graphics_pipeline(GraphicsPipelineDescription {
-            vertex_shader,
-            fragment_shader,
-            blending: ColorBlendState::pma(),
-            depth_testing_enabled: false,
-            backface_culling: false,
-            uses_depth: false,
-        })?;
+        let bind_group_pool = BindGroupPool::new(&device).unwrap();
+        let pipeline = device.create_graphics_pipeline(
+            GraphicsPipelineDescription {
+                vertex_shader,
+                fragment_shader,
+                blending: ColorBlendState::pma(),
+                backface_culling: false,
+                surface_format: surface_format,
+                depth_format: None,
+            },
+            Some(pipeline_cache),
+        )?;
         let bind_group_set = BindGroup::new(
-            &cinder,
+            &device,
             &bind_group_pool,
             &pipeline.bind_group_layouts()[0],
             false,
         )
         .unwrap();
 
-        let sampler = cinder.create_sampler()?;
+        let sampler = device.create_sampler()?;
 
         let (vertex_buffers, index_buffers) = {
-            let len = cinder.swapchain().present_image_views.len();
+            let len = swapchain.present_image_views.len();
             let mut vertex_buffers = Vec::with_capacity(len);
             let mut index_buffers = Vec::with_capacity(len);
             for _ in 0..len {
-                let vertex_buffer = cinder.create_buffer(BufferDescription {
+                let vertex_buffer = device.create_buffer(BufferDescription {
                     size: VERTEX_BUFFER_SIZE,
                     usage: BufferUsage::empty().vertex(),
                     memory_desc: MemoryDescription {
@@ -100,7 +107,7 @@ impl EguiIntegration {
                 })?;
                 vertex_buffers.push(vertex_buffer);
 
-                let index_buffer = cinder.create_buffer(BufferDescription {
+                let index_buffer = device.create_buffer(BufferDescription {
                     size: INDEX_BUFFER_SIZE,
                     usage: BufferUsage::empty().index(),
                     memory_desc: MemoryDescription {
@@ -127,14 +134,20 @@ impl EguiIntegration {
     }
 
     pub fn on_event(&mut self, event: &WindowEvent<'_>) {
-        self.egui_winit.on_event(&self.egui_context, event);
+        let response = self.egui_winit.on_event(&self.egui_context, event);
+        if response.repaint {
+            // TODO
+        }
     }
 
     pub fn run(
         &mut self,
-        cinder: &Cinder,
+        device: &Device,
+        swapchain: &Swapchain,
         upload_context: &UploadContext,
+        upload_fence: Fence,
         render_context: &RenderContext,
+        render_area: Rect2D<i32, u32>,
         present_index: u32,
         window: &Window,
         f: impl FnOnce(&egui::Context),
@@ -158,11 +171,13 @@ impl EguiIntegration {
             .handle_platform_output(window, &self.egui_context, platform_output);
 
         // TODO? Make this a separate step
-        self.set_textures(cinder, upload_context, &textures_delta)?;
+        self.set_textures(device, upload_context, upload_fence, &textures_delta)?;
 
         self.paint(
-            cinder,
+            device,
+            swapchain,
             render_context,
+            render_area,
             window,
             present_index,
             self.egui_context.pixels_per_point(),
@@ -176,8 +191,10 @@ impl EguiIntegration {
 
     fn paint(
         &mut self,
-        cinder: &Cinder,
+        device: &Device,
+        swapchain: &Swapchain,
         render_context: &RenderContext,
+        render_area: Rect2D<i32, u32>,
         window: &Window,
         present_index: u32,
         pixels_per_point: f32,
@@ -195,26 +212,26 @@ impl EguiIntegration {
         let index_buffer = &self.index_buffers[present_index as usize];
 
         render_context.begin_rendering(
-            &cinder,
-            cinder.surface_rect(), // TODO: Might be able to use a better rect
-            &[RenderAttachment::color(cinder.swapchain(), present_index)
+            &device,
+            render_area,
+            &[RenderAttachment::color(swapchain, present_index)
                 .load_op(AttachmentLoadOp::Load)
                 .store_op(AttachmentStoreOp::Store)
                 .layout(Layout::ColorAttachment)],
             None,
         );
         {
-            render_context.bind_graphics_pipeline(cinder, &self.pipeline);
-            render_context.bind_vertex_buffer(cinder, vertex_buffer);
-            render_context.bind_index_buffer(cinder, index_buffer);
+            render_context.bind_graphics_pipeline(device, &self.pipeline);
+            render_context.bind_vertex_buffer(device, vertex_buffer);
+            render_context.bind_index_buffer(device, index_buffer);
             render_context.bind_viewport(
-                cinder,
+                device,
                 Rect2D::from_width_height(size.width, size.height),
                 false,
             );
 
             render_context.push_constant(
-                cinder,
+                device,
                 &self.pipeline,
                 ShaderStage::Vertex,
                 0,
@@ -248,7 +265,7 @@ impl EguiIntegration {
                         }
                     };
                     render_context.bind_scissor(
-                        cinder,
+                        device,
                         Rect2D::from_offset_and_size(
                             Point2D::new(min.x.round() as i32, min.y.round() as i32),
                             Size2D::new(
@@ -262,7 +279,7 @@ impl EguiIntegration {
                 match primitive {
                     Primitive::Mesh(mesh) => {
                         self.paint_mesh(
-                            cinder,
+                            device,
                             render_context,
                             present_index,
                             mesh,
@@ -278,14 +295,14 @@ impl EguiIntegration {
                 }
             }
         }
-        render_context.end_rendering(&cinder);
+        render_context.end_rendering(&device);
 
         Ok(())
     }
 
     fn paint_mesh(
         &mut self,
-        cinder: &Cinder,
+        device: &Device,
         render_context: &RenderContext,
         present_index: u32,
         mesh: &Mesh,
@@ -326,10 +343,10 @@ impl EguiIntegration {
         if let egui::TextureId::User(_id) = mesh.texture_id {
             todo!();
         } else {
-            render_context.bind_descriptor_sets(cinder, &self.pipeline, &[self.bind_group_set.0]);
+            render_context.bind_descriptor_sets(device, &self.pipeline, &[self.bind_group_set.0]);
         }
 
-        render_context.draw_offset(cinder, indices.len() as u32, *index_base, *vertex_base);
+        render_context.draw_offset(device, indices.len() as u32, *index_base, *vertex_base);
 
         *vertex_base += vertices.len() as i32;
         *index_base += indices.len() as u32;
@@ -337,17 +354,17 @@ impl EguiIntegration {
         Ok(())
     }
 
-    pub fn resize(&mut self, _cinder: &Cinder) -> Result<()> {
+    pub fn resize(&mut self, _device: &Device) -> Result<()> {
         Ok(())
     }
 
-    pub fn clean(&mut self, _cinder: &Cinder) {
+    pub fn clean(&mut self, _device: &Device) {
         // TODO
     }
 
     fn set_image(
         &mut self,
-        cinder: &Cinder,
+        device: &Device,
         upload_context: &UploadContext,
         id: &TextureId,
         delta: &ImageDelta,
@@ -363,9 +380,9 @@ impl EguiIntegration {
 
         // TODO: Revisit image abstraction
         if let Some(mut buffer) = self.image_staging_buffer.take() {
-            buffer.clean(cinder.device());
+            buffer.clean(device);
         }
-        let image_staging_buffer = cinder.create_buffer(BufferDescription {
+        let image_staging_buffer = device.create_buffer(BufferDescription {
             size: size_of_slice(&data),
             usage: BufferUsage::empty().transfer_src(),
             memory_desc: MemoryDescription {
@@ -374,7 +391,7 @@ impl EguiIntegration {
         })?;
         image_staging_buffer.mem_copy(0, &data)?;
 
-        let mut image = cinder.create_image(ImageDescription {
+        let mut image = device.create_image(ImageDescription {
             format: Format::R8_G8_B8_A8_Unorm,
             usage: Usage::Texture,
             size: Size2D::new(width, height),
@@ -383,13 +400,13 @@ impl EguiIntegration {
             format: Format::R8_G8_B8_A8_Unorm,
             usage: Usage::Texture,
         };
-        image.add_view(cinder.device(), image_view_desc)?;
-        upload_context.image_barrier_start(&cinder, &image);
-        upload_context.copy_buffer_to_image(&cinder, &image_staging_buffer, &image);
-        upload_context.image_barrier_end(&cinder, &image);
+        image.add_view(device, image_view_desc)?;
+        upload_context.image_barrier_start(device, &image);
+        upload_context.copy_buffer_to_image(device, &image_staging_buffer, &image);
+        upload_context.image_barrier_end(device, &image);
 
         self.bind_group_set.write(
-            &cinder,
+            device,
             &[BindGroupBindInfo {
                 dst_binding: 0,
                 data: BindGroupWriteData::Image(image.bind_info(&self.sampler, image_view_desc, 0)),
@@ -404,22 +421,16 @@ impl EguiIntegration {
 
     fn set_textures(
         &mut self,
-        cinder: &Cinder,
+        device: &Device,
         context: &UploadContext,
+        fence: Fence,
         textures_delta: &TexturesDelta,
     ) -> Result<()> {
-        context.begin(cinder)?;
+        context.begin(device, fence)?;
         for (id, delta) in &textures_delta.set {
-            self.set_image(cinder, context, id, delta)?;
+            self.set_image(device, context, id, delta)?;
         }
-        context.end(
-            cinder,
-            cinder.setup_fence(),
-            cinder.present_queue(),
-            &[],
-            &[],
-            &[],
-        )?;
+        context.end(device, fence, device.present_queue(), &[], &[], &[])?;
         Ok(())
     }
 

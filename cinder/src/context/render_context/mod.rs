@@ -1,6 +1,5 @@
 use super::ContextShared;
 use crate::{
-    cinder::Cinder,
     device::Device,
     profiling::QueryPool,
     resoruces::{
@@ -145,14 +144,16 @@ impl RenderContext {
         }
     }
 
-    pub fn begin(&self, cinder: &Cinder) -> Result<()> {
-        self.shared
-            .begin(cinder.device(), cinder.draw_commands_reuse_fence)
+    pub fn begin(&self, device: &Device, fence: ash::vk::Fence) -> Result<()> {
+        self.shared.begin(
+            device.raw(),
+            fence, /*cinder.draw_commands_reuse_fence*/
+        )
     }
 
     pub fn end(
         &self,
-        cinder: &Cinder,
+        device: &Device,
         command_buffer_reuse_fence: vk::Fence,
         submit_queue: vk::Queue,
         wait_mask: &[vk::PipelineStageFlags],
@@ -160,7 +161,7 @@ impl RenderContext {
         signal_semaphores: &[vk::Semaphore],
     ) -> Result<()> {
         self.shared.end(
-            cinder.device(),
+            device.raw(),
             command_buffer_reuse_fence,
             submit_queue,
             wait_mask,
@@ -171,7 +172,7 @@ impl RenderContext {
 
     pub fn begin_rendering(
         &self,
-        cinder: &Cinder,
+        device: &Device,
         render_area: Rect2D<i32, u32>,
         color_attachments: &[RenderAttachment],
         depth_attahcment: Option<RenderAttachment>,
@@ -193,23 +194,19 @@ impl RenderContext {
         };
 
         unsafe {
-            cinder
-                .device()
+            device
+                .raw()
                 .cmd_begin_rendering(self.shared.command_buffer, &rendering_info);
         }
     }
 
-    pub fn end_rendering(&self, cinder: &Cinder) {
-        unsafe {
-            cinder
-                .device()
-                .cmd_end_rendering(self.shared.command_buffer)
-        };
+    pub fn end_rendering(&self, device: &Device) {
+        unsafe { device.raw().cmd_end_rendering(self.shared.command_buffer) };
     }
 
-    pub fn bind_graphics_pipeline(&self, cinder: &Cinder, pipeline: &GraphicsPipeline) {
+    pub fn bind_graphics_pipeline(&self, device: &Device, pipeline: &GraphicsPipeline) {
         unsafe {
-            cinder.device().cmd_bind_pipeline(
+            device.raw().cmd_bind_pipeline(
                 self.shared.command_buffer,
                 vk::PipelineBindPoint::GRAPHICS,
                 pipeline.common.pipeline,
@@ -219,12 +216,12 @@ impl RenderContext {
 
     pub fn bind_descriptor_sets(
         &self,
-        cinder: &Cinder,
+        device: &Device,
         pipeline: &GraphicsPipeline,
         sets: &[vk::DescriptorSet],
     ) {
         unsafe {
-            cinder.device().cmd_bind_descriptor_sets(
+            device.raw().cmd_bind_descriptor_sets(
                 self.shared.command_buffer,
                 vk::PipelineBindPoint::GRAPHICS,
                 pipeline.common.pipeline_layout,
@@ -235,20 +232,17 @@ impl RenderContext {
         }
     }
 
-    pub fn bind_vertex_buffer(&self, cinder: &Cinder, buffer: &Buffer) {
+    pub fn bind_vertex_buffer(&self, device: &Device, buffer: &Buffer) {
         unsafe {
-            cinder.device().cmd_bind_vertex_buffers(
-                self.shared.command_buffer,
-                0,
-                &[buffer.raw],
-                &[0],
-            )
+            device
+                .raw()
+                .cmd_bind_vertex_buffers(self.shared.command_buffer, 0, &[buffer.raw], &[0])
         }
     }
 
-    pub fn bind_index_buffer(&self, cinder: &Cinder, buffer: &Buffer) {
+    pub fn bind_index_buffer(&self, device: &Device, buffer: &Buffer) {
         unsafe {
-            cinder.device().cmd_bind_index_buffer(
+            device.raw().cmd_bind_index_buffer(
                 self.shared.command_buffer,
                 buffer.raw,
                 0,
@@ -257,9 +251,9 @@ impl RenderContext {
         }
     }
 
-    pub fn bind_scissor(&self, cinder: &Cinder, rect: Rect2D<i32, u32>) {
+    pub fn bind_scissor(&self, device: &Device, rect: Rect2D<i32, u32>) {
         unsafe {
-            cinder.device().cmd_set_scissor(
+            device.raw().cmd_set_scissor(
                 self.shared.command_buffer,
                 0,
                 &[vk::Rect2D {
@@ -276,7 +270,7 @@ impl RenderContext {
         }
     }
 
-    pub fn bind_viewport(&self, cinder: &Cinder, rect: Rect2D<i32, u32>, flipped: bool) {
+    pub fn bind_viewport(&self, device: &Device, rect: Rect2D<i32, u32>, flipped: bool) {
         let (y, height) = if flipped {
             (
                 rect.height() as f32 - rect.offset().y() as f32,
@@ -286,7 +280,7 @@ impl RenderContext {
             (rect.offset().y() as f32, rect.height() as f32)
         };
         unsafe {
-            cinder.device().cmd_set_viewport(
+            device.raw().cmd_set_viewport(
                 self.shared.command_buffer,
                 0,
                 &[vk::Viewport {
@@ -303,13 +297,13 @@ impl RenderContext {
 
     pub fn draw_offset(
         &self,
-        cinder: &Cinder,
+        device: &Device,
         index_count: u32,
         first_index: u32,
         vertex_offset: i32,
     ) {
         unsafe {
-            cinder.device().cmd_draw_indexed(
+            device.raw().cmd_draw_indexed(
                 self.shared.command_buffer,
                 index_count,
                 1,
@@ -322,7 +316,7 @@ impl RenderContext {
 
     pub fn push_constant(
         &self,
-        cinder: &Cinder,
+        device: &Device,
         pipeline: &GraphicsPipeline,
         shader_stage: ShaderStage,
         idx: u32,
@@ -330,7 +324,7 @@ impl RenderContext {
     ) -> Result<(), PipelineError> {
         if let Some(push_constant) = pipeline.get_push_constant(shader_stage, idx) {
             unsafe {
-                cinder.device().cmd_push_constants(
+                device.raw().cmd_push_constants(
                     self.shared.command_buffer,
                     pipeline.common.pipeline_layout,
                     push_constant.stage.into(),
@@ -346,7 +340,7 @@ impl RenderContext {
 
     pub fn write_timestamp(&self, device: &Device, query_pool: &QueryPool, query: u32) {
         unsafe {
-            device.cmd_write_timestamp(
+            device.raw().cmd_write_timestamp(
                 self.shared.command_buffer,
                 vk::PipelineStageFlags::BOTTOM_OF_PIPE,
                 query_pool.raw,
@@ -357,7 +351,7 @@ impl RenderContext {
 
     pub fn reset_query_pool(&self, device: &Device, query_pool: &QueryPool) {
         unsafe {
-            device.cmd_reset_query_pool(
+            device.raw().cmd_reset_query_pool(
                 self.shared.command_buffer,
                 query_pool.raw,
                 0,
@@ -367,9 +361,14 @@ impl RenderContext {
     }
 
     // TODO: helpers
-    pub fn transition_undefined_to_color(&self, cinder: &Cinder, present_index: u32) {
+    pub fn transition_undefined_to_color(
+        &self,
+        device: &Device,
+        swapchain: &Swapchain,
+        present_index: u32,
+    ) {
         let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
-            .image(cinder.swapchain().present_images[present_index as usize])
+            .image(swapchain.present_images[present_index as usize])
             .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
             .old_layout(vk::ImageLayout::UNDEFINED)
             .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
@@ -383,7 +382,7 @@ impl RenderContext {
             .build();
 
         unsafe {
-            cinder.device().cmd_pipeline_barrier(
+            device.raw().cmd_pipeline_barrier(
                 self.shared.command_buffer,
                 vk::PipelineStageFlags::TOP_OF_PIPE,
                 vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
@@ -395,9 +394,14 @@ impl RenderContext {
         };
     }
 
-    pub fn transition_color_to_present(&self, cinder: &Cinder, present_index: u32) {
+    pub fn transition_color_to_present(
+        &self,
+        device: &Device,
+        swapchain: &Swapchain,
+        present_index: u32,
+    ) {
         let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
-            .image(cinder.swapchain().present_images[present_index as usize])
+            .image(swapchain.present_images[present_index as usize])
             .src_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
             .old_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
             .new_layout(vk::ImageLayout::PRESENT_SRC_KHR)
@@ -411,7 +415,7 @@ impl RenderContext {
             .build();
 
         unsafe {
-            cinder.device().cmd_pipeline_barrier(
+            device.raw().cmd_pipeline_barrier(
                 self.shared.command_buffer,
                 vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT,
                 vk::PipelineStageFlags::BOTTOM_OF_PIPE,

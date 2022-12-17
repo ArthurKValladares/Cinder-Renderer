@@ -127,8 +127,8 @@ impl Buffer {
             .usage(desc.usage.into())
             .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
-        let buffer = unsafe { device.create_buffer(&buffer_info, None) }?;
-        let buffer_memory_req = unsafe { device.get_buffer_memory_requirements(buffer) };
+        let buffer = unsafe { device.raw().create_buffer(&buffer_info, None) }?;
+        let buffer_memory_req = unsafe { device.raw().get_buffer_memory_requirements(buffer) };
         let buffer_memory_index = find_memory_type_index(
             &buffer_memory_req,
             device.memopry_properties(),
@@ -141,8 +141,8 @@ impl Buffer {
             memory_type_index: buffer_memory_index,
             ..Default::default()
         };
-        let buffer_memory = unsafe { device.allocate_memory(&allocate_info, None) }?;
-        unsafe { device.bind_buffer_memory(buffer, buffer_memory, 0) }?;
+        let buffer_memory = unsafe { device.raw().allocate_memory(&allocate_info, None) }?;
+        unsafe { device.raw().bind_buffer_memory(buffer, buffer_memory, 0) }?;
 
         let memory = Memory {
             raw: buffer_memory,
@@ -151,7 +151,7 @@ impl Buffer {
 
         let ptr = if desc.memory_desc.is_cpu_visible() {
             unsafe {
-                let ptr = device.map_memory(
+                let ptr = device.raw().map_memory(
                     memory.raw,
                     0,
                     buffer_memory_req.size,
@@ -181,8 +181,8 @@ impl Buffer {
 
     pub fn clean(&mut self, device: &Device) {
         unsafe {
-            device.destroy_buffer(self.raw, None);
-            self.memory.clean(device);
+            device.raw().destroy_buffer(self.raw, None);
+            self.memory.clean(device.raw());
         }
     }
 }

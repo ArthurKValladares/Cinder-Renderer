@@ -1,6 +1,6 @@
 use super::ContextShared;
 use crate::{
-    cinder::Cinder,
+    device::Device,
     resoruces::{buffer::Buffer, image::Image},
 };
 use anyhow::Result;
@@ -19,14 +19,13 @@ impl UploadContext {
         }
     }
 
-    pub fn begin(&self, cinder: &Cinder) -> Result<()> {
-        self.shared
-            .begin(cinder.device(), cinder.setup_commands_reuse_fence)
+    pub fn begin(&self, device: &Device, fence: ash::vk::Fence) -> Result<()> {
+        self.shared.begin(device.raw(), fence)
     }
 
     pub fn end(
         &self,
-        cinder: &Cinder,
+        device: &Device,
         command_buffer_reuse_fence: vk::Fence,
         submit_queue: vk::Queue,
         wait_mask: &[vk::PipelineStageFlags],
@@ -34,7 +33,7 @@ impl UploadContext {
         signal_semaphores: &[vk::Semaphore],
     ) -> Result<()> {
         self.shared.end(
-            cinder.device(),
+            device.raw(),
             command_buffer_reuse_fence,
             submit_queue,
             wait_mask,
@@ -43,9 +42,9 @@ impl UploadContext {
         )
     }
 
-    pub fn transition_depth_image(&self, cinder: &Cinder) {
+    pub fn transition_depth_image(&self, device: &Device, depth_image: &Image) {
         let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
-            .image(cinder.depth_image.raw)
+            .image(depth_image.raw)
             .dst_access_mask(
                 vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
                     | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
@@ -62,7 +61,7 @@ impl UploadContext {
             .build();
 
         unsafe {
-            cinder.device().cmd_pipeline_barrier(
+            device.raw().cmd_pipeline_barrier(
                 self.shared.command_buffer,
                 vk::PipelineStageFlags::BOTTOM_OF_PIPE,
                 vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
@@ -74,7 +73,7 @@ impl UploadContext {
         };
     }
 
-    pub fn image_barrier_start(&self, cinder: &Cinder, image: &Image) {
+    pub fn image_barrier_start(&self, device: &Device, image: &Image) {
         let image_barrier = vk::ImageMemoryBarrier {
             dst_access_mask: vk::AccessFlags::TRANSFER_WRITE,
             new_layout: vk::ImageLayout::TRANSFER_DST_OPTIMAL,
@@ -88,7 +87,7 @@ impl UploadContext {
             ..Default::default()
         };
         unsafe {
-            cinder.device().cmd_pipeline_barrier(
+            device.raw().cmd_pipeline_barrier(
                 self.shared.command_buffer,
                 vk::PipelineStageFlags::BOTTOM_OF_PIPE,
                 vk::PipelineStageFlags::TRANSFER,
@@ -100,7 +99,7 @@ impl UploadContext {
         };
     }
 
-    pub fn image_barrier_end(&self, cinder: &Cinder, image: &Image) {
+    pub fn image_barrier_end(&self, device: &Device, image: &Image) {
         let image_barrier_end = vk::ImageMemoryBarrier {
             src_access_mask: vk::AccessFlags::TRANSFER_WRITE,
             dst_access_mask: vk::AccessFlags::SHADER_READ,
@@ -116,7 +115,7 @@ impl UploadContext {
             ..Default::default()
         };
         unsafe {
-            cinder.device().cmd_pipeline_barrier(
+            device.raw().cmd_pipeline_barrier(
                 self.shared.command_buffer,
                 vk::PipelineStageFlags::TRANSFER,
                 vk::PipelineStageFlags::FRAGMENT_SHADER,
@@ -128,7 +127,7 @@ impl UploadContext {
         };
     }
 
-    pub fn copy_buffer_to_image(&self, cinder: &Cinder, buffer: &Buffer, image: &Image) {
+    pub fn copy_buffer_to_image(&self, device: &Device, buffer: &Buffer, image: &Image) {
         let buffer_copy_regions = vk::BufferImageCopy::builder()
             .image_subresource(
                 vk::ImageSubresourceLayers::builder()
@@ -144,7 +143,7 @@ impl UploadContext {
             .build();
 
         unsafe {
-            cinder.device().cmd_copy_buffer_to_image(
+            device.raw().cmd_copy_buffer_to_image(
                 self.shared.command_buffer,
                 buffer.raw,
                 image.raw,
@@ -156,7 +155,7 @@ impl UploadContext {
 
     pub fn copy_buffer(
         &self,
-        cinder: &Cinder,
+        device: &Device,
         src: &Buffer,
         dst: &Buffer,
         src_offset: u64,
@@ -164,7 +163,7 @@ impl UploadContext {
         size: u64,
     ) {
         unsafe {
-            cinder.device().cmd_copy_buffer(
+            device.raw().cmd_copy_buffer(
                 self.shared.command_buffer,
                 src.raw,
                 dst.raw,

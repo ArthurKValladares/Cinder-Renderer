@@ -1,4 +1,5 @@
 mod app;
+mod renderer;
 mod ui;
 
 use app::App;
@@ -47,7 +48,7 @@ fn main() {
 
     // TODO: Revisit this staging buffer idea, it could be good with some tweaks
     let mut staging_buffer = GpuStagingBuffer::new(
-        &app.cinder,
+        app.renderer.device(),
         BufferUsage::empty().transfer_src(),
         MemoryDescription {
             ty: MemoryType::CpuVisible,
@@ -58,7 +59,7 @@ fn main() {
     let mut vertex_buffer_offset = 0;
     let mut index_buffer_offset = 0;
     app.upload_context
-        .begin(&app.cinder)
+        .begin(app.renderer.device(), app.renderer.setup_fence())
         .expect("Could not begin upload context");
     let mesh_draws = app
         .scene
@@ -70,7 +71,7 @@ fn main() {
                 .expect("could not write to staging buffer");
             let index_buffer_size = size_of_slice(&mesh.indices);
             app.upload_context.copy_buffer(
-                &app.cinder,
+                app.renderer.device(),
                 staging_buffer.buffer(),
                 &app.index_buffer,
                 buffer_region.offset,
@@ -83,7 +84,7 @@ fn main() {
                 .expect("could not write to staging buffer");
             let vertex_buffer_size = size_of_slice(&mesh.vertices);
             app.upload_context.copy_buffer(
-                &app.cinder,
+                app.renderer.device(),
                 staging_buffer.buffer(),
                 &app.vertex_buffer,
                 buffer_region.offset,
@@ -107,9 +108,9 @@ fn main() {
         .collect::<Vec<_>>();
     app.upload_context
         .end(
-            &app.cinder,
-            app.cinder.setup_fence(),
-            app.cinder.present_queue(),
+            app.renderer.device(),
+            app.renderer.setup_fence(),
+            app.renderer.present_queue(),
             &[],
             &[],
             &[],

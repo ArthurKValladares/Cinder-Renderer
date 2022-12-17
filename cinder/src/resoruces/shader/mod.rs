@@ -1,3 +1,5 @@
+use crate::device::Device;
+
 use super::{
     bind_group::{BindGroupLayoutData, BindGroupType},
     pipeline::push_constant::PushConstant,
@@ -51,12 +53,12 @@ pub struct Shader {
 }
 
 impl Shader {
-    pub(crate) fn create(device: &ash::Device, desc: ShaderDescription) -> Result<Self> {
+    pub(crate) fn create(device: &Device, desc: ShaderDescription) -> Result<Self> {
         let reflect_data = ShaderData::from_spv(desc.bytes)?;
         let mut spv_file = Cursor::new(desc.bytes);
         let code = ash::util::read_spv(&mut spv_file)?;
         let shader_info = vk::ShaderModuleCreateInfo::builder().code(&code);
-        let module = unsafe { device.create_shader_module(&shader_info, None)? };
+        let module = unsafe { device.raw().create_shader_module(&shader_info, None)? };
         Ok(Shader {
             module,
             reflect_data,

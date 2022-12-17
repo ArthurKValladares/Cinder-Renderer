@@ -1,4 +1,8 @@
-use crate::surface::{Surface, SurfaceData};
+use crate::{
+    device::Device,
+    instance::Instance,
+    surface::{Surface, SurfaceData},
+};
 use anyhow::Result;
 use ash::vk;
 
@@ -11,7 +15,7 @@ pub struct Swapchain {
 }
 
 fn create_swapchain_structures(
-    device: &ash::Device,
+    device: &Device,
     surface: &Surface,
     surface_data: &SurfaceData,
     swapchain_loader: &ash::extensions::khr::Swapchain,
@@ -74,7 +78,7 @@ fn create_swapchain_structures(
                     layer_count: 1,
                 })
                 .image(image);
-            unsafe { device.create_image_view(&create_view_info, None) }
+            unsafe { device.raw().create_image_view(&create_view_info, None) }
         })
         .collect::<Result<Vec<vk::ImageView>, ash::vk::Result>>()?;
 
@@ -83,12 +87,12 @@ fn create_swapchain_structures(
 
 impl Swapchain {
     pub fn new(
-        instance: &ash::Instance,
-        device: &ash::Device,
+        instance: &Instance,
+        device: &Device,
         surface: &Surface,
         surface_data: &SurfaceData,
     ) -> Result<Self> {
-        let swapchain_loader = ash::extensions::khr::Swapchain::new(instance, device);
+        let swapchain_loader = ash::extensions::khr::Swapchain::new(instance.raw(), device.raw());
 
         let (swapchain, present_images, present_image_views) =
             create_swapchain_structures(device, surface, surface_data, &swapchain_loader, None)?;
@@ -103,11 +107,11 @@ impl Swapchain {
 
     pub fn resize(
         &mut self,
-        device: &ash::Device,
+        device: &Device,
         surface: &Surface,
         surface_data: &SurfaceData,
     ) -> Result<()> {
-        self.clean(device);
+        self.clean(device.raw());
 
         let (swapchain, present_images, present_image_views) = create_swapchain_structures(
             device,

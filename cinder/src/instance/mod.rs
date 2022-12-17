@@ -8,7 +8,6 @@ use ash::vk::{KhrGetPhysicalDeviceProperties2Fn, KhrPortabilityEnumerationFn};
 use raw_window_handle::HasRawDisplayHandle;
 use std::{
     ffi::{CStr, CString},
-    ops::Deref,
     os::raw::c_char,
 };
 
@@ -100,15 +99,7 @@ impl Instance {
         &self.entry
     }
 
-    pub(crate) fn instance(&self) -> &ash::Instance {
-        &self.instance
-    }
-}
-
-impl Deref for Instance {
-    type Target = ash::Instance;
-
-    fn deref(&self) -> &Self::Target {
+    pub(crate) fn raw(&self) -> &ash::Instance {
         &self.instance
     }
 }

@@ -1,9 +1,11 @@
 pub mod push_constant;
 
+use crate::device::Device;
+
 use self::push_constant::PushConstant;
 use super::{
     bind_group::BindGroupLayout,
-    image::reflect_format_to_vk,
+    image::{reflect_format_to_vk, Format},
     shader::{Shader, ShaderStage},
 };
 use anyhow::Result;
@@ -54,13 +56,25 @@ impl ColorBlendState {
     }
 }
 
+#[repr(transparent)]
+#[derive(Debug, Clone, Copy)]
+pub struct PipelineCache(pub vk::PipelineCache);
+
+impl PipelineCache {
+    pub fn new(device: &Device) -> Result<Self> {
+        let ci = vk::PipelineCacheCreateInfo::builder().build();
+        let cache = unsafe { device.raw().create_pipeline_cache(&ci, None)? };
+        Ok(Self(cache))
+    }
+}
+
 pub struct GraphicsPipelineDescription {
     pub vertex_shader: Shader,
     pub fragment_shader: Shader,
     pub blending: ColorBlendState,
-    pub depth_testing_enabled: bool,
+    pub surface_format: Format,
+    pub depth_format: Option<Format>,
     pub backface_culling: bool,
-    pub uses_depth: bool,
 }
 
 pub struct PipelineCommon {
@@ -78,10 +92,8 @@ pub struct GraphicsPipeline {
 
 impl GraphicsPipeline {
     pub(crate) fn create(
-        device: &ash::Device,
-        surface_format: vk::Format,
-        depth_format: vk::Format,
-        pipeline_cache: vk::PipelineCache,
+        device: &Device,
+        pipeline_cache: Option<PipelineCache>,
         desc: GraphicsPipelineDescription,
     ) -> Result<Self> {
         //
@@ -111,7 +123,7 @@ impl GraphicsPipeline {
 
             data_map
                 .values()
-                .map(|layout_data| BindGroupLayout::new(device, &layout_data))
+                .map(|layout_data| BindGroupLayout::new(device.raw(), &layout_data))
                 .collect::<Result<Vec<_>>>()
         }?;
         let set_layouts = unsafe {
@@ -128,7 +140,11 @@ impl GraphicsPipeline {
             .push_constant_ranges(&push_constant_ranges)
             .build();
 
-        let pipeline_layout = unsafe { device.create_pipeline_layout(&layout_create_info, None) }?;
+        let pipeline_layout = unsafe {
+            device
+                .raw()
+                .create_pipeline_layout(&layout_create_info, None)
+        }?;
 
         let atttributes = desc.vertex_shader.reflect_data.get_vertex_attributes();
         let binding = 0; // TODO: Support non-zero bindings
@@ -175,7 +191,7 @@ impl GraphicsPipeline {
             .depth_bias_enable(false)
             .line_width(1.0);
 
-        let depth_state_info = if desc.depth_testing_enabled {
+        let depth_state_info = if desc.depth_format.is_some() {
             vk::PipelineDepthStencilStateCreateInfo::builder()
                 .depth_test_enable(true)
                 .depth_write_enable(true)
@@ -216,11 +232,12 @@ impl GraphicsPipeline {
         ];
 
         // TODO: Will make this better
+        let surface_format = desc.surface_format.into();
         let pipeline_rendering_ci = vk::PipelineRenderingCreateInfo::builder()
             .color_attachment_formats(std::slice::from_ref(&surface_format));
-        let mut pipeline_rendering_ci = if desc.uses_depth {
+        let mut pipeline_rendering_ci = if let Some(depth_format) = desc.depth_format {
             pipeline_rendering_ci
-                .depth_attachment_format(depth_format)
+                .depth_attachment_format(depth_format.into())
                 .build()
         } else {
             pipeline_rendering_ci.build()
@@ -240,13 +257,17 @@ impl GraphicsPipeline {
             .build();
 
         let graphics_pipelines = unsafe {
-            device.create_graphics_pipelines(pipeline_cache, &[graphic_pipeline_infos], None)
+            device.raw().create_graphics_pipelines(
+                pipeline_cache.map_or_else(|| vk::PipelineCache::null(), |cache| cache.0),
+                &[graphic_pipeline_infos],
+                None,
+            )
         }
         .map_err(|(_, err)| err)?;
         let pipeline = graphics_pipelines[0];
         for pipeline in graphics_pipelines.iter().skip(1) {
             unsafe {
-                device.destroy_pipeline(*pipeline, None);
+                device.raw().destroy_pipeline(*pipeline, None);
             }
         }
 

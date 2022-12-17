@@ -11,12 +11,11 @@ pub struct Surface {
 
 impl Surface {
     pub fn new(window: &winit::window::Window, instance: &Instance) -> Result<Self> {
-        let surface_loader =
-            ash::extensions::khr::Surface::new(instance.entry(), instance.instance());
+        let surface_loader = ash::extensions::khr::Surface::new(instance.entry(), instance.raw());
         let surface = unsafe {
             ash_window::create_surface(
                 instance.entry(),
-                instance.instance(),
+                instance.raw(),
                 window.raw_display_handle(),
                 window.raw_window_handle(),
                 None,

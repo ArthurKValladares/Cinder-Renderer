@@ -57,24 +57,30 @@ pub struct CinderUi {
 }
 
 impl CinderUi {
-    fn render_depth_buffer_window(&self, context: &egui::Context, render_target_size: Size2D<u32>) {
-        egui::Window::new("Depth Buffer").show(context, |ui| {
-            egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                let (rect, _response) = ui.allocate_exact_size(
-                    egui::Vec2::new(
-                        render_target_size.width() as f32 / 4.0,
-                        render_target_size.height() as f32 / 4.0,
-                    ),
-                    egui::Sense::drag(),
-                );
+    fn render_depth_buffer_window(
+        &mut self,
+        context: &egui::Context,
+        render_target_size: Size2D<u32>,
+    ) {
+        egui::Window::new("Depth Buffer")
+            .open(&mut self.open)
+            .show(context, |ui| {
+                egui::Frame::canvas(ui.style()).show(ui, |ui| {
+                    let (rect, _response) = ui.allocate_exact_size(
+                        egui::Vec2::new(
+                            render_target_size.width() as f32 / 4.0,
+                            render_target_size.height() as f32 / 4.0,
+                        ),
+                        egui::Sense::drag(),
+                    );
 
-                let callback = egui::PaintCallback {
-                    rect,
-                    callback: std::sync::Arc::new(()),
-                };
-                ui.painter().add(callback);
+                    let callback = egui::PaintCallback {
+                        rect,
+                        callback: std::sync::Arc::new(()),
+                    };
+                    ui.painter().add(callback);
+                });
             });
-        });
     }
 
     pub fn render_gui(&mut self, context: &egui::Context, render_target_size: Size2D<u32>) {

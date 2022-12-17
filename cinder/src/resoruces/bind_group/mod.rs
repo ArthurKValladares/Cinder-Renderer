@@ -1,5 +1,5 @@
 use crate::{
-    cinder::Cinder,
+    device::Device,
     resoruces::{buffer::BindBufferInfo, image::BindImageInfo, shader::ShaderStage},
 };
 use anyhow::Result;
@@ -28,7 +28,7 @@ impl From<BindGroupType> for vk::DescriptorType {
 pub struct BindGroupPool(vk::DescriptorPool);
 
 impl BindGroupPool {
-    pub fn new(cinder: &Cinder) -> Result<Self> {
+    pub fn new(device: &Device) -> Result<Self> {
         let pool_sizes = [
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
@@ -51,8 +51,8 @@ impl BindGroupPool {
             .build();
 
         let pool = unsafe {
-            cinder
-                .device()
+            device
+                .raw()
                 .create_descriptor_pool(&descriptor_pool_info, None)?
         };
 
@@ -152,7 +152,7 @@ pub struct BindGroup(pub vk::DescriptorSet);
 
 impl BindGroup {
     pub fn new(
-        cinder: &Cinder,
+        device: &Device,
         pool: &BindGroupPool,
         layout: &BindGroupLayout,
         variable_count: bool,
@@ -172,12 +172,12 @@ impl BindGroup {
             desc_alloc_info.build()
         };
 
-        let set = unsafe { cinder.device().allocate_descriptor_sets(&desc_alloc_info) }?[0];
+        let set = unsafe { device.raw().allocate_descriptor_sets(&desc_alloc_info) }?[0];
 
         Ok(Self(set))
     }
 
-    pub fn write(&self, cinder: &Cinder, infos: &[BindGroupBindInfo]) {
+    pub fn write(&self, device: &Device, infos: &[BindGroupBindInfo]) {
         let writes = infos
             .iter()
             .map(|info| {
@@ -201,7 +201,7 @@ impl BindGroup {
             .collect::<Vec<_>>();
 
         unsafe {
-            cinder.device().update_descriptor_sets(&writes, &[]);
+            device.raw().update_descriptor_sets(&writes, &[]);
         }
     }
 }
