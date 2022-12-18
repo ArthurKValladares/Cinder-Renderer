@@ -28,12 +28,6 @@ pub struct MeshDraw {
 // TODO: verify that all triple buffering stuff is working
 
 fn main() {
-    let collector = tracing_subscriber::fmt()
-        .with_max_level(Level::TRACE)
-        .finish();
-    tracing::subscriber::set_global_default(collector)
-        .expect("Could not set tracing global subscriber");
-
     let event_loop = EventLoop::new();
     let window = WindowBuilder::new()
         .with_title("Cinder Window")
