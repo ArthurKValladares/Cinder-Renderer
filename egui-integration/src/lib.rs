@@ -23,7 +23,7 @@ use cinder::{
 pub use egui;
 use egui::{
     epaint::{ImageDelta, Primitive},
-    ClippedPrimitive, ImageData, Mesh, TextureId, TexturesDelta,
+    ClippedPrimitive, ImageData, Mesh, PaintCallbackInfo, TextureId, TexturesDelta,
 };
 use math::{point::Point2D, rect::Rect2D, size::Size2D};
 use std::collections::HashMap;
@@ -32,6 +32,12 @@ use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Windo
 
 static VERTEX_BUFFER_SIZE: u64 = 1024 * 1024 * 4;
 static INDEX_BUFFER_SIZE: u64 = 1024 * 1024 * 2;
+
+type DrawCallback = dyn for<'a, 'b> Fn(PaintCallbackInfo, &Device) + Sync + Send;
+
+pub struct EguiCallbackFn {
+    pub draw: Box<DrawCallback>,
+}
 
 // TODO: Share image buffer with rest of the codebase
 pub struct EguiIntegration {
@@ -289,8 +295,27 @@ impl EguiIntegration {
                             &mut index_base,
                         )?;
                     }
-                    Primitive::Callback(_) => {
-                        // TODO: Custom callback
+                    Primitive::Callback(callback) => {
+                        let cbfn =
+                            if let Some(c) = callback.callback.downcast_ref::<EguiCallbackFn>() {
+                                c
+                            } else {
+                                println!(
+                                    "Could not cast callback to type required by the egui backend"
+                                );
+                                continue;
+                            };
+                        let screen_size_px = {
+                            let size = window.inner_size();
+                            [size.width, size.height]
+                        };
+                        let paint_callback_info = PaintCallbackInfo {
+                            viewport: callback.rect,
+                            clip_rect: *clip_rect,
+                            pixels_per_point,
+                            screen_size_px,
+                        };
+                        (cbfn.draw)(paint_callback_info, device);
                     }
                 }
             }

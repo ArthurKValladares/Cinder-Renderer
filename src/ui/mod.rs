@@ -1,4 +1,4 @@
-use egui_integration::egui;
+use egui_integration::{egui, EguiCallbackFn};
 use math::size::Size2D;
 use serde::{Deserialize, Serialize};
 
@@ -76,7 +76,14 @@ impl CinderUi {
 
                     let callback = egui::PaintCallback {
                         rect,
-                        callback: std::sync::Arc::new(()),
+                        callback: std::sync::Arc::new(EguiCallbackFn {
+                            draw: Box::new(|info, device| {
+                                println!("{:?}", info.viewport);
+                                println!("{:?}", info.clip_rect);
+                                println!("{:?}", info.pixels_per_point);
+                                println!("{:?}", info.screen_size_px);
+                            }),
+                        }),
                     };
                     ui.painter().add(callback);
                 });
