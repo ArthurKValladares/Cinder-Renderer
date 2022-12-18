@@ -4,6 +4,8 @@ pub mod upload_context;
 use anyhow::Result;
 use ash::vk;
 
+// TODO: This separate context thing is not good
+
 pub struct BarrierDescription {}
 
 pub struct ContextShared {
