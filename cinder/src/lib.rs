@@ -5,7 +5,7 @@ pub mod context;
 pub mod device;
 pub mod instance;
 pub mod profiling;
-pub mod resoruces;
+pub mod resources;
 pub mod surface;
 pub mod swapchain;
 pub mod util;

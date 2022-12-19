@@ -8,7 +8,7 @@ use cinder::{
     device::Device,
     instance::Instance,
     profiling::Profiling,
-    resoruces::{
+    resources::{
         buffer::vk,
         image::{Format, Image, ImageDescription, ImageViewDescription, Usage},
         pipeline::PipelineCache,

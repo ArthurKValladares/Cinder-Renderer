@@ -12,12 +12,12 @@ use cinder::{
         },
         upload_context::{UploadContext, UploadContextDescription},
     },
-    resoruces::{
+    resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{vk, Buffer, BufferDescription, BufferUsage},
         image::{Format, ImageDescription, ImageViewDescription, Usage},
         memory::{MemoryDescription, MemoryType},
-        pipeline::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
+        pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
         shader::{ShaderDescription, ShaderStage},
     },

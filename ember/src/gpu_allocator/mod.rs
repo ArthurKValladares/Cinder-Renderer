@@ -1,7 +1,7 @@
 use anyhow::Result;
 use cinder::{
     device::Device,
-    resoruces::{
+    resources::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         memory::MemoryDescription,
     },

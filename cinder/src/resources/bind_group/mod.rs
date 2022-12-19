@@ -1,6 +1,6 @@
 use crate::{
     device::Device,
-    resoruces::{buffer::BindBufferInfo, image::BindImageInfo, shader::ShaderStage},
+    resources::{buffer::BindBufferInfo, image::BindImageInfo, shader::ShaderStage},
 };
 use anyhow::Result;
 use ash::vk;

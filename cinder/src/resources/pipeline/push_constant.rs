@@ -1,4 +1,4 @@
-use crate::resoruces::shader::ShaderStage;
+use crate::resources::shader::ShaderStage;
 use ash::vk;
 
 #[derive(Debug, Clone, Copy)]

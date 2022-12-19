@@ -45,12 +45,17 @@ fn main() {
         Some(PathBuf::from("shaders")),
     )
     .expect("Could not create shader compiler");
+
     shader_compiler
         .compile_shader("shaders/default.vert", ShaderStage::Vertex)
         .expect("Could not compile shader");
     shader_compiler
         .compile_shader("shaders/default.frag", ShaderStage::Fragment)
         .expect("Could not compile shader");
+    shader_compiler
+        .compile_shader("shaders/depth_reduce.comp", ShaderStage::Compute)
+        .expect("Could not compile shader");
+
     shader_compiler
         .compile_shader("egui-integration/shaders/egui.vert", ShaderStage::Vertex)
         .expect("Could not compile shader");

@@ -2,10 +2,10 @@ use super::ContextShared;
 use crate::{
     device::Device,
     profiling::QueryPool,
-    resoruces::{
+    resources::{
         buffer::Buffer,
         image::{Image, ImageViewDescription},
-        pipeline::GraphicsPipeline,
+        pipeline::graphics::GraphicsPipeline,
         shader::ShaderStage,
     },
     swapchain::Swapchain,

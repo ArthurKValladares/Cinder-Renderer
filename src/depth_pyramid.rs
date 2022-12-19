@@ -1,6 +1,6 @@
 use cinder::{
     device::Device,
-    resoruces::image::{Format, Image, ImageDescription, ImageViewDescription, Usage},
+    resources::image::{Format, Image, ImageDescription, ImageViewDescription, Usage},
 };
 use math::size::Size2D;
 use thiserror::Error;

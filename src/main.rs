@@ -6,7 +6,7 @@ mod ui;
 use app::App;
 use cinder::{
     cinder::DefaultVertex,
-    resoruces::{
+    resources::{
         buffer::BufferUsage,
         memory::{MemoryDescription, MemoryType},
     },

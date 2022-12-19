@@ -1,10 +1,13 @@
 use crate::{
     instance::Instance,
     profiling::QueryPool,
-    resoruces::{
+    resources::{
         buffer::{Buffer, BufferDescription},
         image::{Image, ImageCreateError, ImageDescription},
-        pipeline::{GraphicsPipeline, GraphicsPipelineDescription, PipelineCache},
+        pipeline::{
+            graphics::{GraphicsPipeline, GraphicsPipelineDescription},
+            PipelineCache,
+        },
         sampler::Sampler,
         shader::{Shader, ShaderDescription},
     },

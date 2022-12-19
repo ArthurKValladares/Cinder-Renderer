@@ -1,7 +1,7 @@
 use super::ContextShared;
 use crate::{
     device::Device,
-    resoruces::{buffer::Buffer, image::Image},
+    resources::{buffer::Buffer, image::Image},
 };
 use anyhow::Result;
 use ash::vk;

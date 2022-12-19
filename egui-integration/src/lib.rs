@@ -8,12 +8,15 @@ use cinder::{
         upload_context::UploadContext,
     },
     device::Device,
-    resoruces::{
+    resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{vk::Fence, Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageViewDescription, Usage},
         memory::{MemoryDescription, MemoryType},
-        pipeline::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription, PipelineCache},
+        pipeline::{
+            graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
+            PipelineCache,
+        },
         sampler::Sampler,
         shader::{ShaderDescription, ShaderStage},
     },
