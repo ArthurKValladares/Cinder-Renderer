@@ -81,7 +81,7 @@ impl Renderer {
                 usage: Usage::Depth,
             },
         )?;
-        let depth_pyramid = DepthPyramid::create(&device, surface_data.size())?;
+        let depth_pyramid = DepthPyramid::create(&device, depth_image.desc.size)?;
 
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
 
@@ -264,7 +264,8 @@ impl Renderer {
                     usage: Usage::Depth,
                 },
             )?;
-            self.depth_pyramid.resize(&self.device, self.surface_size());
+            self.depth_pyramid
+                .resize(&self.device, self.depth_image.desc.size)?;
         }
 
         Ok(())
