@@ -1,4 +1,5 @@
 mod app;
+mod depth_pyramid;
 mod renderer;
 mod ui;
 
@@ -11,7 +12,6 @@ use cinder::{
     },
 };
 use ember::GpuStagingBuffer;
-use tracing::Level;
 use util::*;
 use winit::{dpi::PhysicalSize, event_loop::EventLoop, window::WindowBuilder};
 

@@ -106,3 +106,12 @@ pub struct SurfaceData {
     pub present_mode: vk::PresentModeKHR,
     pub desired_image_count: u32,
 }
+
+impl SurfaceData {
+    pub fn size(&self) -> Size2D<u32> {
+        Size2D::new(
+            self.surface_resolution.width,
+            self.surface_resolution.height,
+        )
+    }
+}

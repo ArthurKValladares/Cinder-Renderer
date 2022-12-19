@@ -295,6 +295,7 @@ dependencies = [
  "scene",
  "serde",
  "serde_json",
+ "thiserror",
  "tracing",
  "tracing-subscriber",
  "util",

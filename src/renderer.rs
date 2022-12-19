@@ -19,6 +19,8 @@ use cinder::{
 };
 use math::{rect::Rect2D, size::Size2D};
 
+use crate::depth_pyramid::{self, DepthPyramid};
+
 pub struct Renderer {
     init_data: InitData,
     _instance: Instance,
@@ -29,6 +31,7 @@ pub struct Renderer {
     pipeline_cache: PipelineCache,
 
     pub depth_image: Image,
+    depth_pyramid: DepthPyramid,
     command_pool: vk::CommandPool,
 
     // TODO: Probably will have better syncronization in the future
@@ -78,6 +81,7 @@ impl Renderer {
                 usage: Usage::Depth,
             },
         )?;
+        let depth_pyramid = DepthPyramid::create(&device, surface_data.size())?;
 
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
 
@@ -111,6 +115,7 @@ impl Renderer {
             surface_data,
             pipeline_cache,
             depth_image,
+            depth_pyramid,
             present_complete_semaphore,
             rendering_complete_semaphore,
             draw_commands_reuse_fence,
@@ -221,10 +226,7 @@ impl Renderer {
     }
 
     pub fn surface_size(&self) -> Size2D<u32> {
-        Size2D::new(
-            self.surface_data.surface_resolution.width,
-            self.surface_data.surface_resolution.height,
-        )
+        self.surface_data.size()
     }
 
     pub fn surface_rect(&self) -> Rect2D<i32, u32> {
@@ -261,7 +263,8 @@ impl Renderer {
                     format: Format::D32_SFloat,
                     usage: Usage::Depth,
                 },
-            )?
+            )?;
+            self.depth_pyramid.resize(&self.device, self.surface_size());
         }
 
         Ok(())

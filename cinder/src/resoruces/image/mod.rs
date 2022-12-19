@@ -83,6 +83,7 @@ impl From<vk::Format> for Format {
 pub enum Usage {
     Depth,
     Texture,
+    StorageTexture,
 }
 
 impl From<Usage> for vk::ImageUsageFlags {
@@ -90,6 +91,11 @@ impl From<Usage> for vk::ImageUsageFlags {
         match usage {
             Usage::Depth => vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
             Usage::Texture => vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED,
+            Usage::StorageTexture => {
+                vk::ImageUsageFlags::STORAGE
+                    | vk::ImageUsageFlags::TRANSFER_DST
+                    | vk::ImageUsageFlags::SAMPLED
+            }
         }
     }
 }
@@ -99,6 +105,7 @@ impl From<Usage> for vk::ImageAspectFlags {
         match usage {
             Usage::Depth => vk::ImageAspectFlags::DEPTH,
             Usage::Texture => vk::ImageAspectFlags::COLOR,
+            Usage::StorageTexture => vk::ImageAspectFlags::COLOR,
         }
     }
 }
