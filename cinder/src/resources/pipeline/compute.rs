@@ -14,7 +14,7 @@ pub struct ComputePipeline {
 }
 
 impl ComputePipeline {
-    pub fn new(
+    pub fn create(
         device: &Device,
         pipeline_cache: Option<PipelineCache>,
         desc: ComputePipelineDescription,

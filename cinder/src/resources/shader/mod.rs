@@ -16,6 +16,7 @@ use thiserror::Error;
 pub enum ShaderStage {
     Vertex,
     Fragment,
+    Compute,
 }
 
 impl From<ShaderStage> for vk::ShaderStageFlags {
@@ -23,6 +24,7 @@ impl From<ShaderStage> for vk::ShaderStageFlags {
         match stage {
             ShaderStage::Vertex => vk::ShaderStageFlags::VERTEX,
             ShaderStage::Fragment => vk::ShaderStageFlags::FRAGMENT,
+            ShaderStage::Compute => vk::ShaderStageFlags::COMPUTE,
         }
     }
 }
@@ -32,7 +34,8 @@ impl From<ReflectShaderStageFlags> for ShaderStage {
         match flags {
             ReflectShaderStageFlags::VERTEX => ShaderStage::Vertex,
             ReflectShaderStageFlags::FRAGMENT => ShaderStage::Fragment,
-            _ => panic!("Shader stage not yet supported"),
+            ReflectShaderStageFlags::COMPUTE => ShaderStage::Compute,
+            _ => panic!("Shader stage not yet supported."),
         }
     }
 }
@@ -111,9 +114,13 @@ impl Shader {
                             }
                             ReflectDescriptorType::UniformBuffer => BindGroupType::UniformBuffer,
                             ReflectDescriptorType::StorageBuffer => BindGroupType::StorageBuffer,
+                            ReflectDescriptorType::StorageImage => BindGroupType::StorageImage,
                             _ => {
                                 // TODO: need a better way to handle returning errors from here later
-                                unreachable!()
+                                panic!(
+                                    "Unsupported descriptor type: {:#?}",
+                                    reflect_binding.descriptor_type
+                                );
                             }
                         };
                         let array =

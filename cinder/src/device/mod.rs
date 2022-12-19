@@ -5,6 +5,7 @@ use crate::{
         buffer::{Buffer, BufferDescription},
         image::{Image, ImageCreateError, ImageDescription},
         pipeline::{
+            compute::{ComputePipeline, ComputePipelineDescription},
             graphics::{GraphicsPipeline, GraphicsPipelineDescription},
             PipelineCache,
         },
@@ -222,6 +223,14 @@ impl Device {
         pipeline_cache: Option<PipelineCache>,
     ) -> Result<GraphicsPipeline> {
         GraphicsPipeline::create(self, pipeline_cache, desc)
+    }
+
+    pub fn create_compute_pipeline(
+        &self,
+        desc: ComputePipelineDescription,
+        pipeline_cache: Option<PipelineCache>,
+    ) -> Result<ComputePipeline> {
+        ComputePipeline::create(self, pipeline_cache, desc)
     }
 
     pub fn create_sampler(&self) -> Result<Sampler> {

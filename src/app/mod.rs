@@ -17,7 +17,10 @@ use cinder::{
         buffer::{vk, Buffer, BufferDescription, BufferUsage},
         image::{Format, ImageDescription, ImageViewDescription, Usage},
         memory::{MemoryDescription, MemoryType},
-        pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
+        pipeline::{
+            compute::{ComputePipeline, ComputePipelineDescription},
+            graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
+        },
         sampler::Sampler,
         shader::{ShaderDescription, ShaderStage},
     },
@@ -49,6 +52,7 @@ pub struct App {
     pub uniform_buffer: Buffer,
     pub sampler: Sampler,
     pub graphics_pipeline: GraphicsPipeline,
+    pub compute_pipeline: ComputePipeline,
     pub bind_group_pool: BindGroupPool,
     pub bind_group: BindGroup,
     pub runtime_state: RuntimeState,
@@ -73,7 +77,9 @@ impl App {
         let fragment_shader = renderer.device().create_shader(ShaderDescription {
             bytes: include_bytes!("../../shaders/spv/default.frag.spv"),
         })?;
-
+        let compute_shader = renderer.device().create_shader(ShaderDescription {
+            bytes: include_bytes!("../../shaders/spv/depth_reduce.comp.spv"),
+        })?;
         // Load model
         let scene_load_start = Instant::now();
         let (scene, image_buffers) = scene::ObjScene::load_or_achive(
@@ -206,6 +212,16 @@ impl App {
                 Some(renderer.pipeline_cache()),
             )
             .expect("Could not create graphics pipeline");
+        let compute_pipeline = renderer
+            .device()
+            .create_compute_pipeline(
+                ComputePipelineDescription {
+                    shader: compute_shader,
+                },
+                Some(renderer.pipeline_cache()),
+            )
+            .expect("Could not create graphics pipeline");
+
         let bind_group_pool = BindGroupPool::new(renderer.device()).unwrap();
         let bind_group = BindGroup::new(
             renderer.device(),
@@ -243,6 +259,7 @@ impl App {
             uniform_buffer,
             sampler,
             graphics_pipeline,
+            compute_pipeline,
             bind_group_pool,
             bind_group,
             runtime_state,

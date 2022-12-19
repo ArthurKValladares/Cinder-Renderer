@@ -11,6 +11,7 @@ pub const MAX_BINDLESS_RESOURCES: u32 = 16536;
 #[derive(Debug, Copy, Clone)]
 pub enum BindGroupType {
     ImageSampler,
+    StorageImage,
     UniformBuffer,
     StorageBuffer,
 }
@@ -19,6 +20,7 @@ impl From<BindGroupType> for vk::DescriptorType {
     fn from(ty: BindGroupType) -> Self {
         match ty {
             BindGroupType::ImageSampler => vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
+            BindGroupType::StorageImage => vk::DescriptorType::STORAGE_IMAGE,
             BindGroupType::UniformBuffer => vk::DescriptorType::UNIFORM_BUFFER,
             BindGroupType::StorageBuffer => vk::DescriptorType::STORAGE_BUFFER,
         }
