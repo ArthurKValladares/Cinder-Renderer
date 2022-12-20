@@ -19,7 +19,7 @@ use cinder::{
 };
 use math::{rect::Rect2D, size::Size2D};
 
-use crate::depth_pyramid::{self, DepthPyramid};
+use crate::depth_pyramid::DepthPyramid;
 
 pub struct Renderer {
     init_data: InitData,
@@ -31,7 +31,7 @@ pub struct Renderer {
     pipeline_cache: PipelineCache,
 
     pub depth_image: Image,
-    depth_pyramid: DepthPyramid,
+    pub depth_pyramid: DepthPyramid,
     command_pool: vk::CommandPool,
 
     // TODO: Probably will have better syncronization in the future

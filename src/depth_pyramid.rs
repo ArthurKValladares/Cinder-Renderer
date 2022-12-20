@@ -24,7 +24,7 @@ fn create_image_and_view(device: &Device, size: Size2D<u32>) -> anyhow::Result<I
 }
 
 pub struct DepthPyramid {
-    image: Image,
+    pub image: Image,
 }
 
 impl DepthPyramid {

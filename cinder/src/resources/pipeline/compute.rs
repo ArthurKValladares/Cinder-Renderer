@@ -1,8 +1,12 @@
-use super::{get_pipeline_layout, PipelineCache, PipelineCommon, PipelineCommonData};
+use super::{get_pipeline_layout, PipelineCache, PipelineCommon};
 use crate::{device::Device, resources::shader::Shader};
 use anyhow::Result;
 use ash::vk;
 use std::ffi::CStr;
+
+pub fn get_group_count(thread_count: u32, local_size: u32) -> u32 {
+    (thread_count + local_size - 1) / local_size
+}
 
 pub struct ComputePipelineDescription {
     pub shader: Shader,
@@ -10,7 +14,6 @@ pub struct ComputePipelineDescription {
 
 pub struct ComputePipeline {
     pub common: PipelineCommon,
-    common_data: PipelineCommonData,
 }
 
 impl ComputePipeline {
@@ -53,11 +56,9 @@ impl ComputePipeline {
         let common = PipelineCommon {
             pipeline_layout,
             pipeline,
+            common_data,
         };
 
-        Ok(Self {
-            common,
-            common_data,
-        })
+        Ok(Self { common })
     }
 }

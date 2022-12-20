@@ -67,7 +67,6 @@ pub struct GraphicsPipelineDescription {
 
 pub struct GraphicsPipeline {
     pub common: PipelineCommon,
-    common_data: PipelineCommonData,
 }
 
 impl GraphicsPipeline {
@@ -211,16 +210,8 @@ impl GraphicsPipeline {
             common: PipelineCommon {
                 pipeline_layout,
                 pipeline,
+                common_data,
             },
-            common_data,
         })
-    }
-
-    pub fn get_push_constant(&self, shader_stage: ShaderStage, idx: u32) -> Option<&PushConstant> {
-        self.common_data.push_constants.get(&(shader_stage, idx))
-    }
-
-    pub fn bind_group_layouts(&self) -> &[BindGroupLayout] {
-        &self.common_data.bind_group_layouts
     }
 }

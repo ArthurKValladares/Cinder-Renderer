@@ -5,7 +5,7 @@ use crate::{
     resources::{
         buffer::Buffer,
         image::{Image, ImageViewDescription},
-        pipeline::graphics::GraphicsPipeline,
+        pipeline::{compute::ComputePipeline, graphics::GraphicsPipeline, PipelineCommon},
         shader::ShaderStage,
     },
     swapchain::Swapchain,
@@ -214,17 +214,44 @@ impl RenderContext {
         }
     }
 
+    pub fn bind_compute_pipeline(&self, device: &Device, pipeline: &ComputePipeline) {
+        unsafe {
+            device.raw().cmd_bind_pipeline(
+                self.shared.command_buffer,
+                vk::PipelineBindPoint::COMPUTE,
+                pipeline.common.pipeline,
+            );
+        }
+    }
+
+    pub fn dispatch(
+        &self,
+        device: &Device,
+        group_count_x: u32,
+        group_count_y: u32,
+        group_count_z: u32,
+    ) {
+        unsafe {
+            device.raw().cmd_dispatch(
+                self.shared.command_buffer,
+                group_count_x,
+                group_count_y,
+                group_count_z,
+            );
+        }
+    }
+
     pub fn bind_descriptor_sets(
         &self,
         device: &Device,
-        pipeline: &GraphicsPipeline,
+        pipeline_common: &PipelineCommon,
         sets: &[vk::DescriptorSet],
     ) {
         unsafe {
             device.raw().cmd_bind_descriptor_sets(
                 self.shared.command_buffer,
                 vk::PipelineBindPoint::GRAPHICS,
-                pipeline.common.pipeline_layout,
+                pipeline_common.pipeline_layout,
                 0,
                 sets,
                 &[],
@@ -317,16 +344,16 @@ impl RenderContext {
     pub fn push_constant(
         &self,
         device: &Device,
-        pipeline: &GraphicsPipeline,
+        pipeline_common: &PipelineCommon,
         shader_stage: ShaderStage,
         idx: u32,
         data: &[u8],
     ) -> Result<(), PipelineError> {
-        if let Some(push_constant) = pipeline.get_push_constant(shader_stage, idx) {
+        if let Some(push_constant) = pipeline_common.get_push_constant(shader_stage, idx) {
             unsafe {
                 device.raw().cmd_push_constants(
                     self.shared.command_buffer,
-                    pipeline.common.pipeline_layout,
+                    pipeline_common.pipeline_layout,
                     push_constant.stage.into(),
                     push_constant.offset,
                     data,

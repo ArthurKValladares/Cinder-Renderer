@@ -18,7 +18,7 @@ use cinder::{
         image::{Format, ImageDescription, ImageViewDescription, Usage},
         memory::{MemoryDescription, MemoryType},
         pipeline::{
-            compute::{ComputePipeline, ComputePipelineDescription},
+            compute::{get_group_count, ComputePipeline, ComputePipelineDescription},
             graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         },
         sampler::Sampler,
@@ -54,7 +54,8 @@ pub struct App {
     pub graphics_pipeline: GraphicsPipeline,
     pub compute_pipeline: ComputePipeline,
     pub bind_group_pool: BindGroupPool,
-    pub bind_group: BindGroup,
+    pub graphics_bind_group: BindGroup,
+    pub compute_bind_group: BindGroup,
     pub runtime_state: RuntimeState,
 }
 
@@ -223,14 +224,21 @@ impl App {
             .expect("Could not create graphics pipeline");
 
         let bind_group_pool = BindGroupPool::new(renderer.device()).unwrap();
-        let bind_group = BindGroup::new(
+        let graphics_bind_group = BindGroup::new(
             renderer.device(),
             &bind_group_pool,
-            &graphics_pipeline.bind_group_layouts()[0],
-            true,
+            &graphics_pipeline.common.bind_group_layouts()[0],
+            true, // TODO: Should this be a user-side param?
         )
         .unwrap();
-        bind_group.write(
+        let compute_bind_group = BindGroup::new(
+            renderer.device(),
+            &bind_group_pool,
+            &graphics_pipeline.common.bind_group_layouts()[0],
+            false,
+        )
+        .unwrap();
+        graphics_bind_group.write(
             renderer.device(),
             &[
                 BindGroupBindInfo {
@@ -243,7 +251,7 @@ impl App {
                 },
             ],
         );
-        bind_group.write(renderer.device(), &image_bind_infos);
+        graphics_bind_group.write(renderer.device(), &image_bind_infos);
 
         let runtime_state = RuntimeState::new(event_loop, &mut renderer);
 
@@ -261,7 +269,8 @@ impl App {
             graphics_pipeline,
             compute_pipeline,
             bind_group_pool,
-            bind_group,
+            graphics_bind_group,
+            compute_bind_group,
             runtime_state,
         })
     }
@@ -430,15 +439,15 @@ impl App {
                                 .bind_index_buffer(self.renderer.device(), &self.index_buffer);
                             self.render_context.bind_descriptor_sets(
                                 self.renderer.device(),
-                                &self.graphics_pipeline,
-                                &[self.bind_group.0],
+                                &self.graphics_pipeline.common,
+                                &[self.graphics_bind_group.0],
                             );
 
                             for draw in &mesh_draws {
                                 self.render_context
                                     .push_constant(
                                         self.renderer.device(),
-                                        &self.graphics_pipeline,
+                                        &self.graphics_pipeline.common,
                                         ShaderStage::Vertex,
                                         0,
                                         util::as_u8_slice(&color),
@@ -448,7 +457,7 @@ impl App {
                                 self.render_context
                                     .push_constant(
                                         self.renderer.device(),
-                                        &self.graphics_pipeline,
+                                        &self.graphics_pipeline.common,
                                         ShaderStage::Fragment,
                                         0,
                                         util::as_u8_slice(&draw.image_index),
@@ -465,6 +474,45 @@ impl App {
                         }
                         self.render_context.end_rendering(self.renderer.device());
 
+                        // Create depth pyramid
+                        {
+                            self.render_context.bind_compute_pipeline(
+                                self.renderer.device(),
+                                &self.compute_pipeline,
+                            );
+
+                            self.render_context.bind_descriptor_sets(
+                                self.renderer.device(),
+                                &self.compute_pipeline.common,
+                                &[self.compute_bind_group.0],
+                            );
+
+                            let image_size = self.renderer.depth_pyramid.image.desc.size;
+                            let width = image_size.width();
+                            let height = image_size.height();
+                            self.render_context
+                                .push_constant(
+                                    self.renderer.device(),
+                                    &self.graphics_pipeline.common,
+                                    ShaderStage::Vertex,
+                                    0,
+                                    util::as_u8_slice(&[width, height]),
+                                )
+                                .unwrap();
+
+                            self.render_context.dispatch(
+                                self.renderer.device(),
+                                get_group_count(
+                                    width, 32, // TODO: Get from shader
+                                ),
+                                get_group_count(
+                                    height, 32, // TODO: Get from shader
+                                ),
+                                1,
+                            );
+
+                            panic!("yo");
+                        }
                         // Ui/egui render pass
                         self.runtime_state
                             .egui

@@ -95,7 +95,7 @@ impl EguiIntegration {
         let bind_group_set = BindGroup::new(
             &device,
             &bind_group_pool,
-            &pipeline.bind_group_layouts()[0],
+            &pipeline.common.bind_group_layouts()[0],
             false,
         )
         .unwrap();
@@ -241,7 +241,7 @@ impl EguiIntegration {
 
             render_context.push_constant(
                 device,
-                &self.pipeline,
+                &self.pipeline.common,
                 ShaderStage::Vertex,
                 0,
                 as_u8_slice(&EguiConstants {
@@ -371,7 +371,11 @@ impl EguiIntegration {
         if let egui::TextureId::User(_id) = mesh.texture_id {
             todo!();
         } else {
-            render_context.bind_descriptor_sets(device, &self.pipeline, &[self.bind_group_set.0]);
+            render_context.bind_descriptor_sets(
+                device,
+                &self.pipeline.common,
+                &[self.bind_group_set.0],
+            );
         }
 
         render_context.draw_offset(device, indices.len() as u32, *index_base, *vertex_base);

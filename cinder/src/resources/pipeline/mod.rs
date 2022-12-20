@@ -26,16 +26,27 @@ impl PipelineCache {
     }
 }
 
-pub struct PipelineCommon {
-    pub pipeline_layout: vk::PipelineLayout,
-    pub pipeline: vk::Pipeline,
-}
-
 pub struct PipelineCommonData {
     // TODO: Think of a better key
     push_constants: HashMap<(ShaderStage, u32), PushConstant>,
     // TODO: Also need a better way to get these
     bind_group_layouts: Vec<BindGroupLayout>,
+}
+
+pub struct PipelineCommon {
+    pub pipeline_layout: vk::PipelineLayout,
+    pub pipeline: vk::Pipeline,
+    pub common_data: PipelineCommonData,
+}
+
+impl PipelineCommon {
+    pub fn get_push_constant(&self, shader_stage: ShaderStage, idx: u32) -> Option<&PushConstant> {
+        self.common_data.push_constants.get(&(shader_stage, idx))
+    }
+
+    pub fn bind_group_layouts(&self) -> &[BindGroupLayout] {
+        &self.common_data.bind_group_layouts
+    }
 }
 
 pub fn get_pipeline_layout(
