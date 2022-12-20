@@ -234,7 +234,7 @@ impl App {
         let compute_bind_group = BindGroup::new(
             renderer.device(),
             &bind_group_pool,
-            &graphics_pipeline.common.bind_group_layouts()[0],
+            &compute_pipeline.common.bind_group_layouts()[0],
             false,
         )
         .unwrap();
