@@ -375,6 +375,7 @@ impl EguiIntegration {
                 device,
                 &self.pipeline.common,
                 &[self.bind_group_set.0],
+                false,
             );
         }
 

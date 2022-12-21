@@ -246,11 +246,16 @@ impl RenderContext {
         device: &Device,
         pipeline_common: &PipelineCommon,
         sets: &[vk::DescriptorSet],
+        compute: bool, // TODO: Something better later
     ) {
         unsafe {
             device.raw().cmd_bind_descriptor_sets(
                 self.shared.command_buffer,
-                vk::PipelineBindPoint::GRAPHICS,
+                if compute {
+                    vk::PipelineBindPoint::COMPUTE
+                } else {
+                    vk::PipelineBindPoint::GRAPHICS
+                },
                 pipeline_common.pipeline_layout,
                 0,
                 sets,

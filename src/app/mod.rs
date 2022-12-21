@@ -441,6 +441,7 @@ impl App {
                                 self.renderer.device(),
                                 &self.graphics_pipeline.common,
                                 &[self.graphics_bind_group.0],
+                                false,
                             );
 
                             for draw in &mesh_draws {
@@ -485,6 +486,7 @@ impl App {
                                 self.renderer.device(),
                                 &self.compute_pipeline.common,
                                 &[self.compute_bind_group.0],
+                                true,
                             );
 
                             let image_size = self.renderer.depth_pyramid.image.desc.size;
