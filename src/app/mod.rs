@@ -46,11 +46,14 @@ pub struct App {
     pub upload_context: UploadContext,
     pub scene: ObjScene,
     pub scene_load_time: f32,
+    pub image_view_desc: ImageViewDescription,
     pub image_buffers: Vec<ImageBuffer>,
     pub index_buffer: Buffer,
     pub vertex_buffer: Buffer,
     pub uniform_buffer: Buffer,
     pub sampler: Sampler,
+    pub depth_view_desc: ImageViewDescription,
+    pub depth_sampler: Sampler,
     pub graphics_pipeline: GraphicsPipeline,
     pub compute_pipeline: ComputePipeline,
     pub bind_group_pool: BindGroupPool,
@@ -132,10 +135,19 @@ impl App {
             .create_sampler()
             .expect("Could not create sampler");
 
+        let depth_sampler = renderer
+            .device()
+            .create_sampler()
+            .expect("Could not create depth sampler");
+
         upload_context
             .begin(renderer.device(), renderer.setup_fence())
             .expect("could not begin upload context");
         // Create and upload image
+        let image_view_desc = ImageViewDescription {
+            format: Format::R8_G8_B8_A8_Unorm,
+            usage: Usage::Texture,
+        };
         let (_images, image_bind_infos): (Vec<_>, Vec<_>) = image_buffers
             .iter()
             .enumerate()
@@ -162,10 +174,6 @@ impl App {
                         size: Size2D::new(image.width, image.height),
                     })
                     .expect("could not create texture");
-                let image_view_desc = ImageViewDescription {
-                    format: Format::R8_G8_B8_A8_Unorm,
-                    usage: Usage::Texture,
-                };
                 texture
                     .add_view(renderer.device(), image_view_desc)
                     .unwrap();
@@ -255,17 +263,25 @@ impl App {
 
         let runtime_state = RuntimeState::new(event_loop, &mut renderer);
 
+        let depth_view_desc = ImageViewDescription {
+            format: Format::D32_SFloat,
+            usage: Usage::Depth,
+        };
+
         Ok(App {
             renderer,
             render_context,
             upload_context,
             scene,
             scene_load_time,
+            image_view_desc,
             image_buffers,
             index_buffer,
             vertex_buffer,
             uniform_buffer,
             sampler,
+            depth_view_desc,
+            depth_sampler,
             graphics_pipeline,
             compute_pipeline,
             bind_group_pool,
@@ -413,10 +429,7 @@ impl App {
                             Some(
                                 RenderAttachment::depth(
                                     self.renderer.depth_image(),
-                                    ImageViewDescription {
-                                        format: Format::D32_SFloat,
-                                        usage: Usage::Depth,
-                                    },
+                                    self.depth_view_desc,
                                 )
                                 .load_op(AttachmentLoadOp::Clear)
                                 .store_op(AttachmentStoreOp::DontCare)
@@ -501,6 +514,32 @@ impl App {
                                     util::as_u8_slice(&[width, height]),
                                 )
                                 .unwrap();
+
+                            self.compute_bind_group.write(
+                                self.renderer.device(),
+                                &[
+                                    BindGroupBindInfo {
+                                        dst_binding: 0,
+                                        data: BindGroupWriteData::Image(
+                                            self.renderer.depth_pyramid.image.bind_info(
+                                                &self.sampler,
+                                                self.renderer.depth_pyramid.image_desc,
+                                                0, // TODO: This does not make sense if not bindless
+                                            ),
+                                        ),
+                                    },
+                                    BindGroupBindInfo {
+                                        dst_binding: 1,
+                                        data: BindGroupWriteData::Image(
+                                            self.renderer.depth_image().bind_info(
+                                                &self.depth_sampler,
+                                                self.depth_view_desc,
+                                                0, // TODO: This does not make sense if not bindless
+                                            ),
+                                        ),
+                                    },
+                                ],
+                            );
 
                             self.render_context.dispatch(
                                 self.renderer.device(),

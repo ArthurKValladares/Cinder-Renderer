@@ -11,7 +11,10 @@ pub enum DepthPyramidError {
     ResizeError,
 }
 
-fn create_image_and_view(device: &Device, size: Size2D<u32>) -> anyhow::Result<Image> {
+fn create_image_and_view(
+    device: &Device,
+    size: Size2D<u32>,
+) -> anyhow::Result<(Image, ImageViewDescription)> {
     let format = Format::R32_SFloat;
     let usage = Usage::StorageTexture;
     let mut image = device.create_image(ImageDescription {
@@ -19,24 +22,27 @@ fn create_image_and_view(device: &Device, size: Size2D<u32>) -> anyhow::Result<I
         usage,
         size,
     })?;
-    image.add_view(device, ImageViewDescription { format, usage })?;
-    Ok(image)
+    let desc = ImageViewDescription { format, usage };
+    image.add_view(device, desc)?;
+    Ok((image, desc))
 }
 
 pub struct DepthPyramid {
     pub image: Image,
+    pub image_desc: ImageViewDescription,
 }
 
 impl DepthPyramid {
     pub fn create(device: &Device, size: Size2D<u32>) -> anyhow::Result<Self> {
-        let image = create_image_and_view(device, size)?;
-        Ok(Self { image })
+        let (image, image_desc) = create_image_and_view(device, size)?;
+        Ok(Self { image, image_desc })
     }
 
     pub fn resize(&mut self, device: &Device, size: Size2D<u32>) -> Result<(), DepthPyramidError> {
-        if let Ok(new_image) = create_image_and_view(device, size) {
+        if let Ok((new_image, new_image_desc)) = create_image_and_view(device, size) {
             self.image.clean(device);
             self.image = new_image;
+            self.image_desc = new_image_desc;
             Ok(())
         } else {
             Err(DepthPyramidError::ResizeError)
