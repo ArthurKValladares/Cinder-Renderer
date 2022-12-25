@@ -92,6 +92,7 @@ impl Device {
         let device_extension_names = [
             ash::extensions::khr::Swapchain::name(),
             ash::extensions::khr::DynamicRendering::name(),
+            vk::ExtDescriptorIndexingFn::name(),
             #[cfg(any(target_os = "macos", target_os = "ios"))]
             KhrPortabilitySubsetFn::name(),
         ];
