@@ -1,4 +1,4 @@
-use crate::instance::Instance;
+use crate::device::instance::Instance;
 use anyhow::Result;
 use ash::vk;
 use math::size::Size2D;

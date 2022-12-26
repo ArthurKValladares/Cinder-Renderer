@@ -1,5 +1,9 @@
+mod instance;
+mod surface;
+
+pub use self::surface::SurfaceData;
+use self::{instance::Instance, surface::Surface};
 use crate::{
-    instance::Instance,
     profiling::QueryPool,
     resources::{
         buffer::{Buffer, BufferDescription},
@@ -12,7 +16,6 @@ use crate::{
         sampler::Sampler,
         shader::{Shader, ShaderDescription},
     },
-    surface::Surface,
 };
 use anyhow::Result;
 use ash::vk;
@@ -29,6 +32,8 @@ pub enum DeviceInitError {
 }
 
 pub struct Device {
+    instance: Instance,
+    surface: Surface,
     p_device: vk::PhysicalDevice,
     p_device_properties: vk::PhysicalDeviceProperties,
     p_device_memory_properties: vk::PhysicalDeviceMemoryProperties,
@@ -38,7 +43,10 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn new(instance: &Instance, surface: &Surface) -> Result<Self> {
+    pub fn new(window: &winit::window::Window) -> Result<Self> {
+        let instance = Instance::new(window)?;
+        let surface = Surface::new(window, &instance)?;
+
         let p_devices = unsafe { instance.raw().enumerate_physical_devices() }?;
         let supported_device_data = p_devices
             .into_iter()
@@ -138,6 +146,8 @@ impl Device {
         let present_queue = unsafe { device.get_device_queue(queue_family_index, 0) };
 
         Ok(Self {
+            instance,
+            surface,
             p_device,
             p_device_properties,
             p_device_memory_properties,
@@ -145,6 +155,14 @@ impl Device {
             queue_family_index,
             present_queue,
         })
+    }
+
+    pub fn instance(&self) -> &Instance {
+        &self.instance
+    }
+
+    pub fn surface(&self) -> &Surface {
+        &self.surface
     }
 
     pub fn raw(&self) -> &ash::Device {

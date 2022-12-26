@@ -1,8 +1,4 @@
-use crate::{
-    device::Device,
-    instance::Instance,
-    surface::{Surface, SurfaceData},
-};
+use crate::device::{Device, SurfaceData};
 use anyhow::Result;
 use ash::vk;
 
@@ -16,7 +12,6 @@ pub struct Swapchain {
 
 fn create_swapchain_structures(
     device: &Device,
-    surface: &Surface,
     surface_data: &SurfaceData,
     swapchain_loader: &ash::extensions::khr::Swapchain,
     old_swapchain: Option<vk::SwapchainKHR>,
@@ -32,7 +27,7 @@ fn create_swapchain_structures(
     };
 
     let swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
-        .surface(surface.surface)
+        .surface(device.surface().surface)
         .min_image_count(surface_data.desired_image_count)
         .image_color_space(surface_data.surface_format.color_space)
         .image_format(surface_data.surface_format.format)
@@ -86,16 +81,12 @@ fn create_swapchain_structures(
 }
 
 impl Swapchain {
-    pub fn new(
-        instance: &Instance,
-        device: &Device,
-        surface: &Surface,
-        surface_data: &SurfaceData,
-    ) -> Result<Self> {
-        let swapchain_loader = ash::extensions::khr::Swapchain::new(instance.raw(), device.raw());
+    pub fn new(device: &Device, surface_data: &SurfaceData) -> Result<Self> {
+        let swapchain_loader =
+            ash::extensions::khr::Swapchain::new(device.instance().raw(), device.raw());
 
         let (swapchain, present_images, present_image_views) =
-            create_swapchain_structures(device, surface, surface_data, &swapchain_loader, None)?;
+            create_swapchain_structures(device, surface_data, &swapchain_loader, None)?;
 
         Ok(Self {
             swapchain_loader,
@@ -105,17 +96,11 @@ impl Swapchain {
         })
     }
 
-    pub fn resize(
-        &mut self,
-        device: &Device,
-        surface: &Surface,
-        surface_data: &SurfaceData,
-    ) -> Result<()> {
+    pub fn resize(&mut self, device: &Device, surface_data: &SurfaceData) -> Result<()> {
         self.clean(device.raw());
 
         let (swapchain, present_images, present_image_views) = create_swapchain_structures(
             device,
-            surface,
             surface_data,
             &self.swapchain_loader,
             Some(self.swapchain),

@@ -3,10 +3,8 @@ use math::size::Size2D;
 pub mod cinder;
 pub mod context;
 pub mod device;
-pub mod instance;
 pub mod profiling;
 pub mod resources;
-pub mod surface;
 pub mod swapchain;
 pub mod util;
 

@@ -5,15 +5,13 @@ use cinder::{
         render_context::{RenderContext, RenderContextDescription},
         upload_context::{UploadContext, UploadContextDescription},
     },
-    device::Device,
-    instance::Instance,
+    device::{Device, SurfaceData},
     profiling::Profiling,
     resources::{
         buffer::vk,
         image::{Format, Image, ImageDescription, ImageViewDescription, Usage},
         pipeline::PipelineCache,
     },
-    surface::{Surface, SurfaceData},
     swapchain::Swapchain,
     InitData,
 };
@@ -23,9 +21,7 @@ use crate::depth_pyramid::DepthPyramid;
 
 pub struct Renderer {
     init_data: InitData,
-    _instance: Instance,
     device: Device,
-    surface: Surface,
     swapchain: Swapchain,
     surface_data: SurfaceData,
     pipeline_cache: PipelineCache,
@@ -46,19 +42,15 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(window: &winit::window::Window, init_data: InitData) -> Result<Self> {
-        let instance = Instance::new(window)?;
+        let device = Device::new(window)?;
 
-        let surface = Surface::new(window, &instance)?;
-
-        let device = Device::new(&instance, &surface)?;
-
-        let surface_data = surface.get_data(
+        let surface_data = device.surface().get_data(
             device.p_device(),
             init_data.backbuffer_resolution,
             init_data.vsync,
         )?;
 
-        let swapchain = Swapchain::new(&instance, &device, &surface, &surface_data)?;
+        let swapchain = Swapchain::new(&device, &surface_data)?;
 
         let pipeline_cache = PipelineCache::new(&device)?;
 
@@ -108,9 +100,7 @@ impl Renderer {
 
         Ok(Self {
             init_data,
-            _instance: instance,
             device,
-            surface,
             swapchain,
             surface_data,
             pipeline_cache,
@@ -240,13 +230,12 @@ impl Renderer {
         unsafe {
             self.device.raw().device_wait_idle()?;
 
-            self.surface_data = self.surface.get_data(
+            self.surface_data = self.device.surface().get_data(
                 self.device.p_device(),
                 backbuffer_resolution,
                 self.init_data.vsync,
             )?;
-            self.swapchain
-                .resize(&self.device, &self.surface, &self.surface_data)?;
+            self.swapchain.resize(&self.device, &self.surface_data)?;
             self.depth_image.clean(&self.device);
             self.depth_image = Image::create(
                 &self.device,
