@@ -17,10 +17,7 @@ use cinder::{
         buffer::{vk, Buffer, BufferDescription, BufferUsage},
         image::{Format, ImageDescription, ImageViewDescription, Usage},
         memory::{MemoryDescription, MemoryType},
-        pipeline::{
-            compute::{get_group_count, ComputePipeline, ComputePipelineDescription},
-            graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
-        },
+        pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
         shader::{ShaderDescription, ShaderStage},
     },
@@ -55,10 +52,8 @@ pub struct App {
     pub depth_view_desc: ImageViewDescription,
     pub depth_sampler: Sampler,
     pub graphics_pipeline: GraphicsPipeline,
-    pub compute_pipeline: ComputePipeline,
     pub bind_group_pool: BindGroupPool,
     pub graphics_bind_group: BindGroup,
-    pub compute_bind_group: BindGroup,
     pub runtime_state: RuntimeState,
 }
 
@@ -81,9 +76,7 @@ impl App {
         let fragment_shader = renderer.device().create_shader(ShaderDescription {
             bytes: include_bytes!("../../shaders/spv/default.frag.spv"),
         })?;
-        let compute_shader = renderer.device().create_shader(ShaderDescription {
-            bytes: include_bytes!("../../shaders/spv/depth_reduce.comp.spv"),
-        })?;
+
         // Load model
         let scene_load_start = Instant::now();
         let (scene, image_buffers) = scene::ObjScene::load_or_achive(
@@ -221,15 +214,6 @@ impl App {
                 Some(renderer.pipeline_cache()),
             )
             .expect("Could not create graphics pipeline");
-        let compute_pipeline = renderer
-            .device()
-            .create_compute_pipeline(
-                ComputePipelineDescription {
-                    shader: compute_shader,
-                },
-                Some(renderer.pipeline_cache()),
-            )
-            .expect("Could not create graphics pipeline");
 
         let bind_group_pool = BindGroupPool::new(renderer.device()).unwrap();
         let graphics_bind_group = BindGroup::new(
@@ -239,13 +223,7 @@ impl App {
             true, // TODO: Should this be a user-side param?
         )
         .unwrap();
-        let compute_bind_group = BindGroup::new(
-            renderer.device(),
-            &bind_group_pool,
-            &compute_pipeline.common.bind_group_layouts()[0],
-            false,
-        )
-        .unwrap();
+
         graphics_bind_group.write(
             renderer.device(),
             &[
@@ -283,10 +261,8 @@ impl App {
             depth_view_desc,
             depth_sampler,
             graphics_pipeline,
-            compute_pipeline,
             bind_group_pool,
             graphics_bind_group,
-            compute_bind_group,
             runtime_state,
         })
     }
