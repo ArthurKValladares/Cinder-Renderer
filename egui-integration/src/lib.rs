@@ -23,6 +23,7 @@ use cinder::{
     swapchain::Swapchain,
     util::MemoryMappablePointer,
 };
+use core::panic;
 pub use egui;
 use egui::{
     epaint::{ImageDelta, Primitive},
@@ -137,6 +138,10 @@ impl EguiIntegration {
             vertex_buffers,
             index_buffers,
         })
+    }
+
+    pub fn context(&self) -> &egui::Context {
+        &self.egui_context
     }
 
     pub fn on_event(&mut self, event: &WindowEvent<'_>) {
@@ -365,16 +370,13 @@ impl EguiIntegration {
 
         *vertex_buffer_ptr = vertex_buffer_ptr_next;
         *index_buffer_ptr = index_buffer_ptr_next;
-        if let egui::TextureId::User(_id) = mesh.texture_id {
-            todo!();
-        } else {
-            render_context.bind_descriptor_sets(
-                device,
-                &self.pipeline.common,
-                &[self.bind_group_set.0],
-                false,
-            );
-        }
+
+        render_context.bind_descriptor_sets(
+            device,
+            &self.pipeline.common,
+            &[self.bind_group_set.0],
+            false,
+        );
 
         render_context.draw_offset(device, indices.len() as u32, *index_base, *vertex_base);
 
@@ -392,34 +394,27 @@ impl EguiIntegration {
         // TODO
     }
 
-    fn set_image(
+    fn set_image_helper(
         &mut self,
         device: &Device,
         upload_context: &UploadContext,
         id: &TextureId,
-        delta: &ImageDelta,
+        width: u32,
+        height: u32,
+        data: &[egui::Color32],
     ) -> Result<()> {
-        let ((width, height), data) = match &delta.image {
-            ImageData::Color(_) => todo!(),
-            ImageData::Font(font_data) => {
-                let dimensions = (font_data.width() as u32, font_data.height() as u32);
-                let data = font_data.srgba_pixels(Some(1.0)).collect::<Vec<_>>();
-                (dimensions, data)
-            }
-        };
-
         // TODO: Revisit image abstraction
         if let Some(mut buffer) = self.image_staging_buffer.take() {
-            buffer.clean(device);
+            //buffer.clean(device);
         }
         let image_staging_buffer = device.create_buffer(BufferDescription {
-            size: size_of_slice(&data),
+            size: size_of_slice(data),
             usage: BufferUsage::empty().transfer_src(),
             memory_desc: MemoryDescription {
                 ty: MemoryType::CpuVisible,
             },
         })?;
-        image_staging_buffer.mem_copy(0, &data)?;
+        image_staging_buffer.mem_copy(0, data)?;
 
         let mut image = device.create_image(ImageDescription {
             format: Format::R8_G8_B8_A8_Unorm,
@@ -447,6 +442,35 @@ impl EguiIntegration {
         self.image_staging_buffer = Some(image_staging_buffer);
 
         Ok(())
+    }
+
+    fn set_image(
+        &mut self,
+        device: &Device,
+        upload_context: &UploadContext,
+        id: &TextureId,
+        delta: &ImageDelta,
+    ) -> Result<()> {
+        match &delta.image {
+            ImageData::Color(color_data) => {
+                let (width, height) = (color_data.size[0] as u32, color_data.size[1] as u32);
+
+                self.set_image_helper(
+                    device,
+                    upload_context,
+                    id,
+                    width,
+                    height,
+                    &color_data.pixels,
+                )
+            }
+            ImageData::Font(font_data) => {
+                let (width, height) = (font_data.width() as u32, font_data.height() as u32);
+                let data = font_data.srgba_pixels(Some(1.0)).collect::<Vec<_>>();
+
+                self.set_image_helper(device, upload_context, id, width, height, &data)
+            }
+        }
     }
 
     fn set_textures(

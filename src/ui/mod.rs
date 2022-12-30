@@ -1,3 +1,5 @@
+use std::fmt::Debug;
+
 use egui_integration::{egui, EguiCallbackFn};
 use math::size::Size2D;
 use serde::{Deserialize, Serialize};
@@ -37,6 +39,17 @@ impl Default for UiData {
     }
 }
 
+pub struct GuiImageHandle {
+    handle: egui::TextureHandle,
+}
+
+impl GuiImageHandle {
+    pub fn new(context: &egui::Context, name: &str) -> Self {
+        let handle = context.load_texture(name, egui::ColorImage::example(), Default::default());
+        Self { handle }
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 pub enum CinderUiTab {
     DepthBuffer,
@@ -61,36 +74,26 @@ impl CinderUi {
         &mut self,
         context: &egui::Context,
         render_target_size: Size2D<u32>,
+        image_handle: &GuiImageHandle,
     ) {
         egui::Window::new("Depth Buffer")
             .open(&mut self.open)
             .show(context, |ui| {
-                egui::Frame::canvas(ui.style()).show(ui, |ui| {
-                    let (rect, _response) = ui.allocate_exact_size(
-                        egui::Vec2::new(
-                            render_target_size.width() as f32 / 4.0,
-                            render_target_size.height() as f32 / 4.0,
-                        ),
-                        egui::Sense::drag(),
-                    );
+                let image_size = egui::Vec2::new(
+                    render_target_size.width() as f32 / 4.0,
+                    render_target_size.height() as f32 / 4.0,
+                );
 
-                    let callback = egui::PaintCallback {
-                        rect,
-                        callback: std::sync::Arc::new(EguiCallbackFn {
-                            draw: Box::new(|info, device| {
-                                println!("{:?}", info.viewport);
-                                println!("{:?}", info.clip_rect);
-                                println!("{:?}", info.pixels_per_point);
-                                println!("{:?}", info.screen_size_px);
-                            }),
-                        }),
-                    };
-                    ui.painter().add(callback);
-                });
+                ui.image(&image_handle.handle, image_size);
             });
     }
 
-    pub fn render_gui(&mut self, context: &egui::Context, render_target_size: Size2D<u32>) {
+    pub fn render_gui(
+        &mut self,
+        context: &egui::Context,
+        render_target_size: Size2D<u32>,
+        image_handle: &GuiImageHandle,
+    ) {
         egui::SidePanel::left("cinder")
             .resizable(false)
             .show_animated(context, self.open, |ui| {
@@ -119,7 +122,11 @@ impl CinderUi {
                 if let Some(tab) = self.selected_tab {
                     match tab {
                         CinderUiTab::DepthBuffer => {
-                            self.render_depth_buffer_window(context, render_target_size);
+                            self.render_depth_buffer_window(
+                                context,
+                                render_target_size,
+                                image_handle,
+                            );
                         }
                     }
                 }
@@ -188,9 +195,11 @@ impl Ui {
         &mut self,
         context: &egui::Context,
         render_target_size: Size2D<u32>,
+        image_handle: &GuiImageHandle,
         app_callback: impl FnOnce(&mut egui::Ui),
     ) {
-        self.cinder_ui.render_gui(context, render_target_size);
+        self.cinder_ui
+            .render_gui(context, render_target_size, image_handle);
 
         let mut open = self.selected_tab.is_some();
         if let Some(tab) = self.selected_tab {
