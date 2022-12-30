@@ -73,18 +73,15 @@ impl EguiIntegration {
         egui_context.set_pixels_per_point(pixels_per_point);
         egui_winit.set_pixels_per_point(pixels_per_point);
 
-        let vertex_shader = device.create_shader(ShaderDescription {
-            bytes: include_bytes!("../shaders/spv/egui.vert.spv"),
-        })?;
-        let fragment_shader = device.create_shader(ShaderDescription {
-            bytes: include_bytes!("../shaders/spv/egui.frag.spv"),
-        })?;
-
         let bind_group_pool = BindGroupPool::new(&device).unwrap();
         let pipeline = device.create_graphics_pipeline(
             GraphicsPipelineDescription {
-                vertex_shader,
-                fragment_shader,
+                vertex_shader: device.create_shader(ShaderDescription {
+                    bytes: include_bytes!("../shaders/spv/egui.vert.spv"),
+                })?,
+                fragment_shader: device.create_shader(ShaderDescription {
+                    bytes: include_bytes!("../shaders/spv/egui.frag.spv"),
+                })?,
                 blending: ColorBlendState::pma(),
                 backface_culling: false,
                 surface_format: surface_format,

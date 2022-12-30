@@ -70,13 +70,6 @@ impl App {
         let render_context = renderer.create_render_context(RenderContextDescription {})?;
         let upload_context = renderer.create_upload_context(UploadContextDescription {})?;
 
-        let vertex_shader = renderer.device().create_shader(ShaderDescription {
-            bytes: include_bytes!("../../shaders/spv/default.vert.spv"),
-        })?;
-        let fragment_shader = renderer.device().create_shader(ShaderDescription {
-            bytes: include_bytes!("../../shaders/spv/default.frag.spv"),
-        })?;
-
         // Load model
         let scene_load_start = Instant::now();
         let (scene, image_buffers) = scene::ObjScene::load_or_achive(
@@ -204,8 +197,12 @@ impl App {
             .device()
             .create_graphics_pipeline(
                 GraphicsPipelineDescription {
-                    vertex_shader,
-                    fragment_shader,
+                    vertex_shader: renderer.device().create_shader(ShaderDescription {
+                        bytes: include_bytes!("../../shaders/spv/default.vert.spv"),
+                    })?,
+                    fragment_shader: renderer.device().create_shader(ShaderDescription {
+                        bytes: include_bytes!("../../shaders/spv/default.frag.spv"),
+                    })?,
                     blending: ColorBlendState::add(),
                     backface_culling: true,
                     surface_format: renderer.surface_format(),
