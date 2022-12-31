@@ -1,6 +1,6 @@
 mod runtime;
 
-use crate::{renderer::Renderer, ui::ImageData, MeshDraw, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::{renderer::Renderer, MeshDraw, WINDOW_HEIGHT, WINDOW_WIDTH};
 use anyhow::Result;
 use camera::{MOVEMENT_DELTA, ROTATION_DELTA};
 use cinder::{
@@ -347,6 +347,11 @@ impl App {
                                     VirtualKeyCode::C => {
                                         if input.state == ElementState::Pressed {
                                             lock_movement = !lock_movement;
+                                        }
+                                    }
+                                    VirtualKeyCode::F => {
+                                        if input.state == ElementState::Pressed {
+                                            self.runtime_state.ui.flip_fullscreen();
                                         }
                                     }
                                     _ => {}

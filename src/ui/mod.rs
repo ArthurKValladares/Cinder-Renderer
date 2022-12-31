@@ -1,6 +1,6 @@
 use std::fmt::Debug;
 
-use egui_integration::{egui, EguiCallbackFn};
+use egui_integration::egui;
 use math::size::Size2D;
 use serde::{Deserialize, Serialize};
 
@@ -39,55 +39,6 @@ impl Default for UiData {
     }
 }
 
-pub enum ImageData<'a> {
-    Rgb(&'a [u8]),
-    Rgba(&'a [u8]),
-}
-
-pub struct GuiImageHandle {
-    name: &'static str,
-    handle: egui::TextureHandle,
-}
-
-impl GuiImageHandle {
-    pub fn new(
-        context: &egui::Context,
-        name: &'static str,
-        width: u32,
-        height: u32,
-        image_data: ImageData<'_>,
-    ) -> Self {
-        let size = [width as usize, height as usize];
-        let handle = context.load_texture(
-            name,
-            match image_data {
-                ImageData::Rgb(rgb) => egui::ColorImage::from_rgb(size, rgb),
-                ImageData::Rgba(rgba) => egui::ColorImage::from_rgba_unmultiplied(size, rgba),
-            },
-            Default::default(),
-        );
-        Self { name, handle }
-    }
-
-    pub fn update(
-        &mut self,
-        context: &egui::Context,
-        width: u32,
-        height: u32,
-        image_data: ImageData<'_>,
-    ) {
-        let size = [width as usize, height as usize];
-        self.handle = context.load_texture(
-            self.name,
-            match image_data {
-                ImageData::Rgb(rgb) => egui::ColorImage::from_rgb(size, rgb),
-                ImageData::Rgba(rgba) => egui::ColorImage::from_rgba_unmultiplied(size, rgba),
-            },
-            Default::default(),
-        );
-    }
-}
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Deserialize, Serialize)]
 pub enum CinderUiTab {
     DepthBuffer,
@@ -105,6 +56,7 @@ impl CinderUiTab {
 pub struct CinderUi {
     open: bool,
     selected_tab: Option<CinderUiTab>,
+    fullscreen: bool,
 }
 
 impl CinderUi {
@@ -113,16 +65,25 @@ impl CinderUi {
         context: &egui::Context,
         render_target_size: Size2D<u32>,
     ) {
-        egui::Window::new("Depth Buffer")
-            .open(&mut self.open)
-            .show(context, |ui| {
-                let image_size = egui::Vec2::new(
-                    render_target_size.width() as f32 / 4.0,
-                    render_target_size.height() as f32 / 4.0,
-                );
-
-                // TODO: how to do this efficiently?
-            });
+        // TODO: I had the right idea before.
+        // Use a compute shader to draw directly to the swapchain image, using the rect above, then just dispatch it
+        if !self.fullscreen {
+            egui::Window::new("Depth Buffer")
+                .open(&mut self.open)
+                .show(context, |ui| {
+                    let image_size = egui::Vec2::new(
+                        render_target_size.width() as f32 / 4.0,
+                        render_target_size.height() as f32 / 4.0,
+                    );
+                    let (_rect, _response) =
+                        ui.allocate_exact_size(image_size, egui::Sense::drag());
+                });
+        } else {
+            // TODO: temp, egui won't be involved at all later, will just directly draw to swapchain image
+            egui::Window::new("test")
+                .open(&mut self.open)
+                .show(context, |_ui| {});
+        }
     }
 
     pub fn render_gui(&mut self, context: &egui::Context, render_target_size: Size2D<u32>) {
@@ -278,6 +239,10 @@ impl Ui {
 
     pub fn depth_image_open(&self) -> bool {
         self.cinder_ui.open && self.cinder_ui.selected_tab == Some(CinderUiTab::DepthBuffer)
+    }
+
+    pub fn flip_fullscreen(&mut self) {
+        self.cinder_ui.fullscreen = !self.cinder_ui.fullscreen;
     }
 }
 
