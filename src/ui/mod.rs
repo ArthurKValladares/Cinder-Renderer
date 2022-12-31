@@ -39,14 +39,52 @@ impl Default for UiData {
     }
 }
 
+pub enum ImageData<'a> {
+    Rgb(&'a [u8]),
+    Rgba(&'a [u8]),
+}
+
 pub struct GuiImageHandle {
+    name: &'static str,
     handle: egui::TextureHandle,
 }
 
 impl GuiImageHandle {
-    pub fn new(context: &egui::Context, name: &str) -> Self {
-        let handle = context.load_texture(name, egui::ColorImage::example(), Default::default());
-        Self { handle }
+    pub fn new(
+        context: &egui::Context,
+        name: &'static str,
+        width: u32,
+        height: u32,
+        image_data: ImageData<'_>,
+    ) -> Self {
+        let size = [width as usize, height as usize];
+        let handle = context.load_texture(
+            name,
+            match image_data {
+                ImageData::Rgb(rgb) => egui::ColorImage::from_rgb(size, rgb),
+                ImageData::Rgba(rgba) => egui::ColorImage::from_rgba_unmultiplied(size, rgba),
+            },
+            Default::default(),
+        );
+        Self { name, handle }
+    }
+
+    pub fn update(
+        &mut self,
+        context: &egui::Context,
+        width: u32,
+        height: u32,
+        image_data: ImageData<'_>,
+    ) {
+        let size = [width as usize, height as usize];
+        self.handle = context.load_texture(
+            self.name,
+            match image_data {
+                ImageData::Rgb(rgb) => egui::ColorImage::from_rgb(size, rgb),
+                ImageData::Rgba(rgba) => egui::ColorImage::from_rgba_unmultiplied(size, rgba),
+            },
+            Default::default(),
+        );
     }
 }
 

@@ -1,6 +1,10 @@
 mod runtime;
 
-use crate::{renderer::Renderer, ui::GuiImageHandle, MeshDraw, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::{
+    renderer::Renderer,
+    ui::{GuiImageHandle, ImageData},
+    MeshDraw, WINDOW_HEIGHT, WINDOW_WIDTH,
+};
 use anyhow::Result;
 use camera::{MOVEMENT_DELTA, ROTATION_DELTA};
 use cinder::{
@@ -244,8 +248,14 @@ impl App {
             usage: Usage::Depth,
         };
 
-        let depth_image_handle =
-            GuiImageHandle::new(runtime_state.egui.context(), "depth image handle");
+        let rgb_data = [100; 500 * 500 * 3];
+        let depth_image_handle = GuiImageHandle::new(
+            runtime_state.egui.context(),
+            "depth image handle",
+            500,
+            500,
+            ImageData::Rgb(&rgb_data),
+        );
 
         Ok(App {
             renderer,

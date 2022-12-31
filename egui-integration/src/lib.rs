@@ -94,7 +94,7 @@ impl EguiIntegration {
             &device,
             &bind_group_pool,
             &pipeline.common.bind_group_layouts()[0],
-            false,
+            true,
         )
         .unwrap();
 
@@ -378,6 +378,21 @@ impl EguiIntegration {
             false,
         );
 
+        let index = match mesh.texture_id {
+            TextureId::Managed(index) => index as usize,
+            TextureId::User(_) => unimplemented!(),
+        };
+
+        render_context
+            .push_constant(
+                device,
+                &self.pipeline.common,
+                ShaderStage::Fragment,
+                0,
+                util::as_u8_slice(&index),
+            )
+            .unwrap();
+
         render_context.draw_offset(device, indices.len() as u32, *index_base, *vertex_base);
 
         *vertex_base += vertices.len() as i32;
@@ -430,11 +445,20 @@ impl EguiIntegration {
         upload_context.copy_buffer_to_image(device, &image_staging_buffer, &image);
         upload_context.image_barrier_end(device, &image);
 
+        let index = match id {
+            TextureId::Managed(index) => *index,
+            TextureId::User(_) => unimplemented!(),
+        };
+
         self.bind_group_set.write(
             device,
             &[BindGroupBindInfo {
                 dst_binding: 0,
-                data: BindGroupWriteData::Image(image.bind_info(&self.sampler, image_view_desc, 0)),
+                data: BindGroupWriteData::Image(image.bind_info(
+                    &self.sampler,
+                    image_view_desc,
+                    index as u32,
+                )),
             }],
         );
 
