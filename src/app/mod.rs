@@ -1,10 +1,6 @@
 mod runtime;
 
-use crate::{
-    renderer::Renderer,
-    ui::{GuiImageHandle, ImageData},
-    MeshDraw, WINDOW_HEIGHT, WINDOW_WIDTH,
-};
+use crate::{renderer::Renderer, ui::ImageData, MeshDraw, WINDOW_HEIGHT, WINDOW_WIDTH};
 use anyhow::Result;
 use camera::{MOVEMENT_DELTA, ROTATION_DELTA};
 use cinder::{
@@ -55,7 +51,6 @@ pub struct App {
     pub sampler: Sampler,
     pub depth_view_desc: ImageViewDescription,
     pub depth_sampler: Sampler,
-    pub depth_image_handle: GuiImageHandle,
     pub graphics_pipeline: GraphicsPipeline,
     pub bind_group_pool: BindGroupPool,
     pub graphics_bind_group: BindGroup,
@@ -248,15 +243,6 @@ impl App {
             usage: Usage::Depth,
         };
 
-        let rgb_data = [100; 500 * 500 * 3];
-        let depth_image_handle = GuiImageHandle::new(
-            runtime_state.egui.context(),
-            "depth image handle",
-            500,
-            500,
-            ImageData::Rgb(&rgb_data),
-        );
-
         Ok(App {
             renderer,
             render_context,
@@ -275,7 +261,6 @@ impl App {
             bind_group_pool,
             graphics_bind_group,
             runtime_state,
-            depth_image_handle,
         })
     }
 
@@ -497,7 +482,6 @@ impl App {
                                     self.runtime_state.ui.show_selected_tab(
                                         egui_context,
                                         self.renderer.surface_size(),
-                                        &self.depth_image_handle,
                                         |ui| {
                                             ui.horizontal(|ui| {
                                                 ui.label("lock movement");

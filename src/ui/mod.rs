@@ -112,7 +112,6 @@ impl CinderUi {
         &mut self,
         context: &egui::Context,
         render_target_size: Size2D<u32>,
-        image_handle: &GuiImageHandle,
     ) {
         egui::Window::new("Depth Buffer")
             .open(&mut self.open)
@@ -122,16 +121,11 @@ impl CinderUi {
                     render_target_size.height() as f32 / 4.0,
                 );
 
-                ui.image(&image_handle.handle, image_size);
+                // TODO: how to do this efficiently?
             });
     }
 
-    pub fn render_gui(
-        &mut self,
-        context: &egui::Context,
-        render_target_size: Size2D<u32>,
-        image_handle: &GuiImageHandle,
-    ) {
+    pub fn render_gui(&mut self, context: &egui::Context, render_target_size: Size2D<u32>) {
         egui::SidePanel::left("cinder")
             .resizable(false)
             .show_animated(context, self.open, |ui| {
@@ -160,11 +154,7 @@ impl CinderUi {
                 if let Some(tab) = self.selected_tab {
                     match tab {
                         CinderUiTab::DepthBuffer => {
-                            self.render_depth_buffer_window(
-                                context,
-                                render_target_size,
-                                image_handle,
-                            );
+                            self.render_depth_buffer_window(context, render_target_size);
                         }
                     }
                 }
@@ -233,11 +223,9 @@ impl Ui {
         &mut self,
         context: &egui::Context,
         render_target_size: Size2D<u32>,
-        image_handle: &GuiImageHandle,
         app_callback: impl FnOnce(&mut egui::Ui),
     ) {
-        self.cinder_ui
-            .render_gui(context, render_target_size, image_handle);
+        self.cinder_ui.render_gui(context, render_target_size);
 
         let mut open = self.selected_tab.is_some();
         if let Some(tab) = self.selected_tab {
@@ -286,6 +274,10 @@ impl Ui {
         if !open {
             self.selected_tab = None;
         }
+    }
+
+    pub fn depth_image_open(&self) -> bool {
+        self.cinder_ui.open && self.cinder_ui.selected_tab == Some(CinderUiTab::DepthBuffer)
     }
 }
 

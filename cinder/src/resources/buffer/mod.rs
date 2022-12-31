@@ -102,7 +102,7 @@ impl Buffer {
     }
 
     pub fn end_ptr(&self) -> Option<MemoryMappablePointer> {
-        self.ptr.map(|ptr| ptr.add(self.size_bytes as usize))
+        self.ptr.map(|ptr| ptr.add(self.size_bytes() as usize))
     }
 
     pub fn mem_copy<T: Copy>(&self, offset: u64, data: &[T]) -> Result<(), BufferError> {

@@ -215,10 +215,10 @@ impl Image {
     }
 
     pub fn dims(&self) -> Size2D<u32> {
-        todo!()
+        self.desc.size
     }
     pub fn format(&self) -> Format {
-        todo!()
+        self.desc.format
     }
 }
 

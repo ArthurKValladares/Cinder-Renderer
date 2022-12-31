@@ -131,7 +131,7 @@ impl UploadContext {
         let buffer_copy_regions = vk::BufferImageCopy::builder()
             .image_subresource(
                 vk::ImageSubresourceLayers::builder()
-                    .aspect_mask(vk::ImageAspectFlags::COLOR)
+                    .aspect_mask(image.desc.usage.into())
                     .layer_count(1)
                     .build(),
             )
