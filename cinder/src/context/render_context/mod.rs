@@ -22,6 +22,7 @@ pub enum Layout {
     ColorAttachment,
     DepthAttachment,
     Present,
+    TransferDst,
 }
 
 impl From<Layout> for vk::ImageLayout {
@@ -32,6 +33,7 @@ impl From<Layout> for vk::ImageLayout {
             Layout::ColorAttachment => vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
             Layout::DepthAttachment => vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
             Layout::Present => vk::ImageLayout::PRESENT_SRC_KHR,
+            Layout::TransferDst => vk::ImageLayout::TRANSFER_DST_OPTIMAL,
         }
     }
 }
@@ -563,7 +565,7 @@ impl RenderContext {
 }
 
 pub fn image_barrier(
-    image: &Image,
+    image: vk::Image,
     src_access_mask: vk::AccessFlags,
     dst_access_mask: vk::AccessFlags,
     old_layout: vk::ImageLayout,
@@ -579,7 +581,7 @@ pub fn image_barrier(
         new_layout,
         src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
         dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
-        image: image.raw,
+        image,
         subresource_range: vk::ImageSubresourceRange {
             aspect_mask,
             base_mip_level,

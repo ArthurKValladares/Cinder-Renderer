@@ -420,7 +420,7 @@ impl EguiIntegration {
     ) -> Result<()> {
         // TODO: Revisit image abstraction
         if let Some(mut buffer) = self.image_staging_buffer.take() {
-            //buffer.clean(device);
+            buffer.clean(device);
         }
         let image_staging_buffer = device.create_buffer(BufferDescription {
             size: size_of_slice(data),

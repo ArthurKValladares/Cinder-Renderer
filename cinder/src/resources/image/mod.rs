@@ -79,6 +79,7 @@ impl From<vk::Format> for Format {
     }
 }
 
+// TODO: enum doesn't really work here, should be something more bitfield-like
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Usage {
     Depth,
@@ -89,15 +90,9 @@ pub enum Usage {
 impl From<Usage> for vk::ImageUsageFlags {
     fn from(usage: Usage) -> Self {
         match usage {
-            Usage::Depth => {
-                vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT | vk::ImageUsageFlags::SAMPLED
-            }
+            Usage::Depth => vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
             Usage::Texture => vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED,
-            Usage::StorageTexture => {
-                vk::ImageUsageFlags::STORAGE
-                    | vk::ImageUsageFlags::TRANSFER_DST
-                    | vk::ImageUsageFlags::SAMPLED
-            }
+            Usage::StorageTexture => vk::ImageUsageFlags::STORAGE,
         }
     }
 }

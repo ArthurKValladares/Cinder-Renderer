@@ -1,16 +1,14 @@
 mod runtime;
 
-use crate::{
-    depth_pyramid::DepthPyramid, renderer::Renderer, MeshDraw, WINDOW_HEIGHT, WINDOW_WIDTH,
-};
+use crate::{renderer::Renderer, MeshDraw, WINDOW_HEIGHT, WINDOW_WIDTH};
 use anyhow::Result;
 use camera::{MOVEMENT_DELTA, ROTATION_DELTA};
 use cinder::{
     cinder::{DefaultUniformBufferObject, DefaultVertex},
     context::{
         render_context::{
-            image_barrier, AttachmentLoadOp, AttachmentStoreOp, Filter, Layout, RenderAttachment,
-            RenderContext, RenderContextDescription,
+            AttachmentLoadOp, AttachmentStoreOp, Layout, RenderAttachment, RenderContext,
+            RenderContextDescription,
         },
         upload_context::{UploadContext, UploadContextDescription},
     },
@@ -19,10 +17,7 @@ use cinder::{
         buffer::{vk, Buffer, BufferDescription, BufferUsage},
         image::{Format, ImageDescription, ImageViewDescription, Usage},
         memory::{MemoryDescription, MemoryType},
-        pipeline::{
-            compute::{get_group_count, ComputePipeline, ComputePipelineDescription},
-            graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
-        },
+        pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
         shader::{ShaderDescription, ShaderStage},
     },
@@ -30,7 +25,7 @@ use cinder::{
 };
 use egui_integration::egui;
 use input::keyboard::{ElementState, VirtualKeyCode};
-use math::{rect::Rect2D, size::Size2D};
+use math::size::Size2D;
 use scene::{ImageBuffer, ObjScene};
 use std::{path::PathBuf, time::Instant};
 use util::size_of_slice;
@@ -59,9 +54,6 @@ pub struct App {
     pub bind_group_pool: BindGroupPool,
     pub graphics_pipeline: GraphicsPipeline,
     pub graphics_bind_group: BindGroup,
-    pub compute_pipeline: ComputePipeline,
-    pub compute_bind_group: BindGroup,
-    pub depth_pyramid: DepthPyramid,
     pub runtime_state: RuntimeState,
 }
 
@@ -249,6 +241,10 @@ impl App {
         );
         graphics_bind_group.write(renderer.device(), &image_bind_infos);
 
+        /*
+        //COMPUTE SHADER REFLECTION TEST
+        use compute::{get_group_count, ComputePipeline, ComputePipelineDescription};
+
         let compute_pipeline = renderer
             .device()
             .create_compute_pipeline(
@@ -267,6 +263,7 @@ impl App {
             false,
         )
         .unwrap();
+        */
 
         let runtime_state = RuntimeState::new(event_loop, &mut renderer);
 
@@ -274,9 +271,6 @@ impl App {
             format: Format::D32_SFloat,
             usage: Usage::Depth,
         };
-
-        let depth_pyramid =
-            DepthPyramid::create(renderer.device(), renderer.depth_image.desc.size)?;
 
         Ok(App {
             renderer,
@@ -295,9 +289,6 @@ impl App {
             bind_group_pool,
             graphics_pipeline,
             graphics_bind_group,
-            compute_pipeline,
-            compute_bind_group,
-            depth_pyramid,
             runtime_state,
         })
     }
@@ -351,9 +342,7 @@ impl App {
                             self.renderer
                                 .resize(Size2D::new(size.width, size.height))
                                 .expect("Could not resize device");
-                            self.depth_pyramid
-                                .resize(self.renderer.device(), self.renderer.depth_image.desc.size)
-                                .expect("Could not resize depth image");
+
                             self.runtime_state
                                 .resize(&self.renderer)
                                 .expect("could not resize RuntimeState");
@@ -508,118 +497,7 @@ impl App {
                         self.render_context.end_rendering(self.renderer.device());
 
                         if self.runtime_state.ui.depth_image_open() {
-                            self.render_context.pipeline_barrier(
-                                self.renderer.device(),
-                                vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-                                vk::PipelineStageFlags::COMPUTE_SHADER,
-                                vk::DependencyFlags::BY_REGION,
-                                &[],
-                                &[
-                                    image_barrier(
-                                        self.renderer.depth_image(),
-                                        vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
-                                        vk::AccessFlags::SHADER_READ,
-                                        vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                        vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-                                        vk::ImageAspectFlags::DEPTH,
-                                        0,
-                                        vk::REMAINING_MIP_LEVELS,
-                                    ),
-                                    image_barrier(
-                                        &self.depth_pyramid.image,
-                                        vk::AccessFlags::empty(),
-                                        vk::AccessFlags::SHADER_READ,
-                                        vk::ImageLayout::UNDEFINED,
-                                        vk::ImageLayout::GENERAL,
-                                        vk::ImageAspectFlags::COLOR,
-                                        0,
-                                        vk::REMAINING_MIP_LEVELS,
-                                    ),
-                                ],
-                            );
-
-                            self.render_context.bind_compute_pipeline(
-                                self.renderer.device(),
-                                &self.compute_pipeline,
-                            );
-
-                            self.render_context.bind_descriptor_sets(
-                                self.renderer.device(),
-                                &self.compute_pipeline.common,
-                                &[self.compute_bind_group.0],
-                                true,
-                            );
-
-                            let image_size = self.depth_pyramid.image.desc.size;
-                            let width = image_size.width();
-                            let height = image_size.height();
-                            self.render_context
-                                .push_constant(
-                                    self.renderer.device(),
-                                    &self.compute_pipeline.common,
-                                    ShaderStage::Compute,
-                                    0,
-                                    util::as_u8_slice(&[width, height]),
-                                )
-                                .unwrap();
-
-                            self.compute_bind_group.write(
-                                self.renderer.device(),
-                                &[
-                                    BindGroupBindInfo {
-                                        dst_binding: 0,
-                                        data: BindGroupWriteData::StorageImage(
-                                            self.depth_pyramid.image.bind_info(
-                                                &self.sampler,
-                                                self.depth_pyramid.image_desc,
-                                                0,
-                                                vk::ImageLayout::GENERAL,
-                                            ),
-                                        ),
-                                    },
-                                    BindGroupBindInfo {
-                                        dst_binding: 1,
-                                        data: BindGroupWriteData::SampledImage(
-                                            self.renderer.depth_image().bind_info(
-                                                &self.depth_sampler,
-                                                self.depth_view_desc,
-                                                0,
-                                                vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-                                            ),
-                                        ),
-                                    },
-                                ],
-                            );
-
-                            self.render_context.dispatch(
-                                self.renderer.device(),
-                                get_group_count(
-                                    width, 32, // TODO: Get from shader
-                                ),
-                                get_group_count(
-                                    height, 32, // TODO: Get from shader
-                                ),
-                                1,
-                            );
-
-                            self.render_context.pipeline_barrier(
-                                self.renderer.device(),
-                                vk::PipelineStageFlags::COMPUTE_SHADER,
-                                vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
-                                vk::DependencyFlags::BY_REGION,
-                                &[],
-                                &[image_barrier(
-                                    self.renderer.depth_image(),
-                                    vk::AccessFlags::SHADER_READ,
-                                    vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
-                                        | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
-                                    vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
-                                    vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
-                                    vk::ImageAspectFlags::DEPTH,
-                                    0,
-                                    vk::REMAINING_MIP_LEVELS,
-                                )],
-                            );
+                            // TODO: Copy depth image to a image in a format we can blit to swapchain
                         }
 
                         // Ui/egui render pass

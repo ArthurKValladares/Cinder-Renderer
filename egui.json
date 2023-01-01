@@ -4,7 +4,7 @@
     "selected_tab": "DepthBuffer",
     "fullscreen": false
   },
-  "selected_tab": null,
+  "selected_tab": "Egui",
   "ui_data": {
     "dark_mode": false,
     "ui_scale": 2.0

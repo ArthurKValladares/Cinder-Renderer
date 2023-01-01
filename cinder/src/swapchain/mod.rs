@@ -32,7 +32,7 @@ fn create_swapchain_structures(
         .image_color_space(surface_data.surface_format.color_space)
         .image_format(surface_data.surface_format.format)
         .image_extent(surface_data.surface_resolution)
-        .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT)
+        .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_DST)
         .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
         .pre_transform(pre_transform)
         .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
