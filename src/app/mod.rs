@@ -507,7 +507,7 @@ impl App {
                         }
                         self.render_context.end_rendering(self.renderer.device());
 
-                        {
+                        if self.runtime_state.ui.depth_image_open() {
                             self.render_context.pipeline_barrier(
                                 self.renderer.device(),
                                 vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
@@ -556,8 +556,8 @@ impl App {
                             self.render_context
                                 .push_constant(
                                     self.renderer.device(),
-                                    &self.graphics_pipeline.common,
-                                    ShaderStage::Vertex,
+                                    &self.compute_pipeline.common,
+                                    ShaderStage::Compute,
                                     0,
                                     util::as_u8_slice(&[width, height]),
                                 )
