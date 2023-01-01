@@ -141,7 +141,8 @@ impl BindGroupLayout {
 pub enum BindGroupWriteData {
     Storage(BindBufferInfo),
     Uniform(BindBufferInfo),
-    Image(BindImageInfo),
+    SampledImage(BindImageInfo),
+    StorageImage(BindImageInfo),
 }
 
 #[derive(Debug)]
@@ -193,8 +194,12 @@ impl BindGroup {
                     BindGroupWriteData::Storage(buffer_info) => write
                         .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
                         .buffer_info(std::slice::from_ref(&buffer_info.0)),
-                    BindGroupWriteData::Image(info) => write
+                    BindGroupWriteData::SampledImage(info) => write
                         .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                        .dst_array_element(info.index)
+                        .image_info(std::slice::from_ref(&info.info)),
+                    BindGroupWriteData::StorageImage(info) => write
+                        .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
                         .dst_array_element(info.index)
                         .image_info(std::slice::from_ref(&info.info)),
                 };

@@ -1,4 +1,5 @@
 mod app;
+mod depth_pyramid;
 mod renderer;
 mod ui;
 

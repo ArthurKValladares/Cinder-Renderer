@@ -36,6 +36,20 @@ impl From<Layout> for vk::ImageLayout {
     }
 }
 
+pub enum Filter {
+    Linear,
+    Nearest,
+}
+
+impl From<Filter> for vk::Filter {
+    fn from(filter: Filter) -> Self {
+        match filter {
+            Filter::Linear => vk::Filter::LINEAR,
+            Filter::Nearest => vk::Filter::NEAREST,
+        }
+    }
+}
+
 #[repr(C)]
 #[derive(Clone, Copy)]
 pub struct ClearValue(vk::ClearValue);
@@ -457,5 +471,122 @@ impl RenderContext {
                 &[layout_transition_barriers],
             )
         };
+    }
+
+    pub fn blit_image(
+        &self,
+        device: &Device,
+        src_image: vk::Image,
+        src_aspect_mask: vk::ImageAspectFlags,
+        src_layout: Layout,
+        src_rect: Rect2D<i32, i32>,
+        dst_image: vk::Image,
+        dst_aspect_mask: vk::ImageAspectFlags,
+        dst_layout: Layout,
+        dst_rect: Rect2D<i32, i32>,
+        filter: Filter,
+    ) {
+        let region = vk::ImageBlit::builder()
+            .src_subresource(
+                vk::ImageSubresourceLayers::builder()
+                    .aspect_mask(src_aspect_mask)
+                    .layer_count(1)
+                    .build(),
+            )
+            .src_offsets([
+                vk::Offset3D {
+                    x: src_rect.offset().x(),
+                    y: src_rect.offset().y(),
+                    z: 0,
+                },
+                vk::Offset3D {
+                    x: src_rect.width(),
+                    y: src_rect.height(),
+                    z: 1,
+                },
+            ])
+            .dst_subresource(
+                vk::ImageSubresourceLayers::builder()
+                    .aspect_mask(dst_aspect_mask)
+                    .layer_count(1)
+                    .build(),
+            )
+            .dst_offsets([
+                vk::Offset3D {
+                    x: dst_rect.offset().x(),
+                    y: dst_rect.offset().y(),
+                    z: 0,
+                },
+                vk::Offset3D {
+                    x: dst_rect.width(),
+                    y: dst_rect.height(),
+                    z: 1,
+                },
+            ])
+            .build();
+
+        unsafe {
+            device.raw().cmd_blit_image(
+                self.shared.command_buffer,
+                src_image,
+                src_layout.into(),
+                dst_image,
+                dst_layout.into(),
+                &[region],
+                filter.into(),
+            );
+        }
+    }
+
+    // TODO: Temp
+    pub fn pipeline_barrier(
+        &self,
+        device: &Device,
+        src_stage_mask: vk::PipelineStageFlags,
+        dst_stage_mask: vk::PipelineStageFlags,
+        dependency_flags: vk::DependencyFlags,
+        buffer_barriers: &[vk::BufferMemoryBarrier],
+        image_barriers: &[vk::ImageMemoryBarrier],
+    ) {
+        unsafe {
+            device.raw().cmd_pipeline_barrier(
+                self.shared.command_buffer,
+                src_stage_mask,
+                dst_stage_mask,
+                dependency_flags,
+                &[],
+                &buffer_barriers,
+                &image_barriers,
+            )
+        }
+    }
+}
+
+pub fn image_barrier(
+    image: &Image,
+    src_access_mask: vk::AccessFlags,
+    dst_access_mask: vk::AccessFlags,
+    old_layout: vk::ImageLayout,
+    new_layout: vk::ImageLayout,
+    aspect_mask: vk::ImageAspectFlags,
+    base_mip_level: u32,
+    level_count: u32,
+) -> vk::ImageMemoryBarrier {
+    vk::ImageMemoryBarrier {
+        src_access_mask,
+        dst_access_mask,
+        old_layout,
+        new_layout,
+        src_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+        dst_queue_family_index: vk::QUEUE_FAMILY_IGNORED,
+        image: image.raw,
+        subresource_range: vk::ImageSubresourceRange {
+            aspect_mask,
+            base_mip_level,
+            level_count,
+            layer_count: vk::REMAINING_ARRAY_LAYERS,
+            ..Default::default()
+        },
+        ..Default::default()
     }
 }

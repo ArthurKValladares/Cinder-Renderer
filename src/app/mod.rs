@@ -1,14 +1,16 @@
 mod runtime;
 
-use crate::{renderer::Renderer, MeshDraw, WINDOW_HEIGHT, WINDOW_WIDTH};
+use crate::{
+    depth_pyramid::DepthPyramid, renderer::Renderer, MeshDraw, WINDOW_HEIGHT, WINDOW_WIDTH,
+};
 use anyhow::Result;
 use camera::{MOVEMENT_DELTA, ROTATION_DELTA};
 use cinder::{
     cinder::{DefaultUniformBufferObject, DefaultVertex},
     context::{
         render_context::{
-            AttachmentLoadOp, AttachmentStoreOp, Layout, RenderAttachment, RenderContext,
-            RenderContextDescription,
+            image_barrier, AttachmentLoadOp, AttachmentStoreOp, Filter, Layout, RenderAttachment,
+            RenderContext, RenderContextDescription,
         },
         upload_context::{UploadContext, UploadContextDescription},
     },
@@ -17,7 +19,10 @@ use cinder::{
         buffer::{vk, Buffer, BufferDescription, BufferUsage},
         image::{Format, ImageDescription, ImageViewDescription, Usage},
         memory::{MemoryDescription, MemoryType},
-        pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
+        pipeline::{
+            compute::{get_group_count, ComputePipeline, ComputePipelineDescription},
+            graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
+        },
         sampler::Sampler,
         shader::{ShaderDescription, ShaderStage},
     },
@@ -25,7 +30,7 @@ use cinder::{
 };
 use egui_integration::egui;
 use input::keyboard::{ElementState, VirtualKeyCode};
-use math::size::Size2D;
+use math::{rect::Rect2D, size::Size2D};
 use scene::{ImageBuffer, ObjScene};
 use std::{path::PathBuf, time::Instant};
 use util::size_of_slice;
@@ -51,9 +56,12 @@ pub struct App {
     pub sampler: Sampler,
     pub depth_view_desc: ImageViewDescription,
     pub depth_sampler: Sampler,
-    pub graphics_pipeline: GraphicsPipeline,
     pub bind_group_pool: BindGroupPool,
+    pub graphics_pipeline: GraphicsPipeline,
     pub graphics_bind_group: BindGroup,
+    pub compute_pipeline: ComputePipeline,
+    pub compute_bind_group: BindGroup,
+    pub depth_pyramid: DepthPyramid,
     pub runtime_state: RuntimeState,
 }
 
@@ -167,13 +175,18 @@ impl App {
                 upload_context.copy_buffer_to_image(renderer.device(), &image_buffer, &texture);
                 upload_context.image_barrier_end(renderer.device(), &texture);
 
-                let info = texture.bind_info(&sampler, image_view_desc, idx as u32);
+                let info = texture.bind_info(
+                    &sampler,
+                    image_view_desc,
+                    idx as u32,
+                    vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                );
 
                 (
                     texture,
                     BindGroupBindInfo {
                         dst_binding: 2,
-                        data: BindGroupWriteData::Image(info),
+                        data: BindGroupWriteData::SampledImage(info),
                     },
                 )
             })
@@ -193,6 +206,8 @@ impl App {
         let vertex_buffer_info = vertex_buffer.bind_info();
         let uniform_buffer_info = uniform_buffer.bind_info();
 
+        let bind_group_pool = BindGroupPool::new(renderer.device()).unwrap();
+
         let graphics_pipeline = renderer
             .device()
             .create_graphics_pipeline(
@@ -211,8 +226,6 @@ impl App {
                 Some(renderer.pipeline_cache()),
             )
             .expect("Could not create graphics pipeline");
-
-        let bind_group_pool = BindGroupPool::new(renderer.device()).unwrap();
         let graphics_bind_group = BindGroup::new(
             renderer.device(),
             &bind_group_pool,
@@ -236,12 +249,34 @@ impl App {
         );
         graphics_bind_group.write(renderer.device(), &image_bind_infos);
 
+        let compute_pipeline = renderer
+            .device()
+            .create_compute_pipeline(
+                ComputePipelineDescription {
+                    shader: renderer.device().create_shader(ShaderDescription {
+                        bytes: include_bytes!("../../shaders/spv/depth_reduce.comp.spv"),
+                    })?,
+                },
+                Some(renderer.pipeline_cache()),
+            )
+            .expect("Could not create compute pipeline");
+        let compute_bind_group = BindGroup::new(
+            renderer.device(),
+            &bind_group_pool,
+            &compute_pipeline.common.bind_group_layouts()[0],
+            false,
+        )
+        .unwrap();
+
         let runtime_state = RuntimeState::new(event_loop, &mut renderer);
 
         let depth_view_desc = ImageViewDescription {
             format: Format::D32_SFloat,
             usage: Usage::Depth,
         };
+
+        let depth_pyramid =
+            DepthPyramid::create(renderer.device(), renderer.depth_image.desc.size)?;
 
         Ok(App {
             renderer,
@@ -257,9 +292,12 @@ impl App {
             sampler,
             depth_view_desc,
             depth_sampler,
-            graphics_pipeline,
             bind_group_pool,
+            graphics_pipeline,
             graphics_bind_group,
+            compute_pipeline,
+            compute_bind_group,
+            depth_pyramid,
             runtime_state,
         })
     }
@@ -313,6 +351,9 @@ impl App {
                             self.renderer
                                 .resize(Size2D::new(size.width, size.height))
                                 .expect("Could not resize device");
+                            self.depth_pyramid
+                                .resize(self.renderer.device(), self.renderer.depth_image.desc.size)
+                                .expect("Could not resize depth image");
                             self.runtime_state
                                 .resize(&self.renderer)
                                 .expect("could not resize RuntimeState");
@@ -465,6 +506,121 @@ impl App {
                             }
                         }
                         self.render_context.end_rendering(self.renderer.device());
+
+                        {
+                            self.render_context.pipeline_barrier(
+                                self.renderer.device(),
+                                vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
+                                vk::PipelineStageFlags::COMPUTE_SHADER,
+                                vk::DependencyFlags::BY_REGION,
+                                &[],
+                                &[
+                                    image_barrier(
+                                        self.renderer.depth_image(),
+                                        vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+                                        vk::AccessFlags::SHADER_READ,
+                                        vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                        vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                                        vk::ImageAspectFlags::DEPTH,
+                                        0,
+                                        vk::REMAINING_MIP_LEVELS,
+                                    ),
+                                    image_barrier(
+                                        &self.depth_pyramid.image,
+                                        vk::AccessFlags::empty(),
+                                        vk::AccessFlags::SHADER_READ,
+                                        vk::ImageLayout::UNDEFINED,
+                                        vk::ImageLayout::GENERAL,
+                                        vk::ImageAspectFlags::COLOR,
+                                        0,
+                                        vk::REMAINING_MIP_LEVELS,
+                                    ),
+                                ],
+                            );
+
+                            self.render_context.bind_compute_pipeline(
+                                self.renderer.device(),
+                                &self.compute_pipeline,
+                            );
+
+                            self.render_context.bind_descriptor_sets(
+                                self.renderer.device(),
+                                &self.compute_pipeline.common,
+                                &[self.compute_bind_group.0],
+                                true,
+                            );
+
+                            let image_size = self.depth_pyramid.image.desc.size;
+                            let width = image_size.width();
+                            let height = image_size.height();
+                            self.render_context
+                                .push_constant(
+                                    self.renderer.device(),
+                                    &self.graphics_pipeline.common,
+                                    ShaderStage::Vertex,
+                                    0,
+                                    util::as_u8_slice(&[width, height]),
+                                )
+                                .unwrap();
+
+                            self.compute_bind_group.write(
+                                self.renderer.device(),
+                                &[
+                                    BindGroupBindInfo {
+                                        dst_binding: 0,
+                                        data: BindGroupWriteData::StorageImage(
+                                            self.depth_pyramid.image.bind_info(
+                                                &self.sampler,
+                                                self.depth_pyramid.image_desc,
+                                                0,
+                                                vk::ImageLayout::GENERAL,
+                                            ),
+                                        ),
+                                    },
+                                    BindGroupBindInfo {
+                                        dst_binding: 1,
+                                        data: BindGroupWriteData::SampledImage(
+                                            self.renderer.depth_image().bind_info(
+                                                &self.depth_sampler,
+                                                self.depth_view_desc,
+                                                0,
+                                                vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                                            ),
+                                        ),
+                                    },
+                                ],
+                            );
+
+                            self.render_context.dispatch(
+                                self.renderer.device(),
+                                get_group_count(
+                                    width, 32, // TODO: Get from shader
+                                ),
+                                get_group_count(
+                                    height, 32, // TODO: Get from shader
+                                ),
+                                1,
+                            );
+
+                            self.render_context.pipeline_barrier(
+                                self.renderer.device(),
+                                vk::PipelineStageFlags::COMPUTE_SHADER,
+                                vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+                                vk::DependencyFlags::BY_REGION,
+                                &[],
+                                &[image_barrier(
+                                    self.renderer.depth_image(),
+                                    vk::AccessFlags::SHADER_READ,
+                                    vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ
+                                        | vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_WRITE,
+                                    vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                                    vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+                                    vk::ImageAspectFlags::DEPTH,
+                                    0,
+                                    vk::REMAINING_MIP_LEVELS,
+                                )],
+                            );
+                        }
 
                         // Ui/egui render pass
                         self.runtime_state

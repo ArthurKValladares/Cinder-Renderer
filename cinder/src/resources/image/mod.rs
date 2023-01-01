@@ -89,7 +89,9 @@ pub enum Usage {
 impl From<Usage> for vk::ImageUsageFlags {
     fn from(usage: Usage) -> Self {
         match usage {
-            Usage::Depth => vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+            Usage::Depth => {
+                vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT | vk::ImageUsageFlags::SAMPLED
+            }
             Usage::Texture => vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED,
             Usage::StorageTexture => {
                 vk::ImageUsageFlags::STORAGE
@@ -233,11 +235,12 @@ impl Image {
         &self,
         sampler: &Sampler,
         image_view_desc: ImageViewDescription,
-        index: u32, // TODO: This only makes sense for bindless
+        index: u32,              // TODO: This only makes sense for bindless
+        layout: vk::ImageLayout, // TODO: Get from shader
     ) -> BindImageInfo {
         BindImageInfo {
             info: vk::DescriptorImageInfo {
-                image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+                image_layout: layout,
                 image_view: *self.views.get(&image_view_desc).unwrap(),
                 sampler: sampler.raw,
             },

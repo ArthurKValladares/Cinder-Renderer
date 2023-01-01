@@ -454,10 +454,11 @@ impl EguiIntegration {
             device,
             &[BindGroupBindInfo {
                 dst_binding: 0,
-                data: BindGroupWriteData::Image(image.bind_info(
+                data: BindGroupWriteData::SampledImage(image.bind_info(
                     &self.sampler,
                     image_view_desc,
                     index as u32,
+                    cinder::resources::buffer::vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL, // TODO: cleanup
                 )),
             }],
         );

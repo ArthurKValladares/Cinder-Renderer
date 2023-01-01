@@ -5,7 +5,7 @@ use ash::vk;
 pub struct Swapchain {
     pub swapchain_loader: ash::extensions::khr::Swapchain,
     pub swapchain: vk::SwapchainKHR,
-    // TODO: Should these be `Image`s
+    // TODO: Should these be `Image`s (yes)
     pub present_images: Vec<vk::Image>,
     pub present_image_views: Vec<vk::ImageView>,
 }
@@ -119,5 +119,9 @@ impl Swapchain {
                 device.destroy_image_view(image_view, None);
             }
         }
+    }
+
+    pub fn get_image(&self, index: usize) -> vk::Image {
+        self.present_images[index]
     }
 }
