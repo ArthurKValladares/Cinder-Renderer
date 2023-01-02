@@ -4,7 +4,6 @@ use cinder::{
         AttachmentLoadOp, AttachmentStoreOp, Layout, RenderAttachment, RenderContext,
     },
     device::{Device, SurfaceData},
-    resources::buffer::vk,
     view::View,
     Resolution,
 };
@@ -34,7 +33,6 @@ impl Renderer {
         let device = Device::new(window)?;
         let render_context = RenderContext::new(&device)?;
 
-        // TODO: Swapchain will be a part of `View`
         let surface_data = device.surface().get_data(
             device.p_device(),
             Resolution {
@@ -54,7 +52,6 @@ impl Renderer {
     }
 
     pub fn draw(&self) -> Result<bool> {
-        // TODO: This will be abstracted in `View`, with a `get_current_drawable` kinda thing
         let drawable = self.view.get_current_drawable(&self.device)?;
 
         self.render_context.begin(&self.device)?;
