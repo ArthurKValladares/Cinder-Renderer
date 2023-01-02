@@ -90,7 +90,9 @@ pub enum Usage {
 impl From<Usage> for vk::ImageUsageFlags {
     fn from(usage: Usage) -> Self {
         match usage {
-            Usage::Depth => vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+            Usage::Depth => {
+                vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_SRC
+            }
             Usage::Texture => vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED,
             Usage::StorageTexture => vk::ImageUsageFlags::STORAGE,
         }

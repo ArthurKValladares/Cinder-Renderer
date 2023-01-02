@@ -7,8 +7,8 @@ use cinder::{
     cinder::{DefaultUniformBufferObject, DefaultVertex},
     context::{
         render_context::{
-            AttachmentLoadOp, AttachmentStoreOp, Layout, RenderAttachment, RenderContext,
-            RenderContextDescription,
+            image_barrier, AttachmentLoadOp, AttachmentStoreOp, Layout, RenderAttachment,
+            RenderContext, RenderContextDescription,
         },
         upload_context::{UploadContext, UploadContextDescription},
     },
@@ -25,7 +25,7 @@ use cinder::{
 };
 use egui_integration::egui;
 use input::keyboard::{ElementState, VirtualKeyCode};
-use math::size::Size2D;
+use math::{rect::Rect2D, size::Size2D};
 use scene::{ImageBuffer, ObjScene};
 use std::{path::PathBuf, time::Instant};
 use util::size_of_slice;

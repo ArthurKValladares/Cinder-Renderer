@@ -65,8 +65,6 @@ impl CinderUi {
         context: &egui::Context,
         render_target_size: Size2D<u32>,
     ) {
-        // TODO: I had the right idea before.
-        // Use a compute shader to draw directly to the swapchain image, using the rect above, then just dispatch it
         if !self.fullscreen {
             egui::Window::new("Depth Buffer")
                 .open(&mut self.open)
@@ -79,7 +77,6 @@ impl CinderUi {
                         ui.allocate_exact_size(image_size, egui::Sense::drag());
                 });
         } else {
-            // TODO: temp, egui won't be involved at all later, will just directly draw to swapchain image
             egui::Window::new("test")
                 .open(&mut self.open)
                 .show(context, |_ui| {});
