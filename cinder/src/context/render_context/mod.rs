@@ -8,8 +8,8 @@ use crate::{
         pipeline::{compute::ComputePipeline, graphics::GraphicsPipeline, PipelineCommon},
         shader::ShaderStage,
     },
-    swapchain::Swapchain,
     util::rect_to_vk,
+    view::{Drawable, View},
 };
 use anyhow::Result;
 use ash::vk;
@@ -104,10 +104,10 @@ impl From<AttachmentStoreOp> for vk::AttachmentStoreOp {
 pub struct RenderAttachment(vk::RenderingAttachmentInfo);
 
 impl RenderAttachment {
-    pub fn color(swapchain: &Swapchain, present_index: u32) -> Self {
+    pub fn color(drawable: Drawable) -> Self {
         RenderAttachment(
             vk::RenderingAttachmentInfo::builder()
-                .image_view(swapchain.present_image_views[present_index as usize])
+                .image_view(drawable.image_view)
                 .build(),
         )
     }
@@ -171,29 +171,20 @@ impl RenderContext {
         })
     }
 
-    pub fn begin(&self, device: &Device, fence: ash::vk::Fence) -> Result<()> {
-        self.shared.begin(
-            device.raw(),
-            fence, /*cinder.draw_commands_reuse_fence*/
-        )
+    pub fn begin(&self, device: &Device) -> Result<()> {
+        self.shared
+            .begin(device.raw(), device.draw_commands_reuse_fence)
     }
 
-    pub fn end(
-        &self,
-        device: &Device,
-        command_buffer_reuse_fence: vk::Fence,
-        submit_queue: vk::Queue,
-        wait_mask: &[vk::PipelineStageFlags],
-        wait_semaphores: &[vk::Semaphore],
-        signal_semaphores: &[vk::Semaphore],
-    ) -> Result<()> {
+    pub fn end(&self, device: &Device) -> Result<()> {
+        // TODO: This stuff will be much better later with a RenderGraph impl
         self.shared.end(
             device.raw(),
-            command_buffer_reuse_fence,
-            submit_queue,
-            wait_mask,
-            wait_semaphores,
-            signal_semaphores,
+            device.draw_commands_reuse_fence,
+            device.present_queue(),
+            &[vk::PipelineStageFlags::BOTTOM_OF_PIPE],
+            &[device.present_complete_semaphore],
+            &[device.rendering_complete_semaphore],
         )
     }
 
@@ -420,14 +411,9 @@ impl RenderContext {
     }
 
     // TODO: helpers
-    pub fn transition_undefined_to_color(
-        &self,
-        device: &Device,
-        swapchain: &Swapchain,
-        present_index: u32,
-    ) {
+    pub fn transition_undefined_to_color(&self, device: &Device, drawable: Drawable) {
         let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
-            .image(swapchain.present_images[present_index as usize])
+            .image(drawable.image)
             .dst_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
             .old_layout(vk::ImageLayout::UNDEFINED)
             .new_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
@@ -453,14 +439,9 @@ impl RenderContext {
         };
     }
 
-    pub fn transition_color_to_present(
-        &self,
-        device: &Device,
-        swapchain: &Swapchain,
-        present_index: u32,
-    ) {
+    pub fn transition_color_to_present(&self, device: &Device, drawable: Drawable) {
         let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
-            .image(swapchain.present_images[present_index as usize])
+            .image(drawable.image)
             .src_access_mask(vk::AccessFlags::COLOR_ATTACHMENT_WRITE)
             .old_layout(vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL)
             .new_layout(vk::ImageLayout::PRESENT_SRC_KHR)

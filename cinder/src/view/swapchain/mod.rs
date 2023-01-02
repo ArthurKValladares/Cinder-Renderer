@@ -124,4 +124,8 @@ impl Swapchain {
     pub fn get_image(&self, index: usize) -> vk::Image {
         self.present_images[index]
     }
+
+    pub fn get_image_view(&self, index: usize) -> vk::ImageView {
+        self.present_image_views[index]
+    }
 }

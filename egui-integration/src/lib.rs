@@ -20,8 +20,8 @@ use cinder::{
         sampler::Sampler,
         shader::{ShaderDescription, ShaderStage},
     },
-    swapchain::Swapchain,
     util::MemoryMappablePointer,
+    view::{Drawable, View},
 };
 use core::panic;
 pub use egui;
@@ -62,7 +62,7 @@ impl EguiIntegration {
     pub fn new<T>(
         event_loop: &EventLoopWindowTarget<T>,
         device: &Device,
-        swapchain: &Swapchain,
+        view: &View,
         pipeline_cache: PipelineCache,
         surface_format: Format,
         visuals: egui::Visuals,
@@ -101,7 +101,7 @@ impl EguiIntegration {
         let sampler = device.create_sampler()?;
 
         let (vertex_buffers, index_buffers) = {
-            let len = swapchain.present_image_views.len();
+            let len = view.drawables_len();
             let mut vertex_buffers = Vec::with_capacity(len);
             let mut index_buffers = Vec::with_capacity(len);
             for _ in 0..len {
@@ -154,7 +154,7 @@ impl EguiIntegration {
     pub fn run(
         &mut self,
         device: &Device,
-        swapchain: &Swapchain,
+        drawable: Drawable,
         upload_context: &UploadContext,
         upload_fence: Fence,
         render_context: &RenderContext,
@@ -186,7 +186,7 @@ impl EguiIntegration {
 
         self.paint(
             device,
-            swapchain,
+            drawable,
             render_context,
             render_area,
             window,
@@ -203,7 +203,7 @@ impl EguiIntegration {
     fn paint(
         &mut self,
         device: &Device,
-        swapchain: &Swapchain,
+        drawable: Drawable,
         render_context: &RenderContext,
         render_area: Rect2D<i32, u32>,
         window: &Window,
@@ -225,7 +225,7 @@ impl EguiIntegration {
         render_context.begin_rendering(
             &device,
             render_area,
-            &[RenderAttachment::color(swapchain, present_index)
+            &[RenderAttachment::color(drawable)
                 .load_op(AttachmentLoadOp::Load)
                 .store_op(AttachmentStoreOp::Store)
                 .layout(Layout::ColorAttachment)],

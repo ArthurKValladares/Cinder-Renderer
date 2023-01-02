@@ -5,8 +5,8 @@ pub mod context;
 pub mod device;
 pub mod profiling;
 pub mod resources;
-pub mod swapchain;
 pub mod util;
+pub mod view;
 
 #[derive(Debug, Clone, Copy)]
 pub struct Resolution {

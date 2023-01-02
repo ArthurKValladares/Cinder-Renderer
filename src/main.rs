@@ -5,7 +5,7 @@ use cinder::{
     },
     device::{Device, SurfaceData},
     resources::buffer::vk,
-    swapchain::Swapchain,
+    view::View,
     Resolution,
 };
 use input::keyboard::VirtualKeyCode;
@@ -22,16 +22,11 @@ pub const WINDOW_HEIGHT: u32 = 2000;
 
 pub struct Renderer {
     device: Device,
-    swapchain: Swapchain,
+    view: View,
     render_context: RenderContext,
 
     // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
     surface_data: SurfaceData,
-
-    // TODO: Probably will have better syncronization in the future
-    present_complete_semaphore: vk::Semaphore,
-    rendering_complete_semaphore: vk::Semaphore,
-    draw_commands_reuse_fence: vk::Fence,
 }
 
 impl Renderer {
@@ -48,61 +43,35 @@ impl Renderer {
             },
             false,
         )?;
-        let swapchain = Swapchain::new(&device, &surface_data)?;
-
-        // TODO: Abstract raw sync away from user
-        let semaphore_create_info = vk::SemaphoreCreateInfo::default();
-        let present_complete_semaphore =
-            unsafe { device.raw().create_semaphore(&semaphore_create_info, None) }?;
-        let rendering_complete_semaphore =
-            unsafe { device.raw().create_semaphore(&semaphore_create_info, None) }?;
-
-        let fence_create_info =
-            vk::FenceCreateInfo::builder().flags(vk::FenceCreateFlags::SIGNALED);
-        let draw_commands_reuse_fence =
-            unsafe { device.raw().create_fence(&fence_create_info, None) }?;
+        let view = View::new(&device, &surface_data)?;
 
         Ok(Self {
             device,
-            swapchain,
+            view,
             render_context,
             surface_data,
-            present_complete_semaphore,
-            rendering_complete_semaphore,
-            draw_commands_reuse_fence,
         })
     }
 
     pub fn draw(&self) -> Result<bool> {
         // TODO: This will be abstracted in `View`, with a `get_current_drawable` kinda thing
-        let (present_index, _is_suboptimal) = unsafe {
-            self.swapchain.swapchain_loader.acquire_next_image(
-                self.swapchain.swapchain,
-                std::u64::MAX,
-                self.present_complete_semaphore,
-                vk::Fence::null(),
-            )
-        }?;
+        let drawable = self.view.get_current_drawable(&self.device)?;
 
-        self.render_context
-            .begin(&self.device, self.draw_commands_reuse_fence)?;
+        self.render_context.begin(&self.device)?;
         {
             let surface_rect = Rect2D::from_width_height(
                 self.surface_data.surface_resolution.width,
                 self.surface_data.surface_resolution.height,
             );
 
-            self.render_context.transition_undefined_to_color(
-                &self.device,
-                &self.swapchain,
-                present_index,
-            );
+            self.render_context
+                .transition_undefined_to_color(&self.device, drawable);
 
             // TODO: Pretty bad, make better
             self.render_context.begin_rendering(
                 &self.device,
                 surface_rect,
-                &[RenderAttachment::color(&self.swapchain, present_index)
+                &[RenderAttachment::color(drawable)
                     .load_op(AttachmentLoadOp::Clear)
                     .store_op(AttachmentStoreOp::Store)
                     .layout(Layout::ColorAttachment)],
@@ -115,31 +84,12 @@ impl Renderer {
             }
             self.render_context.end_rendering(&self.device);
 
-            self.render_context.transition_color_to_present(
-                &self.device,
-                &self.swapchain,
-                present_index,
-            );
+            self.render_context
+                .transition_color_to_present(&self.device, drawable);
         }
-        self.render_context.end(
-            &self.device,
-            self.draw_commands_reuse_fence,
-            self.device.present_queue(), // TODO: Don't need to pass this as param
-            &[vk::PipelineStageFlags::BOTTOM_OF_PIPE], // TODO: Abstract later
-            &[self.present_complete_semaphore],
-            &[self.rendering_complete_semaphore],
-        )?;
+        self.render_context.end(&self.device)?;
 
-        let is_suboptimal = unsafe {
-            self.swapchain.swapchain_loader.queue_present(
-                self.device.present_queue(),
-                &vk::PresentInfoKHR::builder()
-                    .wait_semaphores(std::slice::from_ref(&self.rendering_complete_semaphore))
-                    .swapchains(std::slice::from_ref(&self.swapchain.swapchain))
-                    .image_indices(std::slice::from_ref(&present_index))
-                    .build(),
-            )
-        }?;
+        let is_suboptimal = self.view.present(&self.device, drawable)?;
         Ok(is_suboptimal)
     }
 }

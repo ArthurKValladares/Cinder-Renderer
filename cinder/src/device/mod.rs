@@ -41,6 +41,11 @@ pub struct Device {
     queue_family_index: u32,
     present_queue: vk::Queue,
     command_pool: vk::CommandPool,
+    // TODO: Probably will have better syncronization in the future, not pub
+    pub(crate) present_complete_semaphore: vk::Semaphore,
+    pub(crate) rendering_complete_semaphore: vk::Semaphore,
+    pub(crate) draw_commands_reuse_fence: vk::Fence,
+    pub(crate) setup_commands_reuse_fence: vk::Fence,
 }
 
 impl Device {
@@ -155,6 +160,18 @@ impl Device {
             )
         }?;
 
+        // TODO: Figure out sync story
+        let semaphore_create_info = vk::SemaphoreCreateInfo::default();
+        let present_complete_semaphore =
+            unsafe { device.create_semaphore(&semaphore_create_info, None) }?;
+        let rendering_complete_semaphore =
+            unsafe { device.create_semaphore(&semaphore_create_info, None) }?;
+
+        let fence_create_info =
+            vk::FenceCreateInfo::builder().flags(vk::FenceCreateFlags::SIGNALED);
+        let draw_commands_reuse_fence = unsafe { device.create_fence(&fence_create_info, None) }?;
+        let setup_commands_reuse_fence = unsafe { device.create_fence(&fence_create_info, None) }?;
+
         Ok(Self {
             instance,
             surface,
@@ -165,6 +182,10 @@ impl Device {
             queue_family_index,
             present_queue,
             command_pool,
+            present_complete_semaphore,
+            rendering_complete_semaphore,
+            draw_commands_reuse_fence,
+            setup_commands_reuse_fence,
         })
     }
 
@@ -288,5 +309,9 @@ impl Device {
 
     pub fn create_image(&self, desc: ImageDescription) -> Result<Image> {
         Image::create(self, self.memopry_properties(), desc)
+    }
+
+    pub fn present_complete_semaphore(&self) -> vk::Semaphore {
+        self.present_complete_semaphore
     }
 }
