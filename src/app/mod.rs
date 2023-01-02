@@ -241,30 +241,6 @@ impl App {
         );
         graphics_bind_group.write(renderer.device(), &image_bind_infos);
 
-        /*
-        //COMPUTE SHADER REFLECTION TEST
-        use compute::{get_group_count, ComputePipeline, ComputePipelineDescription};
-
-        let compute_pipeline = renderer
-            .device()
-            .create_compute_pipeline(
-                ComputePipelineDescription {
-                    shader: renderer.device().create_shader(ShaderDescription {
-                        bytes: include_bytes!("../../shaders/spv/depth_reduce.comp.spv"),
-                    })?,
-                },
-                Some(renderer.pipeline_cache()),
-            )
-            .expect("Could not create compute pipeline");
-        let compute_bind_group = BindGroup::new(
-            renderer.device(),
-            &bind_group_pool,
-            &compute_pipeline.common.bind_group_layouts()[0],
-            false,
-        )
-        .unwrap();
-        */
-
         let runtime_state = RuntimeState::new(event_loop, &mut renderer);
 
         let depth_view_desc = ImageViewDescription {

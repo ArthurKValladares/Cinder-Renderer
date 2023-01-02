@@ -7,7 +7,8 @@ use super::{
 use anyhow::Result;
 use ash::vk;
 use rust_shader_tools::{
-    is_runtime_array, ReflectDescriptorType, ReflectShaderStageFlags, ShaderData,
+    is_runtime_array, ReflectDescriptorType, ReflectEntryPointLocalSize, ReflectShaderStageFlags,
+    ShaderData,
 };
 use std::{collections::BTreeMap, io::Cursor};
 use thiserror::Error;
@@ -52,7 +53,7 @@ pub struct ShaderDescription {
 
 pub struct Shader {
     pub(crate) module: vk::ShaderModule,
-    pub(crate) reflect_data: ShaderData,
+    pub reflect_data: ShaderData,
 }
 
 impl Shader {
@@ -143,5 +144,9 @@ impl Shader {
                 (set.set, data)
             })
             .collect::<BTreeMap<_, _>>())
+    }
+
+    pub fn local_size(&self) -> ReflectEntryPointLocalSize {
+        self.reflect_data.module().enumerate_entry_points().unwrap()[0].local_size
     }
 }
