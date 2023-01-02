@@ -1,30 +1,178 @@
-mod app;
-mod renderer;
-mod ui;
-
-use app::App;
+use anyhow::Result;
 use cinder::{
-    cinder::DefaultVertex,
-    resources::{
-        buffer::BufferUsage,
-        memory::{MemoryDescription, MemoryType},
+    context::render_context::{
+        AttachmentLoadOp, AttachmentStoreOp, Layout, RenderAttachment, RenderContext,
     },
+    device::{Device, SurfaceData},
+    resources::{
+        bind_group::{BindGroup, BindGroupPool},
+        buffer::vk,
+        image::Format,
+        pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
+        shader::ShaderDescription,
+    },
+    swapchain::Swapchain,
+    Resolution,
 };
-use ember::GpuStagingBuffer;
-use util::*;
-use winit::{dpi::PhysicalSize, event_loop::EventLoop, window::WindowBuilder};
+use input::keyboard::VirtualKeyCode;
+use math::rect::Rect2D;
+use winit::{
+    dpi::PhysicalSize,
+    event::{Event, WindowEvent},
+    event_loop::{ControlFlow, EventLoop},
+    window::WindowBuilder,
+};
 
-pub const WINDOW_HEIGHT: u32 = 2000;
 pub const WINDOW_WIDTH: u32 = 2000;
+pub const WINDOW_HEIGHT: u32 = 2000;
 
-pub struct MeshDraw {
-    index_buffer_offset: u32,
-    num_indices: usize,
-    vertex_buffer_offset: i32,
-    image_index: usize,
+pub struct Renderer {
+    device: Device,
+    swapchain: Swapchain,
+    _command_pool: vk::CommandPool,
+    render_context: RenderContext,
+
+    // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
+    surface_data: SurfaceData,
+
+    // TODO: Probably will have better syncronization in the future
+    present_complete_semaphore: vk::Semaphore,
+    rendering_complete_semaphore: vk::Semaphore,
+    draw_commands_reuse_fence: vk::Fence,
 }
 
-// TODO: verify that all triple buffering stuff is working
+impl Renderer {
+    pub fn new(window: &winit::window::Window) -> Result<Self> {
+        let device = Device::new(window)?;
+
+        // TODO: Swapchain will be a part of `View`
+        let surface_data = device.surface().get_data(
+            device.p_device(),
+            Resolution {
+                width: WINDOW_WIDTH,
+                height: WINDOW_HEIGHT,
+            },
+            false,
+        )?;
+        let swapchain = Swapchain::new(&device, &surface_data)?;
+
+        // TODO: Should be a part of `Device`
+        let command_pool = unsafe {
+            device.raw().create_command_pool(
+                &vk::CommandPoolCreateInfo::builder()
+                    .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
+                    .queue_family_index(device.queue_family_index()),
+                None,
+            )
+        }?;
+
+        // TODO: This should be much easier
+        let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
+            .command_buffer_count(1)
+            .command_pool(command_pool)
+            .level(vk::CommandBufferLevel::PRIMARY);
+        let render_context = RenderContext::from_command_buffer(
+            unsafe {
+                device
+                    .raw()
+                    .allocate_command_buffers(&command_buffer_allocate_info)?
+            }[0],
+        );
+
+        // TODO: Abstract raw sync away from user
+        let semaphore_create_info = vk::SemaphoreCreateInfo::default();
+        let present_complete_semaphore =
+            unsafe { device.raw().create_semaphore(&semaphore_create_info, None) }?;
+        let rendering_complete_semaphore =
+            unsafe { device.raw().create_semaphore(&semaphore_create_info, None) }?;
+
+        let fence_create_info =
+            vk::FenceCreateInfo::builder().flags(vk::FenceCreateFlags::SIGNALED);
+        let draw_commands_reuse_fence =
+            unsafe { device.raw().create_fence(&fence_create_info, None) }?;
+
+        Ok(Self {
+            device,
+            swapchain,
+            _command_pool: command_pool,
+            render_context,
+            surface_data,
+            present_complete_semaphore,
+            rendering_complete_semaphore,
+            draw_commands_reuse_fence,
+        })
+    }
+
+    pub fn draw(&self) -> Result<bool> {
+        // TODO: This will be abstracted in `View`, with a `get_current_drawable` kinda thing
+        let (present_index, _is_suboptimal) = unsafe {
+            self.swapchain.swapchain_loader.acquire_next_image(
+                self.swapchain.swapchain,
+                std::u64::MAX,
+                self.present_complete_semaphore,
+                vk::Fence::null(),
+            )
+        }?;
+
+        self.render_context
+            .begin(&self.device, self.draw_commands_reuse_fence)?;
+        {
+            let surface_rect = Rect2D::from_width_height(
+                self.surface_data.surface_resolution.width,
+                self.surface_data.surface_resolution.height,
+            );
+
+            self.render_context.transition_undefined_to_color(
+                &self.device,
+                &self.swapchain,
+                present_index,
+            );
+
+            // TODO: Pretty bad, make better
+            self.render_context.begin_rendering(
+                &self.device,
+                surface_rect,
+                &[RenderAttachment::color(&self.swapchain, present_index)
+                    .load_op(AttachmentLoadOp::Clear)
+                    .store_op(AttachmentStoreOp::Store)
+                    .layout(Layout::ColorAttachment)],
+                None,
+            );
+            {
+                self.render_context
+                    .bind_viewport(&self.device, surface_rect, true);
+                self.render_context.bind_scissor(&self.device, surface_rect);
+            }
+            self.render_context.end_rendering(&self.device);
+
+            self.render_context.transition_color_to_present(
+                &self.device,
+                &self.swapchain,
+                present_index,
+            );
+        }
+        self.render_context.end(
+            &self.device,
+            self.draw_commands_reuse_fence,
+            self.device.present_queue(), // TODO: Don't need to pass this as param
+            &[vk::PipelineStageFlags::BOTTOM_OF_PIPE], // TODO: Abstract later
+            &[self.present_complete_semaphore],
+            &[self.rendering_complete_semaphore],
+        )?;
+
+        let is_suboptimal = unsafe {
+            self.swapchain.swapchain_loader.queue_present(
+                self.device.present_queue(),
+                &vk::PresentInfoKHR::builder()
+                    .wait_semaphores(std::slice::from_ref(&self.rendering_complete_semaphore))
+                    .swapchains(std::slice::from_ref(&self.swapchain.swapchain))
+                    .image_indices(std::slice::from_ref(&present_index))
+                    .build(),
+            )
+        }?;
+        Ok(is_suboptimal)
+    }
+}
 
 fn main() {
     let event_loop = EventLoop::new();
@@ -37,78 +185,35 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    let app = App::new(&event_loop, &window).unwrap();
+    let renderer = Renderer::new(&window).unwrap();
 
-    // TODO: Revisit this staging buffer idea, it could be good with some tweaks
-    let mut staging_buffer = GpuStagingBuffer::new(
-        app.renderer.device(),
-        BufferUsage::empty().transfer_src(),
-        MemoryDescription {
-            ty: MemoryType::CpuVisible,
-        },
-    )
-    .expect("Could not create GPU staging buffer");
+    event_loop.run(move |event, _, control_flow| {
+        *control_flow = ControlFlow::Poll;
 
-    let mut vertex_buffer_offset = 0;
-    let mut index_buffer_offset = 0;
-    app.upload_context
-        .begin(app.renderer.device(), app.renderer.setup_fence())
-        .expect("Could not begin upload context");
-    let mesh_draws = app
-        .scene
-        .meshes
-        .iter()
-        .map(|mesh| {
-            let buffer_region = staging_buffer
-                .copy_data(&mesh.indices)
-                .expect("could not write to staging buffer");
-            let index_buffer_size = size_of_slice(&mesh.indices);
-            app.upload_context.copy_buffer(
-                app.renderer.device(),
-                staging_buffer.buffer(),
-                &app.index_buffer,
-                buffer_region.offset,
-                (index_buffer_offset * std::mem::size_of::<u32>()) as u64,
-                index_buffer_size,
-            );
+        match event {
+            Event::WindowEvent {
+                event: window_event,
+                ..
+            } => match window_event {
+                WindowEvent::KeyboardInput { input, .. } => {
+                    if let Some(virtual_keycode) = input.virtual_keycode {
+                        match virtual_keycode {
+                            VirtualKeyCode::Escape => {
+                                *control_flow = ControlFlow::Exit;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                _ => {}
+            },
+            Event::RedrawRequested(_) => {
+                renderer.draw().unwrap();
+            }
+            _ => {}
+        }
 
-            let buffer_region = staging_buffer
-                .copy_data(&mesh.vertices)
-                .expect("could not write to staging buffer");
-            let vertex_buffer_size = size_of_slice(&mesh.vertices);
-            app.upload_context.copy_buffer(
-                app.renderer.device(),
-                staging_buffer.buffer(),
-                &app.vertex_buffer,
-                buffer_region.offset,
-                (vertex_buffer_offset * std::mem::size_of::<DefaultVertex>()) as u64,
-                vertex_buffer_size,
-            );
-
-            let num_indices = mesh.indices.len();
-            let image_index = mesh.material_index.unwrap_or(0); //TODO: Actually handle this the right way, or use a white texture
-
-            let ret = MeshDraw {
-                index_buffer_offset: index_buffer_offset as u32,
-                num_indices,
-                vertex_buffer_offset: vertex_buffer_offset as i32,
-                image_index,
-            };
-            index_buffer_offset += mesh.indices.len();
-            vertex_buffer_offset += mesh.vertices.len();
-            ret
-        })
-        .collect::<Vec<_>>();
-    app.upload_context
-        .end(
-            app.renderer.device(),
-            app.renderer.setup_fence(),
-            app.renderer.present_queue(),
-            &[],
-            &[],
-            &[],
-        )
-        .expect("could not end command context");
-
-    app.run(window, event_loop, mesh_draws);
+        window.request_redraw();
+    });
 }
