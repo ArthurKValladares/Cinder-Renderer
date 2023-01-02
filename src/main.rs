@@ -23,7 +23,6 @@ pub const WINDOW_HEIGHT: u32 = 2000;
 pub struct Renderer {
     device: Device,
     swapchain: Swapchain,
-    _command_pool: vk::CommandPool,
     render_context: RenderContext,
 
     // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
@@ -38,6 +37,7 @@ pub struct Renderer {
 impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
         let device = Device::new(window)?;
+        let render_context = RenderContext::new(&device)?;
 
         // TODO: Swapchain will be a part of `View`
         let surface_data = device.surface().get_data(
@@ -49,29 +49,6 @@ impl Renderer {
             false,
         )?;
         let swapchain = Swapchain::new(&device, &surface_data)?;
-
-        // TODO: Should be a part of `Device`
-        let command_pool = unsafe {
-            device.raw().create_command_pool(
-                &vk::CommandPoolCreateInfo::builder()
-                    .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-                    .queue_family_index(device.queue_family_index()),
-                None,
-            )
-        }?;
-
-        // TODO: This should be much easier
-        let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
-            .command_buffer_count(1)
-            .command_pool(command_pool)
-            .level(vk::CommandBufferLevel::PRIMARY);
-        let render_context = RenderContext::from_command_buffer(
-            unsafe {
-                device
-                    .raw()
-                    .allocate_command_buffers(&command_buffer_allocate_info)?
-            }[0],
-        );
 
         // TODO: Abstract raw sync away from user
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
@@ -88,7 +65,6 @@ impl Renderer {
         Ok(Self {
             device,
             swapchain,
-            _command_pool: command_pool,
             render_context,
             surface_data,
             present_complete_semaphore,

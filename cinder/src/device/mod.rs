@@ -40,6 +40,7 @@ pub struct Device {
     device: ash::Device,
     queue_family_index: u32,
     present_queue: vk::Queue,
+    command_pool: vk::CommandPool,
 }
 
 impl Device {
@@ -145,6 +146,15 @@ impl Device {
 
         let present_queue = unsafe { device.get_device_queue(queue_family_index, 0) };
 
+        let command_pool = unsafe {
+            device.create_command_pool(
+                &vk::CommandPoolCreateInfo::builder()
+                    .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
+                    .queue_family_index(queue_family_index),
+                None,
+            )
+        }?;
+
         Ok(Self {
             instance,
             surface,
@@ -154,6 +164,7 @@ impl Device {
             device,
             queue_family_index,
             present_queue,
+            command_pool,
         })
     }
 
@@ -187,6 +198,10 @@ impl Device {
 
     pub fn present_queue(&self) -> vk::Queue {
         self.present_queue
+    }
+
+    pub fn command_pool(&self) -> vk::CommandPool {
+        self.command_pool
     }
 
     pub fn get_query_pool_results_u32(

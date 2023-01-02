@@ -154,10 +154,21 @@ pub struct RenderContext {
 }
 
 impl RenderContext {
-    pub fn from_command_buffer(command_buffer: vk::CommandBuffer) -> Self {
-        Self {
+    pub fn new(device: &Device) -> Result<Self> {
+        let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
+            .command_buffer_count(1)
+            .command_pool(device.command_pool())
+            .level(vk::CommandBufferLevel::PRIMARY);
+
+        let command_buffer = unsafe {
+            device
+                .raw()
+                .allocate_command_buffers(&command_buffer_allocate_info)?
+        }[0];
+
+        Ok(Self {
             shared: ContextShared::from_command_buffer(command_buffer),
-        }
+        })
     }
 
     pub fn begin(&self, device: &Device, fence: ash::vk::Fence) -> Result<()> {
