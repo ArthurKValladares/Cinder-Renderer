@@ -1,8 +1,6 @@
 use anyhow::Result;
 use cinder::{
-    context::render_context::{
-        AttachmentLoadOp, AttachmentStoreOp, Layout, RenderAttachment, RenderContext,
-    },
+    context::render_context::{RenderAttachment, RenderContext},
     device::{Device, SurfaceData},
     view::View,
     Resolution,
@@ -68,10 +66,7 @@ impl Renderer {
             self.render_context.begin_rendering(
                 &self.device,
                 surface_rect,
-                &[RenderAttachment::color(drawable)
-                    .load_op(AttachmentLoadOp::Clear)
-                    .store_op(AttachmentStoreOp::Store)
-                    .layout(Layout::ColorAttachment)],
+                &[RenderAttachment::color(drawable, Default::default())],
                 None,
             );
             {

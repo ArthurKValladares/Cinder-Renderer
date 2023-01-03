@@ -225,10 +225,7 @@ impl EguiIntegration {
         render_context.begin_rendering(
             &device,
             render_area,
-            &[RenderAttachment::color(drawable)
-                .load_op(AttachmentLoadOp::Load)
-                .store_op(AttachmentStoreOp::Store)
-                .layout(Layout::ColorAttachment)],
+            &[RenderAttachment::color(drawable, Default::default())],
             None,
         );
         {

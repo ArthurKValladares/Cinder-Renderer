@@ -9,13 +9,14 @@ use crate::{
         shader::ShaderStage,
     },
     util::rect_to_vk,
-    view::{Drawable, View},
+    view::Drawable,
 };
 use anyhow::Result;
 use ash::vk;
 use math::rect::Rect2D;
 use thiserror::Error;
 
+#[derive(Debug, Clone, Copy)]
 pub enum Layout {
     Undefined,
     General,
@@ -23,6 +24,12 @@ pub enum Layout {
     DepthAttachment,
     Present,
     TransferDst,
+}
+
+impl Default for Layout {
+    fn default() -> Self {
+        Self::ColorAttachment
+    }
 }
 
 impl From<Layout> for vk::ImageLayout {
@@ -53,28 +60,44 @@ impl From<Filter> for vk::Filter {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy)]
-pub struct ClearValue(vk::ClearValue);
+#[derive(Debug, Clone, Copy)]
+pub enum ClearValue {
+    Color { color: [f32; 4] },
+    Depth { depth: f32, stencil: u32 },
+}
 
-impl ClearValue {
-    pub fn color(vals: [f32; 4]) -> Self {
-        Self(vk::ClearValue {
-            color: vk::ClearColorValue { float32: vals },
-        })
-    }
-
-    pub fn depth(depth: f32, stencil: u32) -> Self {
-        Self(vk::ClearValue {
-            depth_stencil: vk::ClearDepthStencilValue { depth, stencil },
-        })
+impl Default for ClearValue {
+    fn default() -> Self {
+        ClearValue::Color {
+            color: [1.0, 0.0, 1.0, 1.0],
+        }
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+impl From<ClearValue> for vk::ClearValue {
+    fn from(value: ClearValue) -> Self {
+        match value {
+            ClearValue::Color { color } => vk::ClearValue {
+                color: vk::ClearColorValue { float32: color },
+            },
+            ClearValue::Depth { depth, stencil } => vk::ClearValue {
+                depth_stencil: vk::ClearDepthStencilValue { depth, stencil },
+            },
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
 pub enum AttachmentLoadOp {
     Clear,
     Load,
     DontCare,
+}
+
+impl Default for AttachmentLoadOp {
+    fn default() -> Self {
+        Self::Clear
+    }
 }
 
 impl From<AttachmentLoadOp> for vk::AttachmentLoadOp {
@@ -87,10 +110,16 @@ impl From<AttachmentLoadOp> for vk::AttachmentLoadOp {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub enum AttachmentStoreOp {
     Store,
     DontCare,
+}
+
+impl Default for AttachmentStoreOp {
+    fn default() -> Self {
+        Self::Store
+    }
 }
 
 impl From<AttachmentStoreOp> for vk::AttachmentStoreOp {
@@ -101,43 +130,43 @@ impl From<AttachmentStoreOp> for vk::AttachmentStoreOp {
         }
     }
 }
+
+#[derive(Debug, Default, Clone, Copy)]
+pub struct RenderAttachmentDesc {
+    load_op: AttachmentLoadOp,
+    store_op: AttachmentStoreOp,
+    layout: Layout,
+    clear_value: ClearValue,
+}
+
 pub struct RenderAttachment(vk::RenderingAttachmentInfo);
 
 impl RenderAttachment {
-    pub fn color(drawable: Drawable) -> Self {
-        RenderAttachment(
+    fn from_parts(image_view: vk::ImageView, desc: RenderAttachmentDesc) -> Self {
+        Self(
             vk::RenderingAttachmentInfo::builder()
-                .image_view(drawable.image_view)
+                .image_view(image_view)
+                .load_op(desc.load_op.into())
+                .store_op(desc.store_op.into())
+                .clear_value(desc.clear_value.into())
+                .image_layout(desc.layout.into())
                 .build(),
         )
     }
 
-    pub fn depth(depth_image: &Image, image_view_desc: ImageViewDescription) -> Self {
-        RenderAttachment(
-            vk::RenderingAttachmentInfo::builder()
-                .image_view(*depth_image.views.get(&image_view_desc).unwrap())
-                .build(),
-        )
+    pub fn color(drawable: Drawable, desc: RenderAttachmentDesc) -> Self {
+        let view = drawable.image_view;
+        Self::from_parts(view, desc)
     }
 
-    pub fn load_op(mut self, op: AttachmentLoadOp) -> Self {
-        self.0.load_op = op.into();
-        self
-    }
-
-    pub fn store_op(mut self, op: AttachmentStoreOp) -> Self {
-        self.0.store_op = op.into();
-        self
-    }
-
-    pub fn clear_value(mut self, clear_value: ClearValue) -> Self {
-        self.0.clear_value = clear_value.0;
-        self
-    }
-
-    pub fn layout(mut self, layout: Layout) -> Self {
-        self.0.image_layout = layout.into();
-        self
+    // TODO: Cleaner signature
+    pub fn depth(
+        depth_image: &Image,
+        image_view_desc: ImageViewDescription,
+        desc: RenderAttachmentDesc,
+    ) -> Self {
+        let view = depth_image.views.get(&image_view_desc).unwrap();
+        Self::from_parts(*view, desc)
     }
 }
 
