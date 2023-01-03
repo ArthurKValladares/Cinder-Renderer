@@ -80,8 +80,7 @@ impl Renderer {
         }
         self.render_context.end(&self.device)?;
 
-        let is_suboptimal = self.view.present(&self.device, drawable)?;
-        Ok(is_suboptimal)
+        self.view.present(&self.device, drawable)
     }
 }
 
