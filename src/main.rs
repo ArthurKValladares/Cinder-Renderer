@@ -62,7 +62,6 @@ impl Renderer {
             self.render_context
                 .transition_undefined_to_color(&self.device, drawable);
 
-            // TODO: Pretty bad, make better
             self.render_context.begin_rendering(
                 &self.device,
                 surface_rect,
