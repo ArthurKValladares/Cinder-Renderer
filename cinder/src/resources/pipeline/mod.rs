@@ -14,18 +14,6 @@ pub mod compute;
 pub mod graphics;
 pub mod push_constant;
 
-#[repr(transparent)]
-#[derive(Debug, Clone, Copy)]
-pub struct PipelineCache(pub vk::PipelineCache);
-
-impl PipelineCache {
-    pub fn new(device: &Device) -> Result<Self> {
-        let ci = vk::PipelineCacheCreateInfo::builder().build();
-        let cache = unsafe { device.raw().create_pipeline_cache(&ci, None)? };
-        Ok(Self(cache))
-    }
-}
-
 pub struct PipelineCommonData {
     // TODO: Think of a better key
     push_constants: HashMap<(ShaderStage, u32), PushConstant>,

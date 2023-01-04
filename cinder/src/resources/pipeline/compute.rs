@@ -1,4 +1,4 @@
-use super::{get_pipeline_layout, PipelineCache, PipelineCommon};
+use super::{get_pipeline_layout, PipelineCommon};
 use crate::{device::Device, resources::shader::Shader};
 use anyhow::Result;
 use ash::vk;
@@ -17,11 +17,7 @@ pub struct ComputePipeline {
 }
 
 impl ComputePipeline {
-    pub fn create(
-        device: &Device,
-        pipeline_cache: Option<PipelineCache>,
-        desc: ComputePipelineDescription,
-    ) -> Result<Self> {
+    pub fn create(device: &Device, desc: ComputePipelineDescription) -> Result<Self> {
         let (pipeline_layout, common_data) = get_pipeline_layout(device, &[&desc.shader])?;
 
         let shader_entry_name = unsafe { CStr::from_bytes_with_nul_unchecked(b"main\0") };
@@ -40,7 +36,7 @@ impl ComputePipeline {
 
         let compute_pipelines = unsafe {
             device.raw().create_compute_pipelines(
-                pipeline_cache.map_or_else(|| vk::PipelineCache::null(), |cache| cache.0),
+                device.pipeline_cache,
                 std::slice::from_ref(&ci),
                 None,
             )

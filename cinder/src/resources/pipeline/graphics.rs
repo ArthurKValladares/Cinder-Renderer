@@ -1,4 +1,4 @@
-use super::{get_pipeline_layout, PipelineCache, PipelineCommon};
+use super::{get_pipeline_layout, PipelineCommon};
 use crate::device::Device;
 use crate::resources::{
     image::{reflect_format_to_vk, Format},
@@ -9,9 +9,15 @@ use ash::vk;
 use std::ffi::CStr;
 
 #[repr(C)]
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Copy)]
 pub struct ColorBlendState {
     state: vk::PipelineColorBlendAttachmentState,
+}
+
+impl Default for ColorBlendState {
+    fn default() -> Self {
+        Self::add()
+    }
 }
 
 impl ColorBlendState {
@@ -52,9 +58,8 @@ impl ColorBlendState {
     }
 }
 
+#[derive(Debug, Default, Copy, Clone)]
 pub struct GraphicsPipelineDescription {
-    pub vertex_shader: Shader,
-    pub fragment_shader: Shader,
     pub blending: ColorBlendState,
     pub surface_format: Format,
     pub depth_format: Option<Format>,
@@ -68,16 +73,17 @@ pub struct GraphicsPipeline {
 impl GraphicsPipeline {
     pub(crate) fn create(
         device: &Device,
-        pipeline_cache: Option<PipelineCache>,
+        vertex_shader: Shader,
+        fragment_shader: Shader,
         desc: GraphicsPipelineDescription,
     ) -> Result<Self> {
         //
         // Pipeline stuff, pretty temp
         //
         let (pipeline_layout, common_data) =
-            get_pipeline_layout(device, &[&desc.vertex_shader, &desc.fragment_shader])?;
+            get_pipeline_layout(device, &[&vertex_shader, &fragment_shader])?;
 
-        let atttributes = desc.vertex_shader.reflect_data.get_vertex_attributes();
+        let atttributes = vertex_shader.reflect_data.get_vertex_attributes();
         let binding = 0; // TODO: Support non-zero bindings
         let vertex_input_binding_descriptions = [vk::VertexInputBindingDescription {
             binding,
@@ -149,13 +155,13 @@ impl GraphicsPipeline {
         let shader_entry_name = unsafe { CStr::from_bytes_with_nul_unchecked(b"main\0") };
         let shader_stage_create_infos = [
             vk::PipelineShaderStageCreateInfo {
-                module: desc.vertex_shader.module,
+                module: vertex_shader.module,
                 p_name: shader_entry_name.as_ptr(),
                 stage: vk::ShaderStageFlags::VERTEX,
                 ..Default::default()
             },
             vk::PipelineShaderStageCreateInfo {
-                module: desc.fragment_shader.module,
+                module: fragment_shader.module,
                 p_name: shader_entry_name.as_ptr(),
                 stage: vk::ShaderStageFlags::FRAGMENT,
                 ..Default::default()
@@ -189,7 +195,7 @@ impl GraphicsPipeline {
 
         let graphics_pipelines = unsafe {
             device.raw().create_graphics_pipelines(
-                pipeline_cache.map_or_else(|| vk::PipelineCache::null(), |cache| cache.0),
+                device.pipeline_cache,
                 &[graphic_pipeline_infos],
                 None,
             )

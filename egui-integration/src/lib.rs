@@ -2,9 +2,7 @@ use anyhow::Result;
 use cinder::{
     cinder::EguiConstants,
     context::{
-        render_context::{
-            AttachmentLoadOp, AttachmentStoreOp, Layout, RenderAttachment, RenderContext,
-        },
+        render_context::{RenderAttachment, RenderContext},
         upload_context::UploadContext,
     },
     device::Device,
@@ -13,12 +11,9 @@ use cinder::{
         buffer::{vk::Fence, Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageViewDescription, Usage},
         memory::{MemoryDescription, MemoryType},
-        pipeline::{
-            graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
-            PipelineCache,
-        },
+        pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
-        shader::{ShaderDescription, ShaderStage},
+        shader::ShaderStage,
     },
     util::MemoryMappablePointer,
     view::{Drawable, View},
@@ -63,7 +58,6 @@ impl EguiIntegration {
         event_loop: &EventLoopWindowTarget<T>,
         device: &Device,
         view: &View,
-        pipeline_cache: PipelineCache,
         surface_format: Format,
         visuals: egui::Visuals,
         pixels_per_point: f32,
@@ -76,19 +70,13 @@ impl EguiIntegration {
 
         let bind_group_pool = BindGroupPool::new(&device).unwrap();
         let pipeline = device.create_graphics_pipeline(
+            device.create_shader(include_bytes!("../shaders/spv/egui.vert.spv"))?,
+            device.create_shader(include_bytes!("../shaders/spv/egui.frag.spv"))?,
             GraphicsPipelineDescription {
-                vertex_shader: device.create_shader(ShaderDescription {
-                    bytes: include_bytes!("../shaders/spv/egui.vert.spv"),
-                })?,
-                fragment_shader: device.create_shader(ShaderDescription {
-                    bytes: include_bytes!("../shaders/spv/egui.frag.spv"),
-                })?,
                 blending: ColorBlendState::pma(),
-                backface_culling: false,
-                surface_format: surface_format,
-                depth_format: None,
+                surface_format,
+                ..Default::default()
             },
-            Some(pipeline_cache),
         )?;
         let bind_group_set = BindGroup::new(
             &device,

@@ -2,6 +2,10 @@ use anyhow::Result;
 use cinder::{
     context::render_context::{RenderAttachment, RenderContext},
     device::{Device, SurfaceData},
+    resources::{
+        image::Format,
+        pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
+    },
     view::View,
     Resolution,
 };
@@ -20,6 +24,7 @@ pub const WINDOW_HEIGHT: u32 = 2000;
 pub struct Renderer {
     device: Device,
     view: View,
+    render_pipeline: GraphicsPipeline,
     render_context: RenderContext,
 
     // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
@@ -30,7 +35,6 @@ impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
         let device = Device::new(window)?;
         let render_context = RenderContext::new(&device)?;
-
         let surface_data = device.surface().get_data(
             device.p_device(),
             Resolution {
@@ -40,11 +44,18 @@ impl Renderer {
             false,
         )?;
         let view = View::new(&device, &surface_data)?;
+        // TODO: adding shader to binary might be bad
+        let render_pipeline = device.create_graphics_pipeline(
+            device.create_shader(include_bytes!("../shaders/spv/triangle.vert.spv"))?,
+            device.create_shader(include_bytes!("../shaders/spv/triangle.frag.spv"))?,
+            Default::default(),
+        )?;
 
         Ok(Self {
             device,
             view,
             render_context,
+            render_pipeline,
             surface_data,
         })
     }
@@ -69,6 +80,8 @@ impl Renderer {
                 None,
             );
             {
+                self.render_context
+                    .bind_graphics_pipeline(&self.device, &self.render_pipeline);
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);

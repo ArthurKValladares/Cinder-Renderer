@@ -1,6 +1,7 @@
+// TODO: This is very bad, should be app-side and not engine side
 include!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/../gen/default_shader_structs.rs"
+    "/../gen/mesh_shader_structs.rs"
 ));
 include!(concat!(
     env!("CARGO_MANIFEST_DIR"),

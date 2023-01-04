@@ -4,7 +4,7 @@ use crate::{renderer::Renderer, MeshDraw, WINDOW_HEIGHT, WINDOW_WIDTH};
 use anyhow::Result;
 use camera::{MOVEMENT_DELTA, ROTATION_DELTA};
 use cinder::{
-    cinder::{DefaultUniformBufferObject, DefaultVertex},
+    cinder::{MeshUniformBufferObject, MeshVertex},
     context::{
         render_context::{
             image_barrier, AttachmentLoadOp, AttachmentStoreOp, Layout, RenderAttachment,
@@ -19,7 +19,7 @@ use cinder::{
         memory::{MemoryDescription, MemoryType},
         pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
-        shader::{ShaderDescription, ShaderStage},
+        shader::ShaderStage,
     },
     InitData, Resolution,
 };
@@ -97,7 +97,7 @@ impl App {
         let vertex_buffer = renderer
             .device()
             .create_buffer(BufferDescription {
-                size: (num_vertices * std::mem::size_of::<DefaultVertex>()) as u64,
+                size: (num_vertices * std::mem::size_of::<MeshVertex>()) as u64,
                 usage: BufferUsage::empty().storage().transfer_dst(),
                 memory_desc: MemoryDescription {
                     ty: MemoryType::GpuOnly,
@@ -108,7 +108,7 @@ impl App {
         let uniform_buffer = renderer
             .device()
             .create_buffer(BufferDescription {
-                size: std::mem::size_of::<DefaultUniformBufferObject>() as u64,
+                size: std::mem::size_of::<MeshUniformBufferObject>() as u64,
                 usage: BufferUsage::empty().uniform(),
                 memory_desc: MemoryDescription {
                     ty: MemoryType::CpuVisible,

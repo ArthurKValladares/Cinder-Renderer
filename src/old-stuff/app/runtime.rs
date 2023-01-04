@@ -1,7 +1,7 @@
 use crate::{renderer::Renderer, ui::Ui};
 use anyhow::Result;
 use camera::{Camera, Direction, PerspectiveData};
-use cinder::cinder::DefaultUniformBufferObject;
+use cinder::cinder::MeshUniformBufferObject;
 use egui_integration::EguiIntegration;
 use input::{
     keyboard::{KeyboardInput, KeyboardState, VirtualKeyCode},
@@ -52,7 +52,7 @@ impl RuntimeState {
         self.egui.on_event(window_event);
     }
 
-    pub fn get_camera_matrices(&self, surface_size: Size2D<u32>) -> DefaultUniformBufferObject {
+    pub fn get_camera_matrices(&self, surface_size: Size2D<u32>) -> MeshUniformBufferObject {
         self.camera
             .get_matrices(surface_size.width() as f32, surface_size.height() as f32)
     }

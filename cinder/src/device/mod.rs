@@ -11,10 +11,9 @@ use crate::{
         pipeline::{
             compute::{ComputePipeline, ComputePipelineDescription},
             graphics::{GraphicsPipeline, GraphicsPipelineDescription},
-            PipelineCache,
         },
         sampler::Sampler,
-        shader::{Shader, ShaderDescription},
+        shader::Shader,
     },
 };
 use anyhow::Result;
@@ -41,6 +40,7 @@ pub struct Device {
     queue_family_index: u32,
     present_queue: vk::Queue,
     command_pool: vk::CommandPool,
+    pub(crate) pipeline_cache: vk::PipelineCache,
     // TODO: Probably will have better syncronization in the future, not pub
     pub(crate) present_complete_semaphore: vk::Semaphore,
     pub(crate) rendering_complete_semaphore: vk::Semaphore,
@@ -160,6 +160,9 @@ impl Device {
             )
         }?;
 
+        let ci = vk::PipelineCacheCreateInfo::builder().build();
+        let pipeline_cache = unsafe { device.create_pipeline_cache(&ci, None)? };
+
         // TODO: Figure out sync story
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
         let present_complete_semaphore =
@@ -182,6 +185,7 @@ impl Device {
             queue_family_index,
             present_queue,
             command_pool,
+            pipeline_cache,
             present_complete_semaphore,
             rendering_complete_semaphore,
             draw_commands_reuse_fence,
@@ -268,24 +272,24 @@ impl Device {
         Buffer::create(self, desc)
     }
 
-    pub fn create_shader(&self, desc: ShaderDescription) -> Result<Shader> {
-        Shader::create(self, desc)
+    pub fn create_shader(&self, bytes: &[u8]) -> Result<Shader> {
+        Shader::create(self, bytes)
     }
 
     pub fn create_graphics_pipeline(
         &self,
+        vertex_shader: Shader,
+        fragment_shader: Shader,
         desc: GraphicsPipelineDescription,
-        pipeline_cache: Option<PipelineCache>,
     ) -> Result<GraphicsPipeline> {
-        GraphicsPipeline::create(self, pipeline_cache, desc)
+        GraphicsPipeline::create(self, vertex_shader, fragment_shader, desc)
     }
 
     pub fn create_compute_pipeline(
         &self,
         desc: ComputePipelineDescription,
-        pipeline_cache: Option<PipelineCache>,
     ) -> Result<ComputePipeline> {
-        ComputePipeline::create(self, pipeline_cache, desc)
+        ComputePipeline::create(self, desc)
     }
 
     pub fn create_sampler(&self) -> Result<Sampler> {

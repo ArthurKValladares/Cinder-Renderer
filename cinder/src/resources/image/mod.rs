@@ -48,6 +48,12 @@ pub enum Format {
     R32_SFloat,
 }
 
+impl Default for Format {
+    fn default() -> Self {
+        Self::B8_G8_R8_A8_Unorm
+    }
+}
+
 impl From<Format> for vk::Format {
     fn from(format: Format) -> Self {
         match format {

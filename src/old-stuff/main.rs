@@ -4,7 +4,7 @@ mod ui;
 
 use app::App;
 use cinder::{
-    cinder::DefaultVertex,
+    cinder::MeshVertex,
     resources::{
         buffer::BufferUsage,
         memory::{MemoryDescription, MemoryType},
@@ -81,7 +81,7 @@ fn main() {
                 staging_buffer.buffer(),
                 &app.vertex_buffer,
                 buffer_region.offset,
-                (vertex_buffer_offset * std::mem::size_of::<DefaultVertex>()) as u64,
+                (vertex_buffer_offset * std::mem::size_of::<MeshVertex>()) as u64,
                 vertex_buffer_size,
             );
 

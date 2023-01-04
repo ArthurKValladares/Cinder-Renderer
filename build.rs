@@ -47,14 +47,26 @@ fn main() {
     .expect("Could not create shader compiler");
 
     shader_compiler
-        .compile_shader("shaders/default.vert", ShaderStage::Vertex)
+        .compile_shader("shaders/mesh.vert", ShaderStage::Vertex)
         .expect("Could not compile shader");
     shader_compiler
-        .compile_shader("shaders/default.frag", ShaderStage::Fragment)
+        .compile_shader("shaders/mesh.frag", ShaderStage::Fragment)
+        .expect("Could not compile shader");
+    write_shader_structs(
+        &std::fs::read("./shaders/spv/mesh.vert.spv").unwrap(),
+        "mesh",
+    );
+
+    shader_compiler
+        .compile_shader("shaders/triangle.vert", ShaderStage::Vertex)
         .expect("Could not compile shader");
     shader_compiler
-        .compile_shader("shaders/depth_reduce.comp", ShaderStage::Compute)
+        .compile_shader("shaders/triangle.frag", ShaderStage::Fragment)
         .expect("Could not compile shader");
+    write_shader_structs(
+        &std::fs::read("./shaders/spv/triangle.vert.spv").unwrap(),
+        "triangle",
+    );
 
     shader_compiler
         .compile_shader("egui-integration/shaders/egui.vert", ShaderStage::Vertex)
@@ -62,13 +74,12 @@ fn main() {
     shader_compiler
         .compile_shader("egui-integration/shaders/egui.frag", ShaderStage::Fragment)
         .expect("Could not compile shader");
-
     write_shader_structs(
         &std::fs::read("./egui-integration/shaders/spv/egui.vert.spv").unwrap(),
         "egui",
     );
-    write_shader_structs(
-        &std::fs::read("./shaders/spv/default.vert.spv").unwrap(),
-        "default",
-    );
+
+    shader_compiler
+        .compile_shader("shaders/depth_reduce.comp", ShaderStage::Compute)
+        .expect("Could not compile shader");
 }

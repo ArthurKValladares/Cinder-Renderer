@@ -1,4 +1,4 @@
-use cinder::cinder::DefaultUniformBufferObject;
+use cinder::cinder::MeshUniformBufferObject;
 use math::{mat::Mat4, vec::Vec3};
 
 pub static ROTATION_DELTA: f32 = 0.01;
@@ -135,11 +135,7 @@ impl Camera {
         );
     }
 
-    pub fn get_matrices(
-        &self,
-        window_width: f32,
-        window_height: f32,
-    ) -> DefaultUniformBufferObject {
+    pub fn get_matrices(&self, window_width: f32, window_height: f32) -> MeshUniformBufferObject {
         let eye = self.pos;
         let front = self.front;
 
@@ -150,7 +146,7 @@ impl Camera {
             self.data.z_near,
         );
 
-        DefaultUniformBufferObject {
+        MeshUniformBufferObject {
             proj: proj.into(),
             view: view.into(),
         }

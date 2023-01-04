@@ -1,13 +1,13 @@
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
-pub struct DefaultUniformBufferObject {
+pub struct MeshUniformBufferObject {
     pub proj: [[f32; 4]; 4],
     pub view: [[f32; 4]; 4],
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
 #[derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)]
-pub struct DefaultVertex {
+pub struct MeshVertex {
     pub pos: [f32; 4],
     pub color: [f32; 3],
     pub normal: [f32; 3],
@@ -15,6 +15,6 @@ pub struct DefaultVertex {
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
-pub struct DefaultConstants {
+pub struct MeshConstants {
     pub pc_color: [f32; 4],
 }

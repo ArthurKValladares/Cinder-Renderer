@@ -1,5 +1,5 @@
 use anyhow::Result;
-use cinder::cinder::DefaultVertex;
+use cinder::cinder::MeshVertex;
 use memmap::MmapOptions;
 use meshopt::VertexDataAdapter;
 use rkyv::{with::Skip, Archive, Deserialize, Serialize};
@@ -22,7 +22,7 @@ pub struct Material {
 #[derive(Debug, Archive, Deserialize, Serialize)]
 pub struct Mesh {
     pub indices: Vec<u32>,
-    pub vertices: Vec<DefaultVertex>,
+    pub vertices: Vec<MeshVertex>,
     pub material_index: Option<usize>,
 }
 
@@ -109,7 +109,7 @@ impl ObjScene {
                             [mesh.texcoords[i * 2], mesh.texcoords[i * 2 + 1]]
                         };
 
-                        DefaultVertex {
+                        MeshVertex {
                             pos,
                             color,
                             normal,
@@ -130,8 +130,8 @@ impl ObjScene {
                 meshopt::optimize_vertex_cache_in_place(&mut indices, vertices.len());
 
                 let vertex_data_adapter = {
-                    let position_offset = util::offset_of!(DefaultVertex, pos);
-                    let vertex_stride = std::mem::size_of::<DefaultVertex>();
+                    let position_offset = util::offset_of!(MeshVertex, pos);
+                    let vertex_stride = std::mem::size_of::<MeshVertex>();
                     let vertex_data = util::typed_to_bytes(&vertices);
 
                     VertexDataAdapter::new(vertex_data, vertex_stride, position_offset)
