@@ -5,10 +5,7 @@ mod ui;
 use app::App;
 use cinder::{
     cinder::MeshVertex,
-    resources::{
-        buffer::BufferUsage,
-        memory::{MemoryDescription, MemoryType},
-    },
+    resources::{buffer::BufferUsage, memory::MemoryType},
 };
 use ember::GpuStagingBuffer;
 use util::*;
@@ -43,9 +40,7 @@ fn main() {
     let mut staging_buffer = GpuStagingBuffer::new(
         app.renderer.device(),
         BufferUsage::empty().transfer_src(),
-        MemoryDescription {
-            ty: MemoryType::CpuVisible,
-        },
+        MemoryType::CpuVisible,
     )
     .expect("Could not create GPU staging buffer");
 

@@ -3,7 +3,7 @@ use cinder::{
     device::Device,
     resources::{
         buffer::{Buffer, BufferDescription, BufferUsage},
-        memory::MemoryDescription,
+        memory::MemoryType,
     },
     util::align_size,
 };
@@ -24,16 +24,8 @@ pub struct GpuStagingBuffer {
 }
 
 impl GpuStagingBuffer {
-    pub fn new(
-        device: &Device,
-        usage: BufferUsage,
-        memory_desc: MemoryDescription,
-    ) -> Result<Self> {
-        let buffer = device.create_buffer(BufferDescription {
-            size: STAGING_BYTES,
-            usage,
-            memory_desc,
-        })?;
+    pub fn new(device: &Device, usage: BufferUsage, memory_ty: MemoryType) -> Result<Self> {
+        let buffer = device.create_buffer(STAGING_BYTES, BufferDescription { usage, memory_ty })?;
 
         Ok(Self { buffer, offset: 0 })
     }

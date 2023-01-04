@@ -21,6 +21,7 @@ use ash::vk;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 use ash::vk::KhrPortabilitySubsetFn;
 use thiserror::Error;
+use util::size_of_slice;
 
 #[derive(Debug, Error)]
 pub enum DeviceInitError {
@@ -268,8 +269,19 @@ impl Device {
         Ok(results)
     }
 
-    pub fn create_buffer(&self, desc: BufferDescription) -> Result<Buffer> {
-        Buffer::create(self, desc)
+    pub fn create_buffer(&self, size: u64, desc: BufferDescription) -> Result<Buffer> {
+        Buffer::create(self, size, desc)
+    }
+
+    pub fn create_buffer_with_data<T: Copy>(
+        &self,
+        data: &[T],
+        desc: BufferDescription,
+    ) -> Result<Buffer> {
+        let size = size_of_slice(data);
+        let buffer = self.create_buffer(size, desc)?;
+        buffer.mem_copy(0, data)?;
+        Ok(buffer)
     }
 
     pub fn create_shader(&self, bytes: &[u8]) -> Result<Shader> {

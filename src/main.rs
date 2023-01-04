@@ -1,10 +1,11 @@
 use anyhow::Result;
 use cinder::{
+    cinder::TriangleVertex,
     context::render_context::{RenderAttachment, RenderContext},
     device::{Device, SurfaceData},
     resources::{
-        image::Format,
-        pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
+        buffer::{Buffer, BufferDescription, BufferUsage},
+        pipeline::graphics::GraphicsPipeline,
     },
     view::View,
     Resolution,
@@ -26,7 +27,8 @@ pub struct Renderer {
     view: View,
     render_pipeline: GraphicsPipeline,
     render_context: RenderContext,
-
+    vertex_buffer: Buffer,
+    index_buffer: Buffer,
     // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
     surface_data: SurfaceData,
 }
@@ -51,12 +53,43 @@ impl Renderer {
             Default::default(),
         )?;
 
+        // TODO: use bitfield! for BufferUsage
+        let vertex_buffer = device.create_buffer_with_data(
+            &[
+                TriangleVertex {
+                    i_pos: [0.0, -0.5],
+                    i_color: [1.0, 0.0, 0.0, 1.0],
+                },
+                TriangleVertex {
+                    i_pos: [0.5, 0.5],
+                    i_color: [0.0, 1.0, 0.0, 1.0],
+                },
+                TriangleVertex {
+                    i_pos: [-0.5, 0.5],
+                    i_color: [0.0, 0.0, 1.0, 1.0],
+                },
+            ],
+            BufferDescription {
+                usage: BufferUsage::empty().vertex().transfer_dst(),
+                ..Default::default()
+            },
+        )?;
+        let index_buffer = device.create_buffer_with_data(
+            &[0, 1, 2],
+            BufferDescription {
+                usage: BufferUsage::empty().index().transfer_dst(),
+                ..Default::default()
+            },
+        )?;
+
         Ok(Self {
             device,
             view,
             render_context,
             render_pipeline,
             surface_data,
+            vertex_buffer,
+            index_buffer,
         })
     }
 
@@ -85,6 +118,12 @@ impl Renderer {
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
+                self.render_context
+                    .bind_index_buffer(&self.device, &self.index_buffer);
+                self.render_context
+                    .bind_vertex_buffer(&self.device, &self.vertex_buffer);
+
+                self.render_context.draw_offset(&self.device, 3, 0, 0);
             }
             self.render_context.end_rendering(&self.device);
 

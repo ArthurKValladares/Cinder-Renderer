@@ -6,13 +6,15 @@ pub enum MemoryType {
     GpuOnly,
 }
 
-pub struct MemoryDescription {
-    pub ty: MemoryType,
+impl Default for MemoryType {
+    fn default() -> Self {
+        Self::CpuVisible
+    }
 }
 
-impl MemoryDescription {
+impl MemoryType {
     pub fn is_cpu_visible(&self) -> bool {
-        self.ty == MemoryType::CpuVisible
+        *self == Self::CpuVisible
     }
 }
 

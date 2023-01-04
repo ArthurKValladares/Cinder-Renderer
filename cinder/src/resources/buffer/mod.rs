@@ -1,4 +1,4 @@
-use super::memory::{Memory, MemoryDescription};
+use super::memory::{Memory, MemoryType};
 use crate::{
     device::Device,
     util::{find_memory_type_index, MemoryMappablePointer},
@@ -19,6 +19,12 @@ pub enum BufferError {
 #[derive(Debug, Clone, Copy)]
 pub struct BufferUsage {
     raw: vk::BufferUsageFlags,
+}
+
+impl Default for BufferUsage {
+    fn default() -> Self {
+        Self::empty().uniform().transfer_dst()
+    }
 }
 
 impl BufferUsage {
@@ -71,10 +77,10 @@ impl From<BufferUsage> for vk::BufferUsageFlags {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy)]
 pub struct BufferDescription {
-    pub size: u64,
     pub usage: BufferUsage,
-    pub memory_desc: MemoryDescription,
+    pub memory_ty: MemoryType,
 }
 
 pub struct Buffer {
@@ -121,9 +127,9 @@ impl Buffer {
 pub struct BindBufferInfo(pub vk::DescriptorBufferInfo);
 
 impl Buffer {
-    pub(crate) fn create(device: &Device, desc: BufferDescription) -> Result<Self> {
+    pub(crate) fn create(device: &Device, size: u64, desc: BufferDescription) -> Result<Self> {
         let buffer_info = vk::BufferCreateInfo::builder()
-            .size(desc.size)
+            .size(size)
             .usage(desc.usage.into())
             .sharing_mode(vk::SharingMode::EXCLUSIVE);
 
@@ -132,7 +138,7 @@ impl Buffer {
         let buffer_memory_index = find_memory_type_index(
             &buffer_memory_req,
             device.memopry_properties(),
-            desc.memory_desc.ty.clone().into(),
+            desc.memory_ty.clone().into(),
         )
         .ok_or_else(|| BufferError::NoSuitableMemoryType)?;
 
@@ -149,7 +155,7 @@ impl Buffer {
             req: buffer_memory_req,
         };
 
-        let ptr = if desc.memory_desc.is_cpu_visible() {
+        let ptr = if desc.memory_ty.is_cpu_visible() {
             unsafe {
                 let ptr = device.raw().map_memory(
                     memory.raw,
@@ -166,7 +172,7 @@ impl Buffer {
         Ok(Buffer {
             raw: buffer,
             memory,
-            size_bytes: desc.size,
+            size_bytes: size,
             ptr,
         })
     }

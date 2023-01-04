@@ -10,7 +10,7 @@ use cinder::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{vk::Fence, Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageViewDescription, Usage},
-        memory::{MemoryDescription, MemoryType},
+        memory::MemoryType,
         pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
         shader::ShaderStage,
@@ -93,22 +93,22 @@ impl EguiIntegration {
             let mut vertex_buffers = Vec::with_capacity(len);
             let mut index_buffers = Vec::with_capacity(len);
             for _ in 0..len {
-                let vertex_buffer = device.create_buffer(BufferDescription {
-                    size: VERTEX_BUFFER_SIZE,
-                    usage: BufferUsage::empty().vertex(),
-                    memory_desc: MemoryDescription {
-                        ty: MemoryType::CpuVisible,
+                let vertex_buffer = device.create_buffer(
+                    VERTEX_BUFFER_SIZE,
+                    BufferDescription {
+                        usage: BufferUsage::empty().vertex(),
+                        memory_ty: MemoryType::CpuVisible,
                     },
-                })?;
+                )?;
                 vertex_buffers.push(vertex_buffer);
 
-                let index_buffer = device.create_buffer(BufferDescription {
-                    size: INDEX_BUFFER_SIZE,
-                    usage: BufferUsage::empty().index(),
-                    memory_desc: MemoryDescription {
-                        ty: MemoryType::CpuVisible,
+                let index_buffer = device.create_buffer(
+                    INDEX_BUFFER_SIZE,
+                    BufferDescription {
+                        usage: BufferUsage::empty().index(),
+                        memory_ty: MemoryType::CpuVisible,
                     },
-                })?;
+                )?;
                 index_buffers.push(index_buffer);
             }
             (vertex_buffers, index_buffers)
@@ -407,13 +407,13 @@ impl EguiIntegration {
         if let Some(mut buffer) = self.image_staging_buffer.take() {
             buffer.clean(device);
         }
-        let image_staging_buffer = device.create_buffer(BufferDescription {
-            size: size_of_slice(data),
-            usage: BufferUsage::empty().transfer_src(),
-            memory_desc: MemoryDescription {
-                ty: MemoryType::CpuVisible,
+        let image_staging_buffer = device.create_buffer(
+            size_of_slice(data),
+            BufferDescription {
+                usage: BufferUsage::empty().transfer_src(),
+                memory_ty: MemoryType::CpuVisible,
             },
-        })?;
+        )?;
         image_staging_buffer.mem_copy(0, data)?;
 
         let mut image = device.create_image(ImageDescription {
