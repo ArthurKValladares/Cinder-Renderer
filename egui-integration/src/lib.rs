@@ -96,7 +96,7 @@ impl EguiIntegration {
                 let vertex_buffer = device.create_buffer(
                     VERTEX_BUFFER_SIZE,
                     BufferDescription {
-                        usage: BufferUsage::empty().vertex(),
+                        usage: BufferUsage::VERTEX,
                         memory_ty: MemoryType::CpuVisible,
                     },
                 )?;
@@ -105,7 +105,7 @@ impl EguiIntegration {
                 let index_buffer = device.create_buffer(
                     INDEX_BUFFER_SIZE,
                     BufferDescription {
-                        usage: BufferUsage::empty().index(),
+                        usage: BufferUsage::INDEX,
                         memory_ty: MemoryType::CpuVisible,
                     },
                 )?;
@@ -403,7 +403,7 @@ impl EguiIntegration {
         let image_staging_buffer = device.create_buffer(
             size_of_slice(data),
             BufferDescription {
-                usage: BufferUsage::empty().transfer_src(),
+                usage: BufferUsage::TRANSFER_SRC,
                 memory_ty: MemoryType::CpuVisible,
             },
         )?;

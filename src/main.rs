@@ -1,5 +1,3 @@
-use std::time::Instant;
-
 use anyhow::Result;
 use cinder::{
     cinder::TriangleVertex,
@@ -14,6 +12,7 @@ use cinder::{
 };
 use input::keyboard::VirtualKeyCode;
 use math::{mat::Mat4, rect::Rect2D, vec::Vec3};
+use std::time::Instant;
 use winit::{
     dpi::PhysicalSize,
     event::{Event, WindowEvent},
@@ -56,7 +55,6 @@ impl Renderer {
             Default::default(),
         )?;
 
-        // TODO: use bitfield! for BufferUsage
         let vertex_buffer = device.create_buffer_with_data(
             &[
                 TriangleVertex {
@@ -73,14 +71,14 @@ impl Renderer {
                 },
             ],
             BufferDescription {
-                usage: BufferUsage::empty().vertex().transfer_dst(),
+                usage: BufferUsage::VERTEX,
                 ..Default::default()
             },
         )?;
         let index_buffer = device.create_buffer_with_data(
             &[0, 1, 2],
             BufferDescription {
-                usage: BufferUsage::empty().index().transfer_dst(),
+                usage: BufferUsage::INDEX,
                 ..Default::default()
             },
         )?;

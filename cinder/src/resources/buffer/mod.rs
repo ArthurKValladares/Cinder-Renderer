@@ -5,6 +5,7 @@ use crate::{
 };
 use anyhow::Result;
 pub use ash::vk;
+use bitflags::bitflags;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -15,65 +16,21 @@ pub enum BufferError {
     NotMemoryMappable,
 }
 
-#[repr(C)]
-#[derive(Debug, Clone, Copy)]
-pub struct BufferUsage {
-    raw: vk::BufferUsageFlags,
-}
-
-impl Default for BufferUsage {
-    fn default() -> Self {
-        Self::empty().uniform().transfer_dst()
-    }
-}
-
-impl BufferUsage {
-    pub fn empty() -> Self {
-        Self {
-            raw: vk::BufferUsageFlags::empty(),
-        }
-    }
-
-    pub fn vertex(self) -> Self {
-        Self {
-            raw: self.raw | vk::BufferUsageFlags::VERTEX_BUFFER,
-        }
-    }
-
-    pub fn index(self) -> Self {
-        Self {
-            raw: self.raw | vk::BufferUsageFlags::INDEX_BUFFER,
-        }
-    }
-
-    pub fn uniform(self) -> Self {
-        Self {
-            raw: self.raw | vk::BufferUsageFlags::UNIFORM_BUFFER,
-        }
-    }
-
-    pub fn storage(self) -> Self {
-        Self {
-            raw: self.raw | vk::BufferUsageFlags::STORAGE_BUFFER,
-        }
-    }
-
-    pub fn transfer_src(self) -> Self {
-        Self {
-            raw: self.raw | vk::BufferUsageFlags::TRANSFER_SRC,
-        }
-    }
-
-    pub fn transfer_dst(self) -> Self {
-        Self {
-            raw: self.raw | vk::BufferUsageFlags::TRANSFER_DST,
-        }
+bitflags! {
+    #[derive(Default)]
+    pub struct BufferUsage: u32 {
+        const VERTEX = 0x00000080;
+        const INDEX = 0x00000040;
+        const UNIFORM = 0x00000010;
+        const STORAGE = 0x00000020;
+        const TRANSFER_SRC = 0x00000001;
+        const TRANSFER_DST = 0x00000002;
     }
 }
 
 impl From<BufferUsage> for vk::BufferUsageFlags {
-    fn from(usage: BufferUsage) -> Self {
-        usage.raw
+    fn from(value: BufferUsage) -> Self {
+        vk::BufferUsageFlags::from_raw(value.bits)
     }
 }
 

@@ -266,6 +266,7 @@ dependencies = [
  "anyhow",
  "ash",
  "ash-window",
+ "bitflags",
  "math",
  "num",
  "raw-window-handle 0.5.0",
