@@ -2,7 +2,7 @@
 Modern renderer written in rust, aiming to be a modern, cross-platform, GPU-driven renderer.
 
 ## Examples
-### [Hello Triangle](./src/main.rs)<br/>
+### [Hello Triangle](./crates/bin/hello-triangle/src/main.rs)<br/>
 Hello triangle example with vertex colors and a transform matrix sent per-frame to the vertex buffer.
 
 
