@@ -604,6 +604,23 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "2540771e65fc8cb83cd6e8a237f70c319bd5c29f78ed1084ba5d50eeac86f7f9"
 
 [[package]]
+name = "hello-cube"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cinder",
+ "home",
+ "image",
+ "math",
+ "rkyv",
+ "rust-shader-tools 0.1.0 (git+https://github.com/ArthurKValladares/Rust-Shader-Tools)",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "winit",
+]
+
+[[package]]
 name = "hello-triangle"
 version = "0.1.0"
 dependencies = [
