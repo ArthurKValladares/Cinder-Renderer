@@ -1,5 +1,6 @@
 [workspace]
 members = [
     "crates/bin/hello-triangle",
+    "crates/bin/hello-cube",
     "crates/lib/cinder",
 ]
