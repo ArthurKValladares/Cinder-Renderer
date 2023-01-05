@@ -58,15 +58,15 @@ impl Renderer {
         let vertex_buffer = device.create_buffer_with_data(
             &[
                 TriangleVertex {
-                    i_pos: [0.0, -0.5],
+                    i_pos: [0.0, 0.5],
                     i_color: [1.0, 0.0, 0.0, 1.0],
                 },
                 TriangleVertex {
-                    i_pos: [0.5, 0.5],
+                    i_pos: [-0.5, -0.5],
                     i_color: [0.0, 1.0, 0.0, 1.0],
                 },
                 TriangleVertex {
-                    i_pos: [-0.5, 0.5],
+                    i_pos: [0.5, -0.5],
                     i_color: [0.0, 0.0, 1.0, 1.0],
                 },
             ],
