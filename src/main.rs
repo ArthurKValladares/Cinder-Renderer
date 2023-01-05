@@ -1,3 +1,5 @@
+use std::time::Instant;
+
 use anyhow::Result;
 use cinder::{
     cinder::TriangleVertex,
@@ -11,7 +13,7 @@ use cinder::{
     Resolution,
 };
 use input::keyboard::VirtualKeyCode;
-use math::rect::Rect2D;
+use math::{mat::Mat4, rect::Rect2D, vec::Vec3};
 use winit::{
     dpi::PhysicalSize,
     event::{Event, WindowEvent},
@@ -31,6 +33,7 @@ pub struct Renderer {
     index_buffer: Buffer,
     // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
     surface_data: SurfaceData,
+    init_time: Instant,
 }
 
 impl Renderer {
@@ -46,7 +49,7 @@ impl Renderer {
             false,
         )?;
         let view = View::new(&device, &surface_data)?;
-        // TODO: adding shader to binary might be bad
+
         let render_pipeline = device.create_graphics_pipeline(
             device.create_shader(include_bytes!("../shaders/spv/triangle.vert.spv"))?,
             device.create_shader(include_bytes!("../shaders/spv/triangle.frag.spv"))?,
@@ -82,6 +85,8 @@ impl Renderer {
             },
         )?;
 
+        let init_time = Instant::now();
+
         Ok(Self {
             device,
             view,
@@ -90,6 +95,7 @@ impl Renderer {
             surface_data,
             vertex_buffer,
             index_buffer,
+            init_time,
         })
     }
 
@@ -122,6 +128,17 @@ impl Renderer {
                     .bind_index_buffer(&self.device, &self.index_buffer);
                 self.render_context
                     .bind_vertex_buffer(&self.device, &self.vertex_buffer);
+
+                // TODO: Maybe save a reference to the pipeline in `begin_rendering`, so that I don't need to pass it in here
+                self.render_context.set_vertex_bytes(
+                    &self.device,
+                    &Mat4::rotate(
+                        self.init_time.elapsed().as_secs_f32(),
+                        Vec3::new(0.0, 0.0, 1.0),
+                    ),
+                    &self.render_pipeline.common,
+                    0,
+                )?;
 
                 self.render_context.draw_offset(&self.device, 3, 0, 0);
             }

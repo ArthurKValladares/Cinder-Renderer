@@ -226,17 +226,16 @@ impl EguiIntegration {
                 false,
             );
 
-            render_context.push_constant(
+            render_context.set_vertex_bytes(
                 device,
-                &self.pipeline.common,
-                ShaderStage::Vertex,
-                0,
-                as_u8_slice(&EguiConstants {
+                &EguiConstants {
                     screen_size: [
                         size.width as f32 / pixels_per_point,
                         size.height as f32 / pixels_per_point,
                     ],
-                }),
+                },
+                &self.pipeline.common,
+                0,
             )?;
 
             for egui::ClippedPrimitive {
@@ -369,13 +368,7 @@ impl EguiIntegration {
         };
 
         render_context
-            .push_constant(
-                device,
-                &self.pipeline.common,
-                ShaderStage::Fragment,
-                0,
-                util::as_u8_slice(&index),
-            )
+            .set_fragment_bytes(device, &index, &self.pipeline.common, 0)
             .unwrap();
 
         render_context.draw_offset(device, indices.len() as u32, *index_base, *vertex_base);

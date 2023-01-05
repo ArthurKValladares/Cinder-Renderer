@@ -393,7 +393,7 @@ impl RenderContext {
         }
     }
 
-    pub fn push_constant(
+    fn push_constant(
         &self,
         device: &Device,
         pipeline_common: &PipelineCommon,
@@ -415,6 +415,38 @@ impl RenderContext {
         } else {
             Err(PipelineError::InvalidPushConstant)
         }
+    }
+
+    pub fn set_vertex_bytes<T: Sized>(
+        &self,
+        device: &Device,
+        data: &T,
+        pipeline_common: &PipelineCommon,
+        idx: u32,
+    ) -> Result<(), PipelineError> {
+        self.push_constant(
+            device,
+            pipeline_common,
+            ShaderStage::Vertex,
+            idx,
+            util::as_u8_slice(data),
+        )
+    }
+
+    pub fn set_fragment_bytes<T: Sized>(
+        &self,
+        device: &Device,
+        data: &T,
+        pipeline_common: &PipelineCommon,
+        idx: u32,
+    ) -> Result<(), PipelineError> {
+        self.push_constant(
+            device,
+            pipeline_common,
+            ShaderStage::Fragment,
+            idx,
+            util::as_u8_slice(data),
+        )
     }
 
     pub fn write_timestamp(&self, device: &Device, query_pool: &QueryPool, query: u32) {
