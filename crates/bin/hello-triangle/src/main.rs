@@ -135,7 +135,7 @@ impl Renderer {
                 self.render_context.set_vertex_bytes(
                     &self.device,
                     &Mat4::rotate(
-                        self.init_time.elapsed().as_secs_f32() * 1.5,
+                        self.init_time.elapsed().as_secs_f32(),
                         Vec3::new(0.0, 0.0, 1.0),
                     ),
                     &self.render_pipeline.common,
