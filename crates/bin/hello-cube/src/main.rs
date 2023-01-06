@@ -198,7 +198,6 @@ impl Renderer {
             },
         )?;
 
-        // TODO: update with constant proj-view data
         let ubo_buffer = device.create_buffer(
             std::mem::size_of::<CubeUniformBufferObject>() as u64,
             BufferDescription {
@@ -206,6 +205,11 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
+        ubo_buffer.mem_copy(
+            util::offset_of!(CubeUniformBufferObject, view) as u64,
+            &[Mat4::identity(), Mat4::identity()],
+        )?;
+
         render_bind_group.write(
             &device,
             &[BindGroupBindInfo {
