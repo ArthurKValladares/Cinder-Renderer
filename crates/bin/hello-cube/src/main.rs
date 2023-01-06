@@ -3,7 +3,7 @@ use cinder::{
     context::render_context::{RenderAttachment, RenderContext},
     device::{Device, SurfaceData},
     resources::{
-        bind_group::BindGroup,
+        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::Format,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
@@ -206,6 +206,13 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
+        render_bind_group.write(
+            &device,
+            &[BindGroupBindInfo {
+                dst_binding: 0,
+                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+            }],
+        );
 
         let init_time = Instant::now();
 
