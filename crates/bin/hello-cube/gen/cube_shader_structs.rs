@@ -1,7 +1,9 @@
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
-pub struct CubeConstants {
-    pub transform: [[f32; 4]; 4],
+pub struct CubeUniformBufferObject {
+    pub model: [[f32; 4]; 4],
+    pub view: [[f32; 4]; 4],
+    pub proj: [[f32; 4]; 4],
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]

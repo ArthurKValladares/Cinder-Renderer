@@ -3,6 +3,7 @@ use cinder::{
     context::render_context::{RenderAttachment, RenderContext},
     device::{Device, SurfaceData},
     resources::{
+        bind_group::BindGroup,
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::Format,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
@@ -32,9 +33,12 @@ pub struct Renderer {
     device: Device,
     view: View,
     render_pipeline: GraphicsPipeline,
+    // TODO: This should maybe be a part of `GraphicsPipeline`
+    render_bind_group: BindGroup,
     render_context: RenderContext,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
+    ubo_buffer: Buffer,
     // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
     surface_data: SurfaceData,
     init_time: Instant,
@@ -61,6 +65,12 @@ impl Renderer {
                 depth_format: Some(Format::D32_SFloat),
                 ..Default::default()
             },
+        )?;
+        // TODO: BindGroup API is still very bad
+        let render_bind_group = BindGroup::new(
+            &device,
+            &render_pipeline.common.bind_group_layouts()[0],
+            false, // TODO: This should not be a user-side param
         )?;
 
         let vertex_buffer = device.create_buffer_with_data(
@@ -188,6 +198,15 @@ impl Renderer {
             },
         )?;
 
+        // TODO: update with constant proj-view data
+        let ubo_buffer = device.create_buffer(
+            std::mem::size_of::<CubeUniformBufferObject>() as u64,
+            BufferDescription {
+                usage: BufferUsage::UNIFORM,
+                ..Default::default()
+            },
+        )?;
+
         let init_time = Instant::now();
 
         Ok(Self {
@@ -195,11 +214,24 @@ impl Renderer {
             view,
             render_context,
             render_pipeline,
+            render_bind_group,
             surface_data,
             vertex_buffer,
             index_buffer,
+            ubo_buffer,
             init_time,
         })
+    }
+
+    pub fn update(&mut self) -> Result<()> {
+        self.ubo_buffer.mem_copy(
+            util::offset_of!(CubeUniformBufferObject, model) as u64,
+            &[Mat4::rotate(
+                self.init_time.elapsed().as_secs_f32(),
+                Vec3::new(1.0, 1.0, 0.0),
+            )],
+        )?;
+        Ok(())
     }
 
     pub fn draw(&self) -> Result<bool> {
@@ -231,17 +263,13 @@ impl Renderer {
                     .bind_index_buffer(&self.device, &self.index_buffer);
                 self.render_context
                     .bind_vertex_buffer(&self.device, &self.vertex_buffer);
-
-                // TODO: Maybe save a reference to the pipeline in `begin_rendering`, so that I don't need to pass it in here
-                self.render_context.set_vertex_bytes(
+                // TODO: This whole API is hideous
+                self.render_context.bind_descriptor_sets(
                     &self.device,
-                    &Mat4::rotate(
-                        self.init_time.elapsed().as_secs_f32(),
-                        Vec3::new(1.0, 1.0, 0.0),
-                    ),
                     &self.render_pipeline.common,
-                    0,
-                )?;
+                    &[self.render_bind_group.0],
+                    false,
+                );
 
                 self.render_context.draw_offset(&self.device, 36, 0, 0);
             }
@@ -267,10 +295,12 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    let renderer = Renderer::new(&window).unwrap();
+    let mut renderer = Renderer::new(&window).unwrap();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
+
+        renderer.update().expect("could not update renderer");
 
         match event {
             Event::WindowEvent {

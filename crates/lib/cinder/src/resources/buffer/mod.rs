@@ -72,7 +72,7 @@ impl Buffer {
         self.ptr.map_or_else(
             || Err(BufferError::NotMemoryMappable),
             |ptr| {
-                ptr.add(offset as usize).mem_copy(&data);
+                ptr.add(offset as usize).mem_copy(data);
                 Ok(())
             },
         )

@@ -30,7 +30,7 @@ impl From<BindGroupType> for vk::DescriptorType {
 pub struct BindGroupPool(vk::DescriptorPool);
 
 impl BindGroupPool {
-    pub fn new(device: &Device) -> Result<Self> {
+    pub fn new(device: &ash::Device) -> Result<Self> {
         let pool_sizes = [
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
@@ -52,11 +52,7 @@ impl BindGroupPool {
             .flags(vk::DescriptorPoolCreateFlags::UPDATE_AFTER_BIND)
             .build();
 
-        let pool = unsafe {
-            device
-                .raw()
-                .create_descriptor_pool(&descriptor_pool_info, None)?
-        };
+        let pool = unsafe { device.create_descriptor_pool(&descriptor_pool_info, None)? };
 
         Ok(Self(pool))
     }
@@ -154,12 +150,7 @@ pub struct BindGroupBindInfo {
 pub struct BindGroup(pub vk::DescriptorSet);
 
 impl BindGroup {
-    pub fn new(
-        device: &Device,
-        pool: &BindGroupPool,
-        layout: &BindGroupLayout,
-        variable_count: bool,
-    ) -> Result<Self> {
+    pub fn new(device: &Device, layout: &BindGroupLayout, variable_count: bool) -> Result<Self> {
         let max_binding = MAX_BINDLESS_RESOURCES - 1;
 
         let mut count_info = vk::DescriptorSetVariableDescriptorCountAllocateInfo::builder()
@@ -167,7 +158,7 @@ impl BindGroup {
             .build();
 
         let desc_alloc_info = vk::DescriptorSetAllocateInfo::builder()
-            .descriptor_pool(pool.0)
+            .descriptor_pool(device.bind_group_pool.0)
             .set_layouts(std::slice::from_ref(&layout.layout));
         let desc_alloc_info = if variable_count {
             desc_alloc_info.push_next(&mut count_info).build()
