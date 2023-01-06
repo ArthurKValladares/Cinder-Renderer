@@ -72,7 +72,7 @@ pub fn get_pipeline_layout(
         }
         data_map
             .values()
-            .map(|layout_data| BindGroupLayout::new(device.raw(), &layout_data))
+            .map(|layout_data| BindGroupLayout::new(device, &layout_data))
             .collect::<Result<Vec<_>>>()
     }?;
     let set_layouts = unsafe {

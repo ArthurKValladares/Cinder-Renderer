@@ -274,4 +274,15 @@ impl Device {
     pub fn create_image(&self, desc: ImageDescription) -> Result<Image> {
         Image::create(self, self.memopry_properties(), desc)
     }
+
+    pub fn max_bindless_descriptor_count(&self) -> u32 {
+        pub const RESERVED_DESCRIPTOR_COUNT: u32 = 32;
+
+        (512 * 1024).min(
+            self.p_device_properties
+                .limits
+                .max_per_stage_descriptor_sampled_images
+                - RESERVED_DESCRIPTOR_COUNT,
+        )
+    }
 }
