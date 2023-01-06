@@ -6,6 +6,7 @@ use self::{instance::Instance, surface::Surface};
 use crate::{
     profiling::QueryPool,
     resources::{
+        bind_group::BindGroupPool,
         buffer::{Buffer, BufferDescription},
         image::{Image, ImageCreateError, ImageDescription},
         pipeline::{
@@ -42,6 +43,7 @@ pub struct Device {
     present_queue: vk::Queue,
     command_pool: vk::CommandPool,
     pub(crate) pipeline_cache: vk::PipelineCache,
+    pub(crate) bind_group_pool: BindGroupPool,
     // TODO: Probably will have better syncronization in the future, not pub
     pub(crate) present_complete_semaphore: vk::Semaphore,
     pub(crate) rendering_complete_semaphore: vk::Semaphore,
@@ -163,6 +165,7 @@ impl Device {
 
         let ci = vk::PipelineCacheCreateInfo::builder().build();
         let pipeline_cache = unsafe { device.create_pipeline_cache(&ci, None)? };
+        let bind_group_pool = BindGroupPool::new(&device)?;
 
         // TODO: Figure out sync story
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
@@ -187,6 +190,7 @@ impl Device {
             present_queue,
             command_pool,
             pipeline_cache,
+            bind_group_pool,
             present_complete_semaphore,
             rendering_complete_semaphore,
             draw_commands_reuse_fence,
