@@ -334,4 +334,8 @@ impl Device {
     pub fn present_complete_semaphore(&self) -> vk::Semaphore {
         self.present_complete_semaphore
     }
+
+    pub fn setup_fence(&self) -> vk::Fence {
+        self.setup_commands_reuse_fence
+    }
 }

@@ -257,7 +257,7 @@ impl Renderer {
                     surface_data.surface_resolution.width as f32
                         / surface_data.surface_resolution.height as f32,
                     30.0,
-                    0.0,
+                    0.01,
                 ),
             ],
         )?;
@@ -320,7 +320,7 @@ impl Renderer {
                     RenderAttachmentDesc {
                         store_op: AttachmentStoreOp::DontCare,
                         layout: Layout::DepthAttachment,
-                        clear_value: ClearValue::reverse_depth(),
+                        clear_value: ClearValue::default_depth(),
                         ..Default::default()
                     },
                 )),

@@ -19,7 +19,7 @@ impl ContextShared {
 }
 
 impl ContextShared {
-    fn begin(&self, device: &ash::Device, command_buffer_reuse_fence: vk::Fence) -> Result<()> {
+    pub fn begin(&self, device: &ash::Device, command_buffer_reuse_fence: vk::Fence) -> Result<()> {
         unsafe { device.wait_for_fences(&[command_buffer_reuse_fence], true, std::u64::MAX) }?;
 
         unsafe { device.reset_fences(&[command_buffer_reuse_fence]) }?;
@@ -39,7 +39,7 @@ impl ContextShared {
         Ok(())
     }
 
-    fn end(
+    pub fn end(
         &self,
         device: &ash::Device,
         command_buffer_reuse_fence: vk::Fence,
