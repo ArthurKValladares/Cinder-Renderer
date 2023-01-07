@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use super::{memory::Memory, sampler::Sampler};
 use crate::{device::Device, util::find_memory_type_index};
 use anyhow::Result;
@@ -130,7 +128,7 @@ pub struct ImageViewDescription {
 pub struct Image {
     pub raw: vk::Image,
     pub desc: ImageDescription,
-    pub views: HashMap<ImageViewDescription, vk::ImageView>,
+    pub view: vk::ImageView,
     // TODO: Have memory live somewhere else, and manage it all together?
     pub memory: Memory,
 }
@@ -176,6 +174,19 @@ impl Image {
             device.raw().bind_image_memory(image, memory, 0)?;
         }
 
+        let image_view_info = vk::ImageViewCreateInfo::builder()
+            .subresource_range(
+                vk::ImageSubresourceRange::builder()
+                    .aspect_mask(desc.usage.into())
+                    .level_count(1)
+                    .layer_count(1)
+                    .build(),
+            )
+            .image(image)
+            .format(desc.format.into())
+            .view_type(vk::ImageViewType::TYPE_2D);
+        let view = unsafe { device.raw().create_image_view(&image_view_info, None) }?;
+
         let memory = Memory {
             raw: memory,
             req: memory_req,
@@ -183,38 +194,16 @@ impl Image {
 
         Ok(Image {
             raw: image,
-            views: Default::default(),
+            view,
             memory,
             desc,
         })
     }
 
-    // TODO: Return Handle? Better aspect mask abstraction?
-    pub fn add_view(&mut self, device: &Device, view_desc: ImageViewDescription) -> Result<()> {
-        let image_view_info = vk::ImageViewCreateInfo::builder()
-            .subresource_range(
-                vk::ImageSubresourceRange::builder()
-                    .aspect_mask(view_desc.usage.into())
-                    .level_count(1)
-                    .layer_count(1)
-                    .build(),
-            )
-            .image(self.raw)
-            .format(view_desc.format.into())
-            .view_type(vk::ImageViewType::TYPE_2D);
-
-        let image_view = unsafe { device.raw().create_image_view(&image_view_info, None) }?;
-        self.views.insert(view_desc, image_view);
-        Ok(())
-    }
-
     pub fn clean(&mut self, device: &Device) {
         unsafe {
             device.raw().destroy_image(self.raw, None);
-            for view in self.views.values() {
-                device.raw().destroy_image_view(*view, None);
-            }
-            self.views.clear();
+            device.raw().destroy_image_view(self.view, None);
             self.memory.clean(device.raw());
         }
     }
@@ -237,14 +226,13 @@ impl Image {
     pub fn bind_info(
         &self,
         sampler: &Sampler,
-        image_view_desc: ImageViewDescription,
         index: u32,              // TODO: This only makes sense for bindless
         layout: vk::ImageLayout, // TODO: Get from shader
     ) -> BindImageInfo {
         BindImageInfo {
             info: vk::DescriptorImageInfo {
                 image_layout: layout,
-                image_view: *self.views.get(&image_view_desc).unwrap(),
+                image_view: self.view,
                 sampler: sampler.raw,
             },
             index,
