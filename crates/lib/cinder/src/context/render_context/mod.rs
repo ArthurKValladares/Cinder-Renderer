@@ -81,13 +81,6 @@ impl ClearValue {
 
     pub fn default_depth() -> Self {
         Self::Depth {
-            depth: 1.0,
-            stencil: 0,
-        }
-    }
-
-    pub fn reverse_depth() -> Self {
-        Self::Depth {
             depth: 0.0,
             stencil: 0,
         }
@@ -178,7 +171,6 @@ impl RenderAttachment {
         Self::from_parts(drawable.image_view, desc)
     }
 
-    // TODO: Cleaner signature
     pub fn depth(depth_image: &Image, desc: RenderAttachmentDesc) -> Self {
         Self::from_parts(depth_image.view, desc)
     }
@@ -624,8 +616,8 @@ impl RenderContext {
                 dst_stage_mask,
                 dependency_flags,
                 &[],
-                &buffer_barriers,
-                &image_barriers,
+                buffer_barriers,
+                image_barriers,
             )
         }
     }
