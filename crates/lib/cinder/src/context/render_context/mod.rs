@@ -4,7 +4,7 @@ use crate::{
     profiling::QueryPool,
     resources::{
         buffer::Buffer,
-        image::{Image, ImageViewDescription},
+        image::Image,
         pipeline::{compute::ComputePipeline, graphics::GraphicsPipeline, PipelineCommon},
         shader::ShaderStage,
     },
@@ -74,6 +74,26 @@ impl Default for ClearValue {
     }
 }
 
+impl ClearValue {
+    pub fn default_color() -> Self {
+        Default::default()
+    }
+
+    pub fn default_depth() -> Self {
+        Self::Depth {
+            depth: 1.0,
+            stencil: 0,
+        }
+    }
+
+    pub fn reverse_depth() -> Self {
+        Self::Depth {
+            depth: 0.0,
+            stencil: 0,
+        }
+    }
+}
+
 impl From<ClearValue> for vk::ClearValue {
     fn from(value: ClearValue) -> Self {
         match value {
@@ -133,10 +153,10 @@ impl From<AttachmentStoreOp> for vk::AttachmentStoreOp {
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct RenderAttachmentDesc {
-    load_op: AttachmentLoadOp,
-    store_op: AttachmentStoreOp,
-    layout: Layout,
-    clear_value: ClearValue,
+    pub load_op: AttachmentLoadOp,
+    pub store_op: AttachmentStoreOp,
+    pub layout: Layout,
+    pub clear_value: ClearValue,
 }
 
 pub struct RenderAttachment(vk::RenderingAttachmentInfo);
@@ -155,18 +175,12 @@ impl RenderAttachment {
     }
 
     pub fn color(drawable: Drawable, desc: RenderAttachmentDesc) -> Self {
-        let view = drawable.image_view;
-        Self::from_parts(view, desc)
+        Self::from_parts(drawable.image_view, desc)
     }
 
     // TODO: Cleaner signature
-    pub fn depth(
-        depth_image: &Image,
-        image_view_desc: ImageViewDescription,
-        desc: RenderAttachmentDesc,
-    ) -> Self {
-        let view = depth_image.views.get(&image_view_desc).unwrap();
-        Self::from_parts(*view, desc)
+    pub fn depth(depth_image: &Image, desc: RenderAttachmentDesc) -> Self {
+        Self::from_parts(depth_image.view, desc)
     }
 }
 

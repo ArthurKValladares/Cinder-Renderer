@@ -1,17 +1,20 @@
 use anyhow::Result;
 use cinder::{
-    context::render_context::{RenderAttachment, RenderContext},
+    context::render_context::{
+        AttachmentStoreOp, ClearValue, Layout, RenderAttachment, RenderAttachmentDesc,
+        RenderContext,
+    },
     device::{Device, SurfaceData},
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
-        image::Format,
+        image::{Format, Image, ImageDescription, Usage},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
     },
     view::View,
     Resolution,
 };
-use math::{mat::Mat4, rect::Rect2D, vec::Vec3};
+use math::{mat::Mat4, rect::Rect2D, size::Size2D, vec::Vec3};
 use std::time::Instant;
 use winit::{
     dpi::PhysicalSize,
@@ -57,6 +60,7 @@ fn new_infinite_perspective_proj(aspect_ratio: f32, y_fov: f32, z_near: f32) -> 
 pub struct Renderer {
     device: Device,
     view: View,
+    depth_image: Image,
     render_pipeline: GraphicsPipeline,
     // TODO: This should maybe be a part of `GraphicsPipeline`
     render_bind_group: BindGroup,
@@ -82,7 +86,18 @@ impl Renderer {
             false,
         )?;
         let view = View::new(&device, &surface_data)?;
-
+        let depth_image = Image::create(
+            &device,
+            device.memopry_properties(),
+            ImageDescription {
+                format: Format::D32_SFloat,
+                usage: Usage::Depth,
+                size: Size2D::new(
+                    surface_data.surface_resolution.width,
+                    surface_data.surface_resolution.height,
+                ),
+            },
+        )?;
         let render_pipeline = device.create_graphics_pipeline(
             device.create_shader(include_bytes!("../shaders/spv/cube.vert.spv"))?,
             device.create_shader(include_bytes!("../shaders/spv/cube.frag.spv"))?,
@@ -260,6 +275,7 @@ impl Renderer {
         Ok(Self {
             device,
             view,
+            depth_image,
             render_context,
             render_pipeline,
             render_bind_group,
@@ -299,7 +315,15 @@ impl Renderer {
                 &self.device,
                 surface_rect,
                 &[RenderAttachment::color(drawable, Default::default())],
-                None,
+                Some(RenderAttachment::depth(
+                    &self.depth_image,
+                    RenderAttachmentDesc {
+                        store_op: AttachmentStoreOp::DontCare,
+                        layout: Layout::DepthAttachment,
+                        clear_value: ClearValue::reverse_depth(),
+                        ..Default::default()
+                    },
+                )),
             );
             {
                 self.render_context
