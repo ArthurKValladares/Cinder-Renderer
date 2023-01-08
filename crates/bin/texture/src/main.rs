@@ -1,16 +1,20 @@
 use anyhow::Result;
 use cinder::{
-    context::render_context::{RenderAttachment, RenderContext},
+    context::render_context::{
+        AttachmentStoreOp, ClearValue, Layout, RenderAttachment, RenderAttachmentDesc,
+        RenderContext,
+    },
     device::{Device, SurfaceData},
     resources::{
+        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
-        pipeline::graphics::GraphicsPipeline,
+        image::{Format, Image, ImageDescription, Usage},
+        pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
     },
     view::View,
     Resolution,
 };
-use math::{mat::Mat4, rect::Rect2D, vec::Vec3};
-use std::time::Instant;
+use math::{mat::Mat4, rect::Rect2D, size::Size2D, vec::Vec3};
 use winit::{
     dpi::PhysicalSize,
     event::VirtualKeyCode,
@@ -24,7 +28,7 @@ pub const WINDOW_HEIGHT: u32 = 2000;
 
 include!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/gen/triangle_shader_structs.rs"
+    "/gen/texture_shader_structs.rs"
 ));
 
 pub struct Renderer {
@@ -36,7 +40,6 @@ pub struct Renderer {
     index_buffer: Buffer,
     // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
     surface_data: SurfaceData,
-    init_time: Instant,
 }
 
 impl Renderer {
@@ -52,26 +55,29 @@ impl Renderer {
             false,
         )?;
         let view = View::new(&device, &surface_data)?;
-
         let render_pipeline = device.create_graphics_pipeline(
-            device.create_shader(include_bytes!("../shaders/spv/triangle.vert.spv"))?,
-            device.create_shader(include_bytes!("../shaders/spv/triangle.frag.spv"))?,
+            device.create_shader(include_bytes!("../shaders/spv/texture.vert.spv"))?,
+            device.create_shader(include_bytes!("../shaders/spv/texture.frag.spv"))?,
             Default::default(),
         )?;
 
         let vertex_buffer = device.create_buffer_with_data(
             &[
-                TriangleVertex {
-                    i_pos: [0.0, 0.5],
-                    i_color: [1.0, 0.0, 0.0, 1.0],
-                },
-                TriangleVertex {
+                TextureVertex {
                     i_pos: [-0.5, -0.5],
-                    i_color: [0.0, 1.0, 0.0, 1.0],
+                    i_uv: [0.0, 0.0],
                 },
-                TriangleVertex {
+                TextureVertex {
                     i_pos: [0.5, -0.5],
-                    i_color: [0.0, 0.0, 1.0, 1.0],
+                    i_uv: [1.0, 0.0],
+                },
+                TextureVertex {
+                    i_pos: [0.5, 0.5],
+                    i_uv: [1.0, 1.0],
+                },
+                TextureVertex {
+                    i_pos: [-0.5, 0.5],
+                    i_uv: [0.0, 1.0],
                 },
             ],
             BufferDescription {
@@ -80,14 +86,12 @@ impl Renderer {
             },
         )?;
         let index_buffer = device.create_buffer_with_data(
-            &[0, 1, 2],
+            &[0, 1, 2, 2, 3, 0],
             BufferDescription {
                 usage: BufferUsage::INDEX,
                 ..Default::default()
             },
         )?;
-
-        let init_time = Instant::now();
 
         Ok(Self {
             device,
@@ -97,7 +101,6 @@ impl Renderer {
             surface_data,
             vertex_buffer,
             index_buffer,
-            init_time,
         })
     }
 
@@ -131,17 +134,7 @@ impl Renderer {
                 self.render_context
                     .bind_vertex_buffer(&self.device, &self.vertex_buffer);
 
-                // TODO: Maybe save a reference to the pipeline in `begin_rendering`, so that I don't need to pass it in here
-                let scale =
-                    (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
-                self.render_context.set_vertex_bytes(
-                    &self.device,
-                    &Mat4::rotate(scale, Vec3::new(0.0, 0.0, 1.0)),
-                    &self.render_pipeline.common,
-                    0,
-                )?;
-
-                self.render_context.draw_offset(&self.device, 3, 0, 0);
+                self.render_context.draw_offset(&self.device, 6, 0, 0);
             }
             self.render_context.end_rendering(&self.device);
 
@@ -165,7 +158,7 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    let renderer = Renderer::new(&window).unwrap();
+    let mut renderer = Renderer::new(&window).unwrap();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
