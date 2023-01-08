@@ -9,6 +9,7 @@ use cinder::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, Usage},
+        memory::MemoryType,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
     },
     view::View,
@@ -86,16 +87,15 @@ impl Renderer {
             false,
         )?;
         let view = View::new(&device, &surface_data)?;
-        let depth_image = Image::create(
-            &device,
-            device.memopry_properties(),
+        let depth_image = device.create_image(
+            Size2D::new(
+                surface_data.surface_resolution.width,
+                surface_data.surface_resolution.height,
+            ),
             ImageDescription {
                 format: Format::D32_SFloat,
                 usage: Usage::Depth,
-                size: Size2D::new(
-                    surface_data.surface_resolution.width,
-                    surface_data.surface_resolution.height,
-                ),
+                memory_ty: MemoryType::GpuOnly,
             },
         )?;
         let render_pipeline = device.create_graphics_pipeline(

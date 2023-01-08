@@ -113,15 +113,7 @@ impl Buffer {
         };
 
         let ptr = if desc.memory_ty.is_cpu_visible() {
-            unsafe {
-                let ptr = device.raw().map_memory(
-                    memory.raw,
-                    0,
-                    buffer_memory_req.size,
-                    vk::MemoryMapFlags::empty(),
-                )?;
-                Some(MemoryMappablePointer::from_raw_ptr(ptr))
-            }
+            Some(memory.ptr(device.raw())?)
         } else {
             None
         };

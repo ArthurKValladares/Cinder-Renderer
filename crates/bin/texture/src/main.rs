@@ -39,6 +39,7 @@ pub struct Renderer {
     render_context: RenderContext,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
+    texture: Image,
     // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
     surface_data: SurfaceData,
 }
@@ -106,6 +107,12 @@ impl Renderer {
         let (width, height) = image.dimensions();
         let image_data = image.into_raw();
 
+        let texture = device.create_image_with_data(
+            &image_data,
+            Size2D::new(width, height),
+            Default::default(),
+        )?;
+
         Ok(Self {
             device,
             view,
@@ -115,6 +122,7 @@ impl Renderer {
             surface_data,
             vertex_buffer,
             index_buffer,
+            texture,
         })
     }
 

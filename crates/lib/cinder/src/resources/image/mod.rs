@@ -1,5 +1,11 @@
-use super::{memory::Memory, sampler::Sampler};
-use crate::{device::Device, util::find_memory_type_index};
+use super::{
+    memory::{Memory, MemoryType},
+    sampler::Sampler,
+};
+use crate::{
+    device::Device,
+    util::{find_memory_type_index, MemoryMappablePointer},
+};
 use anyhow::Result;
 use ash::vk;
 use math::size::Size2D;
@@ -7,9 +13,11 @@ use rust_shader_tools::ReflectFormat;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
-pub enum ImageCreateError {
+pub enum ImageError {
     #[error("No suitable memory type found")]
     NoSuitableMemoryType,
+    #[error("Buffer is not mappable from CPU memory")]
+    NotMemoryMappable,
 }
 
 pub fn reflect_format_to_vk(fmt: ReflectFormat, low_precision: bool) -> vk::Format {
@@ -91,6 +99,12 @@ pub enum Usage {
     StorageTexture,
 }
 
+impl Default for Usage {
+    fn default() -> Self {
+        Self::Texture
+    }
+}
+
 impl From<Usage> for vk::ImageUsageFlags {
     fn from(usage: Usage) -> Self {
         match usage {
@@ -113,10 +127,11 @@ impl From<Usage> for vk::ImageAspectFlags {
     }
 }
 
+#[derive(Debug, Default, Clone, Copy)]
 pub struct ImageDescription {
     pub format: Format,
     pub usage: Usage,
-    pub size: Size2D<u32>,
+    pub memory_ty: MemoryType,
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
@@ -127,24 +142,27 @@ pub struct ImageViewDescription {
 
 pub struct Image {
     pub raw: vk::Image,
+    pub size: Size2D<u32>,
     pub desc: ImageDescription,
     pub view: vk::ImageView,
     // TODO: Have memory live somewhere else, and manage it all together?
     pub memory: Memory,
+    pub ptr: Option<MemoryMappablePointer>,
 }
 
 impl Image {
     pub fn create(
         device: &Device,
         p_device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
+        size: Size2D<u32>,
         desc: ImageDescription,
     ) -> Result<Self> {
         let create_info = vk::ImageCreateInfo::builder()
             .image_type(vk::ImageType::TYPE_2D)
             .format(desc.format.into())
             .extent(vk::Extent3D {
-                width: desc.size.width(),
-                height: desc.size.height(),
+                width: size.width(),
+                height: size.height(),
                 depth: 1,
             })
             .mip_levels(1)
@@ -160,9 +178,9 @@ impl Image {
         let memory_index = find_memory_type_index(
             &memory_req,
             p_device_memory_properties,
-            vk::MemoryPropertyFlags::DEVICE_LOCAL,
+            desc.memory_ty.into(),
         )
-        .ok_or_else(|| ImageCreateError::NoSuitableMemoryType)?;
+        .ok_or_else(|| ImageError::NoSuitableMemoryType)?;
 
         let allocate_info = vk::MemoryAllocateInfo {
             allocation_size: memory_req.size,
@@ -192,11 +210,19 @@ impl Image {
             req: memory_req,
         };
 
+        let ptr = if desc.memory_ty.is_cpu_visible() {
+            Some(memory.ptr(device.raw())?)
+        } else {
+            None
+        };
+
         Ok(Image {
             raw: image,
+            size,
             view,
             memory,
             desc,
+            ptr,
         })
     }
 
@@ -209,10 +235,21 @@ impl Image {
     }
 
     pub fn dims(&self) -> Size2D<u32> {
-        self.desc.size
+        self.size
     }
+
     pub fn format(&self) -> Format {
         self.desc.format
+    }
+
+    pub fn mem_copy<T: Copy>(&self, offset: u64, data: &[T]) -> Result<(), ImageError> {
+        self.ptr.map_or_else(
+            || Err(ImageError::NotMemoryMappable),
+            |ptr| {
+                ptr.add(offset as usize).mem_copy(data);
+                Ok(())
+            },
+        )
     }
 }
 
