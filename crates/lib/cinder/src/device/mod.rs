@@ -8,7 +8,7 @@ use crate::{
     resources::{
         bind_group::BindGroupPool,
         buffer::{Buffer, BufferDescription},
-        image::{Image, ImageCreateError, ImageDescription},
+        image::{Image, ImageDescription, ImageError},
         pipeline::{
             compute::{ComputePipeline, ComputePipelineDescription},
             graphics::{GraphicsPipeline, GraphicsPipelineDescription},
@@ -21,6 +21,7 @@ use anyhow::Result;
 use ash::vk;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 use ash::vk::KhrPortabilitySubsetFn;
+use math::size::Size2D;
 use thiserror::Error;
 use util::size_of_slice;
 
@@ -29,7 +30,7 @@ pub enum DeviceInitError {
     #[error("No suitable device found")]
     NoSuitableDevice,
     #[error(transparent)]
-    ImageCreateError(#[from] ImageCreateError),
+    ImageCreateError(#[from] ImageError),
 }
 
 pub struct Device {
@@ -284,8 +285,23 @@ impl Device {
     ) -> Result<Buffer> {
         let size = size_of_slice(data);
         let buffer = self.create_buffer(size, desc)?;
-        buffer.mem_copy(0, data)?;
+        buffer.mem_copy(0, data);
         Ok(buffer)
+    }
+
+    pub fn create_image(&self, size: Size2D<u32>, desc: ImageDescription) -> Result<Image> {
+        Image::create(self, self.memopry_properties(), size, desc)
+    }
+
+    pub fn create_image_with_data<T: Copy>(
+        &self,
+        data: &[T],
+        size: Size2D<u32>,
+        desc: ImageDescription,
+    ) -> Result<Image> {
+        let image = self.create_image(size, desc)?;
+        image.mem_copy(0, data);
+        Ok(image)
     }
 
     pub fn create_shader(&self, bytes: &[u8]) -> Result<Shader> {
@@ -325,10 +341,6 @@ impl Device {
         let sampler = unsafe { self.raw().create_sampler(&sampler_info, None) }?;
 
         Ok(Sampler { raw: sampler })
-    }
-
-    pub fn create_image(&self, desc: ImageDescription) -> Result<Image> {
-        Image::create(self, self.memopry_properties(), desc)
     }
 
     pub fn present_complete_semaphore(&self) -> vk::Semaphore {

@@ -105,8 +105,8 @@ impl UploadContext {
                     .build(),
             )
             .image_extent(vk::Extent3D {
-                width: image.desc.size.width(),
-                height: image.desc.size.height(),
+                width: image.size.width(),
+                height: image.size.height(),
                 depth: 1,
             })
             .build();
