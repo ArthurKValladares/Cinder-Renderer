@@ -288,12 +288,10 @@ impl Renderer {
     }
 
     pub fn update(&mut self) -> Result<()> {
+        let scale = (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
         self.ubo_buffer.mem_copy(
             util::offset_of!(CubeUniformBufferObject, model) as u64,
-            &[Mat4::rotate(
-                self.init_time.elapsed().as_secs_f32(),
-                Vec3::new(1.0, 1.0, 0.0),
-            )],
+            &[Mat4::rotate(scale, Vec3::new(1.0, 1.0, 0.0))],
         )?;
         Ok(())
     }

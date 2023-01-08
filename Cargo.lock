@@ -1629,6 +1629,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "texture"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cinder",
+ "home",
+ "image",
+ "math",
+ "nalgebra-glm",
+ "rkyv",
+ "rust-shader-tools 0.1.0 (git+https://github.com/ArthurKValladares/Rust-Shader-Tools)",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "util",
+ "winit",
+]
+
+[[package]]
 name = "thiserror"
 version = "1.0.38"
 source = "registry+https://github.com/rust-lang/crates.io-index"
