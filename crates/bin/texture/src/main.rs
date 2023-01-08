@@ -35,6 +35,7 @@ pub struct Renderer {
     device: Device,
     view: View,
     render_pipeline: GraphicsPipeline,
+    render_bind_group: BindGroup,
     render_context: RenderContext,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
@@ -55,10 +56,16 @@ impl Renderer {
             false,
         )?;
         let view = View::new(&device, &surface_data)?;
+
         let render_pipeline = device.create_graphics_pipeline(
             device.create_shader(include_bytes!("../shaders/spv/texture.vert.spv"))?,
             device.create_shader(include_bytes!("../shaders/spv/texture.frag.spv"))?,
             Default::default(),
+        )?;
+        let render_bind_group = BindGroup::new(
+            &device,
+            &render_pipeline.common.bind_group_layouts()[0],
+            false, // TODO: This should not be a user-side param
         )?;
 
         let vertex_buffer = device.create_buffer_with_data(
@@ -93,11 +100,18 @@ impl Renderer {
             },
         )?;
 
+        let image = image::load_from_memory(include_bytes!("../assets/ferris.png"))
+            .unwrap()
+            .to_rgba8();
+        let (width, height) = image.dimensions();
+        let image_data = image.into_raw();
+
         Ok(Self {
             device,
             view,
             render_context,
             render_pipeline,
+            render_bind_group,
             surface_data,
             vertex_buffer,
             index_buffer,
