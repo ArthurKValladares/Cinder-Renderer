@@ -10,6 +10,7 @@ use cinder::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, Usage},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
+        sampler::Sampler,
     },
     view::View,
     Resolution,
@@ -39,6 +40,7 @@ pub struct Renderer {
     render_context: RenderContext,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
+    sampler: Sampler,
     texture: Image,
     // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
     surface_data: SurfaceData,
@@ -101,17 +103,24 @@ impl Renderer {
             },
         )?;
 
+        let sampler = device.create_sampler()?;
+
         let image = image::load_from_memory(include_bytes!("../assets/ferris.png"))
             .unwrap()
             .to_rgba8();
         let (width, height) = image.dimensions();
+        let texture = device.create_image(Size2D::new(width, height), Default::default())?;
         let image_data = image.into_raw();
 
-        let texture = device.create_image_with_data(
-            &image_data,
-            Size2D::new(width, height),
-            Default::default(),
-        )?;
+        // TODO: Write and transition image
+
+        render_bind_group.write(
+            &device,
+            &[BindGroupBindInfo {
+                dst_binding: 0,
+                data: BindGroupWriteData::SampledImage(texture.bind_info(&sampler, 0)),
+            }],
+        );
 
         Ok(Self {
             device,
@@ -122,6 +131,7 @@ impl Renderer {
             surface_data,
             vertex_buffer,
             index_buffer,
+            sampler,
             texture,
         })
     }
@@ -155,6 +165,13 @@ impl Renderer {
                     .bind_index_buffer(&self.device, &self.index_buffer);
                 self.render_context
                     .bind_vertex_buffer(&self.device, &self.vertex_buffer);
+                // TODO: better abstraction
+                self.render_context.bind_descriptor_sets(
+                    &self.device,
+                    &self.render_pipeline.common,
+                    &[self.render_bind_group.0],
+                    false,
+                );
 
                 self.render_context.draw_offset(&self.device, 6, 0, 0);
             }
