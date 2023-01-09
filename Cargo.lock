@@ -166,7 +166,7 @@ dependencies = [
  "num",
  "raw-window-handle 0.5.0",
  "rkyv",
- "rust-shader-tools 0.1.0",
+ "rust-shader-tools",
  "thiserror",
  "tracing",
  "util",
@@ -623,7 +623,7 @@ dependencies = [
  "math",
  "nalgebra-glm",
  "rkyv",
- "rust-shader-tools 0.1.0 (git+https://github.com/ArthurKValladares/Rust-Shader-Tools)",
+ "rust-shader-tools",
  "serde",
  "serde_json",
  "thiserror",
@@ -641,7 +641,7 @@ dependencies = [
  "image",
  "math",
  "rkyv",
- "rust-shader-tools 0.1.0 (git+https://github.com/ArthurKValladares/Rust-Shader-Tools)",
+ "rust-shader-tools",
  "serde",
  "serde_json",
  "thiserror",
@@ -1369,22 +1369,6 @@ dependencies = [
 [[package]]
 name = "rust-shader-tools"
 version = "0.1.0"
-dependencies = [
- "anyhow",
- "heck",
- "prettyplease",
- "proc-macro2",
- "quote",
- "shaderc",
- "spirv",
- "spirv-reflect",
- "syn",
- "thiserror",
-]
-
-[[package]]
-name = "rust-shader-tools"
-version = "0.1.0"
 source = "git+https://github.com/ArthurKValladares/Rust-Shader-Tools#64d29a4fff9db356aee546819bb4e692e91a1753"
 dependencies = [
  "anyhow",
@@ -1639,7 +1623,7 @@ dependencies = [
  "math",
  "nalgebra-glm",
  "rkyv",
- "rust-shader-tools 0.1.0 (git+https://github.com/ArthurKValladares/Rust-Shader-Tools)",
+ "rust-shader-tools",
  "serde",
  "serde_json",
  "thiserror",
