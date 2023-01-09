@@ -56,7 +56,7 @@ pub enum Format {
 
 impl Default for Format {
     fn default() -> Self {
-        Self::B8_G8_R8_A8_Unorm
+        Self::R8_G8_B8_A8_Unorm
     }
 }
 
@@ -127,11 +127,21 @@ impl From<Usage> for vk::ImageAspectFlags {
     }
 }
 
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Clone, Copy)]
 pub struct ImageDescription {
     pub format: Format,
     pub usage: Usage,
     pub memory_ty: MemoryType,
+}
+
+impl Default for ImageDescription {
+    fn default() -> Self {
+        Self {
+            format: Default::default(),
+            usage: Default::default(),
+            memory_ty: MemoryType::GpuOnly,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
@@ -263,12 +273,11 @@ impl Image {
     pub fn bind_info(
         &self,
         sampler: &Sampler,
-        index: u32,              // TODO: This only makes sense for bindless
-        layout: vk::ImageLayout, // TODO: Get from shader
+        index: u32, // TODO: This only makes sense for bindless
     ) -> BindImageInfo {
         BindImageInfo {
             info: vk::DescriptorImageInfo {
-                image_layout: layout,
+                image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL, // TODO: Should not be hard-coded?
                 image_view: self.view,
                 sampler: sampler.raw,
             },
