@@ -1,8 +1,11 @@
 use anyhow::Result;
 use cinder::{
-    context::render_context::{
-        AttachmentStoreOp, ClearValue, Layout, RenderAttachment, RenderAttachmentDesc,
-        RenderContext,
+    context::{
+        render_context::{
+            AttachmentStoreOp, ClearValue, Layout, RenderAttachment, RenderAttachmentDesc,
+            RenderContext,
+        },
+        upload_context::UploadContext,
     },
     device::{Device, SurfaceData},
     resources::{
@@ -38,6 +41,7 @@ pub struct Renderer {
     render_pipeline: GraphicsPipeline,
     render_bind_group: BindGroup,
     render_context: RenderContext,
+    upload_context: UploadContext,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     sampler: Sampler,
@@ -50,6 +54,7 @@ impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
         let device = Device::new(window)?;
         let render_context = RenderContext::new(&device)?;
+        let upload_context = UploadContext::new(&device)?;
         let surface_data = device.surface().get_data(
             device.p_device(),
             Resolution {
@@ -75,19 +80,19 @@ impl Renderer {
             &[
                 TextureVertex {
                     i_pos: [-0.5, -0.5],
-                    i_uv: [0.0, 0.0],
+                    i_uv: [0.0, 1.0],
                 },
                 TextureVertex {
                     i_pos: [0.5, -0.5],
-                    i_uv: [1.0, 0.0],
-                },
-                TextureVertex {
-                    i_pos: [0.5, 0.5],
                     i_uv: [1.0, 1.0],
                 },
                 TextureVertex {
+                    i_pos: [0.5, 0.5],
+                    i_uv: [1.0, 0.0],
+                },
+                TextureVertex {
                     i_pos: [-0.5, 0.5],
-                    i_uv: [0.0, 1.0],
+                    i_uv: [0.0, 0.0],
                 },
             ],
             BufferDescription {
@@ -105,14 +110,36 @@ impl Renderer {
 
         let sampler = device.create_sampler()?;
 
-        let image = image::load_from_memory(include_bytes!("../assets/ferris.png"))
+        let image = image::load_from_memory(include_bytes!("../assets/rust.png"))
             .unwrap()
             .to_rgba8();
         let (width, height) = image.dimensions();
         let texture = device.create_image(Size2D::new(width, height), Default::default())?;
         let image_data = image.into_raw();
 
-        // TODO: Write and transition image
+        // TODO: Clean up image buffer
+        let image_buffer = device.create_buffer_with_data(
+            &image_data,
+            BufferDescription {
+                usage: BufferUsage::TRANSFER_SRC,
+                ..Default::default()
+            },
+        )?;
+
+        upload_context.begin(&device, device.setup_fence())?;
+        {
+            upload_context.image_barrier_start(&device, &texture);
+            upload_context.copy_buffer_to_image(&device, &image_buffer, &texture);
+            upload_context.image_barrier_end(&device, &texture);
+        }
+        upload_context.end(
+            &device,
+            device.setup_fence(),
+            device.present_queue(),
+            &[],
+            &[],
+            &[],
+        )?;
 
         render_bind_group.write(
             &device,
@@ -126,6 +153,7 @@ impl Renderer {
             device,
             view,
             render_context,
+            upload_context,
             render_pipeline,
             render_bind_group,
             surface_data,
