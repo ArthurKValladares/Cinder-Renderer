@@ -16,4 +16,4 @@ Hello cube example with vertex colors and a model/view/projection matrix uniform
 ### [Texture](./crates/bin/texture/src/main.rs)<br/>
 Basic textured quad.
 
-![texture](https://user-images.githubusercontent.com/23410311/211232696-af123319-85a8-45dc-9be8-ff79af567cee.png)
+![texture](https://user-images.githubusercontent.com/23410311/211232839-00e248d9-9c73-4b71-9e00-06d532930cde.gif)
