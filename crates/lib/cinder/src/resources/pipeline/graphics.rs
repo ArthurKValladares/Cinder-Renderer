@@ -58,12 +58,23 @@ impl ColorBlendState {
     }
 }
 
-#[derive(Debug, Default, Copy, Clone)]
+#[derive(Debug, Copy, Clone)]
 pub struct GraphicsPipelineDescription {
     pub blending: ColorBlendState,
     pub surface_format: Format,
     pub depth_format: Option<Format>,
     pub backface_culling: bool,
+}
+
+impl Default for GraphicsPipelineDescription {
+    fn default() -> Self {
+        Self {
+            blending: Default::default(),
+            surface_format: Format::B8_G8_R8_A8_Unorm,
+            depth_format: Default::default(),
+            backface_culling: Default::default(),
+        }
+    }
 }
 
 pub struct GraphicsPipeline {

@@ -13,6 +13,22 @@ pub struct UploadContext {
 }
 
 impl UploadContext {
+    pub fn new(device: &Device) -> Result<Self> {
+        // TODO: Allocate buffers in bulk, manage handing them out some way
+        let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
+            .command_buffer_count(1)
+            .command_pool(device.command_pool())
+            .level(vk::CommandBufferLevel::PRIMARY);
+
+        let command_buffer = unsafe {
+            device
+                .raw()
+                .allocate_command_buffers(&command_buffer_allocate_info)?
+        }[0];
+
+        Ok(UploadContext::from_command_buffer(command_buffer))
+    }
+
     pub fn from_command_buffer(command_buffer: vk::CommandBuffer) -> Self {
         Self {
             shared: ContextShared::from_command_buffer(command_buffer),
