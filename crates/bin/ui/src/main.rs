@@ -1,8 +1,11 @@
 use anyhow::Result;
 use cinder::{
-    context::render_context::{
-        AttachmentStoreOp, ClearValue, Layout, RenderAttachment, RenderAttachmentDesc,
-        RenderContext,
+    context::{
+        render_context::{
+            AttachmentStoreOp, ClearValue, Layout, RenderAttachment, RenderAttachmentDesc,
+            RenderContext,
+        },
+        upload_context::UploadContext,
     },
     device::{Device, SurfaceData},
     resources::{
@@ -15,7 +18,7 @@ use cinder::{
     view::View,
     Resolution,
 };
-use egui_integration::EguiIntegration;
+use egui_integration::{egui, EguiIntegration};
 use math::{mat::Mat4, rect::Rect2D, size::Size2D, vec::Vec3};
 use std::time::Instant;
 use winit::{
@@ -59,6 +62,20 @@ fn new_infinite_perspective_proj(aspect_ratio: f32, y_fov: f32, z_near: f32) -> 
     )
 }
 
+struct ModelData {
+    scale: f32,
+    rotation: f32,
+}
+
+impl Default for ModelData {
+    fn default() -> Self {
+        Self {
+            scale: 1.0,
+            rotation: 0.0,
+        }
+    }
+}
+
 pub struct Renderer {
     device: Device,
     view: View,
@@ -67,10 +84,12 @@ pub struct Renderer {
     // TODO: This should maybe be a part of `GraphicsPipeline`
     render_bind_group: BindGroup,
     render_context: RenderContext,
+    upload_context: UploadContext,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     ubo_buffer: Buffer,
     ui: EguiIntegration,
+    model_data: ModelData,
     // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
     surface_data: SurfaceData,
     init_time: Instant,
@@ -80,6 +99,7 @@ impl Renderer {
     pub fn new(event_loop: &EventLoop<()>, window: &winit::window::Window) -> Result<Self> {
         let device = Device::new(window)?;
         let render_context = RenderContext::new(&device)?;
+        let upload_context = UploadContext::new(&device)?;
         let surface_data = device.surface().get_data(
             device.p_device(),
             Resolution {
@@ -281,6 +301,7 @@ impl Renderer {
             view,
             depth_image,
             render_context,
+            upload_context,
             render_pipeline,
             render_bind_group,
             surface_data,
@@ -288,20 +309,23 @@ impl Renderer {
             index_buffer,
             ubo_buffer,
             ui,
+            model_data: Default::default(),
             init_time,
         })
     }
 
     pub fn update(&mut self) -> Result<()> {
-        let scale = (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
         self.ubo_buffer.mem_copy(
             util::offset_of!(UiUniformBufferObject, model) as u64,
-            &[Mat4::rotate(scale, Vec3::new(1.0, 1.0, 0.0))],
+            &[Mat4::rotate(
+                self.model_data.rotation,
+                Vec3::new(1.0, 1.0, 0.0),
+            )],
         )?;
         Ok(())
     }
 
-    pub fn draw(&self) -> Result<bool> {
+    pub fn draw(&mut self, window: &winit::window::Window) -> Result<bool> {
         let drawable = self.view.get_current_drawable(&self.device)?;
 
         self.render_context.begin(&self.device)?;
@@ -350,6 +374,26 @@ impl Renderer {
             }
             self.render_context.end_rendering(&self.device);
 
+            // TODO: why is this mut?
+            self.ui.run(
+                &self.device,
+                drawable,
+                &self.upload_context,
+                self.device.setup_fence(),
+                &self.render_context,
+                surface_rect,
+                window,
+                |ctx| {
+                    let pi_2 = std::f32::consts::PI * 2.0;
+                    egui::Window::new("Ui").show(ctx, |ui| {
+                        ui.add(
+                            egui::Slider::new(&mut self.model_data.rotation, -pi_2..=pi_2)
+                                .text("Rotation"),
+                        );
+                    });
+                },
+            )?;
+
             self.render_context
                 .transition_color_to_present(&self.device, drawable);
         }
@@ -381,17 +425,20 @@ fn main() {
             Event::WindowEvent {
                 event: window_event,
                 ..
-            } => match window_event {
-                WindowEvent::KeyboardInput { input, .. } => {
-                    if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
-                        *control_flow = ControlFlow::Exit;
+            } => {
+                renderer.ui.on_event(&window_event);
+                match window_event {
+                    WindowEvent::KeyboardInput { input, .. } => {
+                        if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
+                            *control_flow = ControlFlow::Exit;
+                        }
                     }
+                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                    _ => {}
                 }
-                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                _ => {}
-            },
+            }
             Event::RedrawRequested(_) => {
-                renderer.draw().unwrap();
+                renderer.draw(&window).unwrap();
             }
             _ => {}
         }

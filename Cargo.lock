@@ -2071,7 +2071,7 @@ dependencies = [
  "math",
  "nalgebra-glm",
  "rkyv",
- "rust-shader-tools 0.1.0 (git+https://github.com/ArthurKValladares/Rust-Shader-Tools)",
+ "rust-shader-tools",
  "serde",
  "serde_json",
  "thiserror",
