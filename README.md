@@ -17,3 +17,9 @@ Hello cube example with vertex colors and a model/view/projection matrix uniform
 Basic textured quad.
 
 ![texture](https://user-images.githubusercontent.com/23410311/211232839-00e248d9-9c73-4b71-9e00-06d532930cde.gif)
+
+### [Ui](./crates/bin/ui/src/main.rs)<br/>
+Example app using egui to render ui widgets we can use to transform a cube.
+
+
+![ui](https://user-images.githubusercontent.com/23410311/211493880-30c89830-52ee-4274-9689-8c54243605c3.gif)
