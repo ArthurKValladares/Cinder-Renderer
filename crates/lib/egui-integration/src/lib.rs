@@ -1,19 +1,17 @@
 use anyhow::Result;
 use cinder::{
-    cinder::EguiConstants,
     context::{
         render_context::{RenderAttachment, RenderContext},
         upload_context::UploadContext,
     },
-    device::Device,
+    device::{Device, SurfaceData},
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{vk::Fence, Buffer, BufferDescription, BufferUsage},
-        image::{Format, Image, ImageDescription, ImageViewDescription, Usage},
+        image::Image,
         memory::MemoryType,
         pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
-        shader::ShaderStage,
     },
     util::MemoryMappablePointer,
     view::{Drawable, View},
@@ -26,7 +24,7 @@ use egui::{
 };
 use math::{point::Point2D, rect::Rect2D, size::Size2D};
 use std::collections::HashMap;
-use util::{as_u8_slice, size_of_slice};
+use util::size_of_slice;
 use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Window};
 
 static VERTEX_BUFFER_SIZE: u64 = 1024 * 1024 * 4;
@@ -58,33 +56,27 @@ impl EguiIntegration {
         event_loop: &EventLoopWindowTarget<T>,
         device: &Device,
         view: &View,
-        surface_format: Format,
-        visuals: egui::Visuals,
-        pixels_per_point: f32,
+        surface_data: &SurfaceData,
     ) -> Result<Self> {
         let egui_context = egui::Context::default();
-        egui_context.set_visuals(visuals);
+        egui_context.set_visuals(egui::Visuals::light());
         let mut egui_winit = egui_winit::State::new(event_loop);
-        egui_context.set_pixels_per_point(pixels_per_point);
-        egui_winit.set_pixels_per_point(pixels_per_point);
+        const PPP: f32 = 1.5;
+        egui_context.set_pixels_per_point(PPP);
+        egui_winit.set_pixels_per_point(PPP);
 
-        let bind_group_pool = BindGroupPool::new(&device).unwrap();
+        let bind_group_pool = BindGroupPool::new(device.raw()).unwrap();
         let pipeline = device.create_graphics_pipeline(
             device.create_shader(include_bytes!("../shaders/spv/egui.vert.spv"))?,
             device.create_shader(include_bytes!("../shaders/spv/egui.frag.spv"))?,
             GraphicsPipelineDescription {
                 blending: ColorBlendState::pma(),
-                surface_format,
+                surface_format: surface_data.format(),
                 ..Default::default()
             },
         )?;
-        let bind_group_set = BindGroup::new(
-            &device,
-            &bind_group_pool,
-            &pipeline.common.bind_group_layouts()[0],
-            true,
-        )
-        .unwrap();
+        let bind_group_set =
+            BindGroup::new(&device, &pipeline.common.bind_group_layouts()[0], true).unwrap();
 
         let sampler = device.create_sampler()?;
 
@@ -228,12 +220,10 @@ impl EguiIntegration {
 
             render_context.set_vertex_bytes(
                 device,
-                &EguiConstants {
-                    screen_size: [
-                        size.width as f32 / pixels_per_point,
-                        size.height as f32 / pixels_per_point,
-                    ],
-                },
+                &[
+                    size.width as f32 / pixels_per_point,
+                    size.height as f32 / pixels_per_point,
+                ],
                 &self.pipeline.common,
                 0,
             )?;
@@ -409,16 +399,8 @@ impl EguiIntegration {
         )?;
         image_staging_buffer.mem_copy(0, data)?;
 
-        let mut image = device.create_image(ImageDescription {
-            format: Format::R8_G8_B8_A8_Unorm,
-            usage: Usage::Texture,
-            size: Size2D::new(width, height),
-        })?;
-        let image_view_desc = ImageViewDescription {
-            format: Format::R8_G8_B8_A8_Unorm,
-            usage: Usage::Texture,
-        };
-        image.add_view(device, image_view_desc)?;
+        let image = device.create_image(Size2D::new(width, height), Default::default())?;
+
         upload_context.image_barrier_start(device, &image);
         upload_context.copy_buffer_to_image(device, &image_staging_buffer, &image);
         upload_context.image_barrier_end(device, &image);
@@ -432,12 +414,9 @@ impl EguiIntegration {
             device,
             &[BindGroupBindInfo {
                 dst_binding: 0,
-                data: BindGroupWriteData::SampledImage(image.bind_info(
-                    &self.sampler,
-                    image_view_desc,
-                    index as u32,
-                    cinder::resources::buffer::vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL, // TODO: cleanup
-                )),
+                data: BindGroupWriteData::SampledImage(
+                    image.bind_info(&self.sampler, index as u32),
+                ),
             }],
         );
 

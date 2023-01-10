@@ -176,13 +176,8 @@ fn main() {
                 ..
             } => match window_event {
                 WindowEvent::KeyboardInput { input, .. } => {
-                    if let Some(virtual_keycode) = input.virtual_keycode {
-                        match virtual_keycode {
-                            VirtualKeyCode::Escape => {
-                                *control_flow = ControlFlow::Exit;
-                            }
-                            _ => {}
-                        }
+                    if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
+                        *control_flow = ControlFlow::Exit;
                     }
                 }
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
