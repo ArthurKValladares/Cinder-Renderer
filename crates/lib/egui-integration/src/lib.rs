@@ -1,7 +1,7 @@
 use anyhow::Result;
 use cinder::{
     context::{
-        render_context::{RenderAttachment, RenderContext},
+        render_context::{AttachmentLoadOp, RenderAttachment, RenderAttachmentDesc, RenderContext},
         upload_context::UploadContext,
     },
     device::{Device, SurfaceData},
@@ -76,7 +76,7 @@ impl EguiIntegration {
             },
         )?;
         let bind_group_set =
-            BindGroup::new(&device, &pipeline.common.bind_group_layouts()[0], true).unwrap();
+            BindGroup::new(device, &pipeline.common.bind_group_layouts()[0], true).unwrap();
 
         let sampler = device.create_sampler()?;
 
@@ -139,7 +139,6 @@ impl EguiIntegration {
         upload_fence: Fence,
         render_context: &RenderContext,
         render_area: Rect2D<i32, u32>,
-        present_index: u32,
         window: &Window,
         f: impl FnOnce(&egui::Context),
     ) -> Result<()> {
@@ -170,7 +169,6 @@ impl EguiIntegration {
             render_context,
             render_area,
             window,
-            present_index,
             self.egui_context.pixels_per_point(),
             &clipped_primitives,
         )?;
@@ -187,12 +185,11 @@ impl EguiIntegration {
         render_context: &RenderContext,
         render_area: Rect2D<i32, u32>,
         window: &Window,
-        present_index: u32,
         pixels_per_point: f32,
         clipped_primitives: &[ClippedPrimitive],
     ) -> Result<()> {
         let size = window.inner_size();
-
+        let present_index = drawable.index();
         let mut vertex_buffer_ptr = self.vertex_buffers[present_index as usize].ptr().unwrap();
         let mut index_buffer_ptr = self.index_buffers[present_index as usize].ptr().unwrap();
 
@@ -203,9 +200,15 @@ impl EguiIntegration {
         let index_buffer = &self.index_buffers[present_index as usize];
 
         render_context.begin_rendering(
-            &device,
+            device,
             render_area,
-            &[RenderAttachment::color(drawable, Default::default())],
+            &[RenderAttachment::color(
+                drawable,
+                RenderAttachmentDesc {
+                    load_op: AttachmentLoadOp::Load,
+                    ..Default::default()
+                },
+            )],
             None,
         );
         {
