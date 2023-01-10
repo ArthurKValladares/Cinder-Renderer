@@ -1,4 +1,4 @@
-use crate::device::instance::Instance;
+use crate::{device::instance::Instance, resources::image::Format};
 use anyhow::Result;
 use ash::vk;
 use math::size::Size2D;
@@ -113,5 +113,9 @@ impl SurfaceData {
             self.surface_resolution.width,
             self.surface_resolution.height,
         )
+    }
+
+    pub fn format(&self) -> Format {
+        self.surface_format.format.into()
     }
 }

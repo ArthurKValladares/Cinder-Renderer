@@ -15,6 +15,7 @@ use cinder::{
     view::View,
     Resolution,
 };
+use egui_integration::EguiIntegration;
 use math::{mat::Mat4, rect::Rect2D, size::Size2D, vec::Vec3};
 use std::time::Instant;
 use winit::{
@@ -30,7 +31,7 @@ pub const WINDOW_HEIGHT: u32 = 2000;
 
 include!(concat!(
     env!("CARGO_MANIFEST_DIR"),
-    "/gen/cube_shader_structs.rs"
+    "/gen/ui_shader_structs.rs"
 ));
 
 #[rustfmt::skip]
@@ -69,13 +70,14 @@ pub struct Renderer {
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     ubo_buffer: Buffer,
+    ui: EguiIntegration,
     // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
     surface_data: SurfaceData,
     init_time: Instant,
 }
 
 impl Renderer {
-    pub fn new(window: &winit::window::Window) -> Result<Self> {
+    pub fn new(event_loop: &EventLoop<()>, window: &winit::window::Window) -> Result<Self> {
         let device = Device::new(window)?;
         let render_context = RenderContext::new(&device)?;
         let surface_data = device.surface().get_data(
@@ -99,8 +101,8 @@ impl Renderer {
             },
         )?;
         let render_pipeline = device.create_graphics_pipeline(
-            device.create_shader(include_bytes!("../shaders/spv/cube.vert.spv"))?,
-            device.create_shader(include_bytes!("../shaders/spv/cube.frag.spv"))?,
+            device.create_shader(include_bytes!("../shaders/spv/ui.vert.spv"))?,
+            device.create_shader(include_bytes!("../shaders/spv/ui.frag.spv"))?,
             GraphicsPipelineDescription {
                 depth_format: Some(Format::D32_SFloat),
                 ..Default::default()
@@ -116,104 +118,104 @@ impl Renderer {
         let vertex_buffer = device.create_buffer_with_data(
             &[
                 // Plane at z: -0.5
-                CubeVertex {
+                UiVertex {
                     i_pos: [-0.5, 0.5, -0.5],
                     i_normal: [1.0, 0.0, 0.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [0.5, 0.5, -0.5],
                     i_normal: [1.0, 0.0, 0.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [-0.5, -0.5, -0.5],
                     i_normal: [1.0, 0.0, 0.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [0.5, -0.5, -0.5],
                     i_normal: [1.0, 0.0, 0.0],
                 },
                 // Plane at z: 0.5
-                CubeVertex {
+                UiVertex {
                     i_pos: [-0.5, 0.5, 0.5],
                     i_normal: [0.0, 0.0, 1.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [0.5, 0.5, 0.5],
                     i_normal: [0.0, 0.0, 1.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [-0.5, -0.5, 0.5],
                     i_normal: [0.0, 0.0, 1.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [0.5, -0.5, 0.5],
                     i_normal: [0.0, 0.0, 1.0],
                 },
                 // Plane at x: -0.5
-                CubeVertex {
+                UiVertex {
                     i_pos: [-0.5, -0.5, 0.5],
                     i_normal: [0.0, 1.0, 0.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [-0.5, 0.5, 0.5],
                     i_normal: [0.0, 1.0, 0.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [-0.5, -0.5, -0.5],
                     i_normal: [0.0, 1.0, 0.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [-0.5, 0.5, -0.5],
                     i_normal: [0.0, 1.0, 0.0],
                 },
                 // Plane at x: 0.5
-                CubeVertex {
+                UiVertex {
                     i_pos: [0.5, -0.5, 0.5],
                     i_normal: [1.0, 1.0, 0.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [0.5, 0.5, 0.5],
                     i_normal: [1.0, 1.0, 0.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [0.5, -0.5, -0.5],
                     i_normal: [1.0, 1.0, 0.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [0.5, 0.5, -0.5],
                     i_normal: [1.0, 1.0, 0.0],
                 },
                 // Plane at y: -0.5
-                CubeVertex {
+                UiVertex {
                     i_pos: [-0.5, -0.5, 0.5],
                     i_normal: [0.0, 1.0, 1.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [0.5, -0.5, 0.5],
                     i_normal: [0.0, 1.0, 1.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [-0.5, -0.5, -0.5],
                     i_normal: [0.0, 1.0, 1.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [0.5, -0.5, -0.5],
                     i_normal: [0.0, 1.0, 1.0],
                 },
                 // Plane at y: 0.5
-                CubeVertex {
+                UiVertex {
                     i_pos: [-0.5, 0.5, 0.5],
                     i_normal: [1.0, 1.0, 1.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [0.5, 0.5, 0.5],
                     i_normal: [1.0, 1.0, 1.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [-0.5, 0.5, -0.5],
                     i_normal: [1.0, 1.0, 1.0],
                 },
-                CubeVertex {
+                UiVertex {
                     i_pos: [0.5, 0.5, -0.5],
                     i_normal: [1.0, 1.0, 1.0],
                 },
@@ -239,14 +241,14 @@ impl Renderer {
         )?;
 
         let ubo_buffer = device.create_buffer(
-            std::mem::size_of::<CubeUniformBufferObject>() as u64,
+            std::mem::size_of::<UiUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
                 ..Default::default()
             },
         )?;
         ubo_buffer.mem_copy(
-            util::offset_of!(CubeUniformBufferObject, view) as u64,
+            util::offset_of!(UiUniformBufferObject, view) as u64,
             &[
                 look_to(
                     Vec3::new(2.0, 0.0, 0.0),
@@ -270,6 +272,8 @@ impl Renderer {
             }],
         );
 
+        let ui = EguiIntegration::new(event_loop, &device, &view, &surface_data)?;
+
         let init_time = Instant::now();
 
         Ok(Self {
@@ -283,6 +287,7 @@ impl Renderer {
             vertex_buffer,
             index_buffer,
             ubo_buffer,
+            ui,
             init_time,
         })
     }
@@ -290,7 +295,7 @@ impl Renderer {
     pub fn update(&mut self) -> Result<()> {
         let scale = (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
         self.ubo_buffer.mem_copy(
-            util::offset_of!(CubeUniformBufferObject, model) as u64,
+            util::offset_of!(UiUniformBufferObject, model) as u64,
             &[Mat4::rotate(scale, Vec3::new(1.0, 1.0, 0.0))],
         )?;
         Ok(())
@@ -365,7 +370,7 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    let mut renderer = Renderer::new(&window).unwrap();
+    let mut renderer = Renderer::new(&event_loop, &window).unwrap();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;

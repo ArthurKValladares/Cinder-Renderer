@@ -1,24 +1,21 @@
 use anyhow::Result;
 use cinder::{
     context::{
-        render_context::{
-            AttachmentStoreOp, ClearValue, Layout, RenderAttachment, RenderAttachmentDesc,
-            RenderContext,
-        },
+        render_context::{RenderAttachment, RenderContext},
         upload_context::UploadContext,
     },
     device::{Device, SurfaceData},
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
-        image::{Format, Image, ImageDescription, Usage},
-        pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
+        image::Image,
+        pipeline::graphics::GraphicsPipeline,
         sampler::Sampler,
     },
     view::View,
     Resolution,
 };
-use math::{mat::Mat4, rect::Rect2D, size::Size2D, vec::Vec3};
+use math::{rect::Rect2D, size::Size2D};
 use winit::{
     dpi::PhysicalSize,
     event::VirtualKeyCode,
@@ -41,11 +38,11 @@ pub struct Renderer {
     render_pipeline: GraphicsPipeline,
     render_bind_group: BindGroup,
     render_context: RenderContext,
-    upload_context: UploadContext,
+    _upload_context: UploadContext,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
-    sampler: Sampler,
-    texture: Image,
+    _sampler: Sampler,
+    _texture: Image,
     // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
     surface_data: SurfaceData,
 }
@@ -153,14 +150,14 @@ impl Renderer {
             device,
             view,
             render_context,
-            upload_context,
+            _upload_context: upload_context,
             render_pipeline,
             render_bind_group,
             surface_data,
             vertex_buffer,
             index_buffer,
-            sampler,
-            texture,
+            _sampler: sampler,
+            _texture: texture,
         })
     }
 
@@ -225,7 +222,7 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    let mut renderer = Renderer::new(&window).unwrap();
+    let renderer = Renderer::new(&window).unwrap();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
@@ -236,13 +233,8 @@ fn main() {
                 ..
             } => match window_event {
                 WindowEvent::KeyboardInput { input, .. } => {
-                    if let Some(virtual_keycode) = input.virtual_keycode {
-                        match virtual_keycode {
-                            VirtualKeyCode::Escape => {
-                                *control_flow = ControlFlow::Exit;
-                            }
-                            _ => {}
-                        }
+                    if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
+                        *control_flow = ControlFlow::Exit;
                     }
                 }
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
