@@ -12,31 +12,31 @@ pub struct Swapchain {
 
 fn create_swapchain_structures(
     device: &Device,
-    surface_data: &SurfaceData,
     swapchain_loader: &ash::extensions::khr::Swapchain,
     old_swapchain: Option<vk::SwapchainKHR>,
 ) -> Result<(vk::SwapchainKHR, Vec<vk::Image>, Vec<vk::ImageView>)> {
-    let pre_transform = if surface_data
+    let pre_transform = if device
+        .surface_data
         .surface_capabilities
         .supported_transforms
         .contains(vk::SurfaceTransformFlagsKHR::IDENTITY)
     {
         vk::SurfaceTransformFlagsKHR::IDENTITY
     } else {
-        surface_data.surface_capabilities.current_transform
+        device.surface_data.surface_capabilities.current_transform
     };
 
     let swapchain_create_info = vk::SwapchainCreateInfoKHR::builder()
         .surface(device.surface().surface)
-        .min_image_count(surface_data.desired_image_count)
-        .image_color_space(surface_data.surface_format.color_space)
-        .image_format(surface_data.surface_format.format)
-        .image_extent(surface_data.surface_resolution)
+        .min_image_count(device.surface_data.desired_image_count)
+        .image_color_space(device.surface_data.surface_format.color_space)
+        .image_format(device.surface_data.surface_format.format)
+        .image_extent(device.surface_data.surface_resolution)
         .image_usage(vk::ImageUsageFlags::COLOR_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_DST)
         .image_sharing_mode(vk::SharingMode::EXCLUSIVE)
         .pre_transform(pre_transform)
         .composite_alpha(vk::CompositeAlphaFlagsKHR::OPAQUE)
-        .present_mode(surface_data.present_mode)
+        .present_mode(device.surface_data.present_mode)
         .clipped(true)
         .image_array_layers(1)
         .old_swapchain(if let Some(old_swapchain) = old_swapchain {
@@ -58,7 +58,7 @@ fn create_swapchain_structures(
         .map(|&image| {
             let create_view_info = vk::ImageViewCreateInfo::builder()
                 .view_type(vk::ImageViewType::TYPE_2D)
-                .format(surface_data.surface_format.format)
+                .format(device.surface_data.surface_format.format)
                 .components(vk::ComponentMapping {
                     r: vk::ComponentSwizzle::R,
                     g: vk::ComponentSwizzle::G,
@@ -81,12 +81,12 @@ fn create_swapchain_structures(
 }
 
 impl Swapchain {
-    pub fn new(device: &Device, surface_data: &SurfaceData) -> Result<Self> {
+    pub fn new(device: &Device) -> Result<Self> {
         let swapchain_loader =
             ash::extensions::khr::Swapchain::new(device.instance().raw(), device.raw());
 
         let (swapchain, present_images, present_image_views) =
-            create_swapchain_structures(device, surface_data, &swapchain_loader, None)?;
+            create_swapchain_structures(device, &swapchain_loader, None)?;
 
         Ok(Self {
             swapchain_loader,
@@ -96,15 +96,11 @@ impl Swapchain {
         })
     }
 
-    pub fn resize(&mut self, device: &Device, surface_data: &SurfaceData) -> Result<()> {
+    pub fn resize(&mut self, device: &Device) -> Result<()> {
         self.clean(device.raw());
 
-        let (swapchain, present_images, present_image_views) = create_swapchain_structures(
-            device,
-            surface_data,
-            &self.swapchain_loader,
-            Some(self.swapchain),
-        )?;
+        let (swapchain, present_images, present_image_views) =
+            create_swapchain_structures(device, &self.swapchain_loader, Some(self.swapchain))?;
 
         self.swapchain = swapchain;
         self.present_images = present_images;

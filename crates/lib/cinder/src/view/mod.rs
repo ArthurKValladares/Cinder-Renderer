@@ -24,8 +24,8 @@ pub struct View {
 }
 
 impl View {
-    pub fn new(device: &Device, surface_data: &SurfaceData) -> Result<Self> {
-        let swapchain = Swapchain::new(device, surface_data)?;
+    pub fn new(device: &Device) -> Result<Self> {
+        let swapchain = Swapchain::new(device)?;
 
         Ok(Self { swapchain })
     }

@@ -69,8 +69,6 @@ pub struct Renderer {
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     ubo_buffer: Buffer,
-    // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
-    surface_data: SurfaceData,
     init_time: Instant,
 }
 
@@ -78,20 +76,10 @@ impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
         let device = Device::new(window)?;
         let render_context = RenderContext::new(&device)?;
-        let surface_data = device.surface().get_data(
-            device.p_device(),
-            Resolution {
-                width: WINDOW_WIDTH,
-                height: WINDOW_HEIGHT,
-            },
-            false,
-        )?;
-        let view = View::new(&device, &surface_data)?;
+        let view = View::new(&device)?;
+        let surface_rect = device.surface_rect();
         let depth_image = device.create_image(
-            Size2D::new(
-                surface_data.surface_resolution.width,
-                surface_data.surface_resolution.height,
-            ),
+            Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFloat,
                 usage: Usage::Depth,
@@ -254,8 +242,7 @@ impl Renderer {
                     Vec3::new(0.0, 1.0, 0.0),
                 ),
                 new_infinite_perspective_proj(
-                    surface_data.surface_resolution.width as f32
-                        / surface_data.surface_resolution.height as f32,
+                    surface_rect.width() as f32 / surface_rect.height() as f32,
                     30.0,
                     0.01,
                 ),
@@ -279,7 +266,6 @@ impl Renderer {
             render_context,
             render_pipeline,
             render_bind_group,
-            surface_data,
             vertex_buffer,
             index_buffer,
             ubo_buffer,
@@ -301,10 +287,7 @@ impl Renderer {
 
         self.render_context.begin(&self.device)?;
         {
-            let surface_rect = Rect2D::from_width_height(
-                self.surface_data.surface_resolution.width,
-                self.surface_data.surface_resolution.height,
-            );
+            let surface_rect = self.device.surface_rect();
 
             self.render_context
                 .transition_undefined_to_color(&self.device, drawable);

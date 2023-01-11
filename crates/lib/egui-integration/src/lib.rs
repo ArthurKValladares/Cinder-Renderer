@@ -56,12 +56,11 @@ impl EguiIntegration {
         event_loop: &EventLoopWindowTarget<T>,
         device: &Device,
         view: &View,
-        surface_data: &SurfaceData,
     ) -> Result<Self> {
         let egui_context = egui::Context::default();
         egui_context.set_visuals(egui::Visuals::light());
         let mut egui_winit = egui_winit::State::new(event_loop);
-        const PPP: f32 = 1.5;
+        const PPP: f32 = 3.5;
         egui_context.set_pixels_per_point(PPP);
         egui_winit.set_pixels_per_point(PPP);
 
@@ -71,7 +70,7 @@ impl EguiIntegration {
             device.create_shader(include_bytes!("../shaders/spv/egui.frag.spv"))?,
             GraphicsPipelineDescription {
                 blending: ColorBlendState::pma(),
-                surface_format: surface_data.format(),
+                surface_format: device.surface_data().format(),
                 ..Default::default()
             },
         )?;

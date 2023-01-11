@@ -90,8 +90,6 @@ pub struct Renderer {
     ubo_buffer: Buffer,
     ui: EguiIntegration,
     model_data: ModelData,
-    // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
-    surface_data: SurfaceData,
     init_time: Instant,
 }
 
@@ -100,20 +98,10 @@ impl Renderer {
         let device = Device::new(window)?;
         let render_context = RenderContext::new(&device)?;
         let upload_context = UploadContext::new(&device)?;
-        let surface_data = device.surface().get_data(
-            device.p_device(),
-            Resolution {
-                width: WINDOW_WIDTH,
-                height: WINDOW_HEIGHT,
-            },
-            false,
-        )?;
-        let view = View::new(&device, &surface_data)?;
+        let view = View::new(&device)?;
+        let surface_rect = device.surface_rect();
         let depth_image = device.create_image(
-            Size2D::new(
-                surface_data.surface_resolution.width,
-                surface_data.surface_resolution.height,
-            ),
+            Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFloat,
                 usage: Usage::Depth,
@@ -276,8 +264,7 @@ impl Renderer {
                     Vec3::new(0.0, 1.0, 0.0),
                 ),
                 new_infinite_perspective_proj(
-                    surface_data.surface_resolution.width as f32
-                        / surface_data.surface_resolution.height as f32,
+                    surface_rect.width() as f32 / surface_rect.height() as f32,
                     30.0,
                     0.01,
                 ),
@@ -292,7 +279,7 @@ impl Renderer {
             }],
         );
 
-        let ui = EguiIntegration::new(event_loop, &device, &view, &surface_data)?;
+        let ui = EguiIntegration::new(event_loop, &device, &view)?;
 
         let init_time = Instant::now();
 
@@ -304,7 +291,6 @@ impl Renderer {
             upload_context,
             render_pipeline,
             render_bind_group,
-            surface_data,
             vertex_buffer,
             index_buffer,
             ubo_buffer,
@@ -315,12 +301,11 @@ impl Renderer {
     }
 
     pub fn update(&mut self) -> Result<()> {
+        let scale = self.model_data.scale;
         self.ubo_buffer.mem_copy(
             util::offset_of!(UiUniformBufferObject, model) as u64,
-            &[Mat4::rotate(
-                self.model_data.rotation,
-                Vec3::new(1.0, 1.0, 0.0),
-            )],
+            &[Mat4::scale(Vec3::new(scale, scale, scale))
+                * Mat4::rotate(self.model_data.rotation, Vec3::new(1.0, 1.0, 0.0))],
         )?;
         Ok(())
     }
@@ -330,10 +315,7 @@ impl Renderer {
 
         self.render_context.begin(&self.device)?;
         {
-            let surface_rect = Rect2D::from_width_height(
-                self.surface_data.surface_resolution.width,
-                self.surface_data.surface_resolution.height,
-            );
+            let surface_rect = self.device.surface_rect();
 
             self.render_context
                 .transition_undefined_to_color(&self.device, drawable);
@@ -385,10 +367,13 @@ impl Renderer {
                 window,
                 |ctx| {
                     let pi_2 = std::f32::consts::PI * 2.0;
-                    egui::Window::new("Ui").show(ctx, |ui| {
+                    egui::Window::new("UI").show(ctx, |ui| {
                         ui.add(
                             egui::Slider::new(&mut self.model_data.rotation, -pi_2..=pi_2)
                                 .text("Rotation"),
+                        );
+                        ui.add(
+                            egui::Slider::new(&mut self.model_data.scale, 1.0..=2.0).text("Scale"),
                         );
                     });
                 },
