@@ -108,7 +108,7 @@ impl Renderer {
             );
             {
                 self.render_context
-                    .bind_graphics_pipeline(&self.device, self.render_pipeline);
+                    .bind_graphics_pipeline(&self.device, self.render_pipeline)?;
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
@@ -117,12 +117,13 @@ impl Renderer {
                 self.render_context
                     .bind_vertex_buffer(&self.device, &self.vertex_buffer);
 
-                // TODO: Maybe save a reference to the pipeline in `begin_rendering`, so that I don't need to pass it in here
-                let scale =
-                    (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
                 self.render_context.set_vertex_bytes(
                     &self.device,
-                    &Mat4::rotate(scale, Vec3::new(0.0, 0.0, 1.0)),
+                    &Mat4::rotate(
+                        (self.init_time.elapsed().as_secs_f32() / 5.0)
+                            * (2.0 * std::f32::consts::PI),
+                        Vec3::new(0.0, 0.0, 1.0),
+                    ),
                     0,
                 )?;
 
