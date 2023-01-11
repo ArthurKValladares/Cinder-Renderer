@@ -16,12 +16,13 @@ use crate::{
         sampler::Sampler,
         shader::Shader,
     },
+    Resolution,
 };
 use anyhow::Result;
 use ash::vk;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 use ash::vk::KhrPortabilitySubsetFn;
-use math::size::Size2D;
+use math::{rect::Rect2D, size::Size2D};
 use thiserror::Error;
 use util::size_of_slice;
 
@@ -45,6 +46,7 @@ pub struct Device {
     command_pool: vk::CommandPool,
     pub(crate) pipeline_cache: vk::PipelineCache,
     pub(crate) bind_group_pool: BindGroupPool,
+    pub(crate) surface_data: SurfaceData,
     // TODO: Probably will have better syncronization in the future, not pub
     pub(crate) present_complete_semaphore: vk::Semaphore,
     pub(crate) rendering_complete_semaphore: vk::Semaphore,
@@ -168,6 +170,16 @@ impl Device {
         let pipeline_cache = unsafe { device.create_pipeline_cache(&ci, None)? };
         let bind_group_pool = BindGroupPool::new(&device)?;
 
+        let window_size = window.inner_size();
+        let surface_data = surface.get_data(
+            p_device,
+            Resolution {
+                width: window_size.width,
+                height: window_size.height,
+            },
+            false,
+        )?;
+
         // TODO: Figure out sync story
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
         let present_complete_semaphore =
@@ -183,6 +195,7 @@ impl Device {
         Ok(Self {
             instance,
             surface,
+            surface_data,
             p_device,
             p_device_properties,
             p_device_memory_properties,
@@ -338,5 +351,16 @@ impl Device {
 
     pub fn setup_fence(&self) -> vk::Fence {
         self.setup_commands_reuse_fence
+    }
+
+    pub fn surface_data(&self) -> &SurfaceData {
+        &self.surface_data
+    }
+
+    pub fn surface_rect(&self) -> Rect2D<i32, u32> {
+        Rect2D::from_width_height(
+            self.surface_data.surface_resolution.width,
+            self.surface_data.surface_resolution.height,
+        )
     }
 }

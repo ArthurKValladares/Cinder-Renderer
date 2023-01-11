@@ -34,8 +34,6 @@ pub struct Renderer {
     render_context: RenderContext,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
-    // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
-    surface_data: SurfaceData,
     init_time: Instant,
 }
 
@@ -43,15 +41,7 @@ impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
         let device = Device::new(window)?;
         let render_context = RenderContext::new(&device)?;
-        let surface_data = device.surface().get_data(
-            device.p_device(),
-            Resolution {
-                width: WINDOW_WIDTH,
-                height: WINDOW_HEIGHT,
-            },
-            false,
-        )?;
-        let view = View::new(&device, &surface_data)?;
+        let view = View::new(&device)?;
 
         let render_pipeline = device.create_graphics_pipeline(
             device.create_shader(include_bytes!("../shaders/spv/triangle.vert.spv"))?,
@@ -94,7 +84,6 @@ impl Renderer {
             view,
             render_context,
             render_pipeline,
-            surface_data,
             vertex_buffer,
             index_buffer,
             init_time,
@@ -106,10 +95,7 @@ impl Renderer {
 
         self.render_context.begin(&self.device)?;
         {
-            let surface_rect = Rect2D::from_width_height(
-                self.surface_data.surface_resolution.width,
-                self.surface_data.surface_resolution.height,
-            );
+            let surface_rect = self.device.surface_rect();
 
             self.render_context
                 .transition_undefined_to_color(&self.device, drawable);

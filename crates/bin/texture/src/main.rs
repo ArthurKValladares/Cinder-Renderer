@@ -43,8 +43,6 @@ pub struct Renderer {
     index_buffer: Buffer,
     _sampler: Sampler,
     _texture: Image,
-    // TODO: Don't need to hold on to all of `SurfaceData`, most of it should be cached in `View`?
-    surface_data: SurfaceData,
 }
 
 impl Renderer {
@@ -52,15 +50,8 @@ impl Renderer {
         let device = Device::new(window)?;
         let render_context = RenderContext::new(&device)?;
         let upload_context = UploadContext::new(&device)?;
-        let surface_data = device.surface().get_data(
-            device.p_device(),
-            Resolution {
-                width: WINDOW_WIDTH,
-                height: WINDOW_HEIGHT,
-            },
-            false,
-        )?;
-        let view = View::new(&device, &surface_data)?;
+
+        let view = View::new(&device)?;
 
         let render_pipeline = device.create_graphics_pipeline(
             device.create_shader(include_bytes!("../shaders/spv/texture.vert.spv"))?,
@@ -153,7 +144,6 @@ impl Renderer {
             _upload_context: upload_context,
             render_pipeline,
             render_bind_group,
-            surface_data,
             vertex_buffer,
             index_buffer,
             _sampler: sampler,
@@ -166,10 +156,7 @@ impl Renderer {
 
         self.render_context.begin(&self.device)?;
         {
-            let surface_rect = Rect2D::from_width_height(
-                self.surface_data.surface_resolution.width,
-                self.surface_data.surface_resolution.height,
-            );
+            let surface_rect = self.device.surface_rect();
 
             self.render_context
                 .transition_undefined_to_color(&self.device, drawable);
