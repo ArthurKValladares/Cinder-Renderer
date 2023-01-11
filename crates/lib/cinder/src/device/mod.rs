@@ -15,6 +15,7 @@ use crate::{
         },
         sampler::Sampler,
         shader::Shader,
+        ResourceHandle,
     },
     Resolution,
 };
@@ -52,6 +53,8 @@ pub struct Device {
     pub(crate) rendering_complete_semaphore: vk::Semaphore,
     pub(crate) draw_commands_reuse_fence: vk::Fence,
     pub(crate) setup_commands_reuse_fence: vk::Fence,
+    // TODO: Experimenting with some resource handling stuff in Device. maybe should be separate
+    pipelines: Vec<GraphicsPipeline>,
 }
 
 impl Device {
@@ -209,6 +212,7 @@ impl Device {
             rendering_complete_semaphore,
             draw_commands_reuse_fence,
             setup_commands_reuse_fence,
+            pipelines: Default::default(),
         })
     }
 
@@ -311,12 +315,31 @@ impl Device {
     }
 
     pub fn create_graphics_pipeline(
-        &self,
+        &mut self,
         vertex_shader: Shader,
         fragment_shader: Shader,
         desc: GraphicsPipelineDescription,
-    ) -> Result<GraphicsPipeline> {
-        GraphicsPipeline::create(self, vertex_shader, fragment_shader, desc)
+    ) -> Result<ResourceHandle<GraphicsPipeline>> {
+        let id = self.pipelines.len();
+        self.pipelines.push(GraphicsPipeline::create(
+            self,
+            vertex_shader,
+            fragment_shader,
+            desc,
+        )?);
+        Ok(ResourceHandle::from_index(id))
+    }
+
+    pub(crate) fn get_graphics_pipeline(
+        &self,
+        handle: ResourceHandle<GraphicsPipeline>,
+    ) -> Option<&GraphicsPipeline> {
+        // TODO: This won't be a vec in the future
+        if handle.id() >= self.pipelines.len() {
+            None
+        } else {
+            Some(&self.pipelines[handle.id()])
+        }
     }
 
     pub fn create_compute_pipeline(

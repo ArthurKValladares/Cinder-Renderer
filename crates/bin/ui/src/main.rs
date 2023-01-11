@@ -14,6 +14,7 @@ use cinder::{
         image::{Format, Image, ImageDescription, Usage},
         memory::MemoryType,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
+        ResourceHandle,
     },
     view::View,
     Resolution,
@@ -80,7 +81,7 @@ pub struct Renderer {
     device: Device,
     view: View,
     depth_image: Image,
-    render_pipeline: GraphicsPipeline,
+    render_pipeline: ResourceHandle<GraphicsPipeline>,
     // TODO: This should maybe be a part of `GraphicsPipeline`
     render_bind_group: BindGroup,
     render_context: RenderContext,
@@ -95,7 +96,7 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(event_loop: &EventLoop<()>, window: &winit::window::Window) -> Result<Self> {
-        let device = Device::new(window)?;
+        let mut device = Device::new(window)?;
         let render_context = RenderContext::new(&device)?;
         let upload_context = UploadContext::new(&device)?;
         let view = View::new(&device)?;
@@ -119,7 +120,7 @@ impl Renderer {
         // TODO: BindGroup API is still very bad
         let render_bind_group = BindGroup::new(
             &device,
-            &render_pipeline.common.bind_group_layouts()[0],
+            render_pipeline,
             false, // TODO: This should not be a user-side param
         )?;
 
@@ -279,7 +280,7 @@ impl Renderer {
             }],
         );
 
-        let ui = EguiIntegration::new(event_loop, &device, &view)?;
+        let ui = EguiIntegration::new(event_loop, &mut device, &view)?;
 
         let init_time = Instant::now();
 
@@ -336,7 +337,7 @@ impl Renderer {
             );
             {
                 self.render_context
-                    .bind_graphics_pipeline(&self.device, &self.render_pipeline);
+                    .bind_graphics_pipeline(&self.device, self.render_pipeline)?;
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
@@ -347,10 +348,9 @@ impl Renderer {
                 // TODO: This whole API is hideous
                 self.render_context.bind_descriptor_sets(
                     &self.device,
-                    &self.render_pipeline.common,
                     &[self.render_bind_group.0],
                     false,
-                );
+                )?;
 
                 self.render_context.draw_offset(&self.device, 36, 0, 0);
             }
@@ -362,7 +362,7 @@ impl Renderer {
                 drawable,
                 &self.upload_context,
                 self.device.setup_fence(),
-                &self.render_context,
+                &mut self.render_context,
                 surface_rect,
                 window,
                 |ctx| {
