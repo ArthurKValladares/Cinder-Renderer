@@ -5,6 +5,8 @@ use crate::{
 use anyhow::Result;
 use ash::vk;
 
+use super::{pipeline::graphics::GraphicsPipeline, ResourceHandle};
+
 pub const MAX_BINDLESS_RESOURCES: u32 = 16536;
 
 // TODO, maybe could be separate enums, to make bind_buffer, bind_image, etc type-safe
@@ -150,7 +152,18 @@ pub struct BindGroupBindInfo {
 pub struct BindGroup(pub vk::DescriptorSet);
 
 impl BindGroup {
-    pub fn new(device: &Device, layout: &BindGroupLayout, variable_count: bool) -> Result<Self> {
+    pub fn new(
+        device: &Device,
+        handle: ResourceHandle<GraphicsPipeline>,
+        variable_count: bool,
+    ) -> Result<Self> {
+        // TODO: Get rid of unwrap later
+        let layout = &device
+            .get_graphics_pipeline(handle)
+            .unwrap()
+            .common
+            .bind_group_layouts()[0];
+
         let max_binding = MAX_BINDLESS_RESOURCES - 1;
 
         let mut count_info = vk::DescriptorSetVariableDescriptorCountAllocateInfo::builder()

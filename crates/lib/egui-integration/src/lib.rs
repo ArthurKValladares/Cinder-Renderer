@@ -4,7 +4,7 @@ use cinder::{
         render_context::{AttachmentLoadOp, RenderAttachment, RenderAttachmentDesc, RenderContext},
         upload_context::UploadContext,
     },
-    device::{Device, SurfaceData},
+    device::Device,
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{vk::Fence, Buffer, BufferDescription, BufferUsage},
@@ -12,6 +12,7 @@ use cinder::{
         memory::MemoryType,
         pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
+        ResourceHandle,
     },
     util::MemoryMappablePointer,
     view::{Drawable, View},
@@ -40,7 +41,7 @@ pub struct EguiCallbackFn {
 pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_winit: egui_winit::State,
-    pipeline: GraphicsPipeline,
+    pipeline: ResourceHandle<GraphicsPipeline>,
     // TODO: won't need separate pool in the future, set will be a part of GraphicsPipeline?
     _bind_group_pool: BindGroupPool,
     bind_group_set: BindGroup,
@@ -54,7 +55,7 @@ pub struct EguiIntegration {
 impl EguiIntegration {
     pub fn new<T>(
         event_loop: &EventLoopWindowTarget<T>,
-        device: &Device,
+        device: &mut Device,
         view: &View,
     ) -> Result<Self> {
         let egui_context = egui::Context::default();
@@ -74,8 +75,7 @@ impl EguiIntegration {
                 ..Default::default()
             },
         )?;
-        let bind_group_set =
-            BindGroup::new(device, &pipeline.common.bind_group_layouts()[0], true).unwrap();
+        let bind_group_set = BindGroup::new(device, pipeline, true).unwrap();
 
         let sampler = device.create_sampler()?;
 
@@ -136,7 +136,7 @@ impl EguiIntegration {
         drawable: Drawable,
         upload_context: &UploadContext,
         upload_fence: Fence,
-        render_context: &RenderContext,
+        render_context: &mut RenderContext,
         render_area: Rect2D<i32, u32>,
         window: &Window,
         f: impl FnOnce(&egui::Context),
@@ -181,7 +181,7 @@ impl EguiIntegration {
         &mut self,
         device: &Device,
         drawable: Drawable,
-        render_context: &RenderContext,
+        render_context: &mut RenderContext,
         render_area: Rect2D<i32, u32>,
         window: &Window,
         pixels_per_point: f32,
@@ -211,7 +211,7 @@ impl EguiIntegration {
             None,
         );
         {
-            render_context.bind_graphics_pipeline(device, &self.pipeline);
+            render_context.bind_graphics_pipeline(device, self.pipeline);
             render_context.bind_vertex_buffer(device, vertex_buffer);
             render_context.bind_index_buffer(device, index_buffer);
             render_context.bind_viewport(
@@ -226,7 +226,6 @@ impl EguiIntegration {
                     size.width as f32 / pixels_per_point,
                     size.height as f32 / pixels_per_point,
                 ],
-                &self.pipeline.common,
                 0,
             )?;
 
@@ -347,12 +346,7 @@ impl EguiIntegration {
         *vertex_buffer_ptr = vertex_buffer_ptr_next;
         *index_buffer_ptr = index_buffer_ptr_next;
 
-        render_context.bind_descriptor_sets(
-            device,
-            &self.pipeline.common,
-            &[self.bind_group_set.0],
-            false,
-        );
+        render_context.bind_descriptor_sets(device, &[self.bind_group_set.0], false);
 
         let index = match mesh.texture_id {
             TextureId::Managed(index) => index as usize,
@@ -360,7 +354,7 @@ impl EguiIntegration {
         };
 
         render_context
-            .set_fragment_bytes(device, &index, &self.pipeline.common, 0)
+            .set_fragment_bytes(device, &index, 0)
             .unwrap();
 
         render_context.draw_offset(device, indices.len() as u32, *index_base, *vertex_base);

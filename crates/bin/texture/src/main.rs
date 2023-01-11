@@ -4,18 +4,18 @@ use cinder::{
         render_context::{RenderAttachment, RenderContext},
         upload_context::UploadContext,
     },
-    device::{Device, SurfaceData},
+    device::Device,
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::Image,
         pipeline::graphics::GraphicsPipeline,
         sampler::Sampler,
+        ResourceHandle,
     },
     view::View,
-    Resolution,
 };
-use math::{rect::Rect2D, size::Size2D};
+use math::size::Size2D;
 use winit::{
     dpi::PhysicalSize,
     event::VirtualKeyCode,
@@ -35,7 +35,7 @@ include!(concat!(
 pub struct Renderer {
     device: Device,
     view: View,
-    render_pipeline: GraphicsPipeline,
+    render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_bind_group: BindGroup,
     render_context: RenderContext,
     _upload_context: UploadContext,
@@ -47,7 +47,7 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
-        let device = Device::new(window)?;
+        let mut device = Device::new(window)?;
         let render_context = RenderContext::new(&device)?;
         let upload_context = UploadContext::new(&device)?;
 
@@ -60,7 +60,7 @@ impl Renderer {
         )?;
         let render_bind_group = BindGroup::new(
             &device,
-            &render_pipeline.common.bind_group_layouts()[0],
+            render_pipeline,
             false, // TODO: This should not be a user-side param
         )?;
 
@@ -151,7 +151,7 @@ impl Renderer {
         })
     }
 
-    pub fn draw(&self) -> Result<bool> {
+    pub fn draw(&mut self) -> Result<bool> {
         let drawable = self.view.get_current_drawable(&self.device)?;
 
         self.render_context.begin(&self.device)?;
@@ -169,7 +169,7 @@ impl Renderer {
             );
             {
                 self.render_context
-                    .bind_graphics_pipeline(&self.device, &self.render_pipeline);
+                    .bind_graphics_pipeline(&self.device, self.render_pipeline)?;
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
@@ -180,10 +180,9 @@ impl Renderer {
                 // TODO: better abstraction
                 self.render_context.bind_descriptor_sets(
                     &self.device,
-                    &self.render_pipeline.common,
                     &[self.render_bind_group.0],
                     false,
-                );
+                )?;
 
                 self.render_context.draw_offset(&self.device, 6, 0, 0);
             }
@@ -209,7 +208,7 @@ fn main() {
         .build(&event_loop)
         .unwrap();
 
-    let renderer = Renderer::new(&window).unwrap();
+    let mut renderer = Renderer::new(&window).unwrap();
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
