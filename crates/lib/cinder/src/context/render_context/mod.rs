@@ -313,11 +313,7 @@ impl RenderContext {
         }
     }
 
-    pub fn bind_descriptor_sets(
-        &self,
-        device: &Device,
-        compute: bool, // TODO: Something better later
-    ) -> Result<(), PipelineError> {
+    pub fn bind_descriptor_sets(&self, device: &Device) -> Result<(), PipelineError> {
         if let Some(handle) = &self.bound_pipeline {
             let pipeline = device
                 .get_graphics_pipeline(*handle)
@@ -326,11 +322,7 @@ impl RenderContext {
             unsafe {
                 device.raw().cmd_bind_descriptor_sets(
                     self.shared.command_buffer,
-                    if compute {
-                        vk::PipelineBindPoint::COMPUTE
-                    } else {
-                        vk::PipelineBindPoint::GRAPHICS
-                    },
+                    vk::PipelineBindPoint::GRAPHICS,
                     pipeline.common.pipeline_layout,
                     0,
                     &[pipeline.bind_group.as_ref().unwrap().0],

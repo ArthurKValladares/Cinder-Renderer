@@ -336,8 +336,7 @@ impl Renderer {
                     .bind_index_buffer(&self.device, &self.index_buffer);
                 self.render_context
                     .bind_vertex_buffer(&self.device, &self.vertex_buffer);
-                self.render_context
-                    .bind_descriptor_sets(&self.device, false)?;
+                self.render_context.bind_descriptor_sets(&self.device)?;
 
                 self.render_context.draw_offset(&self.device, 36, 0, 0);
             }
