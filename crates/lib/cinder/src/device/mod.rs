@@ -429,4 +429,19 @@ impl Device {
             Err(DeviceError::InvalidPipelineHandle)
         }
     }
+
+    pub fn wait_idle(&self) -> Result<()> {
+        unsafe {
+            self.raw().device_wait_idle()?;
+        }
+        Ok(())
+    }
+
+    pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
+        self.wait_idle()?;
+        self.surface_data =
+            self.surface
+                .get_data(self.p_device, Resolution { width, height }, false)?;
+        Ok(())
+    }
 }
