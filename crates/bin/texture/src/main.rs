@@ -170,9 +170,7 @@ impl Renderer {
                     .bind_index_buffer(&self.device, &self.index_buffer);
                 self.render_context
                     .bind_vertex_buffer(&self.device, &self.vertex_buffer);
-                // TODO: Get rid of compute flag, re-think API later when using more than one set
-                self.render_context
-                    .bind_descriptor_sets(&self.device, false)?;
+                self.render_context.bind_descriptor_sets(&self.device)?;
 
                 self.render_context.draw_offset(&self.device, 6, 0, 0);
             }

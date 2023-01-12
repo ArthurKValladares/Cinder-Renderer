@@ -247,7 +247,7 @@ impl Renderer {
                 dst_binding: 0,
                 data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
             }],
-        );
+        )?;
 
         let init_time = Instant::now();
 
@@ -307,9 +307,8 @@ impl Renderer {
                     .bind_index_buffer(&self.device, &self.index_buffer);
                 self.render_context
                     .bind_vertex_buffer(&self.device, &self.vertex_buffer);
-                // TODO: Get rid of compute flag, re-think API later when using more than one set
-                self.render_context
-                    .bind_descriptor_sets(&self.device, false)?;
+                // TODO: re-think API later when using more than one set
+                self.render_context.bind_descriptor_sets(&self.device)?;
 
                 self.render_context.draw_offset(&self.device, 36, 0, 0);
             }

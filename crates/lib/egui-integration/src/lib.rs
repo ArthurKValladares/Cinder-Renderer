@@ -343,7 +343,7 @@ impl EguiIntegration {
         *vertex_buffer_ptr = vertex_buffer_ptr_next;
         *index_buffer_ptr = index_buffer_ptr_next;
 
-        render_context.bind_descriptor_sets(device, false)?;
+        render_context.bind_descriptor_sets(device)?;
 
         let index = match mesh.texture_id {
             TextureId::Managed(index) => index as usize,
