@@ -64,4 +64,9 @@ impl View {
             )
         }?)
     }
+
+    pub fn resize(&mut self, device: &Device) -> Result<()> {
+        self.swapchain.resize(device)?;
+        Ok(())
+    }
 }
