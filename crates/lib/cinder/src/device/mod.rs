@@ -6,7 +6,7 @@ use self::{instance::Instance, surface::Surface};
 use crate::{
     profiling::QueryPool,
     resources::{
-        bind_group::BindGroupPool,
+        bind_group::{BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{Buffer, BufferDescription},
         image::{Image, ImageDescription, ImageError},
         pipeline::{
@@ -28,11 +28,13 @@ use thiserror::Error;
 use util::size_of_slice;
 
 #[derive(Debug, Error)]
-pub enum DeviceInitError {
+pub enum DeviceError {
     #[error("No suitable device found")]
     NoSuitableDevice,
     #[error(transparent)]
     ImageCreateError(#[from] ImageError),
+    #[error("Invalid pipeline handle")]
+    InvalidPipelineHandle,
 }
 
 pub struct Device {
@@ -104,7 +106,7 @@ impl Device {
                 vk::PhysicalDeviceType::VIRTUAL_GPU => 1,
                 _ => 0,
             })
-            .ok_or(DeviceInitError::NoSuitableDevice)?;
+            .ok_or(DeviceError::NoSuitableDevice)?;
 
         let p_device_memory_properties = unsafe {
             instance
@@ -385,5 +387,46 @@ impl Device {
             self.surface_data.surface_resolution.width,
             self.surface_data.surface_resolution.height,
         )
+    }
+
+    pub fn write_bind_group(
+        &self,
+        handle: ResourceHandle<GraphicsPipeline>,
+        infos: &[BindGroupBindInfo],
+    ) -> Result<(), DeviceError> {
+        if let Some(pipeline) = self.get_graphics_pipeline(handle) {
+            let writes = infos
+                .iter()
+                .map(|info| {
+                    let mut write = vk::WriteDescriptorSet::builder()
+                        .dst_set(pipeline.bind_group.as_ref().unwrap().0)
+                        .dst_binding(info.dst_binding);
+                    write = match &info.data {
+                        BindGroupWriteData::Uniform(buffer_info) => write
+                            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                            .buffer_info(std::slice::from_ref(&buffer_info.0)),
+                        BindGroupWriteData::Storage(buffer_info) => write
+                            .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                            .buffer_info(std::slice::from_ref(&buffer_info.0)),
+                        BindGroupWriteData::SampledImage(info) => write
+                            .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                            .dst_array_element(info.index)
+                            .image_info(std::slice::from_ref(&info.info)),
+                        BindGroupWriteData::StorageImage(info) => write
+                            .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
+                            .dst_array_element(info.index)
+                            .image_info(std::slice::from_ref(&info.info)),
+                    };
+                    write.build()
+                })
+                .collect::<Vec<_>>();
+
+            unsafe {
+                self.raw().update_descriptor_sets(&writes, &[]);
+            }
+            Ok(())
+        } else {
+            Err(DeviceError::InvalidPipelineHandle)
+        }
     }
 }

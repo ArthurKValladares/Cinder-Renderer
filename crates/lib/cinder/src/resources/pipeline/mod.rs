@@ -10,6 +10,8 @@ use anyhow::Result;
 use ash::vk;
 use std::collections::{BTreeMap, HashMap};
 
+use super::bind_group::MAX_BINDLESS_RESOURCES;
+
 pub mod compute;
 pub mod graphics;
 pub mod push_constant;
@@ -19,6 +21,13 @@ pub struct PipelineCommonData {
     push_constants: HashMap<(ShaderStage, u32), PushConstant>,
     // TODO: Also need a better way to get these
     bind_group_layouts: Vec<BindGroupLayout>,
+    variable_count: bool,
+}
+
+impl PipelineCommonData {
+    pub fn bind_group_layouts(&self) -> &[BindGroupLayout] {
+        &self.bind_group_layouts
+    }
 }
 
 pub struct PipelineCommon {
@@ -33,7 +42,7 @@ impl PipelineCommon {
     }
 
     pub fn bind_group_layouts(&self) -> &[BindGroupLayout] {
-        &self.common_data.bind_group_layouts
+        self.common_data.bind_group_layouts()
     }
 }
 
@@ -50,17 +59,24 @@ pub fn get_pipeline_layout(
         }
         map
     };
+    // TODO: figure out variable_count situation
+    let mut variable_count = false;
     let bind_group_layouts = {
         let mut data_map: BTreeMap<u32, Vec<BindGroupLayoutData>> = Default::default();
         for shader in shaders {
             for (set, data) in shader.bind_group_layouts()? {
-                let entry = data_map.entry(set).or_insert_with(|| Vec::new());
+                let entry = data_map.entry(set).or_insert_with(Vec::new);
                 entry.extend(data);
             }
         }
         data_map
             .values()
-            .map(|layout_data| BindGroupLayout::new(device.raw(), &layout_data))
+            .map(|layout_data| {
+                variable_count |= layout_data
+                    .last()
+                    .map_or(false, |data| data.count == MAX_BINDLESS_RESOURCES);
+                BindGroupLayout::new(device, layout_data)
+            })
             .collect::<Result<Vec<_>>>()
     }?;
     let set_layouts = unsafe {
@@ -71,7 +87,7 @@ pub fn get_pipeline_layout(
         .map(|pc| pc.to_raw())
         .collect::<Vec<_>>();
     let layout_create_info = vk::PipelineLayoutCreateInfo::builder()
-        .set_layouts(&set_layouts)
+        .set_layouts(set_layouts)
         .push_constant_ranges(&push_constant_ranges)
         .build();
 
@@ -84,6 +100,7 @@ pub fn get_pipeline_layout(
     let pipeline_common_data = PipelineCommonData {
         push_constants,
         bind_group_layouts,
+        variable_count,
     };
 
     Ok((pipeline_layout, pipeline_common_data))

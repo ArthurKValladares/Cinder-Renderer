@@ -36,7 +36,6 @@ pub struct Renderer {
     device: Device,
     view: View,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
-    render_bind_group: BindGroup,
     render_context: RenderContext,
     _upload_context: UploadContext,
     vertex_buffer: Buffer,
@@ -57,11 +56,6 @@ impl Renderer {
             device.create_shader(include_bytes!("../shaders/spv/texture.vert.spv"))?,
             device.create_shader(include_bytes!("../shaders/spv/texture.frag.spv"))?,
             Default::default(),
-        )?;
-        let render_bind_group = BindGroup::new(
-            &device,
-            render_pipeline,
-            false, // TODO: This should not be a user-side param
         )?;
 
         let vertex_buffer = device.create_buffer_with_data(
@@ -129,8 +123,8 @@ impl Renderer {
             &[],
         )?;
 
-        render_bind_group.write(
-            &device,
+        device.write_bind_group(
+            render_pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
                 data: BindGroupWriteData::SampledImage(texture.bind_info(&sampler, 0)),
@@ -143,7 +137,6 @@ impl Renderer {
             render_context,
             _upload_context: upload_context,
             render_pipeline,
-            render_bind_group,
             vertex_buffer,
             index_buffer,
             _sampler: sampler,
@@ -177,12 +170,9 @@ impl Renderer {
                     .bind_index_buffer(&self.device, &self.index_buffer);
                 self.render_context
                     .bind_vertex_buffer(&self.device, &self.vertex_buffer);
-                // TODO: better abstraction
-                self.render_context.bind_descriptor_sets(
-                    &self.device,
-                    &[self.render_bind_group.0],
-                    false,
-                )?;
+                // TODO: Get rid of compute flag, re-think API later when using more than one set
+                self.render_context
+                    .bind_descriptor_sets(&self.device, false)?;
 
                 self.render_context.draw_offset(&self.device, 6, 0, 0);
             }

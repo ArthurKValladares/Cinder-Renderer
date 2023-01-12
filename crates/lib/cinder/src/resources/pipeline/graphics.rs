@@ -1,5 +1,6 @@
 use super::{get_pipeline_layout, PipelineCommon};
 use crate::device::Device;
+use crate::resources::bind_group::BindGroup;
 use crate::resources::{
     image::{reflect_format_to_vk, Format},
     shader::Shader,
@@ -79,6 +80,7 @@ impl Default for GraphicsPipelineDescription {
 
 pub struct GraphicsPipeline {
     pub common: PipelineCommon,
+    pub bind_group: Option<BindGroup>,
 }
 
 impl GraphicsPipeline {
@@ -219,12 +221,23 @@ impl GraphicsPipeline {
             }
         }
 
+        let bind_group = if common_data.bind_group_layouts().is_empty() {
+            None
+        } else {
+            Some(BindGroup::new(
+                device,
+                common_data.bind_group_layouts(),
+                common_data.variable_count,
+            )?)
+        };
+
         Ok(GraphicsPipeline {
             common: PipelineCommon {
                 pipeline_layout,
                 pipeline,
                 common_data,
             },
+            bind_group,
         })
     }
 }

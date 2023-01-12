@@ -5,7 +5,7 @@
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
-            "program": "${workspaceRoot}/target/debug/hello-cube.exe",
+            "program": "${workspaceRoot}/target/debug/ui.exe",
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
