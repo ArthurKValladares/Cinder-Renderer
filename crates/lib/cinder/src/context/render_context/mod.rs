@@ -316,13 +316,13 @@ impl RenderContext {
     pub fn bind_descriptor_sets(
         &self,
         device: &Device,
-        sets: &[vk::DescriptorSet],
         compute: bool, // TODO: Something better later
     ) -> Result<(), PipelineError> {
         if let Some(handle) = &self.bound_pipeline {
             let pipeline = device
                 .get_graphics_pipeline(*handle)
                 .ok_or(PipelineError::InvalidPipelineHandle)?;
+
             unsafe {
                 device.raw().cmd_bind_descriptor_sets(
                     self.shared.command_buffer,
@@ -333,7 +333,7 @@ impl RenderContext {
                     },
                     pipeline.common.pipeline_layout,
                     0,
-                    sets,
+                    &[pipeline.bind_group.as_ref().unwrap().0],
                     &[],
                 );
             };

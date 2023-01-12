@@ -82,8 +82,6 @@ pub struct Renderer {
     view: View,
     depth_image: Image,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
-    // TODO: This should maybe be a part of `GraphicsPipeline`
-    render_bind_group: BindGroup,
     render_context: RenderContext,
     upload_context: UploadContext,
     vertex_buffer: Buffer,
@@ -116,12 +114,6 @@ impl Renderer {
                 depth_format: Some(Format::D32_SFloat),
                 ..Default::default()
             },
-        )?;
-        // TODO: BindGroup API is still very bad
-        let render_bind_group = BindGroup::new(
-            &device,
-            render_pipeline,
-            false, // TODO: This should not be a user-side param
         )?;
 
         let vertex_buffer = device.create_buffer_with_data(
@@ -272,8 +264,8 @@ impl Renderer {
             ],
         )?;
 
-        render_bind_group.write(
-            &device,
+        device.write_bind_group(
+            render_pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
                 data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
@@ -291,7 +283,6 @@ impl Renderer {
             render_context,
             upload_context,
             render_pipeline,
-            render_bind_group,
             vertex_buffer,
             index_buffer,
             ubo_buffer,
@@ -345,12 +336,8 @@ impl Renderer {
                     .bind_index_buffer(&self.device, &self.index_buffer);
                 self.render_context
                     .bind_vertex_buffer(&self.device, &self.vertex_buffer);
-                // TODO: This whole API is hideous
-                self.render_context.bind_descriptor_sets(
-                    &self.device,
-                    &[self.render_bind_group.0],
-                    false,
-                )?;
+                self.render_context
+                    .bind_descriptor_sets(&self.device, false)?;
 
                 self.render_context.draw_offset(&self.device, 36, 0, 0);
             }

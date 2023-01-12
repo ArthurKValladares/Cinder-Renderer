@@ -5,8 +5,6 @@ use crate::{
 use anyhow::Result;
 use ash::vk;
 
-use super::{pipeline::graphics::GraphicsPipeline, ResourceHandle};
-
 pub const MAX_BINDLESS_RESOURCES: u32 = 16536;
 
 // TODO, maybe could be separate enums, to make bind_buffer, bind_image, etc type-safe
@@ -97,12 +95,13 @@ pub fn bindless_bind_group_flags() -> vk::DescriptorBindingFlags {
         | vk::DescriptorBindingFlags::UPDATE_AFTER_BIND
 }
 
+#[repr(C)]
 pub struct BindGroupLayout {
     pub layout: vk::DescriptorSetLayout,
 }
 
 impl BindGroupLayout {
-    pub fn new(device: &ash::Device, layout_data: &[BindGroupLayoutData]) -> Result<Self> {
+    pub fn new(device: &Device, layout_data: &[BindGroupLayoutData]) -> Result<Self> {
         let bindings = layout_data
             .iter()
             .map(|data| {
@@ -129,7 +128,11 @@ impl BindGroupLayout {
             .push_next(&mut extended_info)
             .build();
 
-        let layout = unsafe { device.create_descriptor_set_layout(&layout_info, None) }?;
+        let layout = unsafe {
+            device
+                .raw()
+                .create_descriptor_set_layout(&layout_info, None)
+        }?;
 
         Ok(Self { layout })
     }
@@ -152,27 +155,22 @@ pub struct BindGroupBindInfo {
 pub struct BindGroup(pub vk::DescriptorSet);
 
 impl BindGroup {
-    pub fn new(
-        device: &Device,
-        handle: ResourceHandle<GraphicsPipeline>,
-        variable_count: bool,
-    ) -> Result<Self> {
-        // TODO: Get rid of unwrap later
-        let layout = &device
-            .get_graphics_pipeline(handle)
-            .unwrap()
-            .common
-            .bind_group_layouts()[0];
-
+    pub fn new(device: &Device, layouts: &[BindGroupLayout], variable_count: bool) -> Result<Self> {
         let max_binding = MAX_BINDLESS_RESOURCES - 1;
 
         let mut count_info = vk::DescriptorSetVariableDescriptorCountAllocateInfo::builder()
             .descriptor_counts(&[max_binding])
             .build();
 
+        let set_layouts = layouts
+            .iter()
+            .map(|layout| layout.layout)
+            .collect::<Vec<_>>();
+
         let desc_alloc_info = vk::DescriptorSetAllocateInfo::builder()
             .descriptor_pool(device.bind_group_pool.0)
-            .set_layouts(std::slice::from_ref(&layout.layout));
+            .set_layouts(&set_layouts);
+
         let desc_alloc_info = if variable_count {
             desc_alloc_info.push_next(&mut count_info).build()
         } else {
@@ -182,37 +180,5 @@ impl BindGroup {
         let set = unsafe { device.raw().allocate_descriptor_sets(&desc_alloc_info) }?[0];
 
         Ok(Self(set))
-    }
-
-    pub fn write(&self, device: &Device, infos: &[BindGroupBindInfo]) {
-        let writes = infos
-            .iter()
-            .map(|info| {
-                let mut write = vk::WriteDescriptorSet::builder()
-                    .dst_set(self.0)
-                    .dst_binding(info.dst_binding);
-                write = match &info.data {
-                    BindGroupWriteData::Uniform(buffer_info) => write
-                        .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                        .buffer_info(std::slice::from_ref(&buffer_info.0)),
-                    BindGroupWriteData::Storage(buffer_info) => write
-                        .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                        .buffer_info(std::slice::from_ref(&buffer_info.0)),
-                    BindGroupWriteData::SampledImage(info) => write
-                        .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
-                        .dst_array_element(info.index)
-                        .image_info(std::slice::from_ref(&info.info)),
-                    BindGroupWriteData::StorageImage(info) => write
-                        .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
-                        .dst_array_element(info.index)
-                        .image_info(std::slice::from_ref(&info.info)),
-                };
-                write.build()
-            })
-            .collect::<Vec<_>>();
-
-        unsafe {
-            device.raw().update_descriptor_sets(&writes, &[]);
-        }
     }
 }

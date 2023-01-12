@@ -44,7 +44,6 @@ pub struct EguiIntegration {
     pipeline: ResourceHandle<GraphicsPipeline>,
     // TODO: won't need separate pool in the future, set will be a part of GraphicsPipeline?
     _bind_group_pool: BindGroupPool,
-    bind_group_set: BindGroup,
     sampler: Sampler,
     image_staging_buffer: Option<Buffer>,
     image_map: HashMap<TextureId, Image>,
@@ -75,7 +74,6 @@ impl EguiIntegration {
                 ..Default::default()
             },
         )?;
-        let bind_group_set = BindGroup::new(device, pipeline, true).unwrap();
 
         let sampler = device.create_sampler()?;
 
@@ -110,7 +108,6 @@ impl EguiIntegration {
             egui_winit,
             sampler,
             _bind_group_pool: bind_group_pool,
-            bind_group_set,
             pipeline,
             image_staging_buffer: None,
             image_map: Default::default(),
@@ -211,7 +208,7 @@ impl EguiIntegration {
             None,
         );
         {
-            render_context.bind_graphics_pipeline(device, self.pipeline);
+            render_context.bind_graphics_pipeline(device, self.pipeline)?;
             render_context.bind_vertex_buffer(device, vertex_buffer);
             render_context.bind_index_buffer(device, index_buffer);
             render_context.bind_viewport(
@@ -300,7 +297,7 @@ impl EguiIntegration {
                 }
             }
         }
-        render_context.end_rendering(&device);
+        render_context.end_rendering(device);
 
         Ok(())
     }
@@ -340,13 +337,13 @@ impl EguiIntegration {
             panic!("egui out of memory");
         }
 
-        vertex_buffer_ptr.copy_from(&vertices, vertex_copy_size);
-        index_buffer_ptr.copy_from(&indices, index_copy_size);
+        vertex_buffer_ptr.copy_from(vertices, vertex_copy_size);
+        index_buffer_ptr.copy_from(indices, index_copy_size);
 
         *vertex_buffer_ptr = vertex_buffer_ptr_next;
         *index_buffer_ptr = index_buffer_ptr_next;
 
-        render_context.bind_descriptor_sets(device, &[self.bind_group_set.0], false);
+        render_context.bind_descriptor_sets(device, false)?;
 
         let index = match mesh.texture_id {
             TextureId::Managed(index) => index as usize,
@@ -406,15 +403,15 @@ impl EguiIntegration {
             TextureId::User(_) => unimplemented!(),
         };
 
-        self.bind_group_set.write(
-            device,
+        device.write_bind_group(
+            self.pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
                 data: BindGroupWriteData::SampledImage(
                     image.bind_info(&self.sampler, index as u32),
                 ),
             }],
-        );
+        )?;
 
         self.image_map.insert(*id, image);
         self.image_staging_buffer = Some(image_staging_buffer);

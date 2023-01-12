@@ -126,6 +126,7 @@ impl Shader {
                             } else {
                                 false
                             };
+                        // TODO: Is this good?
                         if array {
                             BindGroupLayoutData::new_bindless(
                                 reflect_binding.binding,
