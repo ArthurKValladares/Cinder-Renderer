@@ -64,7 +64,8 @@ impl EguiIntegration {
         egui_context.set_pixels_per_point(PPP);
         egui_winit.set_pixels_per_point(PPP);
 
-        let bind_group_pool = BindGroupPool::new(device.raw()).unwrap();
+        let bind_group_pool =
+            BindGroupPool::new(device.raw(), device.max_bindless_descriptor_count()).unwrap();
         let pipeline = device.create_graphics_pipeline(
             device.create_shader(include_bytes!("../shaders/spv/egui.vert.spv"))?,
             device.create_shader(include_bytes!("../shaders/spv/egui.frag.spv"))?,

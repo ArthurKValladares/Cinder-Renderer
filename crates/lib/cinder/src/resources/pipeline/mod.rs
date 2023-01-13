@@ -10,8 +10,6 @@ use anyhow::Result;
 use ash::vk;
 use std::collections::{BTreeMap, HashMap};
 
-use super::bind_group::MAX_BINDLESS_RESOURCES;
-
 pub mod compute;
 pub mod graphics;
 pub mod push_constant;
@@ -74,7 +72,7 @@ pub fn get_pipeline_layout(
             .map(|layout_data| {
                 variable_count |= layout_data
                     .last()
-                    .map_or(false, |data| data.count == MAX_BINDLESS_RESOURCES);
+                    .map_or(false, |data| data.count.is_none());
                 BindGroupLayout::new(device, layout_data)
             })
             .collect::<Result<Vec<_>>>()
