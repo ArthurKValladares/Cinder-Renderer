@@ -321,6 +321,13 @@ impl Renderer {
 
         self.view.present(&self.device, drawable)
     }
+
+    pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
+        self.device.resize(width, height)?;
+        self.view.resize(&self.device)?;
+        self.depth_image.resize(&self.device, Size2D::new(width, height))?;
+        Ok(())
+    }
 }
 
 fn main() {
@@ -350,6 +357,9 @@ fn main() {
                     if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
                         *control_flow = ControlFlow::Exit;
                     }
+                }
+                WindowEvent::Resized(size) => {
+                    renderer.resize(size.width, size.height).unwrap();
                 }
                 WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                 _ => {}

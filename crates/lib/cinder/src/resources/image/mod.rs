@@ -161,12 +161,7 @@ pub struct Image {
 }
 
 impl Image {
-    pub fn create(
-        device: &Device,
-        p_device_memory_properties: &vk::PhysicalDeviceMemoryProperties,
-        size: Size2D<u32>,
-        desc: ImageDescription,
-    ) -> Result<Self> {
+    pub fn create(device: &Device, size: Size2D<u32>, desc: ImageDescription) -> Result<Self> {
         let create_info = vk::ImageCreateInfo::builder()
             .image_type(vk::ImageType::TYPE_2D)
             .format(desc.format.into())
@@ -187,7 +182,7 @@ impl Image {
         let memory_req = unsafe { device.raw().get_image_memory_requirements(image) };
         let memory_index = find_memory_type_index(
             &memory_req,
-            p_device_memory_properties,
+            device.memopry_properties(),
             desc.memory_ty.into(),
         )
         .ok_or_else(|| ImageError::NoSuitableMemoryType)?;
@@ -260,6 +255,12 @@ impl Image {
                 Ok(())
             },
         )
+    }
+
+    pub fn resize(&mut self, device: &Device, size: Size2D<u32>) -> Result<()> {
+        self.clean(device);
+        *self = Self::create(device, size, self.desc)?;
+        Ok(())
     }
 }
 
