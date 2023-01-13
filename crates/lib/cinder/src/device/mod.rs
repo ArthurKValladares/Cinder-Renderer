@@ -118,6 +118,12 @@ impl Device {
             ash::extensions::khr::Swapchain::name(),
             ash::extensions::khr::DynamicRendering::name(),
             vk::ExtDescriptorIndexingFn::name(),
+            unsafe {
+                std::ffi::CStr::from_bytes_with_nul_unchecked(b"VK_KHR_depth_stencil_resolve\0")
+            },
+            unsafe {
+                std::ffi::CStr::from_bytes_with_nul_unchecked(b"VK_KHR_create_renderpass2\0")
+            },
             #[cfg(any(target_os = "macos", target_os = "ios"))]
             KhrPortabilitySubsetFn::name(),
         ];
@@ -309,7 +315,7 @@ impl Device {
     }
 
     pub fn create_image(&self, size: Size2D<u32>, desc: ImageDescription) -> Result<Image> {
-        Image::create(self,  size, desc)
+        Image::create(self, size, desc)
     }
 
     pub fn create_shader(&self, bytes: &[u8]) -> Result<Shader> {
