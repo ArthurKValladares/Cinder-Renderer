@@ -255,13 +255,17 @@ impl RenderContext {
 
         unsafe {
             device
-                .raw()
+                .dynamic_rendering()
                 .cmd_begin_rendering(self.shared.command_buffer, &rendering_info);
         }
     }
 
     pub fn end_rendering(&mut self, device: &Device) {
-        unsafe { device.raw().cmd_end_rendering(self.shared.command_buffer) };
+        unsafe {
+            device
+                .dynamic_rendering()
+                .cmd_end_rendering(self.shared.command_buffer)
+        };
         // TODO: Is this the right way to reset bound pipeline?
         self.bound_pipeline = None;
     }

@@ -20,9 +20,9 @@ use crate::{
     Resolution,
 };
 use anyhow::Result;
-use ash::vk;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 use ash::vk::KhrPortabilitySubsetFn;
+use ash::{extensions::khr::DynamicRendering, vk};
 use math::{rect::Rect2D, size::Size2D};
 use thiserror::Error;
 use util::size_of_slice;
@@ -55,6 +55,8 @@ pub struct Device {
     pub(crate) rendering_complete_semaphore: vk::Semaphore,
     pub(crate) draw_commands_reuse_fence: vk::Fence,
     pub(crate) setup_commands_reuse_fence: vk::Fence,
+    // TODO: Probably some place to shove extensions
+    dynamic_rendering: DynamicRendering,
     // TODO: Experimenting with some resource handling stuff in Device. maybe should be separate
     pipelines: Vec<GraphicsPipeline>,
 }
@@ -203,6 +205,7 @@ impl Device {
         let draw_commands_reuse_fence = unsafe { device.create_fence(&fence_create_info, None) }?;
         let setup_commands_reuse_fence = unsafe { device.create_fence(&fence_create_info, None) }?;
 
+        let dynamic_rendering = DynamicRendering::new(instance.raw(), &device);
         Ok(Self {
             instance,
             surface,
@@ -216,6 +219,7 @@ impl Device {
             command_pool,
             pipeline_cache,
             bind_group_pool,
+            dynamic_rendering,
             present_complete_semaphore,
             rendering_complete_semaphore,
             draw_commands_reuse_fence,
@@ -258,6 +262,10 @@ impl Device {
 
     pub fn command_pool(&self) -> vk::CommandPool {
         self.command_pool
+    }
+
+    pub fn dynamic_rendering(&self) -> &DynamicRendering {
+        &self.dynamic_rendering
     }
 
     pub fn get_query_pool_results_u32(
