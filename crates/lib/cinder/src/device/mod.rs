@@ -27,6 +27,17 @@ use math::{rect::Rect2D, size::Size2D};
 use thiserror::Error;
 use util::size_of_slice;
 
+fn max_bindless_descriptor_count_inner(p_device_properties: &vk::PhysicalDeviceProperties) -> u32 {
+    pub const RESERVED_DESCRIPTOR_COUNT: u32 = 32;
+
+    (512 * 1024).min(
+        p_device_properties
+            .limits
+            .max_per_stage_descriptor_sampled_images
+            - RESERVED_DESCRIPTOR_COUNT,
+    )
+}
+
 #[derive(Debug, Error)]
 pub enum DeviceError {
     #[error("No suitable device found")]
@@ -181,7 +192,10 @@ impl Device {
 
         let ci = vk::PipelineCacheCreateInfo::builder().build();
         let pipeline_cache = unsafe { device.create_pipeline_cache(&ci, None)? };
-        let bind_group_pool = BindGroupPool::new(&device)?;
+        let bind_group_pool = BindGroupPool::new(
+            &device,
+            max_bindless_descriptor_count_inner(&p_device_properties),
+        )?;
 
         let window_size = window.inner_size();
         let surface_data = surface.get_data(
@@ -457,5 +471,9 @@ impl Device {
             self.surface
                 .get_data(self.p_device, Resolution { width, height }, false)?;
         Ok(())
+    }
+
+    pub fn max_bindless_descriptor_count(&self) -> u32 {
+        max_bindless_descriptor_count_inner(&self.p_device_properties)
     }
 }

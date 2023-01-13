@@ -5,8 +5,6 @@ use crate::{
 use anyhow::Result;
 use ash::vk;
 
-pub const MAX_BINDLESS_RESOURCES: u32 = 16536;
-
 // TODO, maybe could be separate enums, to make bind_buffer, bind_image, etc type-safe
 #[derive(Debug, Copy, Clone)]
 pub enum BindGroupType {
@@ -30,24 +28,24 @@ impl From<BindGroupType> for vk::DescriptorType {
 pub struct BindGroupPool(vk::DescriptorPool);
 
 impl BindGroupPool {
-    pub fn new(device: &ash::Device) -> Result<Self> {
+    pub fn new(device: &ash::Device, descriptor_count: u32) -> Result<Self> {
         let pool_sizes = [
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                descriptor_count: MAX_BINDLESS_RESOURCES,
+                descriptor_count,
             },
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::STORAGE_BUFFER,
-                descriptor_count: MAX_BINDLESS_RESOURCES,
+                descriptor_count,
             },
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::UNIFORM_BUFFER,
-                descriptor_count: MAX_BINDLESS_RESOURCES,
+                descriptor_count,
             },
         ];
 
         let descriptor_pool_info = vk::DescriptorPoolCreateInfo::builder()
-            .max_sets(MAX_BINDLESS_RESOURCES * pool_sizes.len() as u32)
+            .max_sets(descriptor_count * pool_sizes.len() as u32)
             .pool_sizes(&pool_sizes)
             .flags(vk::DescriptorPoolCreateFlags::UPDATE_AFTER_BIND)
             .build();
@@ -62,7 +60,7 @@ impl BindGroupPool {
 pub struct BindGroupLayoutData {
     pub binding: u32,
     pub ty: BindGroupType,
-    pub count: u32,
+    pub count: Option<u32>,
     pub shader_stage: ShaderStage,
     pub flags: vk::DescriptorBindingFlags,
 }
@@ -72,7 +70,7 @@ impl BindGroupLayoutData {
         Self {
             binding,
             ty,
-            count: 1,
+            count: Some(1),
             shader_stage,
             flags: Default::default(),
         }
@@ -82,7 +80,7 @@ impl BindGroupLayoutData {
         Self {
             binding,
             ty,
-            count: MAX_BINDLESS_RESOURCES,
+            count: None,
             shader_stage,
             flags: bindless_bind_group_flags(),
         }
@@ -108,7 +106,10 @@ impl BindGroupLayout {
                 vk::DescriptorSetLayoutBinding::builder()
                     .binding(data.binding)
                     .descriptor_type(data.ty.into())
-                    .descriptor_count(data.count)
+                    .descriptor_count(
+                        data.count
+                            .unwrap_or_else(|| device.max_bindless_descriptor_count()),
+                    )
                     .stage_flags(data.shader_stage.into())
                     .build()
             })
@@ -156,7 +157,7 @@ pub struct BindGroup(pub vk::DescriptorSet);
 
 impl BindGroup {
     pub fn new(device: &Device, layouts: &[BindGroupLayout], variable_count: bool) -> Result<Self> {
-        let max_binding = MAX_BINDLESS_RESOURCES - 1;
+        let max_binding = device.max_bindless_descriptor_count() - 1;
 
         let mut count_info = vk::DescriptorSetVariableDescriptorCountAllocateInfo::builder()
             .descriptor_counts(&[max_binding])
