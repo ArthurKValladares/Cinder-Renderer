@@ -1,5 +1,3 @@
-use std::ffi::CStr;
-
 pub use memoffset::offset_of;
 
 pub fn size_of_slice<T>(slice: &[T]) -> u64 {
