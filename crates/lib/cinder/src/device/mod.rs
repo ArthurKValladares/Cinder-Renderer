@@ -309,7 +309,7 @@ impl Device {
     }
 
     pub fn create_image(&self, size: Size2D<u32>, desc: ImageDescription) -> Result<Image> {
-        Image::create(self, self.memopry_properties(), size, desc)
+        Image::create(self,  size, desc)
     }
 
     pub fn create_shader(&self, bytes: &[u8]) -> Result<Shader> {
