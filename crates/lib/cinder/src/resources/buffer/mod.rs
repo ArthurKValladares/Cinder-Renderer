@@ -95,9 +95,9 @@ impl Buffer {
         let buffer_memory_index = find_memory_type_index(
             &buffer_memory_req,
             device.memopry_properties(),
-            desc.memory_ty.clone().into(),
+            desc.memory_ty.into(),
         )
-        .ok_or_else(|| BufferError::NoSuitableMemoryType)?;
+        .ok_or(BufferError::NoSuitableMemoryType)?;
 
         let allocate_info = vk::MemoryAllocateInfo {
             allocation_size: buffer_memory_req.size,

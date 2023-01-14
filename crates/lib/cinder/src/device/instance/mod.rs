@@ -12,14 +12,12 @@ use std::{
 };
 
 fn layer_names() -> Vec<CString> {
-    let mut layers = Vec::new();
-    layers.push(CString::new("VK_LAYER_KHRONOS_validation").unwrap());
-    layers
+    vec![CString::new("VK_LAYER_KHRONOS_validation").unwrap()]
 }
 
 fn extensions() -> Vec<&'static CStr> {
-    let mut extensions = Vec::new();
-    extensions.push(ash::extensions::ext::DebugUtils::name());
+    #[allow(unused_mut)]
+    let mut extensions = vec![ash::extensions::ext::DebugUtils::name()];
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     {
         extensions.push(KhrPortabilityEnumerationFn::name());

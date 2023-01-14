@@ -86,7 +86,7 @@ impl From<vk::Format> for Format {
             vk::Format::R32G32B32_SFLOAT => Self::R32_G32_B32_SFloat,
             vk::Format::R32G32_SFLOAT => Self::R32_G32_SFloat,
             vk::Format::R32_SFLOAT => Self::R32_SFloat,
-            _ => panic!("Unsupported image format: {:?}", vk),
+            _ => panic!("Unsupported image format: {vk:?}"),
         }
     }
 }
@@ -185,7 +185,7 @@ impl Image {
             device.memopry_properties(),
             desc.memory_ty.into(),
         )
-        .ok_or_else(|| ImageError::NoSuitableMemoryType)?;
+        .ok_or(ImageError::NoSuitableMemoryType)?;
 
         let allocate_info = vk::MemoryAllocateInfo {
             allocation_size: memory_req.size,
