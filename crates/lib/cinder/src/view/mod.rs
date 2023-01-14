@@ -1,7 +1,7 @@
 mod swapchain;
 
 use self::swapchain::Swapchain;
-use crate::device::{Device, SurfaceData};
+use crate::device::Device;
 use anyhow::Result;
 use ash::vk;
 

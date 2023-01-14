@@ -6,7 +6,7 @@ use cinder::{
     },
     device::Device,
     resources::{
-        bind_group::{BindGroup, BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
+        bind_group::{BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{vk::Fence, Buffer, BufferDescription, BufferUsage},
         image::Image,
         memory::MemoryType,
@@ -360,10 +360,6 @@ impl EguiIntegration {
         *vertex_base += vertices.len() as i32;
         *index_base += indices.len() as u32;
 
-        Ok(())
-    }
-
-    pub fn resize(&mut self, _device: &Device) -> Result<()> {
         Ok(())
     }
 

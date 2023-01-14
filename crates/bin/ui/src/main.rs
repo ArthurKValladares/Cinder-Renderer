@@ -7,9 +7,9 @@ use cinder::{
         },
         upload_context::UploadContext,
     },
-    device::{Device, SurfaceData},
+    device::Device,
     resources::{
-        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
+        bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, Usage},
         memory::MemoryType,
@@ -17,11 +17,10 @@ use cinder::{
         ResourceHandle,
     },
     view::View,
-    Resolution,
 };
 use egui_integration::{egui, EguiIntegration};
-use math::{mat::Mat4, rect::Rect2D, size::Size2D, vec::Vec3};
-use std::time::Instant;
+use math::{mat::Mat4, size::Size2D, vec::Vec3};
+
 use winit::{
     dpi::PhysicalSize,
     event::VirtualKeyCode,
@@ -89,7 +88,6 @@ pub struct Renderer {
     ubo_buffer: Buffer,
     ui: EguiIntegration,
     model_data: ModelData,
-    init_time: Instant,
 }
 
 impl Renderer {
@@ -270,11 +268,9 @@ impl Renderer {
                 dst_binding: 0,
                 data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
             }],
-        );
+        )?;
 
         let ui = EguiIntegration::new(event_loop, &mut device, &view)?;
-
-        let init_time = Instant::now();
 
         Ok(Self {
             device,
@@ -288,7 +284,6 @@ impl Renderer {
             ubo_buffer,
             ui,
             model_data: Default::default(),
-            init_time,
         })
     }
 

@@ -6,7 +6,7 @@ use cinder::{
     },
     device::Device,
     resources::{
-        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
+        bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::Image,
         pipeline::graphics::GraphicsPipeline,
@@ -129,7 +129,7 @@ impl Renderer {
                 dst_binding: 0,
                 data: BindGroupWriteData::SampledImage(texture.bind_info(&sampler, 0)),
             }],
-        );
+        )?;
 
         Ok(Self {
             device,
