@@ -231,14 +231,6 @@ impl Image {
         })
     }
 
-    pub fn clean(&mut self, device: &Device) {
-        unsafe {
-            device.raw().destroy_image(self.raw, None);
-            device.raw().destroy_image_view(self.view, None);
-            self.memory.destroy(device.raw());
-        }
-    }
-
     pub fn dims(&self) -> Size2D<u32> {
         self.size
     }
@@ -258,9 +250,17 @@ impl Image {
     }
 
     pub fn resize(&mut self, device: &Device, size: Size2D<u32>) -> Result<()> {
-        self.clean(device);
+        self.destroy(device.raw());
         *self = Self::create(device, size, self.desc)?;
         Ok(())
+    }
+
+    pub fn destroy(&mut self, device: &ash::Device) {
+        unsafe {
+            device.destroy_image(self.raw, None);
+            device.destroy_image_view(self.view, None);
+            self.memory.destroy(device);
+        }
     }
 }
 

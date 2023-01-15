@@ -42,8 +42,8 @@ pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_winit: egui_winit::State,
     pipeline: ResourceHandle<GraphicsPipeline>,
-    // TODO: won't need separate pool in the future, set will be a part of GraphicsPipeline?
-    _bind_group_pool: BindGroupPool,
+    // TODO: won't need separate pool in the future
+    bind_group_pool: BindGroupPool,
     sampler: Sampler,
     image_staging_buffer: Option<Buffer>,
     image_map: HashMap<TextureId, Image>,
@@ -66,15 +66,21 @@ impl EguiIntegration {
 
         let bind_group_pool =
             BindGroupPool::new(device.raw(), device.max_bindless_descriptor_count()).unwrap();
+        let mut vertex_shader =
+            device.create_shader(include_bytes!("../shaders/spv/egui.vert.spv"))?;
+        let mut fragment_shader =
+            device.create_shader(include_bytes!("../shaders/spv/egui.frag.spv"))?;
         let pipeline = device.create_graphics_pipeline(
-            device.create_shader(include_bytes!("../shaders/spv/egui.vert.spv"))?,
-            device.create_shader(include_bytes!("../shaders/spv/egui.frag.spv"))?,
+            &vertex_shader,
+            &fragment_shader,
             GraphicsPipelineDescription {
                 blending: ColorBlendState::pma(),
                 surface_format: device.surface_data().format(),
                 ..Default::default()
             },
         )?;
+        vertex_shader.destroy(&device);
+        fragment_shader.destroy(&device);
 
         let sampler = device.create_sampler()?;
 
@@ -108,7 +114,7 @@ impl EguiIntegration {
             egui_context,
             egui_winit,
             sampler,
-            _bind_group_pool: bind_group_pool,
+            bind_group_pool,
             pipeline,
             image_staging_buffer: None,
             image_map: Default::default(),
@@ -363,10 +369,6 @@ impl EguiIntegration {
         Ok(())
     }
 
-    pub fn clean(&mut self, _device: &Device) {
-        // TODO
-    }
-
     fn set_image_helper(
         &mut self,
         device: &Device,
@@ -465,5 +467,22 @@ impl EguiIntegration {
     pub fn set_ui_scale(&mut self, scale: f32) {
         self.egui_context.set_pixels_per_point(scale);
         self.egui_winit.set_pixels_per_point(scale);
+    }
+
+    pub fn destroy(&mut self, device: &Device) {
+        self.bind_group_pool.destroy(device.raw());
+        self.sampler.destroy(device.raw());
+        if let Some(buffer) = &mut self.image_staging_buffer {
+            buffer.destroy(device.raw())
+        }
+        for image in self.image_map.values_mut() {
+            image.destroy(device.raw());
+        }
+        for buffer in &mut self.vertex_buffers {
+            buffer.destroy(device.raw());
+        }
+        for buffer in &mut self.index_buffers {
+            buffer.destroy(device.raw());
+        }
     }
 }
