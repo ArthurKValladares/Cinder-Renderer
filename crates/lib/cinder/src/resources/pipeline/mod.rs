@@ -50,6 +50,7 @@ impl PipelineCommon {
     }
 
     pub fn destroy(&mut self, device: &ash::Device) {
+        self.common_data.destroy(device);
         unsafe {
             device.destroy_pipeline(self.pipeline, None);
             device.destroy_pipeline_layout(self.pipeline_layout, None);

@@ -40,8 +40,9 @@ pub struct Renderer {
     _upload_context: UploadContext,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
-    _sampler: Sampler,
-    _texture: Image,
+    image_buffer: Buffer,
+    sampler: Sampler,
+    texture: Image,
 }
 
 impl Renderer {
@@ -52,11 +53,17 @@ impl Renderer {
 
         let view = View::new(&device)?;
 
+        let mut vertex_shader =
+            device.create_shader(include_bytes!("../shaders/spv/texture.vert.spv"))?;
+        let mut fragment_shader =
+            device.create_shader(include_bytes!("../shaders/spv/texture.frag.spv"))?;
         let render_pipeline = device.create_graphics_pipeline(
-            device.create_shader(include_bytes!("../shaders/spv/texture.vert.spv"))?,
-            device.create_shader(include_bytes!("../shaders/spv/texture.frag.spv"))?,
+            &vertex_shader,
+            &fragment_shader,
             Default::default(),
         )?;
+        vertex_shader.destroy(&device);
+        fragment_shader.destroy(&device);
 
         let vertex_buffer = device.create_buffer_with_data(
             &[
@@ -99,15 +106,13 @@ impl Renderer {
         let texture = device.create_image(Size2D::new(width, height), Default::default())?;
         let image_data = image.into_raw();
 
-        // TODO: Clean up image buffer
-        let image_buffer = device.create_buffer_with_data(
+        let mut image_buffer = device.create_buffer_with_data(
             &image_data,
             BufferDescription {
                 usage: BufferUsage::TRANSFER_SRC,
                 ..Default::default()
             },
         )?;
-
         upload_context.begin(&device, device.setup_fence())?;
         {
             upload_context.image_barrier_start(&device, &texture);
@@ -139,8 +144,9 @@ impl Renderer {
             render_pipeline,
             vertex_buffer,
             index_buffer,
-            _sampler: sampler,
-            _texture: texture,
+            image_buffer,
+            sampler,
+            texture,
         })
     }
 
@@ -188,6 +194,21 @@ impl Renderer {
         self.device.resize(width, height)?;
         self.view.resize(&self.device)?;
         Ok(())
+    }
+}
+
+impl Drop for Renderer {
+    fn drop(&mut self) {
+        self.device.wait_idle().ok();
+
+        self.sampler.destroy(self.device.raw());
+        self.texture.destroy(self.device.raw());
+
+        self.vertex_buffer.destroy(self.device.raw());
+        self.index_buffer.destroy(self.device.raw());
+        self.image_buffer.destroy(self.device.raw());
+
+        self.view.destroy(&self.device);
     }
 }
 

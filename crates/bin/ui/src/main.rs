@@ -105,14 +105,20 @@ impl Renderer {
                 memory_ty: MemoryType::GpuOnly,
             },
         )?;
+        let mut vertex_shader =
+            device.create_shader(include_bytes!("../shaders/spv/ui.vert.spv"))?;
+        let mut fragment_shader =
+            device.create_shader(include_bytes!("../shaders/spv/ui.frag.spv"))?;
         let render_pipeline = device.create_graphics_pipeline(
-            device.create_shader(include_bytes!("../shaders/spv/ui.vert.spv"))?,
-            device.create_shader(include_bytes!("../shaders/spv/ui.frag.spv"))?,
+            &vertex_shader,
+            &fragment_shader,
             GraphicsPipelineDescription {
                 depth_format: Some(Format::D32_SFloat),
                 ..Default::default()
             },
         )?;
+        vertex_shader.destroy(&device);
+        fragment_shader.destroy(&device);
 
         let vertex_buffer = device.create_buffer_with_data(
             &[
@@ -374,6 +380,22 @@ impl Renderer {
         self.depth_image
             .resize(&self.device, Size2D::new(width, height))?;
         Ok(())
+    }
+}
+
+impl Drop for Renderer {
+    fn drop(&mut self) {
+        self.device.wait_idle().ok();
+
+        self.ui.destroy(&self.device);
+
+        self.depth_image.destroy(self.device.raw());
+
+        self.vertex_buffer.destroy(self.device.raw());
+        self.index_buffer.destroy(self.device.raw());
+        self.ubo_buffer.destroy(self.device.raw());
+
+        self.view.destroy(&self.device);
     }
 }
 
