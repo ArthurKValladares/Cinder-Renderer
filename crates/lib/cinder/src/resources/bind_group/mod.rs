@@ -54,6 +54,12 @@ impl BindGroupPool {
 
         Ok(Self(pool))
     }
+
+    pub fn destroy(&mut self, device: &ash::Device) {
+        unsafe {
+            device.destroy_descriptor_pool(self.0, None);
+        }
+    }
 }
 
 #[derive(Debug)]

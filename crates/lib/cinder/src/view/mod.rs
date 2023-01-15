@@ -69,4 +69,8 @@ impl View {
         self.swapchain.resize(device)?;
         Ok(())
     }
+
+    pub fn destroy(&mut self, device: &Device) {
+        self.swapchain.destroy(device.raw())
+    }
 }

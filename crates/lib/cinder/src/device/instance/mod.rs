@@ -30,8 +30,8 @@ fn extensions() -> Vec<&'static CStr> {
 pub struct Instance {
     entry: ash::Entry,
     instance: ash::Instance,
-    _debug_utils: ash::extensions::ext::DebugUtils,
-    _debug_utils_messenger: vk::DebugUtilsMessengerEXT,
+    debug_utils: ash::extensions::ext::DebugUtils,
+    debug_utils_messenger: vk::DebugUtilsMessengerEXT,
 }
 
 impl Instance {
@@ -88,8 +88,8 @@ impl Instance {
         Ok(Self {
             entry,
             instance,
-            _debug_utils: debug_utils,
-            _debug_utils_messenger: debug_utils_messenger,
+            debug_utils,
+            debug_utils_messenger,
         })
     }
 
@@ -105,6 +105,8 @@ impl Instance {
 impl Drop for Instance {
     fn drop(&mut self) {
         unsafe {
+            self.debug_utils
+                .destroy_debug_utils_messenger(self.debug_utils_messenger, None);
             self.instance.destroy_instance(None);
         }
     }

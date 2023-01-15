@@ -2,14 +2,6 @@ use crate::device::Device;
 use anyhow::Result;
 use ash::vk;
 
-pub struct Swapchain {
-    pub swapchain_loader: ash::extensions::khr::Swapchain,
-    pub swapchain: vk::SwapchainKHR,
-    // TODO: Should these be `Image`s (yes)
-    pub present_images: Vec<vk::Image>,
-    pub present_image_views: Vec<vk::ImageView>,
-}
-
 fn create_swapchain_structures(
     device: &Device,
     swapchain_loader: &ash::extensions::khr::Swapchain,
@@ -80,6 +72,14 @@ fn create_swapchain_structures(
     Ok((swapchain, present_images, present_image_views))
 }
 
+pub struct Swapchain {
+    pub swapchain_loader: ash::extensions::khr::Swapchain,
+    pub swapchain: vk::SwapchainKHR,
+    // TODO: Should these be `Image`s (yes)
+    pub present_images: Vec<vk::Image>,
+    pub present_image_views: Vec<vk::ImageView>,
+}
+
 impl Swapchain {
     pub fn new(device: &Device) -> Result<Self> {
         let swapchain_loader =
@@ -97,7 +97,7 @@ impl Swapchain {
     }
 
     pub fn resize(&mut self, device: &Device) -> Result<()> {
-        self.clean(device.raw());
+        self.clean_images(device.raw());
 
         let (swapchain, present_images, present_image_views) =
             create_swapchain_structures(device, &self.swapchain_loader, Some(self.swapchain))?;
@@ -109,7 +109,15 @@ impl Swapchain {
         Ok(())
     }
 
-    pub fn clean(&mut self, device: &ash::Device) {
+    pub fn get_image(&self, index: usize) -> vk::Image {
+        self.present_images[index]
+    }
+
+    pub fn get_image_view(&self, index: usize) -> vk::ImageView {
+        self.present_image_views[index]
+    }
+
+    fn clean_images(&mut self, device: &ash::Device) {
         unsafe {
             for image_view in self.present_image_views.drain(..) {
                 device.destroy_image_view(image_view, None);
@@ -117,11 +125,11 @@ impl Swapchain {
         }
     }
 
-    pub fn get_image(&self, index: usize) -> vk::Image {
-        self.present_images[index]
-    }
-
-    pub fn get_image_view(&self, index: usize) -> vk::ImageView {
-        self.present_image_views[index]
+    pub fn destroy(&mut self, device: &ash::Device) {
+        self.clean_images(device);
+        unsafe {
+            self.swapchain_loader
+                .destroy_swapchain(self.swapchain, None);
+        }
     }
 }
