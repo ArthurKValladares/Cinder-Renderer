@@ -43,11 +43,17 @@ impl Renderer {
         let render_context = RenderContext::new(&device)?;
         let view = View::new(&device)?;
 
+        let mut vertex_shader =
+            device.create_shader(include_bytes!("../shaders/spv/triangle.vert.spv"))?;
+        let mut fragment_shader =
+            device.create_shader(include_bytes!("../shaders/spv/triangle.frag.spv"))?;
         let render_pipeline = device.create_graphics_pipeline(
-            device.create_shader(include_bytes!("../shaders/spv/triangle.vert.spv"))?,
-            device.create_shader(include_bytes!("../shaders/spv/triangle.frag.spv"))?,
+            &vertex_shader,
+            &fragment_shader,
             Default::default(),
         )?;
+        vertex_shader.destroy(&device);
+        fragment_shader.destroy(&device);
 
         let vertex_buffer = device.create_buffer_with_data(
             &[
@@ -143,6 +149,16 @@ impl Renderer {
         self.device.resize(width, height)?;
         self.view.resize(&self.device)?;
         Ok(())
+    }
+}
+
+impl Drop for Renderer {
+    fn drop(&mut self) {
+        self.device.wait_idle();
+
+        self.vertex_buffer.destroy(self.device.raw());
+        self.index_buffer.destroy(self.device.raw());
+        self.view.destroy(&self.device);
     }
 }
 

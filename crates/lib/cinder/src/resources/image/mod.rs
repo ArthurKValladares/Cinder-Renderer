@@ -235,7 +235,7 @@ impl Image {
         unsafe {
             device.raw().destroy_image(self.raw, None);
             device.raw().destroy_image_view(self.view, None);
-            self.memory.clean(device.raw());
+            self.memory.destroy(device.raw());
         }
     }
 

@@ -143,6 +143,10 @@ impl BindGroupLayout {
 
         Ok(Self { layout })
     }
+
+    pub fn destroy(&mut self, device: &ash::Device) {
+        unsafe { device.destroy_descriptor_set_layout(self.layout, None) }
+    }
 }
 
 #[derive(Debug)]
