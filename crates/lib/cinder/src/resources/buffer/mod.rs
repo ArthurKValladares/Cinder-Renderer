@@ -77,6 +77,11 @@ impl Buffer {
             },
         )
     }
+
+    pub fn destroy(&mut self, device: &ash::Device) {
+        unsafe { device.destroy_buffer(self.raw, None) }
+        self.memory.destroy(device);
+    }
 }
 
 #[repr(transparent)]
@@ -137,7 +142,7 @@ impl Buffer {
     pub fn clean(&mut self, device: &Device) {
         unsafe {
             device.raw().destroy_buffer(self.raw, None);
-            self.memory.clean(device.raw());
+            self.memory.destroy(device.raw());
         }
     }
 }

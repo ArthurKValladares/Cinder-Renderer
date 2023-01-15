@@ -86,8 +86,8 @@ pub struct GraphicsPipeline {
 impl GraphicsPipeline {
     pub(crate) fn create(
         device: &Device,
-        vertex_shader: Shader,
-        fragment_shader: Shader,
+        vertex_shader: &Shader,
+        fragment_shader: &Shader,
         desc: GraphicsPipelineDescription,
     ) -> Result<Self> {
         //
@@ -239,5 +239,9 @@ impl GraphicsPipeline {
             },
             bind_group,
         })
+    }
+
+    pub fn destroy(&mut self, device: &ash::Device) {
+        self.common.destroy(device);
     }
 }

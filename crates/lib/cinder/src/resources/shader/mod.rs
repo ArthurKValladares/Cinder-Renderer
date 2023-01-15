@@ -146,4 +146,10 @@ impl Shader {
     pub fn local_size(&self) -> ReflectEntryPointLocalSize {
         self.reflect_data.module().enumerate_entry_points().unwrap()[0].local_size
     }
+
+    pub fn destroy(&mut self, device: &Device) {
+        unsafe {
+            device.raw().destroy_shader_module(self.module, None);
+        }
+    }
 }

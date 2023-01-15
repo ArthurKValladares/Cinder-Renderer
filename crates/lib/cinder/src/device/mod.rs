@@ -346,8 +346,8 @@ impl Device {
 
     pub fn create_graphics_pipeline(
         &mut self,
-        vertex_shader: Shader,
-        fragment_shader: Shader,
+        vertex_shader: &Shader,
+        fragment_shader: &Shader,
         desc: GraphicsPipelineDescription,
     ) -> Result<ResourceHandle<GraphicsPipeline>> {
         let id = self.pipelines.len();
@@ -482,6 +482,10 @@ impl Drop for Device {
     fn drop(&mut self) {
         unsafe {
             self.wait_idle().ok();
+
+            for mut pipeline in self.pipelines.drain(..) {
+                pipeline.destroy(&self.device);
+            }
 
             self.bind_group_pool.destroy(&self.device);
 

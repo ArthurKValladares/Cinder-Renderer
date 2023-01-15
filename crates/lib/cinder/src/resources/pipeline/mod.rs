@@ -26,6 +26,12 @@ impl PipelineCommonData {
     pub fn bind_group_layouts(&self) -> &[BindGroupLayout] {
         &self.bind_group_layouts
     }
+
+    pub fn destroy(&mut self, device: &ash::Device) {
+        for mut layout in self.bind_group_layouts.drain(..) {
+            layout.destroy(device)
+        }
+    }
 }
 
 pub struct PipelineCommon {
@@ -41,6 +47,13 @@ impl PipelineCommon {
 
     pub fn bind_group_layouts(&self) -> &[BindGroupLayout] {
         self.common_data.bind_group_layouts()
+    }
+
+    pub fn destroy(&mut self, device: &ash::Device) {
+        unsafe {
+            device.destroy_pipeline(self.pipeline, None);
+            device.destroy_pipeline_layout(self.pipeline_layout, None);
+        }
     }
 }
 
