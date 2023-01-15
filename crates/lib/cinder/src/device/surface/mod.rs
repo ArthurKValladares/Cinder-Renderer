@@ -99,6 +99,12 @@ impl Surface {
     }
 }
 
+impl Drop for Surface {
+    fn drop(&mut self) {
+        unsafe { self.surface_loader.destroy_surface(self.surface, None) }
+    }
+}
+
 pub struct SurfaceData {
     pub surface_format: vk::SurfaceFormatKHR,
     pub surface_capabilities: vk::SurfaceCapabilitiesKHR,

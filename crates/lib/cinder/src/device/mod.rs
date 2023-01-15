@@ -49,8 +49,6 @@ pub enum DeviceError {
 }
 
 pub struct Device {
-    instance: Instance,
-    surface: Surface,
     p_device: vk::PhysicalDevice,
     p_device_properties: vk::PhysicalDeviceProperties,
     p_device_memory_properties: vk::PhysicalDeviceMemoryProperties,
@@ -70,6 +68,8 @@ pub struct Device {
     dynamic_rendering: DynamicRendering,
     // TODO: Experimenting with some resource handling stuff in Device. maybe should be separate
     pipelines: Vec<GraphicsPipeline>,
+    surface: Surface,
+    instance: Instance,
 }
 
 impl Device {
@@ -475,5 +475,30 @@ impl Device {
 
     pub fn max_bindless_descriptor_count(&self) -> u32 {
         max_bindless_descriptor_count_inner(&self.p_device_properties)
+    }
+}
+
+impl Drop for Device {
+    fn drop(&mut self) {
+        unsafe {
+            self.wait_idle().ok();
+
+            self.bind_group_pool.destroy(&self.device);
+
+            self.device
+                .destroy_pipeline_cache(self.pipeline_cache, None);
+
+            self.device
+                .destroy_semaphore(self.rendering_complete_semaphore, None);
+            self.device
+                .destroy_semaphore(self.present_complete_semaphore, None);
+            self.device
+                .destroy_fence(self.setup_commands_reuse_fence, None);
+            self.device
+                .destroy_fence(self.draw_commands_reuse_fence, None);
+
+            self.device.destroy_command_pool(self.command_pool, None);
+            self.device.destroy_device(None);
+        }
     }
 }
