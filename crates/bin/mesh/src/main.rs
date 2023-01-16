@@ -77,7 +77,17 @@ impl Vertex for MeshVertex {
             [0.0, 0.0, 0.0]
         };
 
-        Self { i_pos, i_normal }
+        let i_uv = if !mesh.texcoords.is_empty() {
+            [mesh.texcoords[i * 2], mesh.texcoords[i * 2 + 1]]
+        } else {
+            [0.0, 0.0]
+        };
+
+        Self {
+            i_pos,
+            i_normal,
+            i_uv,
+        }
     }
 
     fn pos_3d(&self) -> [f32; 3] {
