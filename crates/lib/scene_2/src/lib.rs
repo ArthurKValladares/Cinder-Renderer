@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::path::Path;
+use std::{ffi::OsStr, path::Path};
 pub use tobj::Mesh as ObjMesh;
 
 pub trait Vertex {
@@ -28,7 +28,6 @@ where
     pub fn from_obj(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         debug_assert!(path.exists(), "Path does not exist: {path:?}");
-        debug_assert!(path.ends_with("obj"), "Path is not an obj file: {path:?}");
         let (models, _) = tobj::load_obj(path, &tobj::GPU_LOAD_OPTIONS)?;
 
         let mut min_pos = [f32::INFINITY; 3];
