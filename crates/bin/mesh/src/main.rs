@@ -16,6 +16,7 @@ use cinder::{
     view::View,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
+use scene_2::{ObjMesh, Scene, Vertex};
 use std::time::Instant;
 use winit::{
     dpi::PhysicalSize,
@@ -56,6 +57,32 @@ fn new_infinite_perspective_proj(aspect_ratio: f32, y_fov: f32, z_near: f32) -> 
         0.0,              0., 0.0, z_near,
         0.0,              0., 1.0, 0.0,
     )
+}
+
+impl Vertex for MeshVertex {
+    fn from_obj_mesh_index(mesh: &ObjMesh, i: usize) -> Self {
+        let i_pos = [
+            mesh.positions[i * 3],
+            mesh.positions[i * 3 + 1],
+            mesh.positions[i * 3 + 2],
+        ];
+
+        let i_normal = if !mesh.normals.is_empty() {
+            [
+                mesh.normals[i * 3],
+                mesh.normals[i * 3 + 1],
+                mesh.normals[i * 3 + 2],
+            ]
+        } else {
+            [0.0, 0.0, 0.0]
+        };
+
+        Self { i_pos, i_normal }
+    }
+
+    fn pos_3d(&self) -> [f32; 3] {
+        self.i_pos
+    }
 }
 
 pub struct Renderer {
@@ -100,125 +127,18 @@ impl Renderer {
         vertex_shader.destroy(&device);
         fragment_shader.destroy(&device);
 
+        let scene = Scene::<MeshVertex>::from_obj("../assets/viking_room.obj")?;
+        let mesh = scene.meshes.first().unwrap();
+
         let vertex_buffer = device.create_buffer_with_data(
-            &[
-                // Plane at z: -0.5
-                MeshVertex {
-                    i_pos: [-0.5, 0.5, -0.5],
-                    i_normal: [1.0, 0.0, 0.0],
-                },
-                MeshVertex {
-                    i_pos: [0.5, 0.5, -0.5],
-                    i_normal: [1.0, 0.0, 0.0],
-                },
-                MeshVertex {
-                    i_pos: [-0.5, -0.5, -0.5],
-                    i_normal: [1.0, 0.0, 0.0],
-                },
-                MeshVertex {
-                    i_pos: [0.5, -0.5, -0.5],
-                    i_normal: [1.0, 0.0, 0.0],
-                },
-                // Plane at z: 0.5
-                MeshVertex {
-                    i_pos: [-0.5, 0.5, 0.5],
-                    i_normal: [0.0, 0.0, 1.0],
-                },
-                MeshVertex {
-                    i_pos: [0.5, 0.5, 0.5],
-                    i_normal: [0.0, 0.0, 1.0],
-                },
-                MeshVertex {
-                    i_pos: [-0.5, -0.5, 0.5],
-                    i_normal: [0.0, 0.0, 1.0],
-                },
-                MeshVertex {
-                    i_pos: [0.5, -0.5, 0.5],
-                    i_normal: [0.0, 0.0, 1.0],
-                },
-                // Plane at x: -0.5
-                MeshVertex {
-                    i_pos: [-0.5, -0.5, 0.5],
-                    i_normal: [0.0, 1.0, 0.0],
-                },
-                MeshVertex {
-                    i_pos: [-0.5, 0.5, 0.5],
-                    i_normal: [0.0, 1.0, 0.0],
-                },
-                MeshVertex {
-                    i_pos: [-0.5, -0.5, -0.5],
-                    i_normal: [0.0, 1.0, 0.0],
-                },
-                MeshVertex {
-                    i_pos: [-0.5, 0.5, -0.5],
-                    i_normal: [0.0, 1.0, 0.0],
-                },
-                // Plane at x: 0.5
-                MeshVertex {
-                    i_pos: [0.5, -0.5, 0.5],
-                    i_normal: [1.0, 1.0, 0.0],
-                },
-                MeshVertex {
-                    i_pos: [0.5, 0.5, 0.5],
-                    i_normal: [1.0, 1.0, 0.0],
-                },
-                MeshVertex {
-                    i_pos: [0.5, -0.5, -0.5],
-                    i_normal: [1.0, 1.0, 0.0],
-                },
-                MeshVertex {
-                    i_pos: [0.5, 0.5, -0.5],
-                    i_normal: [1.0, 1.0, 0.0],
-                },
-                // Plane at y: -0.5
-                MeshVertex {
-                    i_pos: [-0.5, -0.5, 0.5],
-                    i_normal: [0.0, 1.0, 1.0],
-                },
-                MeshVertex {
-                    i_pos: [0.5, -0.5, 0.5],
-                    i_normal: [0.0, 1.0, 1.0],
-                },
-                MeshVertex {
-                    i_pos: [-0.5, -0.5, -0.5],
-                    i_normal: [0.0, 1.0, 1.0],
-                },
-                MeshVertex {
-                    i_pos: [0.5, -0.5, -0.5],
-                    i_normal: [0.0, 1.0, 1.0],
-                },
-                // Plane at y: 0.5
-                MeshVertex {
-                    i_pos: [-0.5, 0.5, 0.5],
-                    i_normal: [1.0, 1.0, 1.0],
-                },
-                MeshVertex {
-                    i_pos: [0.5, 0.5, 0.5],
-                    i_normal: [1.0, 1.0, 1.0],
-                },
-                MeshVertex {
-                    i_pos: [-0.5, 0.5, -0.5],
-                    i_normal: [1.0, 1.0, 1.0],
-                },
-                MeshVertex {
-                    i_pos: [0.5, 0.5, -0.5],
-                    i_normal: [1.0, 1.0, 1.0],
-                },
-            ],
+            &mesh.vertices,
             BufferDescription {
                 usage: BufferUsage::VERTEX,
                 ..Default::default()
             },
         )?;
         let index_buffer = device.create_buffer_with_data(
-            &[
-                0, 1, 2, 2, 1, 3, // First plane
-                4, 5, 6, 6, 5, 7, // Second plane
-                8, 9, 10, 10, 9, 11, // Third plane
-                12, 13, 14, 14, 13, 15, // Fourth plane
-                16, 17, 18, 18, 17, 19, // Fifth plane
-                20, 21, 22, 22, 21, 23, // Sixth plane
-            ],
+            &mesh.indices,
             BufferDescription {
                 usage: BufferUsage::INDEX,
                 ..Default::default()
