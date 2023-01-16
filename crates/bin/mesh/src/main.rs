@@ -127,7 +127,7 @@ impl Renderer {
         vertex_shader.destroy(&device);
         fragment_shader.destroy(&device);
 
-        let scene = Scene::<MeshVertex>::from_obj("../assets/viking_room.obj")?;
+        let scene = Scene::<MeshVertex>::from_obj("../assets/models/viking_room.obj")?;
         let mesh = scene.meshes.first().unwrap();
 
         let vertex_buffer = device.create_buffer_with_data(
