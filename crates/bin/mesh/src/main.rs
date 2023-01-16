@@ -17,7 +17,7 @@ use cinder::{
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use scene_2::{ObjMesh, Scene, Vertex};
-use std::time::Instant;
+use std::{path::PathBuf, time::Instant};
 use winit::{
     dpi::PhysicalSize,
     event::VirtualKeyCode,
@@ -95,6 +95,7 @@ pub struct Renderer {
     index_buffer: Buffer,
     ubo_buffer: Buffer,
     init_time: Instant,
+    index_count: u32,
 }
 
 impl Renderer {
@@ -127,7 +128,12 @@ impl Renderer {
         vertex_shader.destroy(&device);
         fragment_shader.destroy(&device);
 
-        let scene = Scene::<MeshVertex>::from_obj("../assets/models/viking_room.obj")?;
+        let scene = Scene::<MeshVertex>::from_obj(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("assets")
+                .join("models")
+                .join("viking_room.obj"),
+        )?;
         let mesh = scene.meshes.first().unwrap();
 
         let vertex_buffer = device.create_buffer_with_data(
@@ -188,6 +194,7 @@ impl Renderer {
             index_buffer,
             ubo_buffer,
             init_time,
+            index_count: mesh.indices.len() as u32,
         })
     }
 
@@ -237,7 +244,8 @@ impl Renderer {
                 // TODO: re-think API later when using more than one set
                 self.render_context.bind_descriptor_sets(&self.device)?;
 
-                self.render_context.draw_offset(&self.device, 36, 0, 0);
+                self.render_context
+                    .draw_offset(&self.device, self.index_count, 0, 0);
             }
             self.render_context.end_rendering(&self.device);
 
