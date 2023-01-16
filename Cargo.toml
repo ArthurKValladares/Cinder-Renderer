@@ -4,5 +4,6 @@ members = [
     "crates/bin/hello-cube",
     "crates/bin/texture",
     "crates/bin/ui",
+    "crates/bin/mesh",
     "crates/lib/cinder",
 ]
