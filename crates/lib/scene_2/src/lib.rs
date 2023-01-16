@@ -1,5 +1,5 @@
 use anyhow::Result;
-use std::{ffi::OsStr, path::Path};
+use std::path::Path;
 pub use tobj::Mesh as ObjMesh;
 
 pub trait Vertex {

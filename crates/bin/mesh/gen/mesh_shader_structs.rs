@@ -11,4 +11,5 @@ pub struct MeshUniformBufferObject {
 pub struct MeshVertex {
     pub i_pos: [f32; 3],
     pub i_normal: [f32; 3],
+    pub i_uv: [f32; 2],
 }
