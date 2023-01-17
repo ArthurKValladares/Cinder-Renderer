@@ -1,8 +1,11 @@
 use anyhow::Result;
 use cinder::{
-    context::render_context::{
-        AttachmentStoreOp, ClearValue, Layout, RenderAttachment, RenderAttachmentDesc,
-        RenderContext,
+    context::{
+        render_context::{
+            AttachmentStoreOp, ClearValue, Layout, RenderAttachment, RenderAttachmentDesc,
+            RenderContext,
+        },
+        upload_context::UploadContext,
     },
     device::Device,
     resources::{
@@ -11,6 +14,7 @@ use cinder::{
         image::{Format, Image, ImageDescription, Usage},
         memory::MemoryType,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
+        sampler::Sampler,
         ResourceHandle,
     },
     view::View,
@@ -67,27 +71,13 @@ impl Vertex for MeshVertex {
             mesh.positions[i * 3 + 2],
         ];
 
-        let i_normal = if !mesh.normals.is_empty() {
-            [
-                mesh.normals[i * 3],
-                mesh.normals[i * 3 + 1],
-                mesh.normals[i * 3 + 2],
-            ]
-        } else {
-            [0.0, 0.0, 0.0]
-        };
-
         let i_uv = if !mesh.texcoords.is_empty() {
-            [mesh.texcoords[i * 2], mesh.texcoords[i * 2 + 1]]
+            [mesh.texcoords[i * 2], 1.0 - mesh.texcoords[i * 2 + 1]]
         } else {
             [0.0, 0.0]
         };
 
-        Self {
-            i_pos,
-            i_normal,
-            i_uv,
-        }
+        Self { i_pos, i_uv }
     }
 
     fn pos_3d(&self) -> [f32; 3] {
@@ -101,9 +91,13 @@ pub struct Renderer {
     depth_image: Image,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
+    _upload_context: UploadContext,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     ubo_buffer: Buffer,
+    image_buffer: Buffer,
+    sampler: Sampler,
+    texture: Image,
     init_time: Instant,
     index_count: u32,
 }
@@ -112,6 +106,7 @@ impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
         let mut device = Device::new(window)?;
         let render_context = RenderContext::new(&device)?;
+        let upload_context = UploadContext::new(&device)?;
         let view = View::new(&device)?;
         let surface_rect = device.surface_rect();
         let depth_image = device.create_image(
@@ -172,7 +167,7 @@ impl Renderer {
             util::offset_of!(MeshUniformBufferObject, view) as u64,
             &[
                 look_to(
-                    Vec3::new(2.0, 0.0, 0.0),
+                    Vec3::new(2.0, -0.5, 0.0),
                     Vec3::new(1.0, 0.0, 0.0),
                     Vec3::new(0.0, 1.0, 0.0),
                 ),
@@ -184,12 +179,49 @@ impl Renderer {
             ],
         )?;
 
+        let sampler = device.create_sampler()?;
+
+        let image = image::load_from_memory(include_bytes!("../assets/textures/viking_room.png"))
+            .unwrap()
+            .to_rgba8();
+        let (width, height) = image.dimensions();
+        let texture = device.create_image(Size2D::new(width, height), Default::default())?;
+        let image_data = image.into_raw();
+
+        let image_buffer = device.create_buffer_with_data(
+            &image_data,
+            BufferDescription {
+                usage: BufferUsage::TRANSFER_SRC,
+                ..Default::default()
+            },
+        )?;
+        upload_context.begin(&device, device.setup_fence())?;
+        {
+            upload_context.image_barrier_start(&device, &texture);
+            upload_context.copy_buffer_to_image(&device, &image_buffer, &texture);
+            upload_context.image_barrier_end(&device, &texture);
+        }
+        upload_context.end(
+            &device,
+            device.setup_fence(),
+            device.present_queue(),
+            &[],
+            &[],
+            &[],
+        )?;
+
         device.write_bind_group(
             render_pipeline,
-            &[BindGroupBindInfo {
-                dst_binding: 0,
-                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-            }],
+            &[
+                BindGroupBindInfo {
+                    dst_binding: 0,
+                    data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+                },
+                BindGroupBindInfo {
+                    dst_binding: 1,
+                    data: BindGroupWriteData::SampledImage(texture.bind_info(&sampler, 0)),
+                },
+            ],
         )?;
 
         let init_time = Instant::now();
@@ -199,9 +231,13 @@ impl Renderer {
             view,
             depth_image,
             render_context,
+            _upload_context: upload_context,
             render_pipeline,
             vertex_buffer,
             index_buffer,
+            image_buffer,
+            sampler,
+            texture,
             ubo_buffer,
             init_time,
             index_count: mesh.indices.len() as u32,
@@ -212,7 +248,10 @@ impl Renderer {
         let scale = (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
         self.ubo_buffer.mem_copy(
             util::offset_of!(MeshUniformBufferObject, model) as u64,
-            &[Mat4::rotate(scale, Vec3::new(1.0, 1.0, 0.0))],
+            &[
+                Mat4::rotate(std::f32::consts::PI / 2.0, Vec3::new(1.0, 0.0, 0.0))
+                    * Mat4::rotate(scale, Vec3::new(0.0, 0.0, 1.0)),
+            ],
         )?;
         Ok(())
     }
@@ -281,10 +320,13 @@ impl Drop for Renderer {
         self.device.wait_idle().ok();
 
         self.depth_image.destroy(self.device.raw());
+        self.sampler.destroy(self.device.raw());
+        self.texture.destroy(self.device.raw());
 
         self.vertex_buffer.destroy(self.device.raw());
         self.index_buffer.destroy(self.device.raw());
         self.ubo_buffer.destroy(self.device.raw());
+        self.image_buffer.destroy(self.device.raw());
 
         self.view.destroy(&self.device);
     }
