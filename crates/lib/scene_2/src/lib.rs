@@ -40,9 +40,7 @@ where
 
             let obj_mesh = model.mesh;
 
-            for idx in &obj_mesh.indices {
-                let i = *idx as usize;
-
+            for i in 0..obj_mesh.positions.len() / 3 {
                 let vertex = V::from_obj_mesh_index(&obj_mesh, i);
                 let pos = vertex.pos_3d();
 
