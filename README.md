@@ -23,3 +23,8 @@ Example app using egui to render ui widgets we can use to transform a cube.
 
 ![ui](https://user-images.githubusercontent.com/23410311/211710290-65f36d24-180f-4af4-b55c-9dc2920d0306.gif)
 
+### [Mesh](./crates/bin/mesh/src/main.rs)<br/>
+3D mesh with a single albedo texture.
+
+![mesh](https://user-images.githubusercontent.com/23410311/212804707-f4f97fb4-d63d-4449-9b20-31a01a228904.gif)
+
