@@ -106,7 +106,7 @@ impl Renderer {
         let texture = device.create_image(Size2D::new(width, height), Default::default())?;
         let image_data = image.into_raw();
 
-        let mut image_buffer = device.create_buffer_with_data(
+        let image_buffer = device.create_buffer_with_data(
             &image_data,
             BufferDescription {
                 usage: BufferUsage::TRANSFER_SRC,
