@@ -242,6 +242,21 @@ impl Device {
         })
     }
 
+    pub(crate) fn set_name(
+        &self,
+        object_type: vk::ObjectType,
+        object: impl vk::Handle,
+        name: &str,
+    ) {
+        instance::debug::set_object_name(
+            self.instance.debug(),
+            self.device.handle(),
+            object_type,
+            object,
+            name,
+        )
+    }
+
     pub fn instance(&self) -> &Instance {
         &self.instance
     }

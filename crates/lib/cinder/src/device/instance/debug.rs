@@ -33,3 +33,40 @@ pub unsafe extern "system" fn vulkan_debug_callback(
 
     vk::FALSE
 }
+
+pub fn set_object_name(
+    debug_utils: &ash::extensions::ext::DebugUtils,
+    device: ash::vk::Device,
+    object_type: vk::ObjectType,
+    object: impl vk::Handle,
+    name: &str,
+) {
+    let mut buffer: [u8; 64] = [0u8; 64];
+    let buffer_vec: Vec<u8>;
+
+    let name_bytes = if name.len() < buffer.len() {
+        buffer[..name.len()].copy_from_slice(name.as_bytes());
+        buffer[name.len()] = 0;
+        &buffer[..name.len() + 1]
+    } else {
+        buffer_vec = name
+            .as_bytes()
+            .iter()
+            .cloned()
+            .chain(std::iter::once(0))
+            .collect();
+        &buffer_vec
+    };
+
+    let name = unsafe { CStr::from_bytes_with_nul_unchecked(name_bytes) };
+
+    let _result = unsafe {
+        debug_utils.set_debug_utils_object_name(
+            device,
+            &vk::DebugUtilsObjectNameInfoEXT::builder()
+                .object_type(object_type)
+                .object_handle(object.as_raw())
+                .object_name(name),
+        )
+    };
+}

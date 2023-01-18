@@ -61,6 +61,7 @@ impl ColorBlendState {
 
 #[derive(Debug, Copy, Clone)]
 pub struct GraphicsPipelineDescription {
+    pub name: Option<&'static str>, // TODO: Probably should have a lifetime
     pub blending: ColorBlendState,
     pub surface_format: Format,
     pub depth_format: Option<Format>,
@@ -70,6 +71,7 @@ pub struct GraphicsPipelineDescription {
 impl Default for GraphicsPipelineDescription {
     fn default() -> Self {
         Self {
+            name: None,
             blending: Default::default(),
             surface_format: Format::B8_G8_R8_A8_Unorm,
             depth_format: Default::default(),
@@ -219,6 +221,10 @@ impl GraphicsPipeline {
             unsafe {
                 device.raw().destroy_pipeline(*pipeline, None);
             }
+        }
+
+        if let Some(name) = desc.name {
+            device.set_name(vk::ObjectType::PIPELINE, pipeline, name)
         }
 
         let bind_group = if common_data.bind_group_layouts().is_empty() {

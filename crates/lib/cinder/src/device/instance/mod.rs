@@ -1,4 +1,4 @@
-mod debug;
+pub mod debug;
 
 use self::debug::vulkan_debug_callback;
 use anyhow::Result;
@@ -99,6 +99,10 @@ impl Instance {
 
     pub(crate) fn raw(&self) -> &ash::Instance {
         &self.instance
+    }
+
+    pub(crate) fn debug(&self) -> &ash::extensions::ext::DebugUtils {
+        &self.debug_utils
     }
 }
 
