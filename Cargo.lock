@@ -479,6 +479,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "debug"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cinder",
+ "home",
+ "image",
+ "math",
+ "nalgebra-glm",
+ "rkyv",
+ "rust-shader-tools",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "util",
+ "winit",
+]
+
+[[package]]
 name = "dirs"
 version = "4.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
