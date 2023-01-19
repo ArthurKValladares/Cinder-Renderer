@@ -129,6 +129,7 @@ impl From<Usage> for vk::ImageAspectFlags {
 
 #[derive(Debug, Clone, Copy)]
 pub struct ImageDescription {
+    pub name: Option<&'static str>,
     pub format: Format,
     pub usage: Usage,
     pub memory_ty: MemoryType,
@@ -137,17 +138,12 @@ pub struct ImageDescription {
 impl Default for ImageDescription {
     fn default() -> Self {
         Self {
+            name: None,
             format: Default::default(),
             usage: Default::default(),
             memory_ty: MemoryType::GpuOnly,
         }
     }
-}
-
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
-pub struct ImageViewDescription {
-    pub format: Format,
-    pub usage: Usage,
 }
 
 pub struct Image {
@@ -220,6 +216,16 @@ impl Image {
         } else {
             None
         };
+
+        if let Some(name) = desc.name {
+            memory.set_name(device, name);
+            device.set_name(vk::ObjectType::IMAGE, image, name);
+            device.set_name(
+                vk::ObjectType::IMAGE_VIEW,
+                view,
+                &format!("{} [default view]", name),
+            );
+        }
 
         Ok(Image {
             raw: image,

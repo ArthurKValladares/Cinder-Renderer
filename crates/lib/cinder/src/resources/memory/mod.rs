@@ -1,4 +1,4 @@
-use crate::util::MemoryMappablePointer;
+use crate::{device::Device, util::MemoryMappablePointer};
 use anyhow::Result;
 use ash::vk;
 
@@ -42,6 +42,15 @@ impl Memory {
             let ptr = device.map_memory(self.raw, 0, self.req.size, vk::MemoryMapFlags::empty())?;
             Ok(MemoryMappablePointer::from_raw_ptr(ptr))
         }
+    }
+
+    // TODO: set_name function standard way to do this
+    pub(crate) fn set_name(&self, device: &Device, name: &str) {
+        device.set_name(
+            vk::ObjectType::DEVICE_MEMORY,
+            self.raw,
+            &format!("{} [device memory]", name),
+        );
     }
 
     pub(crate) fn destroy(&mut self, device: &ash::Device) {

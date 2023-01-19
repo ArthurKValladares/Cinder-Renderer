@@ -93,8 +93,8 @@ pub struct Renderer {
 impl Renderer {
     pub fn new(event_loop: &EventLoop<()>, window: &winit::window::Window) -> Result<Self> {
         let mut device = Device::new(window)?;
-        let render_context = RenderContext::new(&device)?;
-        let upload_context = UploadContext::new(&device)?;
+        let render_context = RenderContext::new(&device, Default::default())?;
+        let upload_context = UploadContext::new(&device, Default::default())?;
         let view = View::new(&device)?;
         let surface_rect = device.surface_rect();
         let depth_image = device.create_image(
@@ -102,7 +102,7 @@ impl Renderer {
             ImageDescription {
                 format: Format::D32_SFloat,
                 usage: Usage::Depth,
-                memory_ty: MemoryType::GpuOnly,
+                ..Default::default()
             },
         )?;
         let mut vertex_shader =

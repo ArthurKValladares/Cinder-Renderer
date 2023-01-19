@@ -144,6 +144,14 @@ impl BindGroupLayout {
         Ok(Self { layout })
     }
 
+    pub(crate) fn set_name(&self, device: &Device, name: &str) {
+        device.set_name(
+            vk::ObjectType::DESCRIPTOR_SET_LAYOUT,
+            self.layout,
+            &format!("{} [descriptor set layout]", name),
+        );
+    }
+
     pub fn destroy(&mut self, device: &ash::Device) {
         unsafe { device.destroy_descriptor_set_layout(self.layout, None) }
     }

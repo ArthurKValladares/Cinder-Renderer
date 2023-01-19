@@ -6,33 +6,36 @@ use crate::{
 use anyhow::Result;
 use ash::vk;
 
-pub struct UploadContextDescription {}
+#[derive(Debug, Clone, Copy, Default)]
+pub struct UploadContextDescription {
+    pub name: Option<&'static str>,
+}
 
 pub struct UploadContext {
     pub shared: ContextShared,
 }
 
 impl UploadContext {
-    pub fn new(device: &Device) -> Result<Self> {
+    pub fn new(device: &Device, desc: UploadContextDescription) -> Result<Self> {
         // TODO: Allocate buffers in bulk, manage handing them out some way
         let command_buffer_allocate_info = vk::CommandBufferAllocateInfo::builder()
             .command_buffer_count(1)
             .command_pool(device.command_pool())
             .level(vk::CommandBufferLevel::PRIMARY);
 
-        let command_buffer = unsafe {
-            device
-                .raw()
-                .allocate_command_buffers(&command_buffer_allocate_info)?
-        }[0];
+        let shared = ContextShared::from_command_buffer(
+            unsafe {
+                device
+                    .raw()
+                    .allocate_command_buffers(&command_buffer_allocate_info)?
+            }[0],
+        );
 
-        Ok(UploadContext::from_command_buffer(command_buffer))
-    }
-
-    pub fn from_command_buffer(command_buffer: vk::CommandBuffer) -> Self {
-        Self {
-            shared: ContextShared::from_command_buffer(command_buffer),
+        if let Some(name) = desc.name {
+            shared.set_name(device, name);
         }
+
+        Ok(Self { shared })
     }
 
     pub fn begin(&self, device: &Device, fence: ash::vk::Fence) -> Result<()> {

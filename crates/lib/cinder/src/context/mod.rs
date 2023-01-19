@@ -4,6 +4,8 @@ pub mod upload_context;
 use anyhow::Result;
 use ash::vk;
 
+use crate::device::Device;
+
 // TODO: This separate context thing is not good
 
 pub struct BarrierDescription {}
@@ -15,6 +17,14 @@ pub struct ContextShared {
 impl ContextShared {
     pub fn from_command_buffer(command_buffer: vk::CommandBuffer) -> Self {
         Self { command_buffer }
+    }
+
+    pub(crate) fn set_name(&self, device: &Device, name: &str) {
+        device.set_name(
+            vk::ObjectType::COMMAND_BUFFER,
+            self.command_buffer,
+            &format!("{} [command buffer]", name),
+        );
     }
 }
 
