@@ -36,6 +36,7 @@ impl From<BufferUsage> for vk::BufferUsageFlags {
 
 #[derive(Debug, Default, Clone, Copy)]
 pub struct BufferDescription {
+    pub name: Option<&'static str>,
     pub usage: BufferUsage,
     pub memory_ty: MemoryType,
 }
@@ -122,6 +123,11 @@ impl Buffer {
         } else {
             None
         };
+
+        if let Some(name) = desc.name {
+            memory.set_name(device, name);
+            device.set_name(vk::ObjectType::BUFFER, buffer, name)
+        }
 
         Ok(Buffer {
             raw: buffer,

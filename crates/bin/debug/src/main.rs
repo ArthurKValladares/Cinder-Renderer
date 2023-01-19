@@ -1,15 +1,15 @@
 use anyhow::Result;
 use cinder::{
     context::{
-        render_context::{RenderAttachment, RenderContext},
-        upload_context::UploadContext,
+        render_context::{RenderAttachment, RenderContext, RenderContextDescription},
+        upload_context::{UploadContext, UploadContextDescription},
     },
     device::Device,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
-        image::Image,
-        pipeline::graphics::GraphicsPipeline,
+        image::{Image, ImageDescription},
+        pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
         ResourceHandle,
     },
@@ -48,8 +48,18 @@ pub struct Renderer {
 impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
         let mut device = Device::new(window)?;
-        let render_context = RenderContext::new(&device)?;
-        let upload_context = UploadContext::new(&device)?;
+        let render_context = RenderContext::new(
+            &device,
+            RenderContextDescription {
+                name: Some("render context"),
+            },
+        )?;
+        let upload_context = UploadContext::new(
+            &device,
+            UploadContextDescription {
+                name: Some("upload context"),
+            },
+        )?;
 
         let view = View::new(&device)?;
 
@@ -60,7 +70,10 @@ impl Renderer {
         let render_pipeline = device.create_graphics_pipeline(
             &vertex_shader,
             &fragment_shader,
-            Default::default(),
+            GraphicsPipelineDescription {
+                name: Some("debug pipeline"),
+                ..Default::default()
+            },
         )?;
         vertex_shader.destroy(&device);
         fragment_shader.destroy(&device);
@@ -85,6 +98,7 @@ impl Renderer {
                 },
             ],
             BufferDescription {
+                name: Some("vertex buffer"),
                 usage: BufferUsage::VERTEX,
                 ..Default::default()
             },
@@ -92,6 +106,7 @@ impl Renderer {
         let index_buffer = device.create_buffer_with_data(
             &[0, 1, 2, 2, 3, 0],
             BufferDescription {
+                name: Some("index buffer"),
                 usage: BufferUsage::INDEX,
                 ..Default::default()
             },
@@ -103,7 +118,13 @@ impl Renderer {
             .unwrap()
             .to_rgba8();
         let (width, height) = image.dimensions();
-        let texture = device.create_image(Size2D::new(width, height), Default::default())?;
+        let texture = device.create_image(
+            Size2D::new(width, height),
+            ImageDescription {
+                name: Some("debug image"),
+                ..Default::default()
+            },
+        )?;
         let image_data = image.into_raw();
 
         let image_buffer = device.create_buffer_with_data(

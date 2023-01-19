@@ -180,6 +180,13 @@ impl Device {
         }?;
 
         let present_queue = unsafe { device.get_device_queue(queue_family_index, 0) };
+        instance::debug::set_object_name(
+            instance.debug(),
+            device.handle(),
+            vk::ObjectType::QUEUE,
+            present_queue,
+            "present queue",
+        );
 
         let command_pool = unsafe {
             device.create_command_pool(
@@ -189,6 +196,13 @@ impl Device {
                 None,
             )
         }?;
+        instance::debug::set_object_name(
+            instance.debug(),
+            device.handle(),
+            vk::ObjectType::COMMAND_POOL,
+            command_pool,
+            "command pool",
+        );
 
         let ci = vk::PipelineCacheCreateInfo::builder().build();
         let pipeline_cache = unsafe { device.create_pipeline_cache(&ci, None)? };
@@ -209,15 +223,47 @@ impl Device {
 
         // TODO: Figure out sync story
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
+
         let present_complete_semaphore =
             unsafe { device.create_semaphore(&semaphore_create_info, None) }?;
+        instance::debug::set_object_name(
+            instance.debug(),
+            device.handle(),
+            vk::ObjectType::SEMAPHORE,
+            present_complete_semaphore,
+            "present complete semaphore",
+        );
+
         let rendering_complete_semaphore =
             unsafe { device.create_semaphore(&semaphore_create_info, None) }?;
+        instance::debug::set_object_name(
+            instance.debug(),
+            device.handle(),
+            vk::ObjectType::SEMAPHORE,
+            rendering_complete_semaphore,
+            "rendering complete semaphore",
+        );
 
         let fence_create_info =
             vk::FenceCreateInfo::builder().flags(vk::FenceCreateFlags::SIGNALED);
+
         let draw_commands_reuse_fence = unsafe { device.create_fence(&fence_create_info, None) }?;
+        instance::debug::set_object_name(
+            instance.debug(),
+            device.handle(),
+            vk::ObjectType::FENCE,
+            draw_commands_reuse_fence,
+            "draw commands reuse fence",
+        );
+
         let setup_commands_reuse_fence = unsafe { device.create_fence(&fence_create_info, None) }?;
+        instance::debug::set_object_name(
+            instance.debug(),
+            device.handle(),
+            vk::ObjectType::FENCE,
+            setup_commands_reuse_fence,
+            "setup commands reuse fence",
+        );
 
         let dynamic_rendering = DynamicRendering::new(instance.raw(), &device);
         Ok(Self {

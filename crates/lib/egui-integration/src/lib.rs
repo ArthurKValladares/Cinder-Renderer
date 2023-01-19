@@ -93,7 +93,7 @@ impl EguiIntegration {
                     VERTEX_BUFFER_SIZE,
                     BufferDescription {
                         usage: BufferUsage::VERTEX,
-                        memory_ty: MemoryType::CpuVisible,
+                        ..Default::default()
                     },
                 )?;
                 vertex_buffers.push(vertex_buffer);
@@ -102,7 +102,7 @@ impl EguiIntegration {
                     INDEX_BUFFER_SIZE,
                     BufferDescription {
                         usage: BufferUsage::INDEX,
-                        memory_ty: MemoryType::CpuVisible,
+                        ..Default::default()
                     },
                 )?;
                 index_buffers.push(index_buffer);
@@ -386,7 +386,7 @@ impl EguiIntegration {
             size_of_slice(data),
             BufferDescription {
                 usage: BufferUsage::TRANSFER_SRC,
-                memory_ty: MemoryType::CpuVisible,
+                ..Default::default()
             },
         )?;
         image_staging_buffer.mem_copy(0, data)?;
