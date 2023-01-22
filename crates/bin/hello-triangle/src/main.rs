@@ -41,12 +41,16 @@ impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
         let mut device = Device::new(window)?;
         let render_context = RenderContext::new(&device, Default::default())?;
-        let view = View::new(&device)?;
+        let view = View::new(&device, Default::default())?;
 
-        let mut vertex_shader =
-            device.create_shader(include_bytes!("../shaders/spv/triangle.vert.spv"))?;
-        let mut fragment_shader =
-            device.create_shader(include_bytes!("../shaders/spv/triangle.frag.spv"))?;
+        let mut vertex_shader = device.create_shader(
+            include_bytes!("../shaders/spv/triangle.vert.spv"),
+            Default::default(),
+        )?;
+        let mut fragment_shader = device.create_shader(
+            include_bytes!("../shaders/spv/triangle.frag.spv"),
+            Default::default(),
+        )?;
         let render_pipeline = device.create_graphics_pipeline(
             &vertex_shader,
             &fragment_shader,

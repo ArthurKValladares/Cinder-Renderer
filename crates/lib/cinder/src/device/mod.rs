@@ -14,7 +14,7 @@ use crate::{
             graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         },
         sampler::Sampler,
-        shader::Shader,
+        shader::{Shader, ShaderDesc},
         ResourceHandle,
     },
     Resolution,
@@ -422,8 +422,8 @@ impl Device {
         Image::create(self, size, desc)
     }
 
-    pub fn create_shader(&self, bytes: &[u8]) -> Result<Shader> {
-        Shader::create(self, bytes)
+    pub fn create_shader(&self, bytes: &[u8], desc: ShaderDesc) -> Result<Shader> {
+        Shader::create(self, bytes, desc)
     }
 
     pub fn create_graphics_pipeline(

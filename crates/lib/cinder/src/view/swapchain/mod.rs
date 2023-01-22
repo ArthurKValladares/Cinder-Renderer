@@ -132,4 +132,21 @@ impl Swapchain {
                 .destroy_swapchain(self.swapchain, None);
         }
     }
+
+    pub(crate) fn set_name(&self, device: &Device, name: &str) {
+        for (idx, image) in self.present_images.iter().enumerate() {
+            device.set_name(
+                vk::ObjectType::IMAGE,
+                *image,
+                &format!("{} [image {}]", name, idx),
+            );
+        }
+        for (idx, image_view) in self.present_image_views.iter().enumerate() {
+            device.set_name(
+                vk::ObjectType::IMAGE_VIEW,
+                *image_view,
+                &format!("{} [image view {}]", name, idx),
+            );
+        }
+    }
 }

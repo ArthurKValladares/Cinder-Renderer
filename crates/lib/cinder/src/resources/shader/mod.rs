@@ -47,18 +47,28 @@ pub enum ShaderError {
     ReflectionError(&'static str),
 }
 
+#[derive(Default)]
+pub struct ShaderDesc {
+    pub name: Option<&'static str>,
+}
+
 pub struct Shader {
     pub(crate) module: vk::ShaderModule,
     pub reflect_data: ShaderData,
 }
 
 impl Shader {
-    pub(crate) fn create(device: &Device, bytes: &[u8]) -> Result<Self> {
+    pub(crate) fn create(device: &Device, bytes: &[u8], desc: ShaderDesc) -> Result<Self> {
         let reflect_data = ShaderData::from_spv(bytes)?;
         let mut spv_file = Cursor::new(bytes);
         let code = ash::util::read_spv(&mut spv_file)?;
         let shader_info = vk::ShaderModuleCreateInfo::builder().code(&code);
         let module = unsafe { device.raw().create_shader_module(&shader_info, None)? };
+
+        if let Some(name) = desc.name {
+            device.set_name(vk::ObjectType::SHADER_MODULE, module, name);
+        }
+
         Ok(Shader {
             module,
             reflect_data,
