@@ -178,6 +178,27 @@ impl Device {
                 .raw()
                 .create_device(p_device, &device_create_info, None)
         }?;
+        //instance::debug::set_object_name(
+        //    instance.debug(),
+        //    device.handle(),
+        //    vk::ObjectType::INSTANCE,
+        //    instance.raw().handle(),
+        //    "instance",
+        //);
+        instance::debug::set_object_name(
+            instance.debug(),
+            device.handle(),
+            vk::ObjectType::DEVICE,
+            device.handle(),
+            "device",
+        );
+        instance::debug::set_object_name(
+            instance.debug(),
+            device.handle(),
+            vk::ObjectType::PHYSICAL_DEVICE,
+            p_device,
+            "physical device",
+        );
 
         let present_queue = unsafe { device.get_device_queue(queue_family_index, 0) };
         instance::debug::set_object_name(
