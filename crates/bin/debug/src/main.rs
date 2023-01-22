@@ -11,9 +11,10 @@ use cinder::{
         image::{Image, ImageDescription},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
+        shader::ShaderDesc,
         ResourceHandle,
     },
-    view::View,
+    view::{View, ViewDescription},
 };
 use math::size::Size2D;
 use winit::{
@@ -61,12 +62,25 @@ impl Renderer {
             },
         )?;
 
-        let view = View::new(&device)?;
+        let view = View::new(
+            &device,
+            ViewDescription {
+                name: Some("debug view"),
+            },
+        )?;
 
-        let mut vertex_shader =
-            device.create_shader(include_bytes!("../shaders/spv/debug.vert.spv"))?;
-        let mut fragment_shader =
-            device.create_shader(include_bytes!("../shaders/spv/debug.frag.spv"))?;
+        let mut vertex_shader = device.create_shader(
+            include_bytes!("../shaders/spv/debug.vert.spv"),
+            ShaderDesc {
+                name: Some("vertex shader"),
+            },
+        )?;
+        let mut fragment_shader = device.create_shader(
+            include_bytes!("../shaders/spv/debug.frag.spv"),
+            ShaderDesc {
+                name: Some("fragment shader"),
+            },
+        )?;
         let render_pipeline = device.create_graphics_pipeline(
             &vertex_shader,
             &fragment_shader,
@@ -130,6 +144,7 @@ impl Renderer {
         let image_buffer = device.create_buffer_with_data(
             &image_data,
             BufferDescription {
+                name: Some("image buffer"),
                 usage: BufferUsage::TRANSFER_SRC,
                 ..Default::default()
             },

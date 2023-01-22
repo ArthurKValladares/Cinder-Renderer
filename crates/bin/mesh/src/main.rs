@@ -107,7 +107,7 @@ impl Renderer {
         let mut device = Device::new(window)?;
         let render_context = RenderContext::new(&device, Default::default())?;
         let upload_context = UploadContext::new(&device, Default::default())?;
-        let view = View::new(&device)?;
+        let view = View::new(&device, Default::default())?;
         let surface_rect = device.surface_rect();
         let depth_image = device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
@@ -118,10 +118,14 @@ impl Renderer {
             },
         )?;
 
-        let mut vertex_shader =
-            device.create_shader(include_bytes!("../shaders/spv/mesh.vert.spv"))?;
-        let mut fragment_shader =
-            device.create_shader(include_bytes!("../shaders/spv/mesh.frag.spv"))?;
+        let mut vertex_shader = device.create_shader(
+            include_bytes!("../shaders/spv/mesh.vert.spv"),
+            Default::default(),
+        )?;
+        let mut fragment_shader = device.create_shader(
+            include_bytes!("../shaders/spv/mesh.frag.spv"),
+            Default::default(),
+        )?;
         let render_pipeline = device.create_graphics_pipeline(
             &vertex_shader,
             &fragment_shader,

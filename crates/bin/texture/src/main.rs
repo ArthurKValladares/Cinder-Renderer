@@ -51,12 +51,16 @@ impl Renderer {
         let render_context = RenderContext::new(&device, Default::default())?;
         let upload_context = UploadContext::new(&device, Default::default())?;
 
-        let view = View::new(&device)?;
+        let view = View::new(&device, Default::default())?;
 
-        let mut vertex_shader =
-            device.create_shader(include_bytes!("../shaders/spv/texture.vert.spv"))?;
-        let mut fragment_shader =
-            device.create_shader(include_bytes!("../shaders/spv/texture.frag.spv"))?;
+        let mut vertex_shader = device.create_shader(
+            include_bytes!("../shaders/spv/texture.vert.spv"),
+            Default::default(),
+        )?;
+        let mut fragment_shader = device.create_shader(
+            include_bytes!("../shaders/spv/texture.frag.spv"),
+            Default::default(),
+        )?;
         let render_pipeline = device.create_graphics_pipeline(
             &vertex_shader,
             &fragment_shader,

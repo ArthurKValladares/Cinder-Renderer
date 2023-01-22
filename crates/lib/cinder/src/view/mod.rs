@@ -19,13 +19,22 @@ impl Drawable {
     }
 }
 
+#[derive(Default)]
+pub struct ViewDescription {
+    pub name: Option<&'static str>,
+}
+
 pub struct View {
     swapchain: Swapchain,
 }
 
 impl View {
-    pub fn new(device: &Device) -> Result<Self> {
+    pub fn new(device: &Device, desc: ViewDescription) -> Result<Self> {
         let swapchain = Swapchain::new(device)?;
+
+        if let Some(name) = desc.name {
+            swapchain.set_name(device, name);
+        }
 
         Ok(Self { swapchain })
     }
