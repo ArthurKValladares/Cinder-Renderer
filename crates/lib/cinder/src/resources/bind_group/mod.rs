@@ -25,7 +25,7 @@ impl From<BindGroupType> for vk::DescriptorType {
     }
 }
 
-pub struct BindGroupPool(vk::DescriptorPool);
+pub struct BindGroupPool(pub(crate) vk::DescriptorPool);
 
 impl BindGroupPool {
     pub fn new(device: &ash::Device, descriptor_count: u32) -> Result<Self> {
@@ -145,11 +145,7 @@ impl BindGroupLayout {
     }
 
     pub(crate) fn set_name(&self, device: &Device, name: &str) {
-        device.set_name(
-            vk::ObjectType::DESCRIPTOR_SET_LAYOUT,
-            self.layout,
-            &format!("{} [descriptor set layout]", name),
-        );
+        device.set_name(vk::ObjectType::DESCRIPTOR_SET_LAYOUT, self.layout, name);
     }
 
     pub fn destroy(&mut self, device: &ash::Device) {
@@ -199,5 +195,9 @@ impl BindGroup {
         let set = unsafe { device.raw().allocate_descriptor_sets(&desc_alloc_info) }?[0];
 
         Ok(Self(set))
+    }
+
+    pub(crate) fn set_name(&self, device: &Device, name: &str) {
+        device.set_name(vk::ObjectType::DESCRIPTOR_SET, self.0, name);
     }
 }

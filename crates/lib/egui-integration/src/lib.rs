@@ -86,7 +86,7 @@ impl EguiIntegration {
         vertex_shader.destroy(&device);
         fragment_shader.destroy(&device);
 
-        let sampler = device.create_sampler()?;
+        let sampler = device.create_sampler(&device, Default::default())?;
 
         let (vertex_buffers, index_buffers) = {
             let len = view.drawables_len();

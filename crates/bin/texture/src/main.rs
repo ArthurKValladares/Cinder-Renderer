@@ -101,7 +101,7 @@ impl Renderer {
             },
         )?;
 
-        let sampler = device.create_sampler()?;
+        let sampler = device.create_sampler(&device, Default::default())?;
 
         let image = image::load_from_memory(include_bytes!("../assets/rust.png"))
             .unwrap()

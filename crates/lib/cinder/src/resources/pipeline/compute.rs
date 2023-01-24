@@ -8,8 +8,9 @@ pub fn get_group_count(thread_count: u32, local_size: u32) -> u32 {
     (thread_count + local_size - 1) / local_size
 }
 
+#[derive(Default)]
 pub struct ComputePipelineDescription {
-    pub shader: Shader,
+    pub name: Option<&'static str>,
 }
 
 pub struct ComputePipeline {
@@ -17,12 +18,16 @@ pub struct ComputePipeline {
 }
 
 impl ComputePipeline {
-    pub fn create(device: &Device, desc: ComputePipelineDescription) -> Result<Self> {
-        let (pipeline_layout, common_data) = get_pipeline_layout(device, &[&desc.shader])?;
+    pub fn create(
+        device: &Device,
+        shader: Shader,
+        desc: ComputePipelineDescription,
+    ) -> Result<Self> {
+        let (pipeline_layout, common_data) = get_pipeline_layout(device, &[&shader], desc.name)?;
 
         let shader_entry_name = unsafe { CStr::from_bytes_with_nul_unchecked(b"main\0") };
         let stage = vk::PipelineShaderStageCreateInfo {
-            module: desc.shader.module,
+            module: shader.module,
             p_name: shader_entry_name.as_ptr(),
             stage: vk::ShaderStageFlags::COMPUTE,
             // TODO: Specialization
@@ -54,6 +59,10 @@ impl ComputePipeline {
             pipeline,
             common_data,
         };
+
+        if let Some(name) = desc.name {
+            common.set_name(device, name);
+        }
 
         Ok(Self { common })
     }

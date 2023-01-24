@@ -96,7 +96,7 @@ impl GraphicsPipeline {
         // Pipeline stuff, pretty temp
         //
         let (pipeline_layout, common_data) =
-            get_pipeline_layout(device, &[&vertex_shader, &fragment_shader])?;
+            get_pipeline_layout(device, &[&vertex_shader, &fragment_shader], desc.name)?;
 
         let atttributes = vertex_shader.reflect_data.get_vertex_attributes();
         let binding = 0; // TODO: Support non-zero bindings
@@ -230,21 +230,28 @@ impl GraphicsPipeline {
         let bind_group = if common_data.bind_group_layouts().is_empty() {
             None
         } else {
-            Some(BindGroup::new(
+            let bind_group = BindGroup::new(
                 device,
                 common_data.bind_group_layouts(),
                 common_data.variable_count,
-            )?)
+            )?;
+
+            if let Some(name) = desc.name {
+                bind_group.set_name(device, name);
+            }
+
+            Some(bind_group)
         };
 
-        Ok(GraphicsPipeline {
-            common: PipelineCommon {
-                pipeline_layout,
-                pipeline,
-                common_data,
-            },
-            bind_group,
-        })
+        let common = PipelineCommon {
+            pipeline_layout,
+            pipeline,
+            common_data,
+        };
+        if let Some(name) = desc.name {
+            common.set_name(device, name);
+        }
+        Ok(GraphicsPipeline { common, bind_group })
     }
 
     pub fn destroy(&mut self, device: &ash::Device) {
