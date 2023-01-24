@@ -13,7 +13,7 @@ use crate::{
             compute::{ComputePipeline, ComputePipelineDescription},
             graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         },
-        sampler::Sampler,
+        sampler::{Sampler, SamplerDescription},
         shader::{Shader, ShaderDesc},
         ResourceHandle,
     },
@@ -227,10 +227,24 @@ impl Device {
 
         let ci = vk::PipelineCacheCreateInfo::builder().build();
         let pipeline_cache = unsafe { device.create_pipeline_cache(&ci, None)? };
+        instance::debug::set_object_name(
+            instance.debug(),
+            device.handle(),
+            vk::ObjectType::PIPELINE_CACHE,
+            pipeline_cache,
+            "pipeline cache",
+        );
         let bind_group_pool = BindGroupPool::new(
             &device,
             max_bindless_descriptor_count_inner(&p_device_properties),
         )?;
+        instance::debug::set_object_name(
+            instance.debug(),
+            device.handle(),
+            vk::ObjectType::DESCRIPTOR_POOL,
+            bind_group_pool.0,
+            "descriptor pool",
+        );
 
         let window_size = window.inner_size();
         let surface_data = surface.get_data(
@@ -456,12 +470,13 @@ impl Device {
 
     pub fn create_compute_pipeline(
         &self,
+        shader: Shader,
         desc: ComputePipelineDescription,
     ) -> Result<ComputePipeline> {
-        ComputePipeline::create(self, desc)
+        ComputePipeline::create(self, shader, desc)
     }
 
-    pub fn create_sampler(&self) -> Result<Sampler> {
+    pub fn create_sampler(&self, device: &Device, desc: SamplerDescription) -> Result<Sampler> {
         let sampler_info = vk::SamplerCreateInfo {
             mag_filter: vk::Filter::LINEAR,
             min_filter: vk::Filter::LINEAR,
@@ -476,6 +491,10 @@ impl Device {
         };
 
         let sampler = unsafe { self.raw().create_sampler(&sampler_info, None) }?;
+
+        if let Some(name) = desc.name {
+            device.set_name(vk::ObjectType::SAMPLER, sampler, name);
+        }
 
         Ok(Sampler { raw: sampler })
     }

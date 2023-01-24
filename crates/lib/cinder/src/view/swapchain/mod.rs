@@ -134,6 +134,8 @@ impl Swapchain {
     }
 
     pub(crate) fn set_name(&self, device: &Device, name: &str) {
+        device.set_name(vk::ObjectType::SWAPCHAIN_KHR, self.swapchain, name);
+
         for (idx, image) in self.present_images.iter().enumerate() {
             device.set_name(
                 vk::ObjectType::IMAGE,

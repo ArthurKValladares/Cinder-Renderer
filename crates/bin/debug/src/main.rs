@@ -10,7 +10,7 @@ use cinder::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Image, ImageDescription},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
-        sampler::Sampler,
+        sampler::{Sampler, SamplerDescription},
         shader::ShaderDesc,
         ResourceHandle,
     },
@@ -126,7 +126,12 @@ impl Renderer {
             },
         )?;
 
-        let sampler = device.create_sampler()?;
+        let sampler = device.create_sampler(
+            &device,
+            SamplerDescription {
+                name: Some("sampler"),
+            },
+        )?;
 
         let image = image::load_from_memory(include_bytes!("../assets/rust.png"))
             .unwrap()

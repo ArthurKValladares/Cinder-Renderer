@@ -49,6 +49,19 @@ impl PipelineCommon {
         self.common_data.bind_group_layouts()
     }
 
+    pub(crate) fn set_name(&self, device: &Device, name: &str) {
+        device.set_name(
+            vk::ObjectType::PIPELINE,
+            self.pipeline,
+            &format!("{} [pipeline]", name),
+        );
+        device.set_name(
+            vk::ObjectType::PIPELINE_LAYOUT,
+            self.pipeline_layout,
+            &format!("{} [pipeline layout]", name),
+        );
+    }
+
     pub fn destroy(&mut self, device: &ash::Device) {
         self.common_data.destroy(device);
         unsafe {
@@ -61,6 +74,7 @@ impl PipelineCommon {
 pub fn get_pipeline_layout(
     device: &Device,
     shaders: &[&Shader],
+    name: Option<&'static str>,
 ) -> Result<(vk::PipelineLayout, PipelineCommonData)> {
     let push_constants = {
         let mut map = HashMap::new();
@@ -83,11 +97,16 @@ pub fn get_pipeline_layout(
         }
         data_map
             .values()
-            .map(|layout_data| {
+            .enumerate()
+            .map(|(i, layout_data)| {
                 variable_count |= layout_data
                     .last()
                     .map_or(false, |data| data.count.is_none());
-                BindGroupLayout::new(device, layout_data)
+                let layout = BindGroupLayout::new(device, layout_data)?;
+                if let Some(name) = name {
+                    layout.set_name(device, &format!("{} [descriptor set layout {}]", name, i));
+                }
+                Ok(layout)
             })
             .collect::<Result<Vec<_>>>()
     }?;
