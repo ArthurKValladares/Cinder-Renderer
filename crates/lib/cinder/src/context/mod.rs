@@ -29,13 +29,17 @@ impl ContextShared {
 }
 
 impl ContextShared {
-    pub fn begin(&self, device: &ash::Device, command_buffer_reuse_fence: vk::Fence) -> Result<()> {
-        unsafe { device.wait_for_fences(&[command_buffer_reuse_fence], true, std::u64::MAX) }?;
+    pub fn begin(&self, device: &Device, command_buffer_reuse_fence: vk::Fence) -> Result<()> {
+        unsafe {
+            device
+                .raw()
+                .wait_for_fences(&[command_buffer_reuse_fence], true, std::u64::MAX)
+        }?;
 
-        unsafe { device.reset_fences(&[command_buffer_reuse_fence]) }?;
+        unsafe { device.raw().reset_fences(&[command_buffer_reuse_fence]) }?;
 
         unsafe {
-            device.reset_command_buffer(
+            device.raw().reset_command_buffer(
                 self.command_buffer,
                 vk::CommandBufferResetFlags::RELEASE_RESOURCES,
             )
@@ -44,21 +48,25 @@ impl ContextShared {
         let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder()
             .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
 
-        unsafe { device.begin_command_buffer(self.command_buffer, &command_buffer_begin_info) }?;
+        unsafe {
+            device
+                .raw()
+                .begin_command_buffer(self.command_buffer, &command_buffer_begin_info)
+        }?;
 
         Ok(())
     }
 
     pub fn end(
         &self,
-        device: &ash::Device,
+        device: &Device,
         command_buffer_reuse_fence: vk::Fence,
         submit_queue: vk::Queue,
         wait_mask: &[vk::PipelineStageFlags],
         wait_semaphores: &[vk::Semaphore],
         signal_semaphores: &[vk::Semaphore],
     ) -> Result<()> {
-        unsafe { device.end_command_buffer(self.command_buffer) }?;
+        unsafe { device.raw().end_command_buffer(self.command_buffer) }?;
 
         let submit_info = vk::SubmitInfo::builder()
             .wait_semaphores(wait_semaphores)
@@ -67,7 +75,11 @@ impl ContextShared {
             .signal_semaphores(signal_semaphores)
             .build();
 
-        unsafe { device.queue_submit(submit_queue, &[submit_info], command_buffer_reuse_fence) }?;
+        unsafe {
+            device
+                .raw()
+                .queue_submit(submit_queue, &[submit_info], command_buffer_reuse_fence)
+        }?;
 
         Ok(())
     }

@@ -78,22 +78,30 @@ pub struct Swapchain {
     // TODO: Should these be `Image`s (yes)
     pub present_images: Vec<vk::Image>,
     pub present_image_views: Vec<vk::ImageView>,
+    name: Option<&'static str>,
 }
 
 impl Swapchain {
-    pub fn new(device: &Device) -> Result<Self> {
+    pub fn new(device: &Device, name: Option<&'static str>) -> Result<Self> {
         let swapchain_loader =
             ash::extensions::khr::Swapchain::new(device.instance().raw(), device.raw());
 
         let (swapchain, present_images, present_image_views) =
             create_swapchain_structures(device, &swapchain_loader, None)?;
 
-        Ok(Self {
+        let ret = Self {
             swapchain_loader,
             swapchain,
             present_images,
             present_image_views,
-        })
+            name,
+        };
+
+        if let Some(name) = name {
+            ret.set_name(device, name);
+        }
+
+        Ok(ret)
     }
 
     pub fn resize(&mut self, device: &Device) -> Result<()> {
@@ -105,6 +113,10 @@ impl Swapchain {
         self.swapchain = swapchain;
         self.present_images = present_images;
         self.present_image_views = present_image_views;
+
+        if let Some(name) = self.name {
+            self.set_name(device, name);
+        }
 
         Ok(())
     }

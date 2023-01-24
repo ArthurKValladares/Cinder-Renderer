@@ -30,11 +30,7 @@ pub struct View {
 
 impl View {
     pub fn new(device: &Device, desc: ViewDescription) -> Result<Self> {
-        let swapchain = Swapchain::new(device)?;
-
-        if let Some(name) = desc.name {
-            swapchain.set_name(device, name);
-        }
+        let swapchain = Swapchain::new(device, desc.name)?;
 
         Ok(Self { swapchain })
     }

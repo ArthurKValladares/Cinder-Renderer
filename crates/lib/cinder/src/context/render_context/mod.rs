@@ -223,14 +223,13 @@ impl RenderContext {
     }
 
     pub fn begin(&self, device: &Device) -> Result<()> {
-        self.shared
-            .begin(device.raw(), device.draw_commands_reuse_fence)
+        self.shared.begin(device, device.draw_commands_reuse_fence)
     }
 
     pub fn end(&self, device: &Device) -> Result<()> {
         // TODO: This stuff will be much better later with a RenderGraph impl
         self.shared.end(
-            device.raw(),
+            device,
             device.draw_commands_reuse_fence,
             device.present_queue(),
             &[vk::PipelineStageFlags::BOTTOM_OF_PIPE],

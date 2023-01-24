@@ -39,7 +39,7 @@ impl UploadContext {
     }
 
     pub fn begin(&self, device: &Device, fence: ash::vk::Fence) -> Result<()> {
-        self.shared.begin(device.raw(), fence)
+        self.shared.begin(device, fence)
     }
 
     pub fn end(
@@ -52,7 +52,7 @@ impl UploadContext {
         signal_semaphores: &[vk::Semaphore],
     ) -> Result<()> {
         self.shared.end(
-            device.raw(),
+            device,
             command_buffer_reuse_fence,
             submit_queue,
             wait_mask,
