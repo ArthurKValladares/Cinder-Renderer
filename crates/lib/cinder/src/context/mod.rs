@@ -23,7 +23,7 @@ impl ContextShared {
         device.set_name(
             vk::ObjectType::COMMAND_BUFFER,
             self.command_buffer,
-            &format!("{} [command buffer]", name),
+            &format!("{name} [command buffer]"),
         );
     }
 }

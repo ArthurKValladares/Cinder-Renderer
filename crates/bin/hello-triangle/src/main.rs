@@ -158,7 +158,7 @@ impl Renderer {
 
 impl Drop for Renderer {
     fn drop(&mut self) {
-        self.device.wait_idle();
+        self.device.wait_idle().ok();
 
         self.vertex_buffer.destroy(self.device.raw());
         self.index_buffer.destroy(self.device.raw());
