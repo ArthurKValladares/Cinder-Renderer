@@ -12,7 +12,6 @@ use cinder::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, Usage},
-        memory::MemoryType,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         ResourceHandle,
     },
