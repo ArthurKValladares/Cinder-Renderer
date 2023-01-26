@@ -4,6 +4,7 @@ mod surface;
 pub use self::surface::SurfaceData;
 use self::{instance::Instance, surface::Surface};
 use crate::{
+    context::ContextShared,
     profiling::QueryPool,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
@@ -336,6 +337,40 @@ impl Device {
             object,
             name,
         )
+    }
+
+    pub fn begin_context_label(&self, context: &ContextShared, name: &str, color: [f32; 4]) {
+        instance::debug::cmd_begin_label(
+            self.instance.debug(),
+            context.command_buffer,
+            name,
+            color,
+        );
+    }
+
+    pub fn end_context_label(&self, context: &ContextShared) {
+        instance::debug::cmd_end_label(self.instance.debug(), context.command_buffer);
+    }
+
+    pub fn insert_context_label(&self, context: &ContextShared, name: &str, color: [f32; 4]) {
+        instance::debug::cmd_insert_label(
+            self.instance.debug(),
+            context.command_buffer,
+            name,
+            color,
+        );
+    }
+
+    pub fn begin_queue_label(&self, name: &str, color: [f32; 4]) {
+        instance::debug::queue_begin_label(self.instance.debug(), self.present_queue, name, color);
+    }
+
+    pub fn end_queue_label(&self) {
+        instance::debug::queue_end_label(self.instance.debug(), self.present_queue);
+    }
+
+    pub fn insert_queue_label(&self, name: &str, color: [f32; 4]) {
+        instance::debug::queue_insert_label(self.instance.debug(), self.present_queue, name, color);
     }
 
     pub fn instance(&self) -> &Instance {

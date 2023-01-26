@@ -194,6 +194,10 @@ impl Renderer {
     pub fn draw(&mut self) -> Result<bool> {
         let drawable = self.view.get_current_drawable(&self.device)?;
 
+        self.device.begin_queue_label(
+            "present queue submission",
+            [94.0 / 255.0, 3.0 / 255.0, 252.0 / 255.0, 1.0],
+        );
         self.render_context.begin(&self.device)?;
         {
             let surface_rect = self.device.surface_rect();
@@ -201,6 +205,11 @@ impl Renderer {
             self.render_context
                 .transition_undefined_to_color(&self.device, drawable);
 
+            self.render_context.begin_debug_label(
+                &self.device,
+                "begin rendering",
+                [0.44, 1.0, 0.5, 1.0],
+            );
             self.render_context.begin_rendering(
                 &self.device,
                 surface_rect,
@@ -219,14 +228,21 @@ impl Renderer {
                     .bind_vertex_buffer(&self.device, &self.vertex_buffer);
                 self.render_context.bind_descriptor_sets(&self.device)?;
 
+                self.render_context.insert_label(
+                    &self.device,
+                    "draw",
+                    [252.0 / 255.0, 186.0 / 255.0, 3.0 / 255.0, 1.0],
+                );
                 self.render_context.draw_offset(&self.device, 6, 0, 0);
             }
             self.render_context.end_rendering(&self.device);
+            self.render_context.end_debug_label(&self.device);
 
             self.render_context
                 .transition_color_to_present(&self.device, drawable);
         }
         self.render_context.end(&self.device)?;
+        self.device.end_queue_label();
 
         self.view.present(&self.device, drawable)
     }

@@ -1,4 +1,5 @@
 use ash::vk;
+use rkyv::de;
 use std::{borrow::Cow, ffi::CStr};
 
 pub unsafe extern "system" fn vulkan_debug_callback(
@@ -69,4 +70,159 @@ pub fn set_object_name(
                 .object_name(name),
         )
     };
+}
+
+pub fn cmd_begin_label(
+    debug_utils: &ash::extensions::ext::DebugUtils,
+    command_buffer: vk::CommandBuffer,
+    name: &str,
+    color: [f32; 4],
+) {
+    let mut buffer: [u8; 64] = [0u8; 64];
+    let buffer_vec: Vec<u8>;
+
+    let name_bytes = if name.len() < buffer.len() {
+        buffer[..name.len()].copy_from_slice(name.as_bytes());
+        buffer[name.len()] = 0;
+        &buffer[..name.len() + 1]
+    } else {
+        buffer_vec = name
+            .as_bytes()
+            .iter()
+            .cloned()
+            .chain(std::iter::once(0))
+            .collect();
+        &buffer_vec
+    };
+
+    let name = unsafe { CStr::from_bytes_with_nul_unchecked(name_bytes) };
+
+    unsafe {
+        debug_utils.cmd_begin_debug_utils_label(
+            command_buffer,
+            &vk::DebugUtilsLabelEXT::builder()
+                .label_name(name)
+                .color(color)
+                .build(),
+        )
+    }
+}
+
+pub fn cmd_end_label(
+    debug_utils: &ash::extensions::ext::DebugUtils,
+    command_buffer: vk::CommandBuffer,
+) {
+    unsafe { debug_utils.cmd_end_debug_utils_label(command_buffer) }
+}
+
+pub fn cmd_insert_label(
+    debug_utils: &ash::extensions::ext::DebugUtils,
+    command_buffer: vk::CommandBuffer,
+    name: &str,
+    color: [f32; 4],
+) {
+    let mut buffer: [u8; 64] = [0u8; 64];
+    let buffer_vec: Vec<u8>;
+
+    let name_bytes = if name.len() < buffer.len() {
+        buffer[..name.len()].copy_from_slice(name.as_bytes());
+        buffer[name.len()] = 0;
+        &buffer[..name.len() + 1]
+    } else {
+        buffer_vec = name
+            .as_bytes()
+            .iter()
+            .cloned()
+            .chain(std::iter::once(0))
+            .collect();
+        &buffer_vec
+    };
+
+    let name = unsafe { CStr::from_bytes_with_nul_unchecked(name_bytes) };
+
+    unsafe {
+        debug_utils.cmd_insert_debug_utils_label(
+            command_buffer,
+            &vk::DebugUtilsLabelEXT::builder()
+                .label_name(name)
+                .color(color)
+                .build(),
+        )
+    }
+}
+
+pub fn queue_begin_label(
+    debug_utils: &ash::extensions::ext::DebugUtils,
+    queue: vk::Queue,
+    name: &str,
+    color: [f32; 4],
+) {
+    let mut buffer: [u8; 64] = [0u8; 64];
+    let buffer_vec: Vec<u8>;
+
+    let name_bytes = if name.len() < buffer.len() {
+        buffer[..name.len()].copy_from_slice(name.as_bytes());
+        buffer[name.len()] = 0;
+        &buffer[..name.len() + 1]
+    } else {
+        buffer_vec = name
+            .as_bytes()
+            .iter()
+            .cloned()
+            .chain(std::iter::once(0))
+            .collect();
+        &buffer_vec
+    };
+
+    let name = unsafe { CStr::from_bytes_with_nul_unchecked(name_bytes) };
+
+    unsafe {
+        debug_utils.queue_begin_debug_utils_label(
+            queue,
+            &vk::DebugUtilsLabelEXT::builder()
+                .label_name(name)
+                .color(color)
+                .build(),
+        )
+    }
+}
+
+pub fn queue_end_label(debug_utils: &ash::extensions::ext::DebugUtils, queue: vk::Queue) {
+    unsafe { debug_utils.queue_end_debug_utils_label(queue) }
+}
+
+pub fn queue_insert_label(
+    debug_utils: &ash::extensions::ext::DebugUtils,
+    queue: vk::Queue,
+    name: &str,
+    color: [f32; 4],
+) {
+    let mut buffer: [u8; 64] = [0u8; 64];
+    let buffer_vec: Vec<u8>;
+
+    let name_bytes = if name.len() < buffer.len() {
+        buffer[..name.len()].copy_from_slice(name.as_bytes());
+        buffer[name.len()] = 0;
+        &buffer[..name.len() + 1]
+    } else {
+        buffer_vec = name
+            .as_bytes()
+            .iter()
+            .cloned()
+            .chain(std::iter::once(0))
+            .collect();
+        &buffer_vec
+    };
+
+    let name = unsafe { CStr::from_bytes_with_nul_unchecked(name_bytes) };
+
+    unsafe {
+        debug_utils.queue_insert_debug_utils_label(
+            queue,
+            &vk::DebugUtilsLabelEXT::builder()
+                .label_name(name)
+                .color(color)
+                .build(),
+        )
+    }
 }

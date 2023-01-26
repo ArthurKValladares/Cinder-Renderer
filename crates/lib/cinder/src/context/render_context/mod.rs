@@ -663,6 +663,18 @@ impl RenderContext {
             )
         }
     }
+
+    pub fn begin_debug_label(&self, device: &Device, name: &str, color: impl Into<[f32; 4]>) {
+        device.begin_context_label(&self.shared, name, color.into());
+    }
+
+    pub fn end_debug_label(&self, device: &Device) {
+        device.end_context_label(&self.shared);
+    }
+
+    pub fn insert_label(&self, device: &Device, name: &str, color: impl Into<[f32; 4]>) {
+        device.insert_context_label(&self.shared, name, color.into())
+    }
 }
 
 pub fn image_barrier(
