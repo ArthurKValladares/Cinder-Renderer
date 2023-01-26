@@ -32,3 +32,5 @@ Example app using egui to render ui widgets we can use to transform a cube.
 Still need to implement tags and debug markers.
 
 <img width="892" alt="debug" src="https://user-images.githubusercontent.com/23410311/214242577-cbc09ca9-aedb-4465-8bc0-94162b31807b.png">
+<img width="625" alt="debug_events" src="https://user-images.githubusercontent.com/23410311/214773768-d88bfb9e-a679-4dec-87d7-c2331dae89f5.png">
+
