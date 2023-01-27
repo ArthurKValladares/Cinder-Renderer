@@ -29,6 +29,8 @@ Example app using egui to render ui widgets we can use to transform a cube.
 ![mesh](https://user-images.githubusercontent.com/23410311/212804707-f4f97fb4-d63d-4449-9b20-31a01a228904.gif)
 
 ### [Debug](./crates/bin/debug/src/main.rs)<br/>
-Still need to implement tags and debug markers.
+Debug names and labels.
 
 <img width="892" alt="debug" src="https://user-images.githubusercontent.com/23410311/214242577-cbc09ca9-aedb-4465-8bc0-94162b31807b.png">
+<img width="625" alt="debug_events" src="https://user-images.githubusercontent.com/23410311/214773768-d88bfb9e-a679-4dec-87d7-c2331dae89f5.png">
+
