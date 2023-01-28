@@ -1,5 +1,4 @@
 use ash::vk;
-use rkyv::de;
 use std::{borrow::Cow, ffi::CStr};
 
 pub unsafe extern "system" fn vulkan_debug_callback(
