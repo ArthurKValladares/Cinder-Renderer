@@ -10,6 +10,7 @@ use cinder::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, Usage},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
+        sampler::Sampler,
         ResourceHandle,
     },
     view::View,
@@ -73,6 +74,7 @@ pub struct Renderer {
     ubo_buffer: Buffer,
     quad_vertex_buffer: Buffer,
     quad_index_buffer: Buffer,
+    sampler: Sampler,
     init_time: Instant,
 }
 
@@ -320,6 +322,8 @@ impl Renderer {
             },
         )?;
 
+        let sampler = device.create_sampler(&device, Default::default())?;
+
         let init_time = Instant::now();
 
         Ok(Self {
@@ -334,6 +338,7 @@ impl Renderer {
             ubo_buffer,
             quad_vertex_buffer,
             quad_index_buffer,
+            sampler,
             init_time,
         })
     }
@@ -439,6 +444,8 @@ impl Renderer {
 impl Drop for Renderer {
     fn drop(&mut self) {
         self.device.wait_idle().ok();
+
+        self.sampler.destroy(self.device.raw());
 
         self.depth_image.destroy(self.device.raw());
 
