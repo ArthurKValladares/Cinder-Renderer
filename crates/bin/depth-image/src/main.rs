@@ -75,6 +75,7 @@ pub struct Renderer {
     quad_vertex_buffer: Buffer,
     quad_index_buffer: Buffer,
     sampler: Sampler,
+    texture: Image,
     init_time: Instant,
 }
 
@@ -323,8 +324,20 @@ impl Renderer {
         )?;
 
         let sampler = device.create_sampler(&device, Default::default())?;
+        let texture = device.create_image(
+            Size2D::new(surface_rect.width(), surface_rect.height()),
+            Default::default(),
+        )?;
 
         let init_time = Instant::now();
+
+        device.write_bind_group(
+            texture_render_pipeline,
+            &[BindGroupBindInfo {
+                dst_binding: 0,
+                data: BindGroupWriteData::SampledImage(texture.bind_info(&sampler, 0)),
+            }],
+        )?;
 
         Ok(Self {
             device,
@@ -339,6 +352,7 @@ impl Renderer {
             quad_vertex_buffer,
             quad_index_buffer,
             sampler,
+            texture,
             init_time,
         })
     }
@@ -393,6 +407,8 @@ impl Renderer {
                 self.render_context.draw_offset(&self.device, 36, 0, 0);
             }
             self.render_context.end_rendering(&self.device);
+
+            // TODO: blit depth image to texture?
 
             // Depth image render pass
             self.render_context.begin_rendering(
