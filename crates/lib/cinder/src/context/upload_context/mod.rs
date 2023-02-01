@@ -163,4 +163,34 @@ impl UploadContext {
             );
         }
     }
+
+    pub fn copy_image(&self, device: &Device, src: &Image, dst: &Image, width: u32, height: u32) {
+        unsafe {
+            device.raw().cmd_copy_image(
+                self.shared.command_buffer,
+                src.raw,
+                vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
+                dst.raw,
+                vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                &[vk::ImageCopy {
+                    src_subresource: vk::ImageSubresourceLayers {
+                        aspect_mask: src.desc.usage.into(),
+                        layer_count: 1,
+                        ..Default::default()
+                    },
+                    dst_subresource: vk::ImageSubresourceLayers {
+                        aspect_mask: dst.desc.usage.into(),
+                        layer_count: 1,
+                        ..Default::default()
+                    },
+                    extent: vk::Extent3D {
+                        width,
+                        height,
+                        depth: 1,
+                    },
+                    ..Default::default()
+                }],
+            );
+        }
+    }
 }

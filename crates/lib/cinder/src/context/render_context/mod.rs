@@ -576,67 +576,32 @@ impl RenderContext {
         };
     }
 
-    pub fn blit_image(
-        &self,
-        device: &Device,
-        src_image: vk::Image,
-        src_aspect_mask: vk::ImageAspectFlags,
-        src_layout: Layout,
-        src_rect: Rect2D<i32, i32>,
-        dst_image: vk::Image,
-        dst_aspect_mask: vk::ImageAspectFlags,
-        dst_layout: Layout,
-        dst_rect: Rect2D<i32, i32>,
-        filter: Filter,
-    ) {
-        let region = vk::ImageBlit::builder()
-            .src_subresource(
-                vk::ImageSubresourceLayers::builder()
-                    .aspect_mask(src_aspect_mask)
-                    .layer_count(1)
-                    .build(),
-            )
-            .src_offsets([
-                vk::Offset3D {
-                    x: src_rect.offset().x(),
-                    y: src_rect.offset().y(),
-                    z: 0,
-                },
-                vk::Offset3D {
-                    x: src_rect.width(),
-                    y: src_rect.height(),
-                    z: 1,
-                },
-            ])
-            .dst_subresource(
-                vk::ImageSubresourceLayers::builder()
-                    .aspect_mask(dst_aspect_mask)
-                    .layer_count(1)
-                    .build(),
-            )
-            .dst_offsets([
-                vk::Offset3D {
-                    x: dst_rect.offset().x(),
-                    y: dst_rect.offset().y(),
-                    z: 0,
-                },
-                vk::Offset3D {
-                    x: dst_rect.width(),
-                    y: dst_rect.height(),
-                    z: 1,
-                },
-            ])
-            .build();
-
+    pub fn copy_image(&self, device: &Device, src: &Image, dst: &Image, width: u32, height: u32) {
         unsafe {
-            device.raw().cmd_blit_image(
+            device.raw().cmd_copy_image(
                 self.shared.command_buffer,
-                src_image,
-                src_layout.into(),
-                dst_image,
-                dst_layout.into(),
-                &[region],
-                filter.into(),
+                src.raw,
+                vk::ImageLayout::TRANSFER_SRC_OPTIMAL,
+                dst.raw,
+                vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                &[vk::ImageCopy {
+                    src_subresource: vk::ImageSubresourceLayers {
+                        aspect_mask: src.desc.usage.into(),
+                        layer_count: 1,
+                        ..Default::default()
+                    },
+                    dst_subresource: vk::ImageSubresourceLayers {
+                        aspect_mask: dst.desc.usage.into(),
+                        layer_count: 1,
+                        ..Default::default()
+                    },
+                    extent: vk::Extent3D {
+                        width,
+                        height,
+                        depth: 1,
+                    },
+                    ..Default::default()
+                }],
             );
         }
     }

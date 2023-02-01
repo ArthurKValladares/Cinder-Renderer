@@ -409,6 +409,13 @@ impl Renderer {
             self.render_context.end_rendering(&self.device);
 
             // TODO: blit depth image to texture?
+            self.render_context.copy_image(
+                &self.device,
+                &self.depth_image,
+                &self.texture,
+                surface_rect.width(),
+                surface_rect.height(),
+            );
 
             // Depth image render pass
             self.render_context.begin_rendering(
