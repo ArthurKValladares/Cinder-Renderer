@@ -644,32 +644,4 @@ impl RenderContext {
     pub fn insert_label(&self, device: &Device, name: &str, color: impl Into<[f32; 4]>) {
         device.insert_context_label(&self.shared, name, color.into())
     }
-
-    pub fn transition_depth_to_read_only(&self, device: &Device, image: &Image) {
-        let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
-            .image(image.raw)
-            .src_access_mask(vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ)
-            .old_layout(vk::ImageLayout::UNDEFINED)
-            .new_layout(vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL)
-            .subresource_range(
-                vk::ImageSubresourceRange::builder()
-                    .aspect_mask(vk::ImageAspectFlags::DEPTH)
-                    .layer_count(1)
-                    .level_count(1)
-                    .build(),
-            )
-            .build();
-
-        unsafe {
-            device.raw().cmd_pipeline_barrier(
-                self.shared.command_buffer,
-                vk::PipelineStageFlags::LATE_FRAGMENT_TESTS,
-                vk::PipelineStageFlags::BOTTOM_OF_PIPE,
-                vk::DependencyFlags::empty(),
-                &[],
-                &[],
-                &[layout_transition_barriers],
-            )
-        };
-    }
 }

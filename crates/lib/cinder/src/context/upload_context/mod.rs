@@ -115,6 +115,34 @@ impl UploadContext {
         };
     }
 
+    pub fn transition_depth_to_read_only(&self, device: &Device, image: &Image) {
+        let layout_transition_barriers = vk::ImageMemoryBarrier::builder()
+            .image(image.raw)
+            .dst_access_mask(vk::AccessFlags::DEPTH_STENCIL_ATTACHMENT_READ)
+            .old_layout(vk::ImageLayout::UNDEFINED)
+            .new_layout(vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL)
+            .subresource_range(
+                vk::ImageSubresourceRange::builder()
+                    .aspect_mask(vk::ImageAspectFlags::DEPTH)
+                    .layer_count(1)
+                    .level_count(1)
+                    .build(),
+            )
+            .build();
+
+        unsafe {
+            device.raw().cmd_pipeline_barrier(
+                self.shared.command_buffer,
+                vk::PipelineStageFlags::TOP_OF_PIPE,
+                vk::PipelineStageFlags::EARLY_FRAGMENT_TESTS,
+                vk::DependencyFlags::empty(),
+                &[],
+                &[],
+                &[layout_transition_barriers],
+            )
+        };
+    }
+
     pub fn copy_buffer_to_image(&self, device: &Device, buffer: &Buffer, image: &Image) {
         let buffer_copy_regions = vk::BufferImageCopy::builder()
             .image_subresource(

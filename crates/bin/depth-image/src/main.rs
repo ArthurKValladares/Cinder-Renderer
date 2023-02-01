@@ -1,8 +1,11 @@
 use anyhow::Result;
 use cinder::{
-    context::render_context::{
-        AttachmentLoadOp, AttachmentStoreOp, ClearValue, Layout, RenderAttachment,
-        RenderAttachmentDesc, RenderContext,
+    context::{
+        render_context::{
+            AttachmentLoadOp, AttachmentStoreOp, ClearValue, Layout, RenderAttachment,
+            RenderAttachmentDesc, RenderContext,
+        },
+        upload_context::UploadContext,
     },
     device::Device,
     resources::{
@@ -69,6 +72,7 @@ pub struct Renderer {
     mesh_render_pipeline: ResourceHandle<GraphicsPipeline>,
     texture_render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
+    upload_context: UploadContext,
     cube_vertex_buffer: Buffer,
     cube_index_buffer: Buffer,
     ubo_buffer: Buffer,
@@ -326,6 +330,20 @@ impl Renderer {
 
         let init_time = Instant::now();
 
+        let upload_context = UploadContext::new(&device, Default::default())?;
+        upload_context.begin(&device, device.setup_fence())?;
+        {
+            upload_context.transition_depth_to_read_only(&device, &depth_image);
+        }
+        upload_context.end(
+            &device,
+            device.setup_fence(),
+            device.present_queue(),
+            &[],
+            &[],
+            &[],
+        )?;
+
         device.write_bind_group(
             texture_render_pipeline,
             &[BindGroupBindInfo {
@@ -343,6 +361,7 @@ impl Renderer {
             view,
             depth_image,
             render_context,
+            upload_context,
             mesh_render_pipeline,
             texture_render_pipeline,
             cube_vertex_buffer,
@@ -407,8 +426,6 @@ impl Renderer {
             }
             self.render_context.end_rendering(&self.device);
 
-            self.render_context
-                .transition_depth_to_read_only(&self.device, &self.depth_image);
             // Depth image render pass
             self.render_context.begin_rendering(
                 &self.device,
@@ -449,6 +466,21 @@ impl Renderer {
         self.view.resize(&self.device)?;
         self.depth_image
             .resize(&self.device, Size2D::new(width, height))?;
+
+        self.upload_context
+            .begin(&self.device, self.device.setup_fence())?;
+        {
+            self.upload_context
+                .transition_depth_to_read_only(&self.device, &self.depth_image);
+        }
+        self.upload_context.end(
+            &self.device,
+            self.device.setup_fence(),
+            self.device.present_queue(),
+            &[],
+            &[],
+            &[],
+        )?;
 
         self.device.write_bind_group(
             self.texture_render_pipeline,
