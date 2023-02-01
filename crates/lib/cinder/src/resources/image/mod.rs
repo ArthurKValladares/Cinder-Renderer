@@ -3,6 +3,7 @@ use super::{
     sampler::Sampler,
 };
 use crate::{
+    context::render_context::Layout,
     device::Device,
     util::{find_memory_type_index, MemoryMappablePointer},
 };
@@ -95,6 +96,7 @@ impl From<vk::Format> for Format {
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Usage {
     Depth,
+    DepthSampled,
     Texture,
     StorageTexture,
 }
@@ -108,8 +110,9 @@ impl Default for Usage {
 impl From<Usage> for vk::ImageUsageFlags {
     fn from(usage: Usage) -> Self {
         match usage {
-            Usage::Depth => {
-                vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT | vk::ImageUsageFlags::TRANSFER_SRC
+            Usage::Depth => vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+            Usage::DepthSampled => {
+                vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT | vk::ImageUsageFlags::SAMPLED
             }
             Usage::Texture => vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED,
             Usage::StorageTexture => vk::ImageUsageFlags::STORAGE,
@@ -120,7 +123,7 @@ impl From<Usage> for vk::ImageUsageFlags {
 impl From<Usage> for vk::ImageAspectFlags {
     fn from(usage: Usage) -> Self {
         match usage {
-            Usage::Depth => vk::ImageAspectFlags::DEPTH,
+            Usage::Depth | Usage::DepthSampled => vk::ImageAspectFlags::DEPTH,
             Usage::Texture => vk::ImageAspectFlags::COLOR,
             Usage::StorageTexture => vk::ImageAspectFlags::COLOR,
         }
@@ -223,7 +226,7 @@ impl Image {
             device.set_name(
                 vk::ObjectType::IMAGE_VIEW,
                 view,
-                &format!("{} [default view]", name),
+                &format!("{name} [default view]"),
             );
         }
 
@@ -280,11 +283,12 @@ impl Image {
     pub fn bind_info(
         &self,
         sampler: &Sampler,
+        image_layout: Layout,
         index: u32, // TODO: This only makes sense for bindless
     ) -> BindImageInfo {
         BindImageInfo {
             info: vk::DescriptorImageInfo {
-                image_layout: vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL, // TODO: Should not be hard-coded?
+                image_layout: image_layout.into(),
                 image_view: self.view,
                 sampler: sampler.raw,
             },

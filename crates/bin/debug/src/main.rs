@@ -1,7 +1,7 @@
 use anyhow::Result;
 use cinder::{
     context::{
-        render_context::{RenderAttachment, RenderContext, RenderContextDescription},
+        render_context::{Layout, RenderAttachment, RenderContext, RenderContextDescription},
         upload_context::{UploadContext, UploadContextDescription},
     },
     device::Device,
@@ -173,7 +173,11 @@ impl Renderer {
             render_pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
-                data: BindGroupWriteData::SampledImage(texture.bind_info(&sampler, 0)),
+                data: BindGroupWriteData::SampledImage(texture.bind_info(
+                    &sampler,
+                    Layout::ShaderReadOnly,
+                    0,
+                )),
             }],
         )?;
 

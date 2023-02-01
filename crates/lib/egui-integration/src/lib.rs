@@ -1,7 +1,9 @@
 use anyhow::Result;
 use cinder::{
     context::{
-        render_context::{AttachmentLoadOp, RenderAttachment, RenderAttachmentDesc, RenderContext},
+        render_context::{
+            AttachmentLoadOp, Layout, RenderAttachment, RenderAttachmentDesc, RenderContext,
+        },
         upload_context::UploadContext,
     },
     device::Device,
@@ -410,9 +412,11 @@ impl EguiIntegration {
             self.pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
-                data: BindGroupWriteData::SampledImage(
-                    image.bind_info(&self.sampler, index as u32),
-                ),
+                data: BindGroupWriteData::SampledImage(image.bind_info(
+                    &self.sampler,
+                    Layout::ShaderReadOnly,
+                    index as u32,
+                )),
             }],
         )?;
 

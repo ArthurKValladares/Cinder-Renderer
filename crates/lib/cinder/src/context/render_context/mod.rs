@@ -25,6 +25,8 @@ pub enum Layout {
     DepthAttachment,
     Present,
     TransferDst,
+    ShaderReadOnly,
+    DepthStencilReadOnly,
 }
 
 impl Default for Layout {
@@ -42,6 +44,8 @@ impl From<Layout> for vk::ImageLayout {
             Layout::DepthAttachment => vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
             Layout::Present => vk::ImageLayout::PRESENT_SRC_KHR,
             Layout::TransferDst => vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+            Layout::ShaderReadOnly => vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            Layout::DepthStencilReadOnly => vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
         }
     }
 }

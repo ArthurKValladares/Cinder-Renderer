@@ -222,7 +222,11 @@ impl Renderer {
                 },
                 BindGroupBindInfo {
                     dst_binding: 1,
-                    data: BindGroupWriteData::SampledImage(texture.bind_info(&sampler, 0)),
+                    data: BindGroupWriteData::SampledImage(texture.bind_info(
+                        &sampler,
+                        Layout::ShaderReadOnly,
+                        0,
+                    )),
                 },
             ],
         )?;

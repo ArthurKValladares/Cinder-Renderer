@@ -75,7 +75,6 @@ pub struct Renderer {
     quad_vertex_buffer: Buffer,
     quad_index_buffer: Buffer,
     sampler: Sampler,
-    texture: Image,
     init_time: Instant,
 }
 
@@ -89,7 +88,7 @@ impl Renderer {
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFloat,
-                usage: Usage::Depth,
+                usage: Usage::DepthSampled,
                 ..Default::default()
             },
         )?;
@@ -324,10 +323,6 @@ impl Renderer {
         )?;
 
         let sampler = device.create_sampler(&device, Default::default())?;
-        let texture = device.create_image(
-            Size2D::new(surface_rect.width(), surface_rect.height()),
-            Default::default(),
-        )?;
 
         let init_time = Instant::now();
 
@@ -335,7 +330,11 @@ impl Renderer {
             texture_render_pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
-                data: BindGroupWriteData::SampledImage(texture.bind_info(&sampler, 0)),
+                data: BindGroupWriteData::SampledImage(depth_image.bind_info(
+                    &sampler,
+                    Layout::DepthStencilReadOnly,
+                    0,
+                )),
             }],
         )?;
 
@@ -352,7 +351,6 @@ impl Renderer {
             quad_vertex_buffer,
             quad_index_buffer,
             sampler,
-            texture,
             init_time,
         })
     }
@@ -374,6 +372,10 @@ impl Renderer {
             let surface_rect = self.device.surface_rect();
 
             self.render_context
+                .bind_viewport(&self.device, surface_rect, true);
+            self.render_context.bind_scissor(&self.device, surface_rect);
+
+            self.render_context
                 .transition_undefined_to_color(&self.device, drawable);
 
             // Mesh render pass
@@ -384,7 +386,7 @@ impl Renderer {
                 Some(RenderAttachment::depth(
                     &self.depth_image,
                     RenderAttachmentDesc {
-                        store_op: AttachmentStoreOp::DontCare,
+                        store_op: AttachmentStoreOp::Store,
                         layout: Layout::DepthAttachment,
                         clear_value: ClearValue::default_depth(),
                         ..Default::default()
@@ -395,9 +397,6 @@ impl Renderer {
                 self.render_context
                     .bind_graphics_pipeline(&self.device, self.mesh_render_pipeline)?;
                 self.render_context
-                    .bind_viewport(&self.device, surface_rect, true);
-                self.render_context.bind_scissor(&self.device, surface_rect);
-                self.render_context
                     .bind_index_buffer(&self.device, &self.cube_index_buffer);
                 self.render_context
                     .bind_vertex_buffer(&self.device, &self.cube_vertex_buffer);
@@ -407,15 +406,6 @@ impl Renderer {
                 self.render_context.draw_offset(&self.device, 36, 0, 0);
             }
             self.render_context.end_rendering(&self.device);
-
-            // TODO: blit depth image to texture?
-            self.render_context.copy_image(
-                &self.device,
-                &self.depth_image,
-                &self.texture,
-                surface_rect.width(),
-                surface_rect.height(),
-            );
 
             // Depth image render pass
             self.render_context.begin_rendering(
@@ -433,9 +423,6 @@ impl Renderer {
             {
                 self.render_context
                     .bind_graphics_pipeline(&self.device, self.texture_render_pipeline)?;
-                self.render_context
-                    .bind_viewport(&self.device, surface_rect, true);
-                self.render_context.bind_scissor(&self.device, surface_rect);
                 self.render_context
                     .bind_index_buffer(&self.device, &self.quad_index_buffer);
                 self.render_context
@@ -460,6 +447,19 @@ impl Renderer {
         self.view.resize(&self.device)?;
         self.depth_image
             .resize(&self.device, Size2D::new(width, height))?;
+
+        self.device.write_bind_group(
+            self.texture_render_pipeline,
+            &[BindGroupBindInfo {
+                dst_binding: 0,
+                data: BindGroupWriteData::SampledImage(self.depth_image.bind_info(
+                    &self.sampler,
+                    Layout::DepthStencilReadOnly,
+                    0,
+                )),
+            }],
+        )?;
+
         Ok(())
     }
 }
