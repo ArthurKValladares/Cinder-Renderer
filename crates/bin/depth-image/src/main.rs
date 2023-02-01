@@ -407,6 +407,8 @@ impl Renderer {
             }
             self.render_context.end_rendering(&self.device);
 
+            self.render_context
+                .transition_depth_to_read_only(&self.device, &self.depth_image);
             // Depth image render pass
             self.render_context.begin_rendering(
                 &self.device,
