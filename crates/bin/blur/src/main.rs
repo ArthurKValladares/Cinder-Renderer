@@ -297,19 +297,19 @@ impl Renderer {
         let quad_vertex_buffer = device.create_buffer_with_data(
             &[
                 BlurTextureVertex {
-                    i_pos: [-1.0, -1.0],
+                    i_pos: [-0.5, -0.5],
                     i_uv: [0.0, 1.0],
                 },
                 BlurTextureVertex {
-                    i_pos: [-0.25, -1.0],
+                    i_pos: [0.5, -0.5],
                     i_uv: [1.0, 1.0],
                 },
                 BlurTextureVertex {
-                    i_pos: [-0.25, -0.25],
+                    i_pos: [0.5, 0.5],
                     i_uv: [1.0, 0.0],
                 },
                 BlurTextureVertex {
-                    i_pos: [-1.0, -0.25],
+                    i_pos: [-0.5, 0.5],
                     i_uv: [0.0, 0.0],
                 },
             ],
