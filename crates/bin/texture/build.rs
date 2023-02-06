@@ -16,8 +16,7 @@ fn write_shader_structs(bytes: &[u8], prefix: &'static str) {
         .into_iter()
         .map(|stct| {
             let struct_name = rust_shader_tools::standardized_struct_name(prefix, &stct.name);
-            let is_vertex = stct.name.contains("Vertex");
-            rust_shader_tools::shader_struct_to_rust(&struct_name, &stct, is_vertex)
+            rust_shader_tools::shader_struct_to_rust(&struct_name, &stct)
         })
         .collect::<Vec<_>>();
 
@@ -26,7 +25,6 @@ fn write_shader_structs(bytes: &[u8], prefix: &'static str) {
         let stct = rust_shader_tools::vertex_attributes_to_struct(
             &rust_shader_tools::standardized_struct_name(prefix, "Vertex"),
             &vert_attributes.atts,
-            true,
         );
         rust_vert_structs.push(stct);
     }

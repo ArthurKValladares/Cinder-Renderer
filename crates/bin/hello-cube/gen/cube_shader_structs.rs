@@ -7,7 +7,6 @@ pub struct CubeUniformBufferObject {
 }
 #[repr(C)]
 #[derive(Debug, Default, Copy, Clone)]
-#[derive(rkyv::Archive, rkyv::Deserialize, rkyv::Serialize)]
 pub struct CubeVertex {
     pub i_pos: [f32; 3],
     pub i_normal: [f32; 3],
