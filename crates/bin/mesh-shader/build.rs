@@ -38,7 +38,7 @@ fn write_shader_structs(bytes: &[u8], prefix: &'static str) {
 
 fn main() {
     let shader_compiler = ShaderCompiler::new(
-        EnvVersion::Vulkan1_0,
+        EnvVersion::Vulkan1_2,
         OptimizationLevel::Zero,
         Some(PathBuf::from("shaders")),
     )
