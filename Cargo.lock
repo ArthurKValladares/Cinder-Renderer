@@ -1113,7 +1113,7 @@ dependencies = [
  "math",
  "rkyv",
  "rust-shader-tools",
- "scene_2",
+ "scene",
  "serde",
  "serde_json",
  "thiserror",
@@ -1744,7 +1744,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "scene_2"
+name = "scene"
 version = "0.1.0"
 dependencies = [
  "anyhow",

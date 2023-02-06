@@ -8,7 +8,7 @@ edition = "2021"
 anyhow = "1"
 cinder = {path = "../../lib/cinder"}
 util = {path = "../../lib/util"}
-scene_2 = {path = "../../lib/scene_2"}
+scene = {path = "../../lib/scene"}
 winit = "0.27"
 image = "0.24.3"
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
