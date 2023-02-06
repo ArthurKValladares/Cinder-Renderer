@@ -1,11 +1,8 @@
 mod instance;
 mod surface;
 
-pub use self::surface::SurfaceData;
-use self::{
-    instance::{Extension, Instance},
-    surface::Surface,
-};
+pub use self::{instance::Extension, surface::SurfaceData};
+use self::{instance::Instance, surface::Surface};
 use crate::{
     context::ContextShared,
     profiling::QueryPool,

@@ -7,7 +7,7 @@ use cinder::{
         },
         upload_context::UploadContext,
     },
-    device::Device,
+    device::{Device, DeviceDescription, Extension},
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
@@ -103,7 +103,12 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
-        let mut device = Device::new(window, Default::default())?;
+        let mut device = Device::new(
+            window,
+            DeviceDescription {
+                required_extensions: &[Extension::MeshShading],
+            },
+        )?;
         let render_context = RenderContext::new(&device, Default::default())?;
         let upload_context = UploadContext::new(&device, Default::default())?;
         let view = View::new(&device, Default::default())?;
