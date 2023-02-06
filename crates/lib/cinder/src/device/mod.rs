@@ -2,7 +2,10 @@ mod instance;
 mod surface;
 
 pub use self::surface::SurfaceData;
-use self::{instance::Instance, surface::Surface};
+use self::{
+    instance::{Extension, Instance},
+    surface::Surface,
+};
 use crate::{
     context::ContextShared,
     profiling::QueryPool,
@@ -49,6 +52,11 @@ pub enum DeviceError {
     InvalidPipelineHandle,
 }
 
+#[derive(Debug, Default)]
+pub struct DeviceDescription<'a> {
+    pub required_extensions: &'a [Extension],
+}
+
 pub struct Device {
     p_device: vk::PhysicalDevice,
     p_device_properties: vk::PhysicalDeviceProperties,
@@ -74,8 +82,8 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn new(window: &winit::window::Window) -> Result<Self> {
-        let instance = Instance::new(window)?;
+    pub fn new(window: &winit::window::Window, desc: DeviceDescription) -> Result<Self> {
+        let instance = Instance::new(window, desc.required_extensions)?;
         let surface = Surface::new(window, &instance)?;
 
         let p_devices = unsafe { instance.raw().enumerate_physical_devices() }?;

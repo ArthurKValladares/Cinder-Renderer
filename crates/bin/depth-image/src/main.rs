@@ -84,7 +84,7 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
-        let mut device = Device::new(window)?;
+        let mut device = Device::new(window, Default::default())?;
         let render_context = RenderContext::new(&device, Default::default())?;
         let view = View::new(&device, Default::default())?;
         let surface_rect = device.surface_rect();

@@ -15,9 +15,25 @@ fn layer_names() -> Vec<CString> {
     vec![CString::new("VK_LAYER_KHRONOS_validation").unwrap()]
 }
 
-fn extensions() -> Vec<&'static CStr> {
+#[derive(Debug, Clone, Copy)]
+pub enum Extension {
+    MeshShading,
+}
+
+impl From<Extension> for &'static CStr {
+    fn from(value: Extension) -> Self {
+        match value {
+            Extension::MeshShading => ash::extensions::ext::MeshShader::name(),
+        }
+    }
+}
+
+fn extensions(required_extensions: &[Extension]) -> Vec<&'static CStr> {
     #[allow(unused_mut)]
     let mut extensions = vec![ash::extensions::ext::DebugUtils::name()];
+    for ext in required_extensions {
+        extensions.push((*ext).into());
+    }
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     {
         extensions.push(KhrPortabilityEnumerationFn::name());
@@ -35,7 +51,7 @@ pub struct Instance {
 }
 
 impl Instance {
-    pub fn new(window: &winit::window::Window) -> Result<Self> {
+    pub fn new(window: &winit::window::Window, required_extensions: &[Extension]) -> Result<Self> {
         let entry = unsafe { ash::Entry::load()? };
 
         let layers = layer_names();
@@ -44,7 +60,7 @@ impl Instance {
             .map(|raw_name| raw_name.as_ptr())
             .collect::<Vec<*const c_char>>();
 
-        let extensions = extensions();
+        let extensions = extensions(required_extensions);
         let extensions = {
             let window_extensions =
                 ash_window::enumerate_required_extensions(window.raw_display_handle())?;

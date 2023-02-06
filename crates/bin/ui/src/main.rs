@@ -91,7 +91,7 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(event_loop: &EventLoop<()>, window: &winit::window::Window) -> Result<Self> {
-        let mut device = Device::new(window)?;
+        let mut device = Device::new(window, Default::default())?;
         let render_context = RenderContext::new(&device, Default::default())?;
         let upload_context = UploadContext::new(&device, Default::default())?;
         let view = View::new(&device, Default::default())?;

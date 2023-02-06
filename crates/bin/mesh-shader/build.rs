@@ -50,6 +50,9 @@ fn main() {
     shader_compiler
         .compile_shader("shaders/mesh.frag", ShaderStage::Fragment)
         .expect("Could not compile shader");
+    shader_compiler
+        .compile_shader("shaders/mesh_shader.mesh", ShaderStage::Mesh)
+        .expect("Could not compile shader");
     // TODO: rkvy stuff should be optional
     write_shader_structs(
         &std::fs::read("./shaders/spv/mesh.vert.spv").unwrap(),
