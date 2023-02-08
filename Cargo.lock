@@ -125,6 +125,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "d468802bab17cbc0cc575e9b053f41e72aa36bfa6b7f55e3529ffa43161b97fa"
 
 [[package]]
+name = "bindless"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cinder",
+ "home",
+ "image",
+ "math",
+ "rust-shader-tools",
+ "scene",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "util",
+ "winit",
+]
+
+[[package]]
 name = "bit_field"
 version = "0.10.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -230,7 +248,6 @@ dependencies = [
  "num",
  "raw-window-handle 0.5.0",
  "resource-manager",
- "rkyv",
  "rust-shader-tools",
  "thiserror",
  "tracing",
@@ -489,8 +506,6 @@ dependencies = [
  "home",
  "image",
  "math",
- "nalgebra-glm",
- "rkyv",
  "rust-shader-tools",
  "serde",
  "serde_json",
@@ -508,8 +523,6 @@ dependencies = [
  "home",
  "image",
  "math",
- "nalgebra-glm",
- "rkyv",
  "rust-shader-tools",
  "serde",
  "serde_json",
@@ -881,7 +894,6 @@ dependencies = [
  "home",
  "image",
  "math",
- "rkyv",
  "rust-shader-tools",
  "serde",
  "serde_json",
@@ -1133,7 +1145,6 @@ dependencies = [
  "home",
  "image",
  "math",
- "rkyv",
  "rust-shader-tools",
  "scene",
  "serde",
@@ -2021,8 +2032,6 @@ dependencies = [
  "home",
  "image",
  "math",
- "nalgebra-glm",
- "rkyv",
  "rust-shader-tools",
  "serde",
  "serde_json",
@@ -2191,8 +2200,6 @@ dependencies = [
  "home",
  "image",
  "math",
- "nalgebra-glm",
- "rkyv",
  "rust-shader-tools",
  "serde",
  "serde_json",
