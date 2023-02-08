@@ -14,9 +14,9 @@ use cinder::{
         image::{Format, Image, ImageDescription, Usage},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
-        ResourceHandle,
     },
     view::View,
+    ResourceHandle,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use std::time::Instant;

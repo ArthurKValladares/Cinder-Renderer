@@ -10,9 +10,9 @@ use cinder::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, Usage},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
-        ResourceHandle,
     },
     view::View,
+    ResourceHandle,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use std::time::Instant;

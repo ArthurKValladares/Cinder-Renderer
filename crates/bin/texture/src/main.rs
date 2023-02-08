@@ -11,9 +11,9 @@ use cinder::{
         image::Image,
         pipeline::graphics::GraphicsPipeline,
         sampler::Sampler,
-        ResourceHandle,
     },
     view::View,
+    ResourceHandle,
 };
 use math::size::Size2D;
 use winit::{

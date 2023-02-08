@@ -16,7 +16,6 @@ use crate::{
         },
         sampler::{Sampler, SamplerDescription},
         shader::{Shader, ShaderDesc},
-        ResourceHandle,
     },
     Resolution,
 };
@@ -25,6 +24,7 @@ use anyhow::Result;
 use ash::vk::KhrPortabilitySubsetFn;
 use ash::{extensions::khr::DynamicRendering, vk};
 use math::{rect::Rect2D, size::Size2D};
+use resource_manager::{ResourceHandle, ResourcePool};
 use thiserror::Error;
 use util::size_of_slice;
 
@@ -73,7 +73,7 @@ pub struct Device {
     // TODO: Probably some place to shove extensions
     dynamic_rendering: DynamicRendering,
     // TODO: Experimenting with some resource handling stuff in Device. maybe should be separate
-    pipelines: Vec<GraphicsPipeline>,
+    pipelines: ResourcePool<GraphicsPipeline>,
     surface: Surface,
     instance: Instance,
 }
@@ -486,26 +486,19 @@ impl Device {
         fragment_shader: &Shader,
         desc: GraphicsPipelineDescription,
     ) -> Result<ResourceHandle<GraphicsPipeline>> {
-        let id = self.pipelines.len();
-        self.pipelines.push(GraphicsPipeline::create(
+        Ok(self.pipelines.insert(GraphicsPipeline::create(
             self,
             vertex_shader,
             fragment_shader,
             desc,
-        )?);
-        Ok(ResourceHandle::from_index(id))
+        )?))
     }
 
     pub(crate) fn get_graphics_pipeline(
         &self,
         handle: ResourceHandle<GraphicsPipeline>,
     ) -> Option<&GraphicsPipeline> {
-        // TODO: This won't be a vec in the future
-        if handle.id() >= self.pipelines.len() {
-            None
-        } else {
-            Some(&self.pipelines[handle.id()])
-        }
+        self.pipelines.get(handle)
     }
 
     pub fn create_compute_pipeline(
@@ -624,7 +617,7 @@ impl Drop for Device {
         unsafe {
             self.wait_idle().ok();
 
-            for mut pipeline in self.pipelines.drain(..) {
+            for mut pipeline in self.pipelines.drain() {
                 pipeline.destroy(&self.device);
             }
 

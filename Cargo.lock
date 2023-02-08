@@ -229,6 +229,7 @@ dependencies = [
  "math",
  "num",
  "raw-window-handle 0.5.0",
+ "resource-manager",
  "rkyv",
  "rust-shader-tools",
  "thiserror",
@@ -1143,25 +1144,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "mesh-shader"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cinder",
- "home",
- "image",
- "math",
- "rkyv",
- "rust-shader-tools",
- "scene",
- "serde",
- "serde_json",
- "thiserror",
- "util",
- "winit",
-]
-
-[[package]]
 name = "minimal-lexical"
 version = "0.2.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1706,6 +1688,10 @@ checksum = "79af64b4b6362ffba04eef3a4e10829718a4896dac19daa741851c86781edf95"
 dependencies = [
  "bytecheck",
 ]
+
+[[package]]
+name = "resource-manager"
+version = "0.1.0"
 
 [[package]]
 name = "rkyv"

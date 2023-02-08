@@ -5,9 +5,9 @@ use cinder::{
     resources::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         pipeline::graphics::GraphicsPipeline,
-        ResourceHandle,
     },
     view::View,
+    ResourceHandle,
 };
 use math::{mat::Mat4, vec::Vec3};
 use std::time::Instant;

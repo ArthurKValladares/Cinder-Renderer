@@ -11,13 +11,12 @@ use cinder::{
         bind_group::{BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{vk::Fence, Buffer, BufferDescription, BufferUsage},
         image::Image,
-        memory::MemoryType,
         pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
-        ResourceHandle,
     },
     util::MemoryMappablePointer,
     view::{Drawable, View},
+    ResourceHandle,
 };
 use core::panic;
 pub use egui;

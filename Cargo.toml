@@ -7,6 +7,5 @@ members = [
     "crates/bin/mesh",
     "crates/bin/debug",
     "crates/bin/depth-image",
-    "crates/bin/mesh-shader",
     "crates/lib/cinder",
 ]

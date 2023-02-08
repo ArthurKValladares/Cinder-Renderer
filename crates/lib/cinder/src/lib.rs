@@ -8,6 +8,8 @@ pub mod resources;
 pub mod util;
 pub mod view;
 
+pub use resource_manager::*;
+
 #[derive(Debug, Clone, Copy)]
 pub struct Resolution {
     pub width: u32,

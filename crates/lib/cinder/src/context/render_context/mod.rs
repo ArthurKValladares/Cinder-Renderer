@@ -7,7 +7,6 @@ use crate::{
         image::Image,
         pipeline::{compute::ComputePipeline, graphics::GraphicsPipeline, PipelineCommon},
         shader::ShaderStage,
-        ResourceHandle,
     },
     util::rect_to_vk,
     view::Drawable,
@@ -15,6 +14,7 @@ use crate::{
 use anyhow::Result;
 use ash::vk;
 use math::rect::Rect2D;
+use resource_manager::ResourceHandle;
 use thiserror::Error;
 
 #[derive(Debug, Clone, Copy)]
