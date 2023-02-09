@@ -1,11 +1,25 @@
 use anyhow::Result;
+use image::DynamicImage;
 use std::path::Path;
+use thiserror::Error;
 pub use tobj::Mesh as ObjMesh;
+
+#[derive(Debug, Error)]
+pub enum SceneError {
+    #[error("Could not open file at {path}: {err}")]
+    FileError { err: std::io::Error, path: String },
+    #[error(transparent)]
+    ImageError(#[from] image::error::ImageError),
+}
 
 pub trait Vertex {
     fn from_obj_mesh_index(mesh: &ObjMesh, i: usize) -> Self;
 
     fn pos_3d(&self) -> [f32; 3];
+}
+
+pub struct Material {
+    diffuse: Option<DynamicImage>,
 }
 
 pub struct Mesh<V: Vertex> {
@@ -17,6 +31,7 @@ pub struct Mesh<V: Vertex> {
 
 pub struct Scene<V: Vertex> {
     pub meshes: Vec<Mesh<V>>,
+    pub materials: Vec<Material>,
     pub min_pos: [f32; 3],
     pub max_pos: [f32; 3],
 }
@@ -28,7 +43,33 @@ where
     pub fn from_obj(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         debug_assert!(path.exists(), "Path does not exist: {path:?}");
-        let (models, _) = tobj::load_obj(path, &tobj::GPU_LOAD_OPTIONS)?;
+        let (models, materials) = tobj::load_obj(path, &tobj::GPU_LOAD_OPTIONS)?;
+        let materials = materials;
+        let materials = if let Ok(materials) = materials {
+            materials
+                .into_iter()
+                .map(|material| {
+                    let diffuse: Result<Option<DynamicImage>, SceneError> =
+                        if material.diffuse_texture.is_empty() {
+                            Ok(None)
+                        } else {
+                            let image_data = std::fs::read(&material.diffuse_texture)
+                                .map_err(|err| SceneError::FileError {
+                                    err,
+                                    path: material.diffuse_texture,
+                                })
+                                .unwrap();
+                            let image = image::load_from_memory(&image_data).unwrap();
+                            Ok(Some(image))
+                        };
+                    let diffuse = diffuse?;
+
+                    Ok(Material { diffuse })
+                })
+                .collect::<Result<Vec<_>, SceneError>>()?
+        } else {
+            vec![]
+        };
 
         let mut min_pos = [f32::INFINITY; 3];
         let mut max_pos = [f32::NEG_INFINITY; 3];
@@ -67,6 +108,7 @@ where
 
         Ok(Self {
             meshes,
+            materials,
             min_pos,
             max_pos,
         })
