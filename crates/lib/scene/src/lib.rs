@@ -1,5 +1,6 @@
 use anyhow::Result;
 use image::DynamicImage;
+use rayon::iter::*;
 use std::path::Path;
 use thiserror::Error;
 pub use tobj::Mesh as ObjMesh;
@@ -18,6 +19,7 @@ pub trait Vertex {
     fn pos_3d(&self) -> [f32; 3];
 }
 
+#[derive(Debug)]
 pub struct Material {
     diffuse: Option<DynamicImage>,
 }
@@ -40,20 +42,22 @@ impl<V> Scene<V>
 where
     V: Vertex,
 {
-    pub fn from_obj(path: impl AsRef<Path>) -> Result<Self> {
+    pub fn from_obj(path: impl AsRef<Path>, file: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
-        debug_assert!(path.exists(), "Path does not exist: {path:?}");
-        let (models, materials) = tobj::load_obj(path, &tobj::GPU_LOAD_OPTIONS)?;
+        let file = file.as_ref();
+        let file_path = path.join(file);
+        debug_assert!(file_path.exists(), "Path does not exist: {file_path:?}");
+        let (models, materials) = tobj::load_obj(file_path, &tobj::GPU_LOAD_OPTIONS)?;
         let materials = materials;
         let materials = if let Ok(materials) = materials {
             materials
-                .into_iter()
+                .into_par_iter()
                 .map(|material| {
                     let diffuse: Result<Option<DynamicImage>, SceneError> =
                         if material.diffuse_texture.is_empty() {
                             Ok(None)
                         } else {
-                            let image_data = std::fs::read(&material.diffuse_texture)
+                            let image_data = std::fs::read(path.join(&material.diffuse_texture))
                                 .map_err(|err| SceneError::FileError {
                                     err,
                                     path: material.diffuse_texture,

@@ -121,11 +121,10 @@ pub struct Renderer {
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     ubo_buffer: Buffer,
-    image_buffer: Buffer,
     sampler: Sampler,
-    texture: Image,
     init_time: Instant,
     index_count: u32,
+    // TODO: images
 }
 
 impl Renderer {
@@ -166,8 +165,8 @@ impl Renderer {
         let scene = Scene::<BindlessVertex>::from_obj(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("assets")
-                .join("models")
-                .join("viking_room.obj"),
+                .join("sponza"),
+            "sponza.obj",
         )?;
         let mesh = scene.meshes.first().unwrap();
 
@@ -211,52 +210,14 @@ impl Renderer {
 
         let sampler = device.create_sampler(&device, Default::default())?;
 
-        let image = image::load_from_memory(include_bytes!("../assets/textures/viking_room.png"))
-            .unwrap()
-            .to_rgba8();
-        let (width, height) = image.dimensions();
-        let texture = device.create_image(Size2D::new(width, height), Default::default())?;
-        let image_data = image.into_raw();
-
-        let image_buffer = device.create_buffer_with_data(
-            &image_data,
-            BufferDescription {
-                usage: BufferUsage::TRANSFER_SRC,
-                ..Default::default()
-            },
-        )?;
-        upload_context.begin(&device, device.setup_fence())?;
-        {
-            upload_context.image_barrier_start(&device, &texture);
-            upload_context.copy_buffer_to_image(&device, &image_buffer, &texture);
-            upload_context.image_barrier_end(&device, &texture);
-        }
-        upload_context.end(
-            &device,
-            device.setup_fence(),
-            device.present_queue(),
-            &[],
-            &[],
-            &[],
-        )?;
-
         device.write_bind_group(
             render_pipeline,
-            &[
-                BindGroupBindInfo {
-                    dst_binding: 0,
-                    data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-                },
-                BindGroupBindInfo {
-                    dst_binding: 1,
-                    data: BindGroupWriteData::SampledImage(texture.bind_info(
-                        &sampler,
-                        Layout::ShaderReadOnly,
-                        0,
-                    )),
-                },
-            ],
+            &[BindGroupBindInfo {
+                dst_binding: 0,
+                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+            }],
         )?;
+        // TODO: image stuff
 
         let init_time = Instant::now();
 
@@ -269,9 +230,7 @@ impl Renderer {
             render_pipeline,
             vertex_buffer,
             index_buffer,
-            image_buffer,
             sampler,
-            texture,
             ubo_buffer,
             init_time,
             index_count: mesh.indices.len() as u32,
@@ -355,12 +314,10 @@ impl Drop for Renderer {
 
         self.depth_image.destroy(self.device.raw());
         self.sampler.destroy(self.device.raw());
-        self.texture.destroy(self.device.raw());
 
         self.vertex_buffer.destroy(self.device.raw());
         self.index_buffer.destroy(self.device.raw());
         self.ubo_buffer.destroy(self.device.raw());
-        self.image_buffer.destroy(self.device.raw());
 
         self.view.destroy(&self.device);
     }

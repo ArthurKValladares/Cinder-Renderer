@@ -139,8 +139,8 @@ impl Renderer {
         let scene = Scene::<MeshVertex>::from_obj(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("assets")
-                .join("models")
-                .join("viking_room.obj"),
+                .join("models"),
+            "viking_room.obj",
         )?;
         let mesh = scene.meshes.first().unwrap();
 
