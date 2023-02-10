@@ -111,6 +111,13 @@ impl Vertex for BindlessVertex {
     }
 }
 
+pub struct MeshDraw {
+    vertex_buffer_offset: i32,
+    index_buffer_offset: u32,
+    num_indices: u32,
+    image_index: u32,
+}
+
 pub struct Renderer {
     device: Device,
     view: View,
@@ -125,7 +132,7 @@ pub struct Renderer {
     images: Vec<Image>,
     image_buffers: Vec<Buffer>,
     init_time: Instant,
-    index_count: u32,
+    mesh_draws: Vec<MeshDraw>,
 }
 
 impl Renderer {
@@ -169,17 +176,38 @@ impl Renderer {
                 .join("sponza"),
             "sponza.obj",
         )?;
-        let mesh = scene.meshes.first().unwrap();
+        let (vertices, indices, mesh_draws) = {
+            let mut vertices: Vec<BindlessVertex> = Default::default();
+            let mut indices: Vec<u32> = Default::default();
+            let mut mesh_draws: Vec<MeshDraw> = Default::default();
+            for mesh in scene.meshes {
+                let first_vertex = vertices.len();
+
+                let first_index = indices.len();
+                let num_indices = mesh.indices.len() as u32;
+
+                vertices.extend(mesh.vertices);
+                indices.extend(mesh.indices);
+
+                mesh_draws.push(MeshDraw {
+                    vertex_buffer_offset: first_vertex as i32,
+                    index_buffer_offset: first_index as u32,
+                    num_indices,
+                    image_index: mesh.material_index.unwrap_or(0) as u32, // TODO: handle the None case better
+                });
+            }
+            (vertices, indices, mesh_draws)
+        };
 
         let vertex_buffer = device.create_buffer_with_data(
-            &mesh.vertices,
+            &vertices,
             BufferDescription {
                 usage: BufferUsage::STORAGE | BufferUsage::TRANSFER_DST,
                 ..Default::default()
             },
         )?;
         let index_buffer = device.create_buffer_with_data(
-            &mesh.indices,
+            &indices,
             BufferDescription {
                 usage: BufferUsage::INDEX,
                 ..Default::default()
@@ -298,7 +326,7 @@ impl Renderer {
             image_buffers,
             ubo_buffer,
             init_time,
-            index_count: mesh.indices.len() as u32,
+            mesh_draws,
         })
     }
 
@@ -346,15 +374,23 @@ impl Renderer {
                 self.render_context.bind_scissor(&self.device, surface_rect);
                 self.render_context
                     .bind_index_buffer(&self.device, &self.index_buffer);
-
-                self.render_context
-                    .set_fragment_bytes(&self.device, &[0 as u32], 0)?;
                 // TODO: re-think API later when using more than one se
-
                 self.render_context.bind_descriptor_sets(&self.device)?;
 
-                self.render_context
-                    .draw_offset(&self.device, self.index_count, 0, 0);
+                for mesh_draw in &self.mesh_draws {
+                    self.render_context.set_fragment_bytes(
+                        &self.device,
+                        &[mesh_draw.image_index],
+                        0,
+                    )?;
+
+                    self.render_context.draw_offset(
+                        &self.device,
+                        mesh_draw.num_indices,
+                        mesh_draw.index_buffer_offset,
+                        mesh_draw.vertex_buffer_offset,
+                    );
+                }
             }
             self.render_context.end_rendering(&self.device);
 

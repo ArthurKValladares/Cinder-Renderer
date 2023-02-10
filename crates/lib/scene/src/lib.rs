@@ -27,6 +27,7 @@ pub struct Material {
 pub struct Mesh<V: Vertex> {
     pub indices: Vec<u32>,
     pub vertices: Vec<V>,
+    pub material_index: Option<usize>,
     pub min_pos: [f32; 3],
     pub max_pos: [f32; 3],
 }
@@ -105,6 +106,7 @@ where
             meshes.push(Mesh {
                 indices: obj_mesh.indices,
                 vertices,
+                material_index: obj_mesh.material_id,
                 min_pos: mesh_min_pos,
                 max_pos: mesh_max_pos,
             });
