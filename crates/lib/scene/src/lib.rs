@@ -21,7 +21,7 @@ pub trait Vertex {
 
 #[derive(Debug)]
 pub struct Material {
-    diffuse: Option<DynamicImage>,
+    pub diffuse: Option<DynamicImage>,
 }
 
 pub struct Mesh<V: Vertex> {
