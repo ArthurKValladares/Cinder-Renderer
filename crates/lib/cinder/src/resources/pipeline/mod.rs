@@ -14,6 +14,7 @@ pub mod compute;
 pub mod graphics;
 pub mod push_constant;
 
+#[derive(Debug)]
 pub struct PipelineCommonData {
     // TODO: Think of a better key
     push_constants: HashMap<(ShaderStage, u32), PushConstant>,
@@ -104,7 +105,7 @@ pub fn get_pipeline_layout(
                     .map_or(false, |data| data.count.is_none());
                 let layout = BindGroupLayout::new(device, layout_data)?;
                 if let Some(name) = name {
-                    layout.set_name(device, &format!("{} [descriptor set layout {}]", name, i));
+                    layout.set_name(device, &format!("{name} [descriptor set layout {i}]"));
                 }
                 Ok(layout)
             })

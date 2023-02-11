@@ -96,7 +96,7 @@ impl GraphicsPipeline {
         // Pipeline stuff, pretty temp
         //
         let (pipeline_layout, common_data) =
-            get_pipeline_layout(device, &[&vertex_shader, &fragment_shader], desc.name)?;
+            get_pipeline_layout(device, &[vertex_shader, fragment_shader], desc.name)?;
 
         let atttributes = vertex_shader.reflect_data.get_vertex_attributes();
         let binding = 0; // TODO: Support non-zero bindings

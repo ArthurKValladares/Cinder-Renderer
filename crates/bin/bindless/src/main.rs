@@ -78,7 +78,7 @@ impl Vertex for BindlessVertex {
                 mesh.vertex_color[i * 3 + 2],
             ]
         } else {
-            [0.0; 3]
+            [1.0; 3]
         };
 
         let normal = if !mesh.normals.is_empty() {
@@ -88,7 +88,7 @@ impl Vertex for BindlessVertex {
                 mesh.normals[i * 3 + 2],
             ]
         } else {
-            [0.0; 3]
+            [1.0; 3]
         };
 
         let uv = if !mesh.texcoords.is_empty() {
@@ -224,7 +224,6 @@ impl Renderer {
         ubo_buffer.mem_copy(
             util::offset_of!(BindlessUniformBufferObject, view) as u64,
             &[
-                Mat4::identity(),
                 look_to(
                     Vec3::new(2.0, -0.5, 0.0),
                     Vec3::new(1.0, 0.0, 0.0),

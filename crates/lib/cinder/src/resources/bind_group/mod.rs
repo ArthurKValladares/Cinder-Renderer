@@ -100,6 +100,7 @@ pub fn bindless_bind_group_flags() -> vk::DescriptorBindingFlags {
 }
 
 #[repr(C)]
+#[derive(Debug)]
 pub struct BindGroupLayout {
     pub layout: vk::DescriptorSetLayout,
 }
