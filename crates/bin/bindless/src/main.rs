@@ -66,9 +66,9 @@ impl Vertex for BindlessVertex {
     fn from_obj_mesh_index(mesh: &ObjMesh, i: usize) -> Self {
         let pos = [
             mesh.positions[i * 3],
-            mesh.positions[i * 3 + 1],
+            -mesh.positions[i * 3 + 1],
             mesh.positions[i * 3 + 2],
-            0.0,
+            1.0,
         ];
 
         let color = if !mesh.vertex_color.is_empty() {
@@ -111,6 +111,7 @@ impl Vertex for BindlessVertex {
     }
 }
 
+#[derive(Debug)]
 pub struct MeshDraw {
     vertex_buffer_offset: i32,
     index_buffer_offset: u32,
@@ -225,7 +226,7 @@ impl Renderer {
             util::offset_of!(BindlessUniformBufferObject, view) as u64,
             &[
                 look_to(
-                    Vec3::new(2.0, -0.5, 0.0),
+                    Vec3::new(0.0, -50.0, 0.0),
                     Vec3::new(1.0, 0.0, 0.0),
                     Vec3::new(0.0, 1.0, 0.0),
                 ),
@@ -330,13 +331,13 @@ impl Renderer {
     }
 
     pub fn update(&mut self) -> Result<()> {
-        let scale = (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
+        let scale = ((self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI))
+            .sin()
+            * std::f32::consts::PI
+            / 4.0;
         self.ubo_buffer.mem_copy(
             util::offset_of!(BindlessUniformBufferObject, model) as u64,
-            &[
-                Mat4::rotate(std::f32::consts::PI / 2.0, Vec3::new(1.0, 0.0, 0.0))
-                    * Mat4::rotate(scale, Vec3::new(0.0, 0.0, 1.0)),
-            ],
+            &[Mat4::rotate(scale, Vec3::new(0.0, 1.0, 0.0))],
         )?;
         Ok(())
     }
