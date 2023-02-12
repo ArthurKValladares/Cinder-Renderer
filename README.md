@@ -39,3 +39,8 @@ Render Depth image to the screen in a second pass.
 
 ![depth-image](https://user-images.githubusercontent.com/23410311/216224384-9ff90165-07e7-4b62-84c4-da844bd1e86c.gif)
 
+### [Bindless](./crates/bin/bindless/src/main.rs)<br/>
+Draw a complex scene using bindless textures and a uniform buffer for vertex data.
+
+
+![sponza](https://user-images.githubusercontent.com/23410311/218249268-324efc6f-941c-4787-babb-00d82991ae1d.png)
