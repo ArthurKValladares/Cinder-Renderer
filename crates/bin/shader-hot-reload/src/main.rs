@@ -16,6 +16,8 @@ use cinder::{
     ResourceHandle,
 };
 use math::size::Size2D;
+use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use std::path::Path;
 use winit::{
     dpi::PhysicalSize,
     event::VirtualKeyCode,
@@ -33,6 +35,7 @@ include!(concat!(
 ));
 
 pub struct Renderer {
+    watcher: RecommendedWatcher,
     device: Device,
     view: View,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
@@ -47,6 +50,20 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
+        let mut watcher = notify::recommended_watcher(|res| match res {
+            Ok(event) => println!("event: {event:?}"),
+            Err(e) => println!("watch error: {e:?}"),
+        })?;
+
+        watcher.watch(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("shaders/hot_reload.frag"),
+            RecursiveMode::NonRecursive,
+        )?;
+        watcher.watch(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("shaders/hot_reload.vert"),
+            RecursiveMode::NonRecursive,
+        )?;
+
         let mut device = Device::new(window, Default::default())?;
         let render_context = RenderContext::new(&device, Default::default())?;
         let upload_context = UploadContext::new(&device, Default::default())?;
@@ -145,6 +162,7 @@ impl Renderer {
         )?;
 
         Ok(Self {
+            watcher,
             device,
             view,
             render_context,
