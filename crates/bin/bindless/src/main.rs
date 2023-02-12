@@ -223,8 +223,9 @@ impl Renderer {
             },
         )?;
         ubo_buffer.mem_copy(
-            util::offset_of!(BindlessUniformBufferObject, view) as u64,
+            util::offset_of!(BindlessUniformBufferObject, model) as u64,
             &[
+                Mat4::identity(),
                 look_to(
                     Vec3::new(0.0, -50.0, 0.0),
                     Vec3::new(1.0, 0.0, 0.0),
@@ -328,18 +329,6 @@ impl Renderer {
             init_time,
             mesh_draws,
         })
-    }
-
-    pub fn update(&mut self) -> Result<()> {
-        let scale = ((self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI))
-            .sin()
-            * std::f32::consts::PI
-            / 4.0;
-        self.ubo_buffer.mem_copy(
-            util::offset_of!(BindlessUniformBufferObject, model) as u64,
-            &[Mat4::rotate(scale, Vec3::new(0.0, 1.0, 0.0))],
-        )?;
-        Ok(())
     }
 
     pub fn draw(&mut self) -> Result<bool> {
@@ -447,8 +436,6 @@ fn main() {
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
-
-        renderer.update().expect("could not update renderer");
 
         match event {
             Event::WindowEvent {
