@@ -8,5 +8,6 @@ members = [
     "crates/bin/debug",
     "crates/bin/depth-image",
     "crates/bin/bindless",
+    "crates/bin/shader-hot-reload",
     "crates/lib/cinder",
 ]

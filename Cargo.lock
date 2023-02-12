@@ -1888,6 +1888,23 @@ dependencies = [
 ]
 
 [[package]]
+name = "shader-hot-reload"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cinder",
+ "home",
+ "image",
+ "math",
+ "rust-shader-tools",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "util",
+ "winit",
+]
+
+[[package]]
 name = "shaderc"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
