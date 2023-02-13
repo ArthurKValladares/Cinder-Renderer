@@ -17,7 +17,11 @@ use cinder::{
 };
 use math::size::Size2D;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
-use std::path::Path;
+use std::{
+    collections::HashMap,
+    path::{Path, PathBuf},
+    sync::mpsc::Receiver,
+};
 use winit::{
     dpi::PhysicalSize,
     event::VirtualKeyCode,
@@ -38,27 +42,76 @@ pub struct ShaderHotReloader {
     watcher: RecommendedWatcher,
 }
 
-impl ShaderHotReloader {
+pub struct ShaderHotReloaderRunner {
+    watcher: RecommendedWatcher,
+    receiver: Receiver<Result<notify::event::Event, notify::Error>>,
+    event_handlers: HashMap<
+        (PathBuf, PathBuf),
+        (
+            ResourceHandle<()>,
+            Box<dyn FnOnce(notify::event::Event) + Send>,
+        ),
+    >,
+}
+
+impl ShaderHotReloaderRunner {
     pub fn new() -> Result<Self> {
-        let (sender, reciever) = std::sync::mpsc::channel();
-        let mut watcher = notify::Watcher::new(sender, Default::default())?;
-        Ok(Self { watcher })
+        let (sender, receiver) = std::sync::mpsc::channel();
+        let watcher = notify::Watcher::new(sender, Default::default())?;
+        Ok(Self {
+            watcher,
+            receiver,
+            event_handlers: Default::default(),
+        })
     }
 
     pub fn set_graphics(
         &mut self,
         vertex: impl AsRef<Path>,
         fragment: impl AsRef<Path>,
+        program_handle: ResourceHandle<GraphicsPipeline>,
     ) -> Result<()> {
+        let vertex = vertex.as_ref();
+        let fragment = fragment.as_ref();
         self.watcher.watch(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join(vertex),
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join(&vertex),
             RecursiveMode::NonRecursive,
         )?;
         self.watcher.watch(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join(fragment),
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join(&fragment),
             RecursiveMode::NonRecursive,
         )?;
+        self.event_handlers.insert(
+            (vertex.to_path_buf(), fragment.to_path_buf()),
+            (
+                program_handle.as_unit(),
+                Box::new(|event| {
+                    // TODO: a bunch of shader-hot reload stuff here
+                    println!("{event:?}");
+                }),
+            ),
+        );
         Ok(())
+    }
+
+    pub fn run(self) -> ShaderHotReloader {
+        let Self {
+            watcher,
+            receiver,
+            event_handlers,
+        } = self;
+        std::thread::spawn(move || loop {
+            match receiver.recv() {
+                Ok(event) => {
+                    println!("watch event {event:?}");
+                    // TODO: Look at event and call correct handler
+                }
+                Err(err) => {
+                    println!("watch event failure {err:?}");
+                }
+            }
+        });
+        ShaderHotReloader { watcher }
     }
 }
 
@@ -78,8 +131,7 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
-        let mut shader_hot_reloader = ShaderHotReloader::new()?;
-        shader_hot_reloader.set_graphics("shaders/hot_reload.frag", "shaders/hot_reload.vert")?;
+        let mut shader_hot_reloader = ShaderHotReloaderRunner::new()?;
 
         let mut device = Device::new(window, Default::default())?;
         let render_context = RenderContext::new(&device, Default::default())?;
@@ -99,6 +151,11 @@ impl Renderer {
             &vertex_shader,
             &fragment_shader,
             Default::default(),
+        )?;
+        shader_hot_reloader.set_graphics(
+            "shaders/hot_reload.frag",
+            "shaders/hot_reload.vert",
+            render_pipeline,
         )?;
         vertex_shader.destroy(&device);
         fragment_shader.destroy(&device);
@@ -179,7 +236,7 @@ impl Renderer {
         )?;
 
         Ok(Self {
-            shader_hot_reloader,
+            shader_hot_reloader: shader_hot_reloader.run(),
             device,
             view,
             render_context,

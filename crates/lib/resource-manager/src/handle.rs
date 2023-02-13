@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 #[repr(transparent)]
+#[derive(Debug, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub struct ResourceHandle<T> {
     id: usize,
     _marker: PhantomData<T>,
@@ -16,6 +17,10 @@ impl<T> ResourceHandle<T> {
 
     pub fn id(&self) -> usize {
         self.id
+    }
+
+    pub fn as_unit(&self) -> ResourceHandle<()> {
+        ResourceHandle::<()>::from_index(self.id())
     }
 }
 
