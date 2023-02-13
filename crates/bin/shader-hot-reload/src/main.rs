@@ -34,8 +34,36 @@ include!(concat!(
     "/gen/hot_reload_shader_structs.rs"
 ));
 
-pub struct Renderer {
+pub struct ShaderHotReloader {
     watcher: RecommendedWatcher,
+}
+
+impl ShaderHotReloader {
+    pub fn new() -> Result<Self> {
+        let (sender, reciever) = std::sync::mpsc::channel();
+        let mut watcher = notify::Watcher::new(sender, Default::default())?;
+        Ok(Self { watcher })
+    }
+
+    pub fn set_graphics(
+        &mut self,
+        vertex: impl AsRef<Path>,
+        fragment: impl AsRef<Path>,
+    ) -> Result<()> {
+        self.watcher.watch(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join(vertex),
+            RecursiveMode::NonRecursive,
+        )?;
+        self.watcher.watch(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join(fragment),
+            RecursiveMode::NonRecursive,
+        )?;
+        Ok(())
+    }
+}
+
+pub struct Renderer {
+    shader_hot_reloader: ShaderHotReloader,
     device: Device,
     view: View,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
@@ -50,19 +78,8 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
-        let mut watcher = notify::recommended_watcher(|res| match res {
-            Ok(event) => println!("event: {event:?}"),
-            Err(e) => println!("watch error: {e:?}"),
-        })?;
-
-        watcher.watch(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("shaders/hot_reload.frag"),
-            RecursiveMode::NonRecursive,
-        )?;
-        watcher.watch(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join("shaders/hot_reload.vert"),
-            RecursiveMode::NonRecursive,
-        )?;
+        let mut shader_hot_reloader = ShaderHotReloader::new()?;
+        shader_hot_reloader.set_graphics("shaders/hot_reload.frag", "shaders/hot_reload.vert")?;
 
         let mut device = Device::new(window, Default::default())?;
         let render_context = RenderContext::new(&device, Default::default())?;
@@ -162,7 +179,7 @@ impl Renderer {
         )?;
 
         Ok(Self {
-            watcher,
+            shader_hot_reloader,
             device,
             view,
             render_context,
