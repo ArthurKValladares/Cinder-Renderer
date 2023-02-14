@@ -46,10 +46,10 @@ pub struct ShaderHotReloaderRunner {
     watcher: RecommendedWatcher,
     receiver: Receiver<Result<notify::event::Event, notify::Error>>,
     event_handlers: HashMap<
-        (PathBuf, PathBuf),
+        PathBuf,
         (
             ResourceHandle<()>,
-            Box<dyn FnOnce(notify::event::Event) + Send>,
+            Box<dyn FnMut(notify::event::Event) + Send>,
         ),
     >,
 }
@@ -71,23 +71,25 @@ impl ShaderHotReloaderRunner {
         fragment: impl AsRef<Path>,
         program_handle: ResourceHandle<GraphicsPipeline>,
     ) -> Result<()> {
-        let vertex = vertex.as_ref();
-        let fragment = fragment.as_ref();
-        self.watcher.watch(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join(&vertex),
-            RecursiveMode::NonRecursive,
-        )?;
-        self.watcher.watch(
-            &Path::new(env!("CARGO_MANIFEST_DIR")).join(&fragment),
-            RecursiveMode::NonRecursive,
-        )?;
+        let vertex = Path::new(env!("CARGO_MANIFEST_DIR")).join(&vertex);
+        let fragment = Path::new(env!("CARGO_MANIFEST_DIR")).join(&fragment);
+        self.watcher.watch(&vertex, RecursiveMode::NonRecursive)?;
+        self.watcher.watch(&fragment, RecursiveMode::NonRecursive)?;
         self.event_handlers.insert(
-            (vertex.to_path_buf(), fragment.to_path_buf()),
+            vertex.canonicalize()?,
             (
                 program_handle.as_unit(),
                 Box::new(|event| {
-                    // TODO: a bunch of shader-hot reload stuff here
-                    println!("{event:?}");
+                    println!("Frag: {event:?}");
+                }),
+            ),
+        );
+        self.event_handlers.insert(
+            fragment.canonicalize()?,
+            (
+                program_handle.as_unit(),
+                Box::new(|event| {
+                    println!("Vert: {event:?}");
                 }),
             ),
         );
@@ -98,16 +100,36 @@ impl ShaderHotReloaderRunner {
         let Self {
             watcher,
             receiver,
-            event_handlers,
+            mut event_handlers,
         } = self;
+
         std::thread::spawn(move || loop {
             match receiver.recv() {
                 Ok(event) => {
-                    println!("watch event {event:?}");
-                    // TODO: Look at event and call correct handler
+                    match event {
+                        Ok(event) => {
+                            for path in &event.paths {
+                                match path.canonicalize() {
+                                    Ok(path) => {
+                                        if let Some((handle, handler)) =
+                                            event_handlers.get_mut(&path)
+                                        {
+                                            handler(event.clone());
+                                        }
+                                    }
+                                    Err(err) => {
+                                        println!("Shader hot-reload error: {err:?}");
+                                    }
+                                }
+                            }
+                        }
+                        Err(err) => {
+                            println!("Shader hot-reload error: {err:?}");
+                        }
+                    };
                 }
                 Err(err) => {
-                    println!("watch event failure {err:?}");
+                    println!("Shader hot-reload error: {err:?}");
                 }
             }
         });
