@@ -128,8 +128,9 @@ impl ShaderHotReloaderRunner {
                         }
                     };
                 }
-                Err(err) => {
-                    println!("Shader hot-reload error: {err:?}");
+                Err(_) => {
+                    println!("Shader Hot-Reloader Stopped");
+                    break;
                 }
             }
         });
