@@ -17,6 +17,7 @@ use cinder::{
 };
 use math::size::Size2D;
 use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use rust_shader_tools::{EnvVersion, OptimizationLevel, ShaderCompiler, ShaderStage};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
@@ -49,7 +50,7 @@ pub struct ShaderHotReloaderRunner {
         PathBuf,
         (
             ResourceHandle<()>,
-            Box<dyn FnMut(notify::event::Event) + Send>,
+            Box<dyn FnMut(&Path, &ShaderCompiler) + Send>, // TODO: return error
         ),
     >,
 }
@@ -79,8 +80,11 @@ impl ShaderHotReloaderRunner {
             vertex.canonicalize()?,
             (
                 program_handle.as_unit(),
-                Box::new(|event| {
-                    println!("Frag: {event:?}");
+                Box::new(|shader_path, shader_compiler| {
+                    println!("{shader_path:?}");
+                    shader_compiler
+                        .compile_shader(shader_path, ShaderStage::Vertex)
+                        .unwrap();
                 }),
             ),
         );
@@ -88,8 +92,11 @@ impl ShaderHotReloaderRunner {
             fragment.canonicalize()?,
             (
                 program_handle.as_unit(),
-                Box::new(|event| {
-                    println!("Vert: {event:?}");
+                Box::new(|shader_path, shader_compiler| {
+                    println!("{shader_path:?}");
+                    shader_compiler
+                        .compile_shader(shader_path, ShaderStage::Fragment)
+                        .unwrap();
                 }),
             ),
         );
@@ -103,6 +110,10 @@ impl ShaderHotReloaderRunner {
             mut event_handlers,
         } = self;
 
+        let shader_compiler =
+            ShaderCompiler::new(EnvVersion::Vulkan1_2, OptimizationLevel::Zero, None)
+                .expect("Could not create shader compiler");
+
         std::thread::spawn(move || loop {
             match receiver.recv() {
                 Ok(event) => {
@@ -114,7 +125,8 @@ impl ShaderHotReloaderRunner {
                                         if let Some((handle, handler)) =
                                             event_handlers.get_mut(&path)
                                         {
-                                            handler(event.clone());
+                                            handler(&path, &shader_compiler);
+                                            // TODO: re-create program with new shader, need to queue it to be used next frame and current program deleted
                                         }
                                     }
                                     Err(err) => {
@@ -134,6 +146,7 @@ impl ShaderHotReloaderRunner {
                 }
             }
         });
+
         ShaderHotReloader { watcher }
     }
 }
@@ -176,8 +189,8 @@ impl Renderer {
             Default::default(),
         )?;
         shader_hot_reloader.set_graphics(
-            "shaders/hot_reload.frag",
             "shaders/hot_reload.vert",
+            "shaders/hot_reload.frag",
             render_pipeline,
         )?;
         vertex_shader.destroy(&device);
