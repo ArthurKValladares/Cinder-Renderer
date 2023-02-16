@@ -45,10 +45,10 @@ fn main() {
     .expect("Could not create shader compiler");
 
     shader_compiler
-        .compile_shader("shaders/depth_mesh.vert", ShaderStage::Vertex)
+        .compile_and_write_shader("shaders/depth_mesh.vert", ShaderStage::Vertex)
         .expect("Could not compile shader");
     shader_compiler
-        .compile_shader("shaders/depth_mesh.frag", ShaderStage::Fragment)
+        .compile_and_write_shader("shaders/depth_mesh.frag", ShaderStage::Fragment)
         .expect("Could not compile shader");
     write_shader_structs(
         &std::fs::read("./shaders/spv/depth_mesh.vert.spv").unwrap(),
@@ -56,10 +56,10 @@ fn main() {
     );
 
     shader_compiler
-        .compile_shader("shaders/depth_texture.vert", ShaderStage::Vertex)
+        .compile_and_write_shader("shaders/depth_texture.vert", ShaderStage::Vertex)
         .expect("Could not compile shader");
     shader_compiler
-        .compile_shader("shaders/depth_texture.frag", ShaderStage::Fragment)
+        .compile_and_write_shader("shaders/depth_texture.frag", ShaderStage::Fragment)
         .expect("Could not compile shader");
     write_shader_structs(
         &std::fs::read("./shaders/spv/depth_texture.vert.spv").unwrap(),

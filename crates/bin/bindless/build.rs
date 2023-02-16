@@ -45,12 +45,11 @@ fn main() {
     .expect("Could not create shader compiler");
 
     shader_compiler
-        .compile_shader("shaders/bindless.vert", ShaderStage::Vertex)
+        .compile_and_write_shader("shaders/bindless.vert", ShaderStage::Vertex)
         .expect("Could not compile shader");
     shader_compiler
-        .compile_shader("shaders/bindless.frag", ShaderStage::Fragment)
+        .compile_and_write_shader("shaders/bindless.frag", ShaderStage::Fragment)
         .expect("Could not compile shader");
-    // TODO: rkvy stuff should be optional
     write_shader_structs(
         &std::fs::read("./shaders/spv/bindless.vert.spv").unwrap(),
         "bindless",

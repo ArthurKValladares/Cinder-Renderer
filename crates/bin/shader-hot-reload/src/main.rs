@@ -21,7 +21,7 @@ use rust_shader_tools::{EnvVersion, OptimizationLevel, ShaderCompiler, ShaderSta
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
-    sync::mpsc::Receiver,
+    sync::{mpsc::Receiver, Arc, Mutex, MutexGuard},
 };
 use winit::{
     dpi::PhysicalSize,
@@ -41,18 +41,15 @@ include!(concat!(
 
 pub struct ShaderHotReloader {
     watcher: RecommendedWatcher,
+    // TODO: If I make the Device theread-safe, I don't need this
+    // TODO: Right now I onlty have the binary data for one shader, need to keep the other one around to re-create pipeline
+    to_be_updated: Arc<Mutex<HashMap<ResourceHandle<GraphicsPipeline>, Vec<u8>>>>,
 }
 
 pub struct ShaderHotReloaderRunner {
     watcher: RecommendedWatcher,
     receiver: Receiver<Result<notify::event::Event, notify::Error>>,
-    event_handlers: HashMap<
-        PathBuf,
-        (
-            ResourceHandle<GraphicsPipeline>,
-            Box<dyn FnMut(&Path, &ShaderCompiler) + Send>, // TODO: return error
-        ),
-    >,
+    event_handlers: HashMap<PathBuf, (ResourceHandle<GraphicsPipeline>, ShaderStage)>,
 }
 
 impl ShaderHotReloaderRunner {
@@ -76,30 +73,13 @@ impl ShaderHotReloaderRunner {
         let fragment = Path::new(env!("CARGO_MANIFEST_DIR")).join(&fragment);
         self.watcher.watch(&vertex, RecursiveMode::NonRecursive)?;
         self.watcher.watch(&fragment, RecursiveMode::NonRecursive)?;
-        // TODO: helper macro
         self.event_handlers.insert(
             vertex.canonicalize()?,
-            (
-                program_handle,
-                Box::new(|shader_path, shader_compiler| {
-                    println!("{shader_path:?}");
-                    shader_compiler
-                        .compile_shader(shader_path, ShaderStage::Vertex)
-                        .unwrap();
-                }),
-            ),
+            (program_handle, ShaderStage::Vertex),
         );
         self.event_handlers.insert(
             fragment.canonicalize()?,
-            (
-                program_handle,
-                Box::new(|shader_path, shader_compiler| {
-                    println!("{shader_path:?}");
-                    shader_compiler
-                        .compile_shader(shader_path, ShaderStage::Fragment)
-                        .unwrap();
-                }),
-            ),
+            (program_handle, ShaderStage::Fragment),
         );
         Ok(())
     }
@@ -114,7 +94,8 @@ impl ShaderHotReloaderRunner {
         let shader_compiler =
             ShaderCompiler::new(EnvVersion::Vulkan1_2, OptimizationLevel::Zero, None)
                 .expect("Could not create shader compiler");
-
+        let to_be_updated = Arc::<Mutex<_>>::default();
+        let to_be_updated_arc = Arc::clone(&to_be_updated);
         std::thread::spawn(move || loop {
             match receiver.recv() {
                 Ok(event) => {
@@ -123,11 +104,17 @@ impl ShaderHotReloaderRunner {
                             for path in &event.paths {
                                 match path.canonicalize() {
                                     Ok(path) => {
-                                        if let Some((handle, handler)) =
-                                            event_handlers.get_mut(&path)
+                                        if let Some((handle, stage)) = event_handlers.get_mut(&path)
                                         {
-                                            handler(&path, &shader_compiler);
-                                            // TODO: re-create program with new shader, need to queue it to be used next frame and current program deleted
+                                            let artifact = shader_compiler
+                                                .compile_shader(&path, *stage)
+                                                .expect("failed to compiler shader");
+                                            let mut lock: MutexGuard<
+                                                HashMap<ResourceHandle<GraphicsPipeline>, Vec<u8>>,
+                                            > = to_be_updated_arc
+                                                .lock()
+                                                .expect("mutex lock poisoned");
+                                            lock.insert(*handle, artifact.as_binary_u8().to_vec());
                                         }
                                     }
                                     Err(err) => {
@@ -148,7 +135,10 @@ impl ShaderHotReloaderRunner {
             }
         });
 
-        ShaderHotReloader { watcher }
+        ShaderHotReloader {
+            watcher,
+            to_be_updated,
+        }
     }
 }
 
