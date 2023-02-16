@@ -49,7 +49,7 @@ pub struct ShaderHotReloaderRunner {
     event_handlers: HashMap<
         PathBuf,
         (
-            ResourceHandle<()>,
+            ResourceHandle<GraphicsPipeline>,
             Box<dyn FnMut(&Path, &ShaderCompiler) + Send>, // TODO: return error
         ),
     >,
@@ -76,10 +76,11 @@ impl ShaderHotReloaderRunner {
         let fragment = Path::new(env!("CARGO_MANIFEST_DIR")).join(&fragment);
         self.watcher.watch(&vertex, RecursiveMode::NonRecursive)?;
         self.watcher.watch(&fragment, RecursiveMode::NonRecursive)?;
+        // TODO: helper macro
         self.event_handlers.insert(
             vertex.canonicalize()?,
             (
-                program_handle.as_unit(),
+                program_handle,
                 Box::new(|shader_path, shader_compiler| {
                     println!("{shader_path:?}");
                     shader_compiler
@@ -91,7 +92,7 @@ impl ShaderHotReloaderRunner {
         self.event_handlers.insert(
             fragment.canonicalize()?,
             (
-                program_handle.as_unit(),
+                program_handle,
                 Box::new(|shader_path, shader_compiler| {
                     println!("{shader_path:?}");
                     shader_compiler

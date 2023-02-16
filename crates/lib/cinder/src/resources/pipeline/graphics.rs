@@ -83,6 +83,7 @@ impl Default for GraphicsPipelineDescription {
 pub struct GraphicsPipeline {
     pub common: PipelineCommon,
     pub bind_group: Option<BindGroup>,
+    pub desc: GraphicsPipelineDescription,
 }
 
 impl GraphicsPipeline {
@@ -251,7 +252,11 @@ impl GraphicsPipeline {
         if let Some(name) = desc.name {
             common.set_name(device, name);
         }
-        Ok(GraphicsPipeline { common, bind_group })
+        Ok(GraphicsPipeline {
+            common,
+            bind_group,
+            desc,
+        })
     }
 
     pub fn destroy(&mut self, device: &ash::Device) {

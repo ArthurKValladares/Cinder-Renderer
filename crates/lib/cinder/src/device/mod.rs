@@ -494,6 +494,24 @@ impl Device {
         )?))
     }
 
+    // TODO: Error handling
+    pub fn recreate_graphics_pipeline(
+        &mut self,
+        vertex_shader: &Shader,
+        fragment_shader: &Shader,
+        handle: ResourceHandle<GraphicsPipeline>,
+    ) {
+        let new = self.pipelines.get(handle).map(|old| {
+            GraphicsPipeline::create(self, vertex_shader, fragment_shader, old.desc).unwrap()
+        });
+
+        if let Some(new) = new {
+            self.pipelines.replace(handle, new);
+        } else {
+            // TODO: error
+        }
+    }
+
     pub(crate) fn get_graphics_pipeline(
         &self,
         handle: ResourceHandle<GraphicsPipeline>,
