@@ -47,7 +47,7 @@ pub enum ShaderError {
     ReflectionError(&'static str),
 }
 
-#[derive(Default)]
+#[derive(Default, Copy, Clone)]
 pub struct ShaderDesc {
     pub name: Option<&'static str>,
 }
@@ -55,6 +55,7 @@ pub struct ShaderDesc {
 pub struct Shader {
     pub(crate) module: vk::ShaderModule,
     pub reflect_data: ShaderData,
+    pub desc: ShaderDesc,
 }
 
 impl Shader {
@@ -72,6 +73,7 @@ impl Shader {
         Ok(Shader {
             module,
             reflect_data,
+            desc,
         })
     }
 

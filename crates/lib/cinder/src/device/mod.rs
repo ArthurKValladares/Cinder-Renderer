@@ -486,6 +486,20 @@ impl Device {
         Ok(self.shaders.insert(Shader::create(self, bytes, desc)?))
     }
 
+    // TODO: Error handling
+    pub fn recreate_shader(&mut self, bytes: &[u8], handle: ResourceHandle<Shader>) {
+        let new = self
+            .shaders
+            .get(handle)
+            .map(|old| Shader::create(self, bytes, old.desc).unwrap());
+
+        if let Some(new) = new {
+            self.shaders.replace(handle, new);
+        } else {
+            // TODO: error
+        }
+    }
+
     pub(crate) fn get_shader(&self, handle: ResourceHandle<Shader>) -> Option<&Shader> {
         self.shaders.get(handle)
     }

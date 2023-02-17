@@ -45,7 +45,7 @@ pub struct ShaderHotReloader {
     program_map: HashMap<ResourceHandle<Shader>, ResourceHandle<GraphicsPipeline>>,
     // TODO: If I make the Device theread-safe, I don't need this
     // TODO: Right now I onlty have the binary data for one shader, need to keep the other one around to re-create pipeline
-    to_be_updated: Arc<Mutex<Vec<(ResourceHandle<Shader>, ShaderStage, Vec<u8>)>>>,
+    to_be_updated: Arc<Mutex<Vec<(ResourceHandle<Shader>, Vec<u8>)>>>,
 }
 
 pub struct ShaderHotReloaderRunner {
@@ -119,15 +119,11 @@ impl ShaderHotReloaderRunner {
                                                 .compile_shader(&path, *stage)
                                                 .expect("failed to compiler shader");
                                             let mut lock: MutexGuard<
-                                                Vec<(ResourceHandle<Shader>, ShaderStage, Vec<u8>)>,
+                                                Vec<(ResourceHandle<Shader>, Vec<u8>)>,
                                             > = to_be_updated_arc
                                                 .lock()
                                                 .expect("mutex lock poisoned");
-                                            lock.push((
-                                                *handle,
-                                                *stage,
-                                                artifact.as_binary_u8().to_vec(),
-                                            ));
+                                            lock.push((*handle, artifact.as_binary_u8().to_vec()));
                                         }
                                     }
                                     Err(err) => {
@@ -335,7 +331,18 @@ impl Renderer {
     }
 
     pub fn update(&mut self) {
-        // TODO: Shader hot-reload updating
+        let mut lock: MutexGuard<Vec<(ResourceHandle<Shader>, Vec<u8>)>> = self
+            .shader_hot_reloader
+            .to_be_updated
+            .lock()
+            .expect("mutex lock poisoned");
+        for (shader_handle, bytes) in lock.drain(..) {
+            self.device.recreate_shader(&bytes, shader_handle);
+            if let Some(pipeline_handle) = self.shader_hot_reloader.program_map.get(&shader_handle)
+            {
+                self.device.recreate_graphics_pipeline(*pipeline_handle);
+            }
+        }
     }
 }
 
