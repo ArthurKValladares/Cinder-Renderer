@@ -11,6 +11,7 @@ use cinder::{
         image::Image,
         pipeline::graphics::GraphicsPipeline,
         sampler::Sampler,
+        shader::Shader,
     },
     view::View,
     ResourceHandle,
@@ -41,15 +42,17 @@ include!(concat!(
 
 pub struct ShaderHotReloader {
     watcher: RecommendedWatcher,
+    program_map: HashMap<ResourceHandle<Shader>, ResourceHandle<GraphicsPipeline>>,
     // TODO: If I make the Device theread-safe, I don't need this
     // TODO: Right now I onlty have the binary data for one shader, need to keep the other one around to re-create pipeline
-    to_be_updated: Arc<Mutex<HashMap<ResourceHandle<GraphicsPipeline>, (ShaderStage, Vec<u8>)>>>,
+    to_be_updated: Arc<Mutex<Vec<(ResourceHandle<Shader>, ShaderStage, Vec<u8>)>>>,
 }
 
 pub struct ShaderHotReloaderRunner {
     watcher: RecommendedWatcher,
     receiver: Receiver<Result<notify::event::Event, notify::Error>>,
-    event_handlers: HashMap<PathBuf, (ResourceHandle<GraphicsPipeline>, ShaderStage)>,
+    shader_map: HashMap<PathBuf, (ResourceHandle<Shader>, ShaderStage)>,
+    program_map: HashMap<ResourceHandle<Shader>, ResourceHandle<GraphicsPipeline>>,
 }
 
 impl ShaderHotReloaderRunner {
@@ -59,28 +62,33 @@ impl ShaderHotReloaderRunner {
         Ok(Self {
             watcher,
             receiver,
-            event_handlers: Default::default(),
+            shader_map: Default::default(),
+            program_map: Default::default(),
         })
     }
 
     pub fn set_graphics(
         &mut self,
         vertex: impl AsRef<Path>,
+        vertex_handle: ResourceHandle<Shader>,
         fragment: impl AsRef<Path>,
+        fragment_handle: ResourceHandle<Shader>,
         program_handle: ResourceHandle<GraphicsPipeline>,
     ) -> Result<()> {
         let vertex = Path::new(env!("CARGO_MANIFEST_DIR")).join(&vertex);
-        let fragment = Path::new(env!("CARGO_MANIFEST_DIR")).join(&fragment);
         self.watcher.watch(&vertex, RecursiveMode::NonRecursive)?;
+        self.shader_map
+            .insert(vertex.canonicalize()?, (vertex_handle, ShaderStage::Vertex));
+        self.program_map.insert(vertex_handle, program_handle);
+
+        let fragment = Path::new(env!("CARGO_MANIFEST_DIR")).join(&fragment);
         self.watcher.watch(&fragment, RecursiveMode::NonRecursive)?;
-        self.event_handlers.insert(
-            vertex.canonicalize()?,
-            (program_handle, ShaderStage::Vertex),
-        );
-        self.event_handlers.insert(
+        self.shader_map.insert(
             fragment.canonicalize()?,
-            (program_handle, ShaderStage::Fragment),
+            (fragment_handle, ShaderStage::Fragment),
         );
+        self.program_map.insert(fragment_handle, program_handle);
+
         Ok(())
     }
 
@@ -88,7 +96,8 @@ impl ShaderHotReloaderRunner {
         let Self {
             watcher,
             receiver,
-            mut event_handlers,
+            mut shader_map,
+            program_map,
         } = self;
 
         let shader_compiler =
@@ -104,24 +113,21 @@ impl ShaderHotReloaderRunner {
                             for path in &event.paths {
                                 match path.canonicalize() {
                                     Ok(path) => {
-                                        if let Some((handle, stage)) = event_handlers.get_mut(&path)
-                                        {
+                                        if let Some((handle, stage)) = shader_map.get_mut(&path) {
                                             println!("{path:?} {stage:?}");
                                             let artifact = shader_compiler
                                                 .compile_shader(&path, *stage)
                                                 .expect("failed to compiler shader");
                                             let mut lock: MutexGuard<
-                                                HashMap<
-                                                    ResourceHandle<GraphicsPipeline>,
-                                                    (ShaderStage, Vec<u8>),
-                                                >,
+                                                Vec<(ResourceHandle<Shader>, ShaderStage, Vec<u8>)>,
                                             > = to_be_updated_arc
                                                 .lock()
                                                 .expect("mutex lock poisoned");
-                                            lock.insert(
+                                            lock.push((
                                                 *handle,
-                                                (*stage, artifact.as_binary_u8().to_vec()),
-                                            );
+                                                *stage,
+                                                artifact.as_binary_u8().to_vec(),
+                                            ));
                                         }
                                     }
                                     Err(err) => {
@@ -144,6 +150,7 @@ impl ShaderHotReloaderRunner {
 
         ShaderHotReloader {
             watcher,
+            program_map,
             to_be_updated,
         }
     }
@@ -185,7 +192,9 @@ impl Renderer {
             device.create_graphics_pipeline(vertex_shader, fragment_shader, Default::default())?;
         shader_hot_reloader.set_graphics(
             "shaders/hot_reload.vert",
+            vertex_shader,
             "shaders/hot_reload.frag",
+            fragment_shader,
             render_pipeline,
         )?;
 
