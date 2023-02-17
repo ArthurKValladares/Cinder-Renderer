@@ -157,9 +157,9 @@ impl Shader {
         self.reflect_data.module().enumerate_entry_points().unwrap()[0].local_size
     }
 
-    pub fn destroy(&mut self, device: &Device) {
+    pub fn destroy(&mut self, device: &ash::Device) {
         unsafe {
-            device.raw().destroy_shader_module(self.module, None);
+            device.destroy_shader_module(self.module, None);
         }
     }
 }

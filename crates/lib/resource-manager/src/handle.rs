@@ -1,10 +1,10 @@
 use std::{
+    fmt::Debug,
     hash::{Hash, Hasher},
     marker::PhantomData,
 };
 
 #[repr(transparent)]
-#[derive(Debug)]
 pub struct ResourceHandle<T> {
     id: usize,
     _marker: PhantomData<T>,
@@ -24,6 +24,14 @@ impl<T> ResourceHandle<T> {
 
     pub fn as_unit(&self) -> ResourceHandle<()> {
         ResourceHandle::<()>::from_index(self.id())
+    }
+}
+
+impl<T> Debug for ResourceHandle<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResourceHandle")
+            .field("id", &self.id)
+            .finish()
     }
 }
 
@@ -60,3 +68,6 @@ impl<T> Ord for ResourceHandle<T> {
         self.id.cmp(&other.id)
     }
 }
+
+unsafe impl<T> Send for ResourceHandle<T> {}
+unsafe impl<T> Sync for ResourceHandle<T> {}

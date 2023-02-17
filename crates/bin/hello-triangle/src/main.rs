@@ -43,21 +43,16 @@ impl Renderer {
         let render_context = RenderContext::new(&device, Default::default())?;
         let view = View::new(&device, Default::default())?;
 
-        let mut vertex_shader = device.create_shader(
+        let vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/triangle.vert.spv"),
             Default::default(),
         )?;
-        let mut fragment_shader = device.create_shader(
+        let fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/triangle.frag.spv"),
             Default::default(),
         )?;
-        let render_pipeline = device.create_graphics_pipeline(
-            &vertex_shader,
-            &fragment_shader,
-            Default::default(),
-        )?;
-        vertex_shader.destroy(&device);
-        fragment_shader.destroy(&device);
+        let render_pipeline =
+            device.create_graphics_pipeline(vertex_shader, fragment_shader, Default::default())?;
 
         let vertex_buffer = device.create_buffer_with_data(
             &[

@@ -62,6 +62,8 @@ pub struct Device {
     queue_family_index: u32,
     present_queue: vk::Queue,
     command_pool: vk::CommandPool,
+    surface: Surface,
+    instance: Instance,
     pub(crate) pipeline_cache: vk::PipelineCache,
     pub(crate) bind_group_pool: BindGroupPool,
     pub(crate) surface_data: SurfaceData,
@@ -74,8 +76,7 @@ pub struct Device {
     dynamic_rendering: DynamicRendering,
     // TODO: Experimenting with some resource handling stuff in Device. maybe should be separate
     pipelines: ResourcePool<GraphicsPipeline>,
-    surface: Surface,
-    instance: Instance,
+    shaders: ResourcePool<Shader>,
 }
 
 impl Device {
@@ -326,6 +327,7 @@ impl Device {
             draw_commands_reuse_fence,
             setup_commands_reuse_fence,
             pipelines: Default::default(),
+            shaders: Default::default(),
         })
     }
 
@@ -476,14 +478,22 @@ impl Device {
         Image::create(self, size, desc)
     }
 
-    pub fn create_shader(&self, bytes: &[u8], desc: ShaderDesc) -> Result<Shader> {
-        Shader::create(self, bytes, desc)
+    pub fn create_shader(
+        &mut self,
+        bytes: &[u8],
+        desc: ShaderDesc,
+    ) -> Result<ResourceHandle<Shader>> {
+        Ok(self.shaders.insert(Shader::create(self, bytes, desc)?))
+    }
+
+    pub(crate) fn get_shader(&self, handle: ResourceHandle<Shader>) -> Option<&Shader> {
+        self.shaders.get(handle)
     }
 
     pub fn create_graphics_pipeline(
         &mut self,
-        vertex_shader: &Shader,
-        fragment_shader: &Shader,
+        vertex_shader: ResourceHandle<Shader>,
+        fragment_shader: ResourceHandle<Shader>,
         desc: GraphicsPipelineDescription,
     ) -> Result<ResourceHandle<GraphicsPipeline>> {
         Ok(self.pipelines.insert(GraphicsPipeline::create(
@@ -495,14 +505,15 @@ impl Device {
     }
 
     // TODO: Error handling
-    pub fn recreate_graphics_pipeline(
-        &mut self,
-        vertex_shader: &Shader,
-        fragment_shader: &Shader,
-        handle: ResourceHandle<GraphicsPipeline>,
-    ) {
+    pub fn recreate_graphics_pipeline(&mut self, handle: ResourceHandle<GraphicsPipeline>) {
         let new = self.pipelines.get(handle).map(|old| {
-            GraphicsPipeline::create(self, vertex_shader, fragment_shader, old.desc).unwrap()
+            GraphicsPipeline::create(
+                self,
+                old.vertex_shader_handle,
+                old.fragment_shader_handle,
+                old.desc,
+            )
+            .unwrap()
         });
 
         if let Some(new) = new {
@@ -637,6 +648,9 @@ impl Drop for Device {
 
             for mut pipeline in self.pipelines.drain() {
                 pipeline.destroy(&self.device);
+            }
+            for mut shader in self.shaders.drain() {
+                shader.destroy(&self.device);
             }
 
             self.bind_group_pool.destroy(&self.device);

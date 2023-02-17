@@ -67,25 +67,23 @@ impl EguiIntegration {
 
         let bind_group_pool =
             BindGroupPool::new(device.raw(), device.max_bindless_descriptor_count()).unwrap();
-        let mut vertex_shader = device.create_shader(
+        let vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/egui.vert.spv"),
             Default::default(),
         )?;
-        let mut fragment_shader = device.create_shader(
+        let fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/egui.frag.spv"),
             Default::default(),
         )?;
         let pipeline = device.create_graphics_pipeline(
-            &vertex_shader,
-            &fragment_shader,
+            vertex_shader,
+            fragment_shader,
             GraphicsPipelineDescription {
                 blending: ColorBlendState::pma(),
                 surface_format: device.surface_data().format(),
                 ..Default::default()
             },
         )?;
-        vertex_shader.destroy(&device);
-        fragment_shader.destroy(&device);
 
         let sampler = device.create_sampler(&device, Default::default())?;
 

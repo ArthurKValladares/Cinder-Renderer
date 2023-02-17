@@ -7,7 +7,15 @@ use crate::resources::{
 };
 use anyhow::Result;
 use ash::vk;
+use resource_manager::ResourceHandle;
 use std::ffi::CStr;
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum GraphicsPipelineError {
+    #[error("shader for handle not in resource pool: {0:?}")]
+    ShaderNotInResourcePool(ResourceHandle<Shader>),
+}
 
 #[repr(C)]
 #[derive(Debug, Clone, Copy)]
@@ -83,16 +91,25 @@ impl Default for GraphicsPipelineDescription {
 pub struct GraphicsPipeline {
     pub common: PipelineCommon,
     pub bind_group: Option<BindGroup>,
+    pub vertex_shader_handle: ResourceHandle<Shader>,
+    pub fragment_shader_handle: ResourceHandle<Shader>,
     pub desc: GraphicsPipelineDescription,
 }
 
 impl GraphicsPipeline {
     pub(crate) fn create(
         device: &Device,
-        vertex_shader: &Shader,
-        fragment_shader: &Shader,
+        vertex_shader_handle: ResourceHandle<Shader>,
+        fragment_shader_handle: ResourceHandle<Shader>,
         desc: GraphicsPipelineDescription,
     ) -> Result<Self> {
+        let vertex_shader = device.get_shader(vertex_shader_handle).ok_or(
+            GraphicsPipelineError::ShaderNotInResourcePool(vertex_shader_handle),
+        )?;
+        let fragment_shader = device.get_shader(fragment_shader_handle).ok_or(
+            GraphicsPipelineError::ShaderNotInResourcePool(fragment_shader_handle),
+        )?;
+
         //
         // Pipeline stuff, pretty temp
         //
@@ -255,6 +272,8 @@ impl GraphicsPipeline {
         Ok(GraphicsPipeline {
             common,
             bind_group,
+            vertex_shader_handle,
+            fragment_shader_handle,
             desc,
         })
     }

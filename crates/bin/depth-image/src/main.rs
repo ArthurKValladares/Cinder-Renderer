@@ -97,46 +97,36 @@ impl Renderer {
             },
         )?;
 
-        let mesh_render_pipeline = {
-            let mut vertex_shader = device.create_shader(
-                include_bytes!("../shaders/spv/depth_mesh.vert.spv"),
-                Default::default(),
-            )?;
-            let mut fragment_shader = device.create_shader(
-                include_bytes!("../shaders/spv/depth_mesh.frag.spv"),
-                Default::default(),
-            )?;
-            let render_pipeline = device.create_graphics_pipeline(
-                &vertex_shader,
-                &fragment_shader,
-                GraphicsPipelineDescription {
-                    depth_format: Some(Format::D32_SFloat),
-                    ..Default::default()
-                },
-            )?;
-            vertex_shader.destroy(&device);
-            fragment_shader.destroy(&device);
-            render_pipeline
-        };
+        let mesh_vertex_shader = device.create_shader(
+            include_bytes!("../shaders/spv/depth_mesh.vert.spv"),
+            Default::default(),
+        )?;
+        let mesh_fragment_shader = device.create_shader(
+            include_bytes!("../shaders/spv/depth_mesh.frag.spv"),
+            Default::default(),
+        )?;
+        let mesh_render_pipeline = device.create_graphics_pipeline(
+            mesh_vertex_shader,
+            mesh_fragment_shader,
+            GraphicsPipelineDescription {
+                depth_format: Some(Format::D32_SFloat),
+                ..Default::default()
+            },
+        )?;
 
-        let texture_render_pipeline = {
-            let mut vertex_shader = device.create_shader(
-                include_bytes!("../shaders/spv/depth_texture.vert.spv"),
-                Default::default(),
-            )?;
-            let mut fragment_shader = device.create_shader(
-                include_bytes!("../shaders/spv/depth_texture.frag.spv"),
-                Default::default(),
-            )?;
-            let render_pipeline = device.create_graphics_pipeline(
-                &vertex_shader,
-                &fragment_shader,
-                Default::default(),
-            )?;
-            vertex_shader.destroy(&device);
-            fragment_shader.destroy(&device);
-            render_pipeline
-        };
+        let mut texture_vertex_shader = device.create_shader(
+            include_bytes!("../shaders/spv/depth_texture.vert.spv"),
+            Default::default(),
+        )?;
+        let mut texture_fragment_shader = device.create_shader(
+            include_bytes!("../shaders/spv/depth_texture.frag.spv"),
+            Default::default(),
+        )?;
+        let texture_render_pipeline = device.create_graphics_pipeline(
+            texture_vertex_shader,
+            texture_fragment_shader,
+            Default::default(),
+        )?;
 
         let cube_vertex_buffer = device.create_buffer_with_data(
             &[

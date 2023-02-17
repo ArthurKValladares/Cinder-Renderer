@@ -69,28 +69,26 @@ impl Renderer {
             },
         )?;
 
-        let mut vertex_shader = device.create_shader(
+        let vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/debug.vert.spv"),
             ShaderDesc {
                 name: Some("vertex shader"),
             },
         )?;
-        let mut fragment_shader = device.create_shader(
+        let fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/debug.frag.spv"),
             ShaderDesc {
                 name: Some("fragment shader"),
             },
         )?;
         let render_pipeline = device.create_graphics_pipeline(
-            &vertex_shader,
-            &fragment_shader,
+            vertex_shader,
+            fragment_shader,
             GraphicsPipelineDescription {
                 name: Some("debug pipeline"),
                 ..Default::default()
             },
         )?;
-        vertex_shader.destroy(&device);
-        fragment_shader.destroy(&device);
 
         let vertex_buffer = device.create_buffer_with_data(
             &[

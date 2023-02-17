@@ -43,7 +43,7 @@ pub struct ShaderHotReloader {
     watcher: RecommendedWatcher,
     // TODO: If I make the Device theread-safe, I don't need this
     // TODO: Right now I onlty have the binary data for one shader, need to keep the other one around to re-create pipeline
-    to_be_updated: Arc<Mutex<HashMap<ResourceHandle<GraphicsPipeline>, Vec<u8>>>>,
+    to_be_updated: Arc<Mutex<HashMap<ResourceHandle<GraphicsPipeline>, (ShaderStage, Vec<u8>)>>>,
 }
 
 pub struct ShaderHotReloaderRunner {
@@ -106,15 +106,22 @@ impl ShaderHotReloaderRunner {
                                     Ok(path) => {
                                         if let Some((handle, stage)) = event_handlers.get_mut(&path)
                                         {
+                                            println!("{path:?} {stage:?}");
                                             let artifact = shader_compiler
                                                 .compile_shader(&path, *stage)
                                                 .expect("failed to compiler shader");
                                             let mut lock: MutexGuard<
-                                                HashMap<ResourceHandle<GraphicsPipeline>, Vec<u8>>,
+                                                HashMap<
+                                                    ResourceHandle<GraphicsPipeline>,
+                                                    (ShaderStage, Vec<u8>),
+                                                >,
                                             > = to_be_updated_arc
                                                 .lock()
                                                 .expect("mutex lock poisoned");
-                                            lock.insert(*handle, artifact.as_binary_u8().to_vec());
+                                            lock.insert(
+                                                *handle,
+                                                (*stage, artifact.as_binary_u8().to_vec()),
+                                            );
                                         }
                                     }
                                     Err(err) => {
@@ -166,26 +173,21 @@ impl Renderer {
 
         let view = View::new(&device, Default::default())?;
 
-        let mut vertex_shader = device.create_shader(
+        let vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/hot_reload.vert.spv"),
             Default::default(),
         )?;
-        let mut fragment_shader = device.create_shader(
+        let fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/hot_reload.frag.spv"),
             Default::default(),
         )?;
-        let render_pipeline = device.create_graphics_pipeline(
-            &vertex_shader,
-            &fragment_shader,
-            Default::default(),
-        )?;
+        let render_pipeline =
+            device.create_graphics_pipeline(vertex_shader, fragment_shader, Default::default())?;
         shader_hot_reloader.set_graphics(
             "shaders/hot_reload.vert",
             "shaders/hot_reload.frag",
             render_pipeline,
         )?;
-        vertex_shader.destroy(&device);
-        fragment_shader.destroy(&device);
 
         let vertex_buffer = device.create_buffer_with_data(
             &[
@@ -321,6 +323,10 @@ impl Renderer {
         self.device.resize(width, height)?;
         self.view.resize(&self.device)?;
         Ok(())
+    }
+
+    pub fn update(&mut self) {
+        // TODO: Shader hot-reload updating
     }
 }
 
