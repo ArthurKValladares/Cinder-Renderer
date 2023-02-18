@@ -330,7 +330,7 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn update(&mut self) {
+    pub fn update(&mut self) -> Result<()> {
         let mut lock: MutexGuard<Vec<(ResourceHandle<Shader>, Vec<u8>)>> = self
             .shader_hot_reloader
             .to_be_updated
@@ -343,6 +343,7 @@ impl Renderer {
                 self.device.recreate_graphics_pipeline(*pipeline_handle);
             }
         }
+        Ok(())
     }
 }
 
@@ -376,6 +377,8 @@ fn main() {
 
     event_loop.run(move |event, _, control_flow| {
         *control_flow = ControlFlow::Poll;
+
+        renderer.update().expect("could not update renderer");
 
         match event {
             Event::WindowEvent {
