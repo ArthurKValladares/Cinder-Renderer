@@ -14,6 +14,8 @@ pub mod compute;
 pub mod graphics;
 pub mod push_constant;
 
+// TODO: Can refactor a bunch of pipeline stuff
+
 #[derive(Debug)]
 pub struct PipelineCommonData {
     // TODO: Think of a better key
@@ -54,12 +56,12 @@ impl PipelineCommon {
         device.set_name(
             vk::ObjectType::PIPELINE,
             self.pipeline,
-            &format!("{} [pipeline]", name),
+            &format!("{name} [pipeline]"),
         );
         device.set_name(
             vk::ObjectType::PIPELINE_LAYOUT,
             self.pipeline_layout,
-            &format!("{} [pipeline layout]", name),
+            &format!("{name} [pipeline layout]"),
         );
     }
 

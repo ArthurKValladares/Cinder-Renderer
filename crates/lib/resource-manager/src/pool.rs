@@ -39,6 +39,14 @@ impl<T> ResourcePool<T> {
         self.resources.get(&handle.id())
     }
 
+    pub fn get_mut(&mut self, handle: ResourceHandle<T>) -> Option<&mut T> {
+        self.resources.get_mut(&handle.id())
+    }
+
+    pub fn remove(&mut self, handle: ResourceHandle<T>) -> Option<T> {
+        self.resources.remove(&handle.id())
+    }
+
     pub fn drain(&mut self) -> impl Iterator<Item = T> + '_ {
         self.resources.drain().map(|(_, v)| v)
     }

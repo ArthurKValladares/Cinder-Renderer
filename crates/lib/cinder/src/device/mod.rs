@@ -519,21 +519,16 @@ impl Device {
     }
 
     // TODO: Error handling
-    pub fn recreate_graphics_pipeline(&mut self, handle: ResourceHandle<GraphicsPipeline>) {
-        let new = self.pipelines.get(handle).map(|old| {
-            GraphicsPipeline::create(
-                self,
-                old.vertex_shader_handle,
-                old.fragment_shader_handle,
-                old.desc,
-            )
-            .unwrap()
-        });
-
-        if let Some(new) = new {
-            self.pipelines.replace(handle, new);
+    pub fn recreate_graphics_pipeline(
+        &mut self,
+        handle: ResourceHandle<GraphicsPipeline>,
+    ) -> Result<()> {
+        if let Some(mut old) = self.pipelines.remove(handle) {
+            old.recreate(self)?;
+            self.pipelines.replace(handle, old);
+            Ok(())
         } else {
-            // TODO: error
+            Err(DeviceError::InvalidPipelineHandle.into())
         }
     }
 

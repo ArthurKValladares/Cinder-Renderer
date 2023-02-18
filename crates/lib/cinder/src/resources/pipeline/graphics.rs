@@ -97,25 +97,13 @@ pub struct GraphicsPipeline {
 }
 
 impl GraphicsPipeline {
-    pub(crate) fn create(
+    fn create_raw_pipeline(
         device: &Device,
-        vertex_shader_handle: ResourceHandle<Shader>,
-        fragment_shader_handle: ResourceHandle<Shader>,
-        desc: GraphicsPipelineDescription,
-    ) -> Result<Self> {
-        let vertex_shader = device.get_shader(vertex_shader_handle).ok_or(
-            GraphicsPipelineError::ShaderNotInResourcePool(vertex_shader_handle),
-        )?;
-        let fragment_shader = device.get_shader(fragment_shader_handle).ok_or(
-            GraphicsPipelineError::ShaderNotInResourcePool(fragment_shader_handle),
-        )?;
-
-        //
-        // Pipeline stuff, pretty temp
-        //
-        let (pipeline_layout, common_data) =
-            get_pipeline_layout(device, &[vertex_shader, fragment_shader], desc.name)?;
-
+        vertex_shader: &Shader,
+        fragment_shader: &Shader,
+        desc: &GraphicsPipelineDescription,
+        pipeline_layout: vk::PipelineLayout,
+    ) -> Result<vk::Pipeline> {
         let atttributes = vertex_shader.reflect_data.get_vertex_attributes();
         let binding = 0; // TODO: Support non-zero bindings
         let vertex_input_binding_descriptions = [vk::VertexInputBindingDescription {
@@ -241,6 +229,36 @@ impl GraphicsPipeline {
             }
         }
 
+        Ok(pipeline)
+    }
+
+    pub(crate) fn create(
+        device: &Device,
+        vertex_shader_handle: ResourceHandle<Shader>,
+        fragment_shader_handle: ResourceHandle<Shader>,
+        desc: GraphicsPipelineDescription,
+    ) -> Result<Self> {
+        let vertex_shader = device.get_shader(vertex_shader_handle).ok_or(
+            GraphicsPipelineError::ShaderNotInResourcePool(vertex_shader_handle),
+        )?;
+        let fragment_shader = device.get_shader(fragment_shader_handle).ok_or(
+            GraphicsPipelineError::ShaderNotInResourcePool(fragment_shader_handle),
+        )?;
+
+        //
+        // Pipeline stuff, pretty temp
+        //
+        let (pipeline_layout, common_data) =
+            get_pipeline_layout(device, &[vertex_shader, fragment_shader], desc.name)?;
+
+        let pipeline = Self::create_raw_pipeline(
+            device,
+            vertex_shader,
+            fragment_shader,
+            &desc,
+            pipeline_layout,
+        )?;
+
         if let Some(name) = desc.name {
             device.set_name(vk::ObjectType::PIPELINE, pipeline, name)
         }
@@ -276,6 +294,27 @@ impl GraphicsPipeline {
             fragment_shader_handle,
             desc,
         })
+    }
+
+    pub fn recreate(&mut self, device: &Device) -> Result<()> {
+        let vertex_shader = device.get_shader(self.vertex_shader_handle).ok_or(
+            GraphicsPipelineError::ShaderNotInResourcePool(self.vertex_shader_handle),
+        )?;
+        let fragment_shader = device.get_shader(self.fragment_shader_handle).ok_or(
+            GraphicsPipelineError::ShaderNotInResourcePool(self.fragment_shader_handle),
+        )?;
+        let new_pipeline = Self::create_raw_pipeline(
+            device,
+            vertex_shader,
+            fragment_shader,
+            &self.desc,
+            self.common.pipeline_layout,
+        )?;
+        unsafe {
+            device.raw().destroy_pipeline(self.common.pipeline, None);
+        }
+        self.common.pipeline = new_pipeline;
+        Ok(())
     }
 
     pub fn destroy(&mut self, device: &ash::Device) {
