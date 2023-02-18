@@ -296,7 +296,7 @@ impl GraphicsPipeline {
         })
     }
 
-    pub fn recreate(&mut self, device: &Device) -> Result<()> {
+    pub fn recreate(&mut self, device: &Device) -> Result<vk::Pipeline> {
         let vertex_shader = device.get_shader(self.vertex_shader_handle).ok_or(
             GraphicsPipelineError::ShaderNotInResourcePool(self.vertex_shader_handle),
         )?;
@@ -310,11 +310,9 @@ impl GraphicsPipeline {
             &self.desc,
             self.common.pipeline_layout,
         )?;
-        unsafe {
-            device.raw().destroy_pipeline(self.common.pipeline, None);
-        }
+        let old = self.common.pipeline;
         self.common.pipeline = new_pipeline;
-        Ok(())
+        Ok(old)
     }
 
     pub fn destroy(&mut self, device: &ash::Device) {

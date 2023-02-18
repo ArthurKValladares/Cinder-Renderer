@@ -17,12 +17,17 @@ use cinder::{
     ResourceHandle,
 };
 use math::size::Size2D;
-use notify::{RecommendedWatcher, RecursiveMode, Watcher};
+use notify_debouncer_mini::{
+    new_debouncer,
+    notify::{self, RecommendedWatcher, RecursiveMode},
+    DebouncedEvent, Debouncer,
+};
 use rust_shader_tools::{EnvVersion, OptimizationLevel, ShaderCompiler, ShaderStage};
 use std::{
     collections::HashMap,
     path::{Path, PathBuf},
     sync::{mpsc::Receiver, Arc, Mutex, MutexGuard},
+    time::Duration,
 };
 use winit::{
     dpi::PhysicalSize,
@@ -41,7 +46,7 @@ include!(concat!(
 ));
 
 pub struct ShaderHotReloader {
-    watcher: RecommendedWatcher,
+    watcher: Debouncer<RecommendedWatcher>,
     program_map: HashMap<ResourceHandle<Shader>, ResourceHandle<GraphicsPipeline>>,
     // TODO: If I make the Device theread-safe, I don't need this
     // TODO: Right now I onlty have the binary data for one shader, need to keep the other one around to re-create pipeline
@@ -49,8 +54,8 @@ pub struct ShaderHotReloader {
 }
 
 pub struct ShaderHotReloaderRunner {
-    watcher: RecommendedWatcher,
-    receiver: Receiver<Result<notify::event::Event, notify::Error>>,
+    watcher: Debouncer<RecommendedWatcher>,
+    receiver: Receiver<Result<Vec<DebouncedEvent>, Vec<notify::Error>>>,
     shader_map: HashMap<PathBuf, (ResourceHandle<Shader>, ShaderStage)>,
     program_map: HashMap<ResourceHandle<Shader>, ResourceHandle<GraphicsPipeline>>,
 }
@@ -58,7 +63,7 @@ pub struct ShaderHotReloaderRunner {
 impl ShaderHotReloaderRunner {
     pub fn new() -> Result<Self> {
         let (sender, receiver) = std::sync::mpsc::channel();
-        let watcher = notify::Watcher::new(sender, Default::default())?;
+        let watcher = new_debouncer(Duration::from_secs_f64(0.1), None, sender)?;
         Ok(Self {
             watcher,
             receiver,
@@ -76,13 +81,17 @@ impl ShaderHotReloaderRunner {
         program_handle: ResourceHandle<GraphicsPipeline>,
     ) -> Result<()> {
         let vertex = Path::new(env!("CARGO_MANIFEST_DIR")).join(&vertex);
-        self.watcher.watch(&vertex, RecursiveMode::NonRecursive)?;
+        self.watcher
+            .watcher()
+            .watch(&vertex, RecursiveMode::NonRecursive)?;
         self.shader_map
             .insert(vertex.canonicalize()?, (vertex_handle, ShaderStage::Vertex));
         self.program_map.insert(vertex_handle, program_handle);
 
         let fragment = Path::new(env!("CARGO_MANIFEST_DIR")).join(&fragment);
-        self.watcher.watch(&fragment, RecursiveMode::NonRecursive)?;
+        self.watcher
+            .watcher()
+            .watch(&fragment, RecursiveMode::NonRecursive)?;
         self.shader_map.insert(
             fragment.canonicalize()?,
             (fragment_handle, ShaderStage::Fragment),
@@ -109,12 +118,12 @@ impl ShaderHotReloaderRunner {
             match receiver.recv() {
                 Ok(event) => {
                     match event {
-                        Ok(event) => {
-                            for path in &event.paths {
-                                match path.canonicalize() {
+                        Ok(events) => {
+                            for event in &events {
+                                match event.path.canonicalize() {
                                     Ok(path) => {
                                         if let Some((handle, stage)) = shader_map.get_mut(&path) {
-                                            println!("{path:?} {stage:?}");
+                                            println!("{event:#?}");
                                             let artifact = shader_compiler
                                                 .compile_shader(&path, *stage)
                                                 .expect("failed to compiler shader");
@@ -340,7 +349,7 @@ impl Renderer {
             self.device.recreate_shader(&bytes, shader_handle);
             if let Some(pipeline_handle) = self.shader_hot_reloader.program_map.get(&shader_handle)
             {
-                self.device.recreate_graphics_pipeline(*pipeline_handle);
+                self.device.recreate_graphics_pipeline(*pipeline_handle)?;
             }
         }
         Ok(())

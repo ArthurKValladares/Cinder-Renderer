@@ -77,6 +77,8 @@ pub struct Device {
     // TODO: Experimenting with some resource handling stuff in Device. maybe should be separate
     pipelines: ResourcePool<GraphicsPipeline>,
     shaders: ResourcePool<Shader>,
+    // TODO: better abstraction
+    purgatory: Vec<vk::Pipeline>,
 }
 
 impl Device {
@@ -328,6 +330,7 @@ impl Device {
             setup_commands_reuse_fence,
             pipelines: Default::default(),
             shaders: Default::default(),
+            purgatory: Default::default(),
         })
     }
 
@@ -524,7 +527,7 @@ impl Device {
         handle: ResourceHandle<GraphicsPipeline>,
     ) -> Result<()> {
         if let Some(mut old) = self.pipelines.remove(handle) {
-            old.recreate(self)?;
+            self.purgatory.push(old.recreate(self)?);
             self.pipelines.replace(handle, old);
             Ok(())
         } else {
