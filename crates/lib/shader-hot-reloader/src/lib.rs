@@ -77,8 +77,7 @@ impl ShaderHotReloaderRunner {
         let absolute_vertex_path = absolute_vertex_path.as_ref();
         debug_assert!(
             absolute_vertex_path.is_absolute(),
-            "paths passed to shader hot reloader must be absolute: {:?}",
-            absolute_vertex_path
+            "paths passed to shader hot reloader must be absolute: {absolute_vertex_path:?}"
         );
         self.watcher
             .watcher()
@@ -92,12 +91,11 @@ impl ShaderHotReloaderRunner {
         let absolute_fragment_path = absolute_fragment_path.as_ref();
         debug_assert!(
             absolute_fragment_path.is_absolute(),
-            "paths passed to shader hot reloader must be absolute: {:?}",
-            absolute_fragment_path
+            "paths passed to shader hot reloader must be absolute: {absolute_fragment_path:?}"
         );
         self.watcher
             .watcher()
-            .watch(&absolute_fragment_path, RecursiveMode::NonRecursive)?;
+            .watch(absolute_fragment_path, RecursiveMode::NonRecursive)?;
         self.shader_map.insert(
             absolute_fragment_path.to_path_buf(),
             (fragment_handle, ShaderStage::Fragment),
@@ -126,26 +124,17 @@ impl ShaderHotReloaderRunner {
                     match event {
                         Ok(events) => {
                             for event in &events {
-                                match event.path.canonicalize() {
-                                    Ok(path) => {
-                                        if let Some((handle, stage)) = shader_map.get_mut(&path) {
-                                            println!("{event:#?}");
-                                            let artifact = shader_compiler
-                                                .compile_shader(&path, *stage)
-                                                .expect("failed to compiler shader");
-                                            let mut lock: MutexGuard<UpdateList> =
-                                                to_be_updated_arc
-                                                    .lock()
-                                                    .expect("mutex lock poisoned");
-                                            lock.push(UpdateData {
-                                                shader_handle: *handle,
-                                                bytes: artifact.as_binary_u8().to_vec(),
-                                            });
-                                        }
-                                    }
-                                    Err(err) => {
-                                        println!("Shader hot-reload error: {err:?}");
-                                    }
+                                if let Some((handle, stage)) = shader_map.get_mut(&event.path) {
+                                    println!("{event:#?}");
+                                    let artifact = shader_compiler
+                                        .compile_shader(&event.path, *stage)
+                                        .expect("failed to compiler shader");
+                                    let mut lock: MutexGuard<UpdateList> =
+                                        to_be_updated_arc.lock().expect("mutex lock poisoned");
+                                    lock.push(UpdateData {
+                                        shader_handle: *handle,
+                                        bytes: artifact.as_binary_u8().to_vec(),
+                                    });
                                 }
                             }
                         }

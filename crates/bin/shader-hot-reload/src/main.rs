@@ -75,7 +75,7 @@ impl Renderer {
                 .canonicalize()?,
             vertex_shader,
             Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("shaders/hot_reload.vert")
+                .join("shaders/hot_reload.frag")
                 .canonicalize()?,
             fragment_shader,
             render_pipeline,
