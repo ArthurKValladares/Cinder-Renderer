@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use anyhow::Result;
 use cinder::{
     context::{
@@ -11,24 +13,12 @@ use cinder::{
         image::Image,
         pipeline::graphics::GraphicsPipeline,
         sampler::Sampler,
-        shader::Shader,
     },
     view::View,
     ResourceHandle,
 };
 use math::size::Size2D;
-use notify_debouncer_mini::{
-    new_debouncer,
-    notify::{self, RecommendedWatcher, RecursiveMode},
-    DebouncedEvent, Debouncer,
-};
-use rust_shader_tools::{EnvVersion, OptimizationLevel, ShaderCompiler, ShaderStage};
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-    sync::{mpsc::Receiver, Arc, Mutex, MutexGuard},
-    time::Duration,
-};
+use shader_hot_reloader::{ShaderHotReloader, ShaderHotReloaderRunner};
 use winit::{
     dpi::PhysicalSize,
     event::VirtualKeyCode,
@@ -44,122 +34,6 @@ include!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/gen/hot_reload_shader_structs.rs"
 ));
-
-pub struct ShaderHotReloader {
-    watcher: Debouncer<RecommendedWatcher>,
-    program_map: HashMap<ResourceHandle<Shader>, ResourceHandle<GraphicsPipeline>>,
-    // TODO: If I make the Device theread-safe, I don't need this
-    // TODO: Right now I onlty have the binary data for one shader, need to keep the other one around to re-create pipeline
-    to_be_updated: Arc<Mutex<Vec<(ResourceHandle<Shader>, Vec<u8>)>>>,
-}
-
-pub struct ShaderHotReloaderRunner {
-    watcher: Debouncer<RecommendedWatcher>,
-    receiver: Receiver<Result<Vec<DebouncedEvent>, Vec<notify::Error>>>,
-    shader_map: HashMap<PathBuf, (ResourceHandle<Shader>, ShaderStage)>,
-    program_map: HashMap<ResourceHandle<Shader>, ResourceHandle<GraphicsPipeline>>,
-}
-
-impl ShaderHotReloaderRunner {
-    pub fn new() -> Result<Self> {
-        let (sender, receiver) = std::sync::mpsc::channel();
-        let watcher = new_debouncer(Duration::from_secs_f64(0.1), None, sender)?;
-        Ok(Self {
-            watcher,
-            receiver,
-            shader_map: Default::default(),
-            program_map: Default::default(),
-        })
-    }
-
-    pub fn set_graphics(
-        &mut self,
-        vertex: impl AsRef<Path>,
-        vertex_handle: ResourceHandle<Shader>,
-        fragment: impl AsRef<Path>,
-        fragment_handle: ResourceHandle<Shader>,
-        program_handle: ResourceHandle<GraphicsPipeline>,
-    ) -> Result<()> {
-        let vertex = Path::new(env!("CARGO_MANIFEST_DIR")).join(&vertex);
-        self.watcher
-            .watcher()
-            .watch(&vertex, RecursiveMode::NonRecursive)?;
-        self.shader_map
-            .insert(vertex.canonicalize()?, (vertex_handle, ShaderStage::Vertex));
-        self.program_map.insert(vertex_handle, program_handle);
-
-        let fragment = Path::new(env!("CARGO_MANIFEST_DIR")).join(&fragment);
-        self.watcher
-            .watcher()
-            .watch(&fragment, RecursiveMode::NonRecursive)?;
-        self.shader_map.insert(
-            fragment.canonicalize()?,
-            (fragment_handle, ShaderStage::Fragment),
-        );
-        self.program_map.insert(fragment_handle, program_handle);
-
-        Ok(())
-    }
-
-    pub fn run(self) -> ShaderHotReloader {
-        let Self {
-            watcher,
-            receiver,
-            mut shader_map,
-            program_map,
-        } = self;
-
-        let shader_compiler =
-            ShaderCompiler::new(EnvVersion::Vulkan1_2, OptimizationLevel::Zero, None)
-                .expect("Could not create shader compiler");
-        let to_be_updated = Arc::<Mutex<_>>::default();
-        let to_be_updated_arc = Arc::clone(&to_be_updated);
-        std::thread::spawn(move || loop {
-            match receiver.recv() {
-                Ok(event) => {
-                    match event {
-                        Ok(events) => {
-                            for event in &events {
-                                match event.path.canonicalize() {
-                                    Ok(path) => {
-                                        if let Some((handle, stage)) = shader_map.get_mut(&path) {
-                                            println!("{event:#?}");
-                                            let artifact = shader_compiler
-                                                .compile_shader(&path, *stage)
-                                                .expect("failed to compiler shader");
-                                            let mut lock: MutexGuard<
-                                                Vec<(ResourceHandle<Shader>, Vec<u8>)>,
-                                            > = to_be_updated_arc
-                                                .lock()
-                                                .expect("mutex lock poisoned");
-                                            lock.push((*handle, artifact.as_binary_u8().to_vec()));
-                                        }
-                                    }
-                                    Err(err) => {
-                                        println!("Shader hot-reload error: {err:?}");
-                                    }
-                                }
-                            }
-                        }
-                        Err(err) => {
-                            println!("Shader hot-reload error: {err:?}");
-                        }
-                    };
-                }
-                Err(_) => {
-                    println!("Shader Hot-Reloader Stopped");
-                    break;
-                }
-            }
-        });
-
-        ShaderHotReloader {
-            watcher,
-            program_map,
-            to_be_updated,
-        }
-    }
-}
 
 pub struct Renderer {
     shader_hot_reloader: ShaderHotReloader,
@@ -196,9 +70,13 @@ impl Renderer {
         let render_pipeline =
             device.create_graphics_pipeline(vertex_shader, fragment_shader, Default::default())?;
         shader_hot_reloader.set_graphics(
-            "shaders/hot_reload.vert",
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("shaders/hot_reload.vert")
+                .canonicalize()?,
             vertex_shader,
-            "shaders/hot_reload.frag",
+            Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("shaders/hot_reload.vert")
+                .canonicalize()?,
             fragment_shader,
             render_pipeline,
         )?;
@@ -340,15 +218,13 @@ impl Renderer {
     }
 
     pub fn update(&mut self) -> Result<()> {
-        let mut lock: MutexGuard<Vec<(ResourceHandle<Shader>, Vec<u8>)>> = self
-            .shader_hot_reloader
-            .to_be_updated
-            .lock()
-            .expect("mutex lock poisoned");
-        for (shader_handle, bytes) in lock.drain(..) {
-            self.device.recreate_shader(&bytes, shader_handle);
-            if let Some(pipeline_handle) = self.shader_hot_reloader.program_map.get(&shader_handle)
+        for update_data in self.shader_hot_reloader.drain()? {
+            if let Some(pipeline_handle) = self
+                .shader_hot_reloader
+                .get_pipeline(update_data.shader_handle)
             {
+                self.device
+                    .recreate_shader(&update_data.bytes, update_data.shader_handle);
                 self.device.recreate_graphics_pipeline(*pipeline_handle)?;
             }
         }

@@ -1985,13 +1985,23 @@ dependencies = [
  "home",
  "image",
  "math",
- "notify-debouncer-mini",
  "rust-shader-tools",
  "serde",
  "serde_json",
+ "shader-hot-reloader",
  "thiserror",
  "util",
  "winit",
+]
+
+[[package]]
+name = "shader-hot-reloader"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cinder",
+ "notify-debouncer-mini",
+ "rust-shader-tools",
 ]
 
 [[package]]
