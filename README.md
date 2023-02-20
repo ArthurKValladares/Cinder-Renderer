@@ -44,3 +44,12 @@ Draw a complex scene using bindless textures and a uniform buffer for vertex dat
 
 
 ![sponza](https://user-images.githubusercontent.com/23410311/218249268-324efc6f-941c-4787-babb-00d82991ae1d.png)
+
+### [Hot Reload](./crates/bin/shader-hot-reload/src/main.rs)<br/>
+Shader hot-reloading.
+
+
+
+https://user-images.githubusercontent.com/23410311/220039871-11cf4ead-a305-4210-bf8e-04ae78656b48.mp4
+
+
