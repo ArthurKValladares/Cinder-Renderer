@@ -94,38 +94,38 @@ impl From<vk::Format> for Format {
 
 // TODO: enum doesn't really work here, should be something more bitfield-like
 #[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
-pub enum Usage {
+pub enum ImageUsage {
     Depth,
     DepthSampled,
     Texture,
     StorageTexture,
 }
 
-impl Default for Usage {
+impl Default for ImageUsage {
     fn default() -> Self {
         Self::Texture
     }
 }
 
-impl From<Usage> for vk::ImageUsageFlags {
-    fn from(usage: Usage) -> Self {
+impl From<ImageUsage> for vk::ImageUsageFlags {
+    fn from(usage: ImageUsage) -> Self {
         match usage {
-            Usage::Depth => vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
-            Usage::DepthSampled => {
+            ImageUsage::Depth => vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT,
+            ImageUsage::DepthSampled => {
                 vk::ImageUsageFlags::DEPTH_STENCIL_ATTACHMENT | vk::ImageUsageFlags::SAMPLED
             }
-            Usage::Texture => vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED,
-            Usage::StorageTexture => vk::ImageUsageFlags::STORAGE,
+            ImageUsage::Texture => vk::ImageUsageFlags::TRANSFER_DST | vk::ImageUsageFlags::SAMPLED,
+            ImageUsage::StorageTexture => vk::ImageUsageFlags::STORAGE,
         }
     }
 }
 
-impl From<Usage> for vk::ImageAspectFlags {
-    fn from(usage: Usage) -> Self {
+impl From<ImageUsage> for vk::ImageAspectFlags {
+    fn from(usage: ImageUsage) -> Self {
         match usage {
-            Usage::Depth | Usage::DepthSampled => vk::ImageAspectFlags::DEPTH,
-            Usage::Texture => vk::ImageAspectFlags::COLOR,
-            Usage::StorageTexture => vk::ImageAspectFlags::COLOR,
+            ImageUsage::Depth | ImageUsage::DepthSampled => vk::ImageAspectFlags::DEPTH,
+            ImageUsage::Texture => vk::ImageAspectFlags::COLOR,
+            ImageUsage::StorageTexture => vk::ImageAspectFlags::COLOR,
         }
     }
 }
@@ -134,7 +134,7 @@ impl From<Usage> for vk::ImageAspectFlags {
 pub struct ImageDescription {
     pub name: Option<&'static str>,
     pub format: Format,
-    pub usage: Usage,
+    pub usage: ImageUsage,
     pub memory_ty: MemoryType,
 }
 

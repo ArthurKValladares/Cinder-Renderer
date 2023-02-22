@@ -11,7 +11,7 @@ use cinder::{
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
-        image::{Format, Image, ImageDescription, Usage},
+        image::{Format, Image, ImageDescription, ImageUsage},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
     },
@@ -92,7 +92,7 @@ impl Renderer {
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFloat,
-                usage: Usage::DepthSampled,
+                usage: ImageUsage::DepthSampled,
                 ..Default::default()
             },
         )?;

@@ -7,5 +7,6 @@ layout (location = 0) in vec2 i_uv;
 layout (location = 0) out vec4 uFragColor;
 
 void main() {
-    uFragColor = texture(texSampler, i_uv) * vec4(0.3, 1.0, 1.0, 1.0);
+    vec4 color = vec4(1.0, 0.5, 0.0, 1.0);
+    uFragColor = texture(texSampler, i_uv) * color;
 }

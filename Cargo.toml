@@ -10,4 +10,5 @@ members = [
     "crates/bin/bindless",
     "crates/bin/shader-hot-reload",
     "crates/lib/cinder",
+    "crates/lib/frame-graph",
 ]

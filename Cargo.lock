@@ -788,6 +788,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "frame-graph"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cinder",
+ "math",
+]
+
+[[package]]
 name = "freetype-rs"
 version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1140,7 +1149,7 @@ dependencies = [
 [[package]]
 name = "math"
 version = "0.1.0"
-source = "git+https://github.com/ArthurKValladares/Yet-Another-Math-Lib#a283b781cd7bd1fd13fddc30c0e0e7c156c1db2f"
+source = "git+https://github.com/ArthurKValladares/Yet-Another-Math-Lib#20f5a4a9b45e1c212b21303da3c792255fea6809"
 dependencies = [
  "num",
  "rkyv",
