@@ -114,11 +114,11 @@ impl Renderer {
             },
         )?;
 
-        let mut texture_vertex_shader = device.create_shader(
+        let texture_vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/depth_texture.vert.spv"),
             Default::default(),
         )?;
-        let mut texture_fragment_shader = device.create_shader(
+        let texture_fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/depth_texture.frag.spv"),
             Default::default(),
         )?;

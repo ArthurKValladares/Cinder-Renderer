@@ -132,7 +132,6 @@ pub struct Renderer {
     sampler: Sampler,
     images: Vec<Image>,
     image_buffers: Vec<Buffer>,
-    init_time: Instant,
     mesh_draws: Vec<MeshDraw>,
 }
 
@@ -309,8 +308,6 @@ impl Renderer {
             &[],
         )?;
 
-        let init_time = Instant::now();
-
         Ok(Self {
             device,
             view,
@@ -324,7 +321,6 @@ impl Renderer {
             images,
             image_buffers,
             ubo_buffer,
-            init_time,
             mesh_draws,
         })
     }
