@@ -17,6 +17,10 @@ impl Drawable {
     pub fn index(&self) -> u32 {
         self.index
     }
+
+    pub fn is_suboptimal(&self) -> bool {
+        self.is_suboptimal
+    }
 }
 
 #[derive(Default)]
