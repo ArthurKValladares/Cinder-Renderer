@@ -81,7 +81,7 @@ impl Default for GraphicsPipelineDescription {
         Self {
             name: None,
             blending: Default::default(),
-            surface_format: Format::B8_G8_R8_A8_Unorm,
+            surface_format: Format::B8G8R8A8_Unorm,
             depth_format: Default::default(),
             backface_culling: Default::default(),
         }

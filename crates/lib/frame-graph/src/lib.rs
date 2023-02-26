@@ -1,4 +1,5 @@
 use cinder::{
+    context::render_context::{AttachmentLoadOp, ClearValue},
     resources::{
         buffer::BufferUsage,
         image::{Format, ImageUsage},
@@ -16,8 +17,11 @@ pub struct BufferInfo {
 #[derive(Debug, Copy, Clone)]
 pub struct ImageInfo {
     size: Size3D<u32>,
+    scale: [f32; 2],
     format: Format,
     usage: ImageUsage,
+    clear_value: ClearValue,
+    load_op: AttachmentLoadOp,
 }
 
 #[derive(Debug, Copy, Clone)]
