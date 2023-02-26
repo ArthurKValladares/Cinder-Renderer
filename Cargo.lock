@@ -916,6 +916,24 @@ dependencies = [
 ]
 
 [[package]]
+name = "hello-frame-graph"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cinder",
+ "home",
+ "image",
+ "math",
+ "rust-shader-tools",
+ "scene",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "util",
+ "winit",
+]
+
+[[package]]
 name = "hello-triangle"
 version = "0.1.0"
 dependencies = [

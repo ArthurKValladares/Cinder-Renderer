@@ -9,6 +9,7 @@ members = [
     "crates/bin/depth-image",
     "crates/bin/bindless",
     "crates/bin/shader-hot-reload",
+    "crates/bin/hello-frame-graph",
     "crates/lib/cinder",
     "crates/lib/frame-graph",
 ]
