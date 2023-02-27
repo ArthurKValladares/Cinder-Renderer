@@ -17,7 +17,7 @@ pub enum BufferError {
 }
 
 bitflags! {
-    #[derive(Default)]
+    #[derive(Default, serde::Deserialize)]
     pub struct BufferUsage: u32 {
         const VERTEX = 0x00000080;
         const INDEX = 0x00000040;

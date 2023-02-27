@@ -71,11 +71,13 @@ impl Renderer {
             device.create_graphics_pipeline(vertex_shader, fragment_shader, Default::default())?;
         shader_hot_reloader.set_graphics(
             Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("shaders/hot_reload.vert")
+                .join("shaders")
+                .join("hot_reload.vert")
                 .canonicalize()?,
             vertex_shader,
             Path::new(env!("CARGO_MANIFEST_DIR"))
-                .join("shaders/hot_reload.frag")
+                .join("shaders")
+                .join("hot_reload.vert")
                 .canonicalize()?,
             fragment_shader,
             render_pipeline,

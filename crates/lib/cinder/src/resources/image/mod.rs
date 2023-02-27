@@ -11,6 +11,7 @@ use anyhow::Result;
 use ash::vk;
 use math::size::Size2D;
 use rust_shader_tools::ReflectFormat;
+use serde::Deserialize;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
@@ -43,15 +44,15 @@ pub fn reflect_format_to_vk(fmt: ReflectFormat, low_precision: bool) -> vk::Form
 }
 
 #[allow(non_camel_case_types)]
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Deserialize, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Format {
     R8G8B8A8_Unorm,
     B8G8R8A8_Unorm,
     D32_SFloat,
     D16Unorm,
-    R32_G32_B32_A32_SFloat,
-    R32_G32_B32_SFloat,
-    R32_G32_SFloat,
+    R32G32B32A32_SFloat,
+    R32G32B32_SFloat,
+    R32G32_SFloat,
     R32_SFloat,
 }
 
@@ -68,9 +69,9 @@ impl From<Format> for vk::Format {
             Format::B8G8R8A8_Unorm => vk::Format::B8G8R8A8_UNORM,
             Format::D32_SFloat => vk::Format::D32_SFLOAT,
             Format::D16Unorm => vk::Format::D16_UNORM,
-            Format::R32_G32_B32_A32_SFloat => vk::Format::R32G32B32A32_SFLOAT,
-            Format::R32_G32_B32_SFloat => vk::Format::R32G32B32_SFLOAT,
-            Format::R32_G32_SFloat => vk::Format::R32G32_SFLOAT,
+            Format::R32G32B32A32_SFloat => vk::Format::R32G32B32A32_SFLOAT,
+            Format::R32G32B32_SFloat => vk::Format::R32G32B32_SFLOAT,
+            Format::R32G32_SFloat => vk::Format::R32G32_SFLOAT,
             Format::R32_SFloat => vk::Format::R32_SFLOAT,
         }
     }
@@ -83,9 +84,9 @@ impl From<vk::Format> for Format {
             vk::Format::B8G8R8A8_UNORM => Self::B8G8R8A8_Unorm,
             vk::Format::D32_SFLOAT => Self::D32_SFloat,
             vk::Format::D16_UNORM => Self::D16Unorm,
-            vk::Format::R32G32B32A32_SFLOAT => Self::R32_G32_B32_A32_SFloat,
-            vk::Format::R32G32B32_SFLOAT => Self::R32_G32_B32_SFloat,
-            vk::Format::R32G32_SFLOAT => Self::R32_G32_SFloat,
+            vk::Format::R32G32B32A32_SFLOAT => Self::R32G32B32A32_SFloat,
+            vk::Format::R32G32B32_SFLOAT => Self::R32G32B32_SFloat,
+            vk::Format::R32G32_SFLOAT => Self::R32G32_SFloat,
             vk::Format::R32_SFLOAT => Self::R32_SFloat,
             _ => panic!("Unsupported image format: {vk:?}"),
         }
@@ -93,7 +94,7 @@ impl From<vk::Format> for Format {
 }
 
 // TODO: enum doesn't really work here, should be something more bitfield-like
-#[derive(Debug, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
+#[derive(Debug, Deserialize, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum ImageUsage {
     Depth,
     DepthSampled,

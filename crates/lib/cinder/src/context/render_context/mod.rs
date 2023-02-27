@@ -15,6 +15,7 @@ use anyhow::Result;
 use ash::vk;
 use math::rect::Rect2D;
 use resource_manager::ResourceHandle;
+use serde::Deserialize;
 use thiserror::Error;
 
 #[derive(Debug, Clone, Copy)]
@@ -65,7 +66,7 @@ impl From<Filter> for vk::Filter {
 }
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Deserialize, Clone, Copy)]
 pub enum ClearValue {
     Color { color: [f32; 4] },
     Depth { depth: f32, stencil: u32 },
@@ -105,7 +106,7 @@ impl From<ClearValue> for vk::ClearValue {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Deserialize, Clone, Copy)]
 pub enum AttachmentLoadOp {
     Clear,
     Load,
