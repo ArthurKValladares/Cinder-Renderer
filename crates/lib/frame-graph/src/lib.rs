@@ -11,60 +11,36 @@ use math::size::Size3D;
 use serde::Deserialize;
 use std::{fs::File, io::BufReader, path::Path};
 
-#[derive(Deserialize, Debug)]
-pub struct BufferInfo {
-    size: usize,
-    usage: BufferUsage,
-}
-
-#[derive(Deserialize, Debug)]
-pub struct ImageInfo {
-    size: Size3D<u32>,
-    scale: [f32; 2],
-    format: Format,
-    usage: ImageUsage,
-    clear_value: ClearValue,
-    load_op: AttachmentLoadOp,
-}
-
-#[derive(Deserialize, Debug)]
-pub enum ResourceInfo {
-    Buffer(BufferInfo),
-    Texture(ImageInfo),
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum ResourceType {
     Attachment,
+    Texture,
+    Buffer,
     Reference,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Deserialize)]
 pub struct Resource {
-    info: ResourceInfo,
-    producer: Option<ResourceHandle<Node>>,
-    parent: Option<ResourceHandle<Resource>>,
-    ref_count: usize,
-}
-
-#[derive(Debug)]
-pub struct Node {
+    #[serde(rename = "type")]
+    ty: ResourceType,
     name: String,
-    inputs: Vec<Resource>,
-    outputs: Vec<Resource>,
-    edges: Vec<ResourceHandle<Node>>,
-}
-
-#[derive(Debug)]
-pub struct FrameGraph {
-    name: String,
-    nodes: Vec<Node>,
 }
 
 #[derive(Debug, Deserialize)]
-
-pub struct FrameGraphParser {
+pub struct NodeInfo {
     name: String,
-    node_data: Vec<ResourceInfo>,
+    inputs: Vec<Resource>,
+    outputs: Vec<Resource>,
 }
 
-impl FrameGraphParser {
+#[derive(Debug, Deserialize)]
+pub struct FrameGraphInfo {
+    name: String,
+    passes: Vec<NodeInfo>,
+}
+
+impl FrameGraphInfo {
     pub fn from_json(path: impl AsRef<Path>) -> Result<Self> {
         let path = path.as_ref();
         let file = File::open(path)?;

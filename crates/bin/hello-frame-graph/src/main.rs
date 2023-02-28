@@ -18,7 +18,7 @@ use cinder::{
     view::View,
     ResourceHandle,
 };
-use frame_graph::FrameGraphParser;
+use frame_graph::FrameGraphInfo;
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use scene::{ObjMesh, Scene, Vertex};
 use std::{
@@ -235,15 +235,14 @@ impl Renderer {
 
         let init_time = Instant::now();
 
-        /*
-        let frame_graph_parser = FrameGraphParser::from_json(
+        let frame_graph_info = FrameGraphInfo::from_json(
             Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("assets")
                 .join("data")
                 .join("frame_graph.json")
                 .canonicalize()?,
         )?;
-        */
+        println!("{frame_graph_info:#?}");
 
         Ok(Self {
             device,
