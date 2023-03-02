@@ -8,44 +8,33 @@ use cinder::{
     ResourceHandle,
 };
 use math::size::Size3D;
-use serde::Deserialize;
-use std::{fs::File, io::BufReader, path::Path};
 
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "lowercase")]
-pub enum ResourceType {
-    Attachment,
-    Texture,
-    Buffer,
-    Reference,
+#[derive(Debug)]
+pub enum SizeClass {
+    Absolute,
+    SwapchainRelative,
+    InputRelative,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct Resource {
-    #[serde(rename = "type")]
-    ty: ResourceType,
-    name: String,
+#[derive(Debug)]
+pub struct TextureInfo {
+    size_class: SizeClass,
+    size: Size3D<u32>,
+    format: Format,
+    samples: u32,
+    levels: u32,
+    layers: u32,
+    persistent: bool,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct NodeInfo {
-    name: String,
-    inputs: Vec<Resource>,
-    outputs: Vec<Resource>,
+#[derive(Debug)]
+pub struct BufferInfo {
+    size: usize,
+    usage: BufferUsage,
+    persistent: bool,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct FrameGraphInfo {
-    name: String,
-    passes: Vec<NodeInfo>,
-}
+#[derive(Debug, Default)]
+pub struct FrameGraph {}
 
-impl FrameGraphInfo {
-    pub fn from_json(path: impl AsRef<Path>) -> Result<Self> {
-        let path = path.as_ref();
-        let file = File::open(path)?;
-        let reader = BufReader::new(file);
-        let parser = serde_json::from_reader(reader)?;
-        Ok(parser)
-    }
-}
+impl FrameGraph {}

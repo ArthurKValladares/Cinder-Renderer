@@ -795,8 +795,6 @@ dependencies = [
  "anyhow",
  "cinder",
  "math",
- "serde",
- "serde_json",
 ]
 
 [[package]]
