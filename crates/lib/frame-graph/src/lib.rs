@@ -17,24 +17,57 @@ pub enum SizeClass {
 }
 
 #[derive(Debug)]
-pub struct TextureInfo {
-    size_class: SizeClass,
-    size: Size3D<u32>,
-    format: Format,
-    samples: u32,
-    levels: u32,
-    layers: u32,
-    persistent: bool,
+pub struct ImageInfo {
+    pub size_class: SizeClass,
+    pub size: Size3D<u32>,
+    pub format: Format,
+    pub persistent: bool,
 }
 
 #[derive(Debug)]
 pub struct BufferInfo {
-    size: usize,
-    usage: BufferUsage,
-    persistent: bool,
+    pub size: usize,
+    pub usage: BufferUsage,
+    pub persistent: bool,
 }
 
-#[derive(Debug, Default)]
-pub struct FrameGraph {}
+#[derive(Debug)]
+pub enum PassResource {
+    Image(ImageInfo),
+    Buffer(BufferInfo),
+}
 
-impl FrameGraph {}
+#[derive(Debug)]
+pub struct Pass<'a> {
+    name: &'a str,
+    inputs: Vec<PassResource>,
+    outputs: Vec<PassResource>,
+}
+
+impl<'a> Pass<'a> {
+    pub fn new<I>(name: &'a str, inputs: I, outputs: I) -> Self
+    where
+        I: IntoIterator<Item = PassResource>,
+    {
+        Self {
+            name,
+            inputs: inputs.into_iter().collect(),
+            outputs: outputs.into_iter().collect(),
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct FrameGraph<'a> {
+    name: &'a str,
+    passes: Vec<Pass<'a>>,
+}
+
+impl<'a> FrameGraph<'a> {
+    pub fn new(name: &'a str) -> Self {
+        Self {
+            name,
+            passes: Default::default(),
+        }
+    }
+}
