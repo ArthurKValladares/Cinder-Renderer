@@ -47,6 +47,7 @@ pub fn reflect_format_to_vk(fmt: ReflectFormat, low_precision: bool) -> vk::Form
 #[derive(Debug, Deserialize, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Format {
     R8G8B8A8_Unorm,
+    R8G8B8A8_Srgb,
     B8G8R8A8_Unorm,
     D32_SFloat,
     D16Unorm,
@@ -66,6 +67,7 @@ impl From<Format> for vk::Format {
     fn from(format: Format) -> Self {
         match format {
             Format::R8G8B8A8_Unorm => vk::Format::R8G8B8A8_UNORM,
+            Format::R8G8B8A8_Srgb => vk::Format::R8G8B8A8_SRGB,
             Format::B8G8R8A8_Unorm => vk::Format::B8G8R8A8_UNORM,
             Format::D32_SFloat => vk::Format::D32_SFLOAT,
             Format::D16Unorm => vk::Format::D16_UNORM,
@@ -81,6 +83,7 @@ impl From<vk::Format> for Format {
     fn from(vk: vk::Format) -> Self {
         match vk {
             vk::Format::R8G8B8A8_UNORM => Self::R8G8B8A8_Unorm,
+            vk::Format::R8G8B8A8_SRGB => Self::R8G8B8A8_Srgb,
             vk::Format::B8G8R8A8_UNORM => Self::B8G8R8A8_Unorm,
             vk::Format::D32_SFLOAT => Self::D32_SFloat,
             vk::Format::D16_UNORM => Self::D16Unorm,
