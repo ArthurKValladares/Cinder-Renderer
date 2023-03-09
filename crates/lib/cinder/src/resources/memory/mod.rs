@@ -49,7 +49,7 @@ impl Memory {
         device.set_name(
             vk::ObjectType::DEVICE_MEMORY,
             self.raw,
-            &format!("{} [device memory]", name),
+            &format!("{name} [device memory]"),
         );
     }
 

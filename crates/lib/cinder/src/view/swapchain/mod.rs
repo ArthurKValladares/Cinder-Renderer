@@ -152,14 +152,14 @@ impl Swapchain {
             device.set_name(
                 vk::ObjectType::IMAGE,
                 *image,
-                &format!("{} [image {}]", name, idx),
+                &format!("{name} [image {idx}]"),
             );
         }
         for (idx, image_view) in self.present_image_views.iter().enumerate() {
             device.set_name(
                 vk::ObjectType::IMAGE_VIEW,
                 *image_view,
-                &format!("{} [image view {}]", name, idx),
+                &format!("{name} [image view {idx}]"),
             );
         }
     }
