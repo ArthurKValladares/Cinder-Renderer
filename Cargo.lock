@@ -795,6 +795,7 @@ dependencies = [
  "anyhow",
  "cinder",
  "math",
+ "thiserror",
 ]
 
 [[package]]

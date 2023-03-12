@@ -1,5 +1,6 @@
 use cinder::resources::{buffer::BufferUsage, image::Format};
 use math::size::Size3D;
+use thiserror::Error;
 
 #[derive(Debug, Copy, Clone)]
 pub struct PassResourceHandle(usize);
@@ -40,24 +41,42 @@ pub enum PassResource {
     Buffer(BufferInfo),
 }
 
+#[derive(Debug, Error)]
+pub enum PassError {
+    #[error("size of color inputs must match color outputs")]
+    ColorAttachmentsMismatch,
+}
+
 #[derive(Debug)]
 pub struct Pass<'a> {
     name: &'a str,
-    inputs: Vec<PassResourceHandle>,
-    outputs: Vec<PassResource>,
+    color_inputs: Vec<PassResourceHandle>,
+    color_outputs: Vec<PassResource>,
 }
 
 impl<'a> Pass<'a> {
-    pub fn new<I, O>(name: &'a str, inputs: I, outputs: O) -> Self
-    where
-        I: IntoIterator<Item = PassResourceHandle>,
-        O: IntoIterator<Item = PassResource>,
-    {
+    pub fn new(name: &'a str) -> Self {
         Self {
             name,
-            inputs: inputs.into_iter().collect(),
-            outputs: outputs.into_iter().collect(),
+            color_inputs: Default::default(),
+            color_outputs: Default::default(),
         }
+    }
+
+    pub fn extend_color_inputs(&mut self, inputs: impl IntoIterator<Item = PassResourceHandle>) {
+        self.color_inputs.extend(inputs)
+    }
+
+    pub fn add_color_input(&mut self, res: PassResourceHandle) {
+        self.color_inputs.push(res)
+    }
+
+    pub fn extend_color_outputs(&mut self, outputs: impl IntoIterator<Item = PassResource>) {
+        self.color_outputs.extend(outputs)
+    }
+
+    pub fn add_color_output(&mut self, handle: PassResource) {
+        self.color_outputs.push(handle)
     }
 }
 
@@ -85,6 +104,21 @@ impl<'a> FrameGraph<'a> {
     pub fn add_pass(&mut self, pass: Pass<'a>) {
         self.passes.push(pass);
     }
+
+    fn validate_passes(&self) -> Result<(), PassError> {
+        for pass in &self.passes {
+            if pass.color_inputs.len() != pass.color_outputs.len() {
+                return Err(PassError::ColorAttachmentsMismatch);
+            }
+        }
+        Ok(())
+    }
+
+    pub fn bake(self) -> Result<(), PassError> {
+        self.validate_passes()?;
+
+        Ok(())
+    }
 }
 
 #[cfg(test)]
@@ -99,28 +133,29 @@ mod tests {
 
         let albedo_handle = PassResourceHandle::new(0);
         let depth_handle = PassResourceHandle::new(1);
-        frame_graph.add_pass(Pass::new(
-            "g_buffer",
-            vec![],
-            vec![
-                PassResource::Image(ImageInfo {
-                    handle: albedo_handle,
-                    size_class: SizeClass::SwapchainRelative(Size3D::new(1.0, 1.0, 1.0)),
-                    format: Format::R8G8B8A8_Unorm,
-                    persistent: false,
-                }),
-                PassResource::Image(ImageInfo {
-                    handle: depth_handle,
-                    size_class: SizeClass::SwapchainRelative(Size3D::new(1.0, 1.0, 1.0)),
-                    format: Format::D32_SFloat,
-                    persistent: false,
-                }),
-            ],
-        ));
-        frame_graph.add_pass(Pass::new(
-            "lighting",
-            vec![albedo_handle, depth_handle],
-            vec![],
-        ));
+
+        let mut g_buffer_pass = Pass::new("g_buffer");
+        g_buffer_pass.extend_color_outputs(vec![
+            PassResource::Image(ImageInfo {
+                handle: albedo_handle,
+                size_class: SizeClass::SwapchainRelative(Size3D::new(1.0, 1.0, 1.0)),
+                format: Format::R8G8B8A8_Unorm,
+                persistent: false,
+            }),
+            PassResource::Image(ImageInfo {
+                handle: depth_handle,
+                size_class: SizeClass::SwapchainRelative(Size3D::new(1.0, 1.0, 1.0)),
+                format: Format::D32_SFloat,
+                persistent: false,
+            }),
+        ]);
+        frame_graph.add_pass(g_buffer_pass);
+
+        let mut lighting_pass = Pass::new("lighting");
+        lighting_pass.extend_color_inputs(vec![albedo_handle, depth_handle]);
+        frame_graph.add_pass(lighting_pass);
+
+        let bake_result = frame_graph.bake();
+        assert!(bake_result.is_ok(), "Error: {:?}", bake_result);
     }
 }
