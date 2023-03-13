@@ -156,6 +156,6 @@ mod tests {
         frame_graph.add_pass(lighting_pass);
 
         let bake_result = frame_graph.bake();
-        assert!(bake_result.is_ok(), "Error: {:?}", bake_result);
+        assert!(bake_result.is_ok(), "Error: {bake_result:?}");
     }
 }
