@@ -60,7 +60,7 @@ fn new_infinite_perspective_proj(aspect_ratio: f32, y_fov: f32, z_near: f32) -> 
 pub struct Renderer {
     device: Device,
     view: View,
-    depth_image: Image,
+    depth_image: ResourceHandle<Image>,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
     vertex_buffer: Buffer,
@@ -291,12 +291,13 @@ impl Renderer {
             self.render_context
                 .transition_undefined_to_color(&self.device, drawable);
 
+            let depth_image = self.device.get_image(self.depth_image).unwrap();
             self.render_context.begin_rendering(
                 &self.device,
                 surface_rect,
                 &[RenderAttachment::color(drawable, Default::default())],
                 Some(RenderAttachment::depth(
-                    &self.depth_image,
+                    depth_image,
                     RenderAttachmentDesc {
                         store_op: AttachmentStoreOp::DontCare,
                         layout: Layout::DepthAttachment,
@@ -333,8 +334,8 @@ impl Renderer {
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
         self.device.resize(width, height)?;
         self.view.resize(&self.device)?;
-        self.depth_image
-            .resize(&self.device, Size2D::new(width, height))?;
+        self.device
+            .resize_image(self.depth_image, Size2D::new(width, height))?;
         Ok(())
     }
 }
@@ -342,8 +343,6 @@ impl Renderer {
 impl Drop for Renderer {
     fn drop(&mut self) {
         self.device.wait_idle().ok();
-
-        self.depth_image.destroy(self.device.raw());
 
         self.vertex_buffer.destroy(self.device.raw());
         self.index_buffer.destroy(self.device.raw());

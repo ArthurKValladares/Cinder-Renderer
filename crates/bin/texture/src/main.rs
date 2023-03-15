@@ -42,7 +42,7 @@ pub struct Renderer {
     index_buffer: Buffer,
     image_buffer: Buffer,
     sampler: Sampler,
-    texture: Image,
+    texture_handle: ResourceHandle<Image>,
 }
 
 impl Renderer {
@@ -102,7 +102,9 @@ impl Renderer {
             .unwrap()
             .to_rgba8();
         let (width, height) = image.dimensions();
-        let texture = device.create_image(Size2D::new(width, height), Default::default())?;
+        let texture_handle = device.create_image(Size2D::new(width, height), Default::default())?;
+        // TODO: having to call `get` here is bad, will no longer be neede later with better abstractions
+        let texture = device.get_image(texture_handle).unwrap();
         let image_data = image.into_raw();
 
         let image_buffer = device.create_buffer_with_data(
@@ -112,11 +114,12 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
+        // TODO: Will abstract this later
         upload_context.begin(&device, device.setup_fence())?;
         {
-            upload_context.image_barrier_start(&device, &texture);
-            upload_context.copy_buffer_to_image(&device, &image_buffer, &texture);
-            upload_context.image_barrier_end(&device, &texture);
+            upload_context.image_barrier_start(&device, texture);
+            upload_context.copy_buffer_to_image(&device, &image_buffer, texture);
+            upload_context.image_barrier_end(&device, texture);
         }
         upload_context.end(
             &device,
@@ -149,7 +152,7 @@ impl Renderer {
             index_buffer,
             image_buffer,
             sampler,
-            texture,
+            texture_handle,
         })
     }
 
@@ -205,7 +208,6 @@ impl Drop for Renderer {
         self.device.wait_idle().ok();
 
         self.sampler.destroy(self.device.raw());
-        self.texture.destroy(self.device.raw());
 
         self.vertex_buffer.destroy(self.device.raw());
         self.index_buffer.destroy(self.device.raw());

@@ -1,6 +1,6 @@
 use super::ContextShared;
 use crate::{
-    device::Device,
+    device::{Device, ResourceManager},
     profiling::QueryPool,
     resources::{
         buffer::Buffer,
@@ -285,10 +285,11 @@ impl RenderContext {
 
     pub fn bind_graphics_pipeline(
         &mut self,
+        manager: &ResourceManager,
         device: &Device,
         handle: ResourceHandle<GraphicsPipeline>,
     ) -> Result<(), PipelineError> {
-        if let Some(pipeline) = device.get_graphics_pipeline(handle) {
+        if let Some(pipeline) = device.get_graphics_pipeline(manager, handle) {
             unsafe {
                 device.raw().cmd_bind_pipeline(
                     self.shared.command_buffer,
@@ -330,10 +331,14 @@ impl RenderContext {
         }
     }
 
-    pub fn bind_descriptor_sets(&self, device: &Device) -> Result<(), PipelineError> {
+    pub fn bind_descriptor_sets(
+        &self,
+        manager: &ResourceManager,
+        device: &Device,
+    ) -> Result<(), PipelineError> {
         if let Some(handle) = &self.bound_pipeline {
             let pipeline = device
-                .get_graphics_pipeline(*handle)
+                .get_graphics_pipeline(manager, *handle)
                 .ok_or(PipelineError::InvalidPipelineHandle)?;
 
             unsafe {
@@ -460,13 +465,14 @@ impl RenderContext {
 
     pub fn set_vertex_bytes<T: Sized>(
         &self,
+        manager: &ResourceManager,
         device: &Device,
         data: &T,
         idx: u32,
     ) -> Result<(), PipelineError> {
         if let Some(handle) = &self.bound_pipeline {
             let pipeline = device
-                .get_graphics_pipeline(*handle)
+                .get_graphics_pipeline(manager, *handle)
                 .ok_or(PipelineError::InvalidPipelineHandle)?;
             self.push_constant(
                 device,
@@ -482,13 +488,14 @@ impl RenderContext {
 
     pub fn set_fragment_bytes<T: Sized>(
         &self,
+        manager: &ResourceManager,
         device: &Device,
         data: &T,
         idx: u32,
     ) -> Result<(), PipelineError> {
         if let Some(handle) = &self.bound_pipeline {
             let pipeline = device
-                .get_graphics_pipeline(*handle)
+                .get_graphics_pipeline(manager, *handle)
                 .ok_or(PipelineError::InvalidPipelineHandle)?;
             self.push_constant(
                 device,

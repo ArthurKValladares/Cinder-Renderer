@@ -1,5 +1,5 @@
 use super::{get_pipeline_layout, PipelineCommon};
-use crate::device::Device;
+use crate::device::{Device, ResourceManager};
 use crate::resources::bind_group::BindGroup;
 use crate::resources::{
     image::{reflect_format_to_vk, Format},
@@ -234,17 +234,12 @@ impl GraphicsPipeline {
 
     pub(crate) fn create(
         device: &Device,
+        vertex_shader: &Shader,
         vertex_shader_handle: ResourceHandle<Shader>,
+        fragment_shader: &Shader,
         fragment_shader_handle: ResourceHandle<Shader>,
         desc: GraphicsPipelineDescription,
     ) -> Result<Self> {
-        let vertex_shader = device.get_shader(vertex_shader_handle).ok_or(
-            GraphicsPipelineError::ShaderNotInResourcePool(vertex_shader_handle),
-        )?;
-        let fragment_shader = device.get_shader(fragment_shader_handle).ok_or(
-            GraphicsPipelineError::ShaderNotInResourcePool(fragment_shader_handle),
-        )?;
-
         //
         // Pipeline stuff, pretty temp
         //
@@ -296,13 +291,12 @@ impl GraphicsPipeline {
         })
     }
 
-    pub fn recreate(&mut self, device: &Device) -> Result<vk::Pipeline> {
-        let vertex_shader = device.get_shader(self.vertex_shader_handle).ok_or(
-            GraphicsPipelineError::ShaderNotInResourcePool(self.vertex_shader_handle),
-        )?;
-        let fragment_shader = device.get_shader(self.fragment_shader_handle).ok_or(
-            GraphicsPipelineError::ShaderNotInResourcePool(self.fragment_shader_handle),
-        )?;
+    pub fn recreate(
+        &mut self,
+        vertex_shader: &Shader,
+        fragment_shader: &Shader,
+        device: &Device,
+    ) -> Result<vk::Pipeline> {
         let new_pipeline = Self::create_raw_pipeline(
             device,
             vertex_shader,

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use cinder::{
     context::render_context::{RenderAttachment, RenderContext},
-    device::Device,
+    device::{Device, ResourceManager},
     resources::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         pipeline::graphics::GraphicsPipeline,
@@ -28,6 +28,7 @@ include!(concat!(
 ));
 
 pub struct Renderer {
+    resource_manager: ResourceManager,
     device: Device,
     view: View,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
@@ -39,20 +40,27 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
-        let mut device = Device::new(window, Default::default())?;
+        let mut resource_manager = ResourceManager::default();
+        let device = Device::new(window, Default::default())?;
         let render_context = RenderContext::new(&device, Default::default())?;
         let view = View::new(&device, Default::default())?;
 
         let vertex_shader = device.create_shader(
+            &mut resource_manager,
             include_bytes!("../shaders/spv/triangle.vert.spv"),
             Default::default(),
         )?;
         let fragment_shader = device.create_shader(
+            &mut resource_manager,
             include_bytes!("../shaders/spv/triangle.frag.spv"),
             Default::default(),
         )?;
-        let render_pipeline =
-            device.create_graphics_pipeline(vertex_shader, fragment_shader, Default::default())?;
+        let render_pipeline = device.create_graphics_pipeline(
+            &mut resource_manager,
+            vertex_shader,
+            fragment_shader,
+            Default::default(),
+        )?;
 
         let vertex_buffer = device.create_buffer_with_data(
             &[
@@ -85,6 +93,7 @@ impl Renderer {
         let init_time = Instant::now();
 
         Ok(Self {
+            resource_manager,
             device,
             view,
             render_context,
@@ -112,8 +121,11 @@ impl Renderer {
                 None,
             );
             {
-                self.render_context
-                    .bind_graphics_pipeline(&self.device, self.render_pipeline)?;
+                self.render_context.bind_graphics_pipeline(
+                    &self.resource_manager,
+                    &self.device,
+                    self.render_pipeline,
+                )?;
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
@@ -123,6 +135,7 @@ impl Renderer {
                     .bind_vertex_buffer(&self.device, &self.vertex_buffer);
 
                 self.render_context.set_vertex_bytes(
+                    &self.resource_manager,
                     &self.device,
                     &Mat4::rotate(
                         (self.init_time.elapsed().as_secs_f32() / 5.0)
@@ -158,6 +171,7 @@ impl Drop for Renderer {
         self.vertex_buffer.destroy(self.device.raw());
         self.index_buffer.destroy(self.device.raw());
         self.view.destroy(&self.device);
+        self.resource_manager.clean(&self.device);
     }
 }
 
