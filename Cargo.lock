@@ -789,16 +789,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "frame-graph"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cinder",
- "math",
- "thiserror",
-]
-
-[[package]]
 name = "freetype-rs"
 version = "0.26.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -910,25 +900,6 @@ dependencies = [
  "nalgebra-glm",
  "rkyv",
  "rust-shader-tools",
- "serde",
- "serde_json",
- "thiserror",
- "util",
- "winit",
-]
-
-[[package]]
-name = "hello-frame-graph"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "cinder",
- "frame-graph",
- "home",
- "image",
- "math",
- "rust-shader-tools",
- "scene",
  "serde",
  "serde_json",
  "thiserror",
