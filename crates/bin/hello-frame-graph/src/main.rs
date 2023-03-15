@@ -20,10 +20,7 @@ use cinder::{
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use scene::{ObjMesh, Scene, Vertex};
-use std::{
-    path::{Path, PathBuf},
-    time::Instant,
-};
+use std::{path::PathBuf, time::Instant};
 use winit::{
     dpi::PhysicalSize,
     event::VirtualKeyCode,
