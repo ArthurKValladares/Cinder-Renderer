@@ -4,7 +4,7 @@ use cinder::{
         render_context::{Layout, RenderAttachment, RenderContext},
         upload_context::UploadContext,
     },
-    device::Device,
+    device::{Device, ResourceManager},
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
@@ -33,6 +33,7 @@ include!(concat!(
 ));
 
 pub struct Renderer {
+    resource_manager: ResourceManager,
     device: Device,
     view: View,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
@@ -47,6 +48,7 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
+        let mut resource_manager = ResourceManager::default();
         let mut device = Device::new(window, Default::default())?;
         let render_context = RenderContext::new(&device, Default::default())?;
         let upload_context = UploadContext::new(&device, Default::default())?;
@@ -54,15 +56,21 @@ impl Renderer {
         let view = View::new(&device, Default::default())?;
 
         let vertex_shader = device.create_shader(
+            &mut resource_manager,
             include_bytes!("../shaders/spv/texture.vert.spv"),
             Default::default(),
         )?;
         let fragment_shader = device.create_shader(
+            &mut resource_manager,
             include_bytes!("../shaders/spv/texture.frag.spv"),
             Default::default(),
         )?;
-        let render_pipeline =
-            device.create_graphics_pipeline(vertex_shader, fragment_shader, Default::default())?;
+        let render_pipeline = device.create_graphics_pipeline(
+            &mut resource_manager,
+            vertex_shader,
+            fragment_shader,
+            Default::default(),
+        )?;
 
         let vertex_buffer = device.create_buffer_with_data(
             &[
@@ -102,9 +110,13 @@ impl Renderer {
             .unwrap()
             .to_rgba8();
         let (width, height) = image.dimensions();
-        let texture_handle = device.create_image(Size2D::new(width, height), Default::default())?;
+        let texture_handle = device.create_image(
+            &mut resource_manager,
+            Size2D::new(width, height),
+            Default::default(),
+        )?;
         // TODO: having to call `get` here is bad, will no longer be neede later with better abstractions
-        let texture = device.get_image(texture_handle).unwrap();
+        let texture = device.get_image(&resource_manager, texture_handle).unwrap();
         let image_data = image.into_raw();
 
         let image_buffer = device.create_buffer_with_data(
@@ -131,6 +143,7 @@ impl Renderer {
         )?;
 
         device.write_bind_group(
+            &resource_manager,
             render_pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
@@ -143,6 +156,7 @@ impl Renderer {
         )?;
 
         Ok(Self {
+            resource_manager,
             device,
             view,
             render_context,
@@ -173,8 +187,11 @@ impl Renderer {
                 None,
             );
             {
-                self.render_context
-                    .bind_graphics_pipeline(&self.device, self.render_pipeline)?;
+                self.render_context.bind_graphics_pipeline(
+                    &self.resource_manager,
+                    &self.device,
+                    self.render_pipeline,
+                )?;
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
@@ -182,7 +199,8 @@ impl Renderer {
                     .bind_index_buffer(&self.device, &self.index_buffer);
                 self.render_context
                     .bind_vertex_buffer(&self.device, &self.vertex_buffer);
-                self.render_context.bind_descriptor_sets(&self.device)?;
+                self.render_context
+                    .bind_descriptor_sets(&self.resource_manager, &self.device)?;
 
                 self.render_context.draw_offset(&self.device, 6, 0, 0);
             }
@@ -214,6 +232,7 @@ impl Drop for Renderer {
         self.image_buffer.destroy(self.device.raw());
 
         self.view.destroy(&self.device);
+        self.resource_manager.clean(&self.device);
     }
 }
 
