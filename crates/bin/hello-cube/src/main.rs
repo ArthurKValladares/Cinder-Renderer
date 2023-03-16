@@ -4,7 +4,7 @@ use cinder::{
         AttachmentStoreOp, ClearValue, Layout, RenderAttachment, RenderAttachmentDesc,
         RenderContext,
     },
-    device::Device,
+    device::{Device, ResourceManager},
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
@@ -58,6 +58,7 @@ fn new_infinite_perspective_proj(aspect_ratio: f32, y_fov: f32, z_near: f32) -> 
 }
 
 pub struct Renderer {
+    resource_manager: ResourceManager,
     device: Device,
     view: View,
     depth_image: ResourceHandle<Image>,
@@ -71,11 +72,13 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
+        let mut resource_manager = ResourceManager::default();
         let mut device = Device::new(window, Default::default())?;
         let render_context = RenderContext::new(&device, Default::default())?;
         let view = View::new(&device, Default::default())?;
         let surface_rect = device.surface_rect();
         let depth_image = device.create_image(
+            &mut resource_manager,
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFloat,
@@ -85,14 +88,17 @@ impl Renderer {
         )?;
 
         let vertex_shader = device.create_shader(
+            &mut resource_manager,
             include_bytes!("../shaders/spv/cube.vert.spv"),
             Default::default(),
         )?;
         let fragment_shader = device.create_shader(
+            &mut resource_manager,
             include_bytes!("../shaders/spv/cube.frag.spv"),
             Default::default(),
         )?;
         let render_pipeline = device.create_graphics_pipeline(
+            &mut resource_manager,
             vertex_shader,
             fragment_shader,
             GraphicsPipelineDescription {
@@ -250,6 +256,7 @@ impl Renderer {
         )?;
 
         device.write_bind_group(
+            &mut resource_manager,
             render_pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
@@ -260,6 +267,7 @@ impl Renderer {
         let init_time = Instant::now();
 
         Ok(Self {
+            resource_manager,
             device,
             view,
             depth_image,
@@ -291,7 +299,10 @@ impl Renderer {
             self.render_context
                 .transition_undefined_to_color(&self.device, drawable);
 
-            let depth_image = self.device.get_image(self.depth_image).unwrap();
+            let depth_image = self
+                .device
+                .get_image(&self.resource_manager, self.depth_image)
+                .unwrap();
             self.render_context.begin_rendering(
                 &self.device,
                 surface_rect,
@@ -307,8 +318,11 @@ impl Renderer {
                 )),
             );
             {
-                self.render_context
-                    .bind_graphics_pipeline(&self.device, self.render_pipeline)?;
+                self.render_context.bind_graphics_pipeline(
+                    &self.resource_manager,
+                    &self.device,
+                    self.render_pipeline,
+                )?;
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
@@ -317,7 +331,8 @@ impl Renderer {
                 self.render_context
                     .bind_vertex_buffer(&self.device, &self.vertex_buffer);
                 // TODO: re-think API later when using more than one set
-                self.render_context.bind_descriptor_sets(&self.device)?;
+                self.render_context
+                    .bind_descriptor_sets(&self.resource_manager, &self.device)?;
 
                 self.render_context.draw_offset(&self.device, 36, 0, 0);
             }
@@ -334,8 +349,11 @@ impl Renderer {
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
         self.device.resize(width, height)?;
         self.view.resize(&self.device)?;
-        self.device
-            .resize_image(self.depth_image, Size2D::new(width, height))?;
+        let depth_image = self
+            .device
+            .get_image_mut(&mut self.resource_manager, self.depth_image)
+            .unwrap();
+        depth_image.resize(&self.device, Size2D::new(width, height))?;
         Ok(())
     }
 }
@@ -349,6 +367,7 @@ impl Drop for Renderer {
         self.ubo_buffer.destroy(self.device.raw());
 
         self.view.destroy(&self.device);
+        self.resource_manager.clean(&self.device);
     }
 }
 

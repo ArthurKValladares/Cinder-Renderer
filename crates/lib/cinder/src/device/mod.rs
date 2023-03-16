@@ -512,6 +512,14 @@ impl Device {
         manager.images.get(handle)
     }
 
+    pub fn get_image_mut<'a>(
+        &self,
+        manager: &'a mut ResourceManager,
+        handle: ResourceHandle<Image>,
+    ) -> Option<&'a mut Image> {
+        manager.images.get_mut(handle)
+    }
+
     pub fn create_shader(
         &self,
         manager: &mut ResourceManager,
