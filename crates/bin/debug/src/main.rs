@@ -4,7 +4,7 @@ use cinder::{
         render_context::{Layout, RenderAttachment, RenderContext, RenderContextDescription},
         upload_context::{UploadContext, UploadContextDescription},
     },
-    device::Device,
+    device::{Device, ResourceManager},
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
@@ -34,6 +34,7 @@ include!(concat!(
 ));
 
 pub struct Renderer {
+    resource_manager: ResourceManager,
     device: Device,
     view: View,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
@@ -43,11 +44,12 @@ pub struct Renderer {
     index_buffer: Buffer,
     image_buffer: Buffer,
     sampler: Sampler,
-    texture: Image,
+    texture_handle: ResourceHandle<Image>,
 }
 
 impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
+        let mut resource_manager = ResourceManager::default();
         let mut device = Device::new(window, Default::default())?;
         let render_context = RenderContext::new(
             &device,
@@ -70,18 +72,21 @@ impl Renderer {
         )?;
 
         let vertex_shader = device.create_shader(
+            &mut resource_manager,
             include_bytes!("../shaders/spv/debug.vert.spv"),
             ShaderDesc {
                 name: Some("vertex shader"),
             },
         )?;
         let fragment_shader = device.create_shader(
+            &mut resource_manager,
             include_bytes!("../shaders/spv/debug.frag.spv"),
             ShaderDesc {
                 name: Some("fragment shader"),
             },
         )?;
         let render_pipeline = device.create_graphics_pipeline(
+            &mut resource_manager,
             vertex_shader,
             fragment_shader,
             GraphicsPipelineDescription {
@@ -135,13 +140,15 @@ impl Renderer {
             .unwrap()
             .to_rgba8();
         let (width, height) = image.dimensions();
-        let texture = device.create_image(
+        let texture_handle = device.create_image(
+            &mut resource_manager,
             Size2D::new(width, height),
             ImageDescription {
                 name: Some("debug image"),
                 ..Default::default()
             },
         )?;
+        let texture = device.get_image(&resource_manager, texture_handle).unwrap();
         let image_data = image.into_raw();
 
         let image_buffer = device.create_buffer_with_data(
@@ -168,6 +175,7 @@ impl Renderer {
         )?;
 
         device.write_bind_group(
+            &resource_manager,
             render_pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
@@ -180,6 +188,7 @@ impl Renderer {
         )?;
 
         Ok(Self {
+            resource_manager,
             device,
             view,
             render_context,
@@ -189,7 +198,7 @@ impl Renderer {
             index_buffer,
             image_buffer,
             sampler,
-            texture,
+            texture_handle,
         })
     }
 
@@ -219,8 +228,11 @@ impl Renderer {
                 None,
             );
             {
-                self.render_context
-                    .bind_graphics_pipeline(&self.device, self.render_pipeline)?;
+                self.render_context.bind_graphics_pipeline(
+                    &self.resource_manager,
+                    &self.device,
+                    self.render_pipeline,
+                )?;
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
@@ -228,7 +240,8 @@ impl Renderer {
                     .bind_index_buffer(&self.device, &self.index_buffer);
                 self.render_context
                     .bind_vertex_buffer(&self.device, &self.vertex_buffer);
-                self.render_context.bind_descriptor_sets(&self.device)?;
+                self.render_context
+                    .bind_descriptor_sets(&self.resource_manager, &self.device)?;
 
                 self.render_context.insert_label(
                     &self.device,
@@ -261,13 +274,13 @@ impl Drop for Renderer {
         self.device.wait_idle().ok();
 
         self.sampler.destroy(self.device.raw());
-        self.texture.destroy(self.device.raw());
 
         self.vertex_buffer.destroy(self.device.raw());
         self.index_buffer.destroy(self.device.raw());
         self.image_buffer.destroy(self.device.raw());
 
         self.view.destroy(&self.device);
+        self.resource_manager.clean(&self.device);
     }
 }
 
