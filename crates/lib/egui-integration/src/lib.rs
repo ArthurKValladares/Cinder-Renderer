@@ -6,7 +6,7 @@ use cinder::{
         },
         upload_context::UploadContext,
     },
-    device::Device,
+    device::{Device, ResourceManager},
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{vk::Fence, Buffer, BufferDescription, BufferUsage},
@@ -47,7 +47,7 @@ pub struct EguiIntegration {
     bind_group_pool: BindGroupPool,
     sampler: Sampler,
     image_staging_buffer: Option<Buffer>,
-    image_map: HashMap<TextureId, Image>,
+    image_map: HashMap<TextureId, ResourceHandle<Image>>,
     vertex_buffers: Vec<Buffer>,
     index_buffers: Vec<Buffer>,
 }
@@ -55,7 +55,8 @@ pub struct EguiIntegration {
 impl EguiIntegration {
     pub fn new<T>(
         event_loop: &EventLoopWindowTarget<T>,
-        device: &mut Device,
+        resource_manager: &mut ResourceManager,
+        device: &Device,
         view: &View,
     ) -> Result<Self> {
         let egui_context = egui::Context::default();
@@ -68,14 +69,17 @@ impl EguiIntegration {
         let bind_group_pool =
             BindGroupPool::new(device.raw(), device.max_bindless_descriptor_count()).unwrap();
         let vertex_shader = device.create_shader(
+            resource_manager,
             include_bytes!("../shaders/spv/egui.vert.spv"),
             Default::default(),
         )?;
         let fragment_shader = device.create_shader(
+            resource_manager,
             include_bytes!("../shaders/spv/egui.frag.spv"),
             Default::default(),
         )?;
         let pipeline = device.create_graphics_pipeline(
+            resource_manager,
             vertex_shader,
             fragment_shader,
             GraphicsPipelineDescription {
@@ -139,6 +143,7 @@ impl EguiIntegration {
 
     pub fn run(
         &mut self,
+        resource_manager: &mut ResourceManager,
         device: &Device,
         drawable: Drawable,
         upload_context: &UploadContext,
@@ -167,9 +172,16 @@ impl EguiIntegration {
             .handle_platform_output(window, &self.egui_context, platform_output);
 
         // TODO? Make this a separate step
-        self.set_textures(device, upload_context, upload_fence, &textures_delta)?;
+        self.set_textures(
+            resource_manager,
+            device,
+            upload_context,
+            upload_fence,
+            &textures_delta,
+        )?;
 
         self.paint(
+            resource_manager,
             device,
             drawable,
             render_context,
@@ -186,6 +198,7 @@ impl EguiIntegration {
 
     fn paint(
         &mut self,
+        resource_manager: &ResourceManager,
         device: &Device,
         drawable: Drawable,
         render_context: &mut RenderContext,
@@ -218,7 +231,7 @@ impl EguiIntegration {
             None,
         );
         {
-            render_context.bind_graphics_pipeline(device, self.pipeline)?;
+            render_context.bind_graphics_pipeline(resource_manager, device, self.pipeline)?;
             render_context.bind_vertex_buffer(device, vertex_buffer);
             render_context.bind_index_buffer(device, index_buffer);
             render_context.bind_viewport(
@@ -228,6 +241,7 @@ impl EguiIntegration {
             );
 
             render_context.set_vertex_bytes(
+                resource_manager,
                 device,
                 &[
                     size.width as f32 / pixels_per_point,
@@ -272,6 +286,7 @@ impl EguiIntegration {
                 match primitive {
                     Primitive::Mesh(mesh) => {
                         self.paint_mesh(
+                            resource_manager,
                             device,
                             render_context,
                             present_index,
@@ -314,6 +329,7 @@ impl EguiIntegration {
 
     fn paint_mesh(
         &mut self,
+        resource_manager: &ResourceManager,
         device: &Device,
         render_context: &RenderContext,
         present_index: u32,
@@ -353,7 +369,7 @@ impl EguiIntegration {
         *vertex_buffer_ptr = vertex_buffer_ptr_next;
         *index_buffer_ptr = index_buffer_ptr_next;
 
-        render_context.bind_descriptor_sets(device)?;
+        render_context.bind_descriptor_sets(resource_manager, device)?;
 
         let index = match mesh.texture_id {
             TextureId::Managed(index) => index as usize,
@@ -361,7 +377,7 @@ impl EguiIntegration {
         };
 
         render_context
-            .set_fragment_bytes(device, &index, 0)
+            .set_fragment_bytes(resource_manager, device, &index, 0)
             .unwrap();
 
         render_context.draw_offset(device, indices.len() as u32, *index_base, *vertex_base);
@@ -374,6 +390,7 @@ impl EguiIntegration {
 
     fn set_image_helper(
         &mut self,
+        resource_manager: &mut ResourceManager,
         device: &Device,
         upload_context: &UploadContext,
         id: &TextureId,
@@ -394,8 +411,13 @@ impl EguiIntegration {
         )?;
         image_staging_buffer.mem_copy(0, data)?;
 
-        let image = device.create_image(Size2D::new(width, height), Default::default())?;
+        let image_handle = device.create_image(
+            resource_manager,
+            Size2D::new(width, height),
+            Default::default(),
+        )?;
 
+        let image = device.get_image(resource_manager, image_handle).unwrap();
         upload_context.image_barrier_start(device, &image);
         upload_context.copy_buffer_to_image(device, &image_staging_buffer, &image);
         upload_context.image_barrier_end(device, &image);
@@ -406,6 +428,7 @@ impl EguiIntegration {
         };
 
         device.write_bind_group(
+            resource_manager,
             self.pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
@@ -417,7 +440,7 @@ impl EguiIntegration {
             }],
         )?;
 
-        self.image_map.insert(*id, image);
+        self.image_map.insert(*id, image_handle);
         self.image_staging_buffer = Some(image_staging_buffer);
 
         Ok(())
@@ -425,6 +448,7 @@ impl EguiIntegration {
 
     fn set_image(
         &mut self,
+        resource_manager: &mut ResourceManager,
         device: &Device,
         upload_context: &UploadContext,
         id: &TextureId,
@@ -435,6 +459,7 @@ impl EguiIntegration {
                 let (width, height) = (color_data.size[0] as u32, color_data.size[1] as u32);
 
                 self.set_image_helper(
+                    resource_manager,
                     device,
                     upload_context,
                     id,
@@ -447,13 +472,22 @@ impl EguiIntegration {
                 let (width, height) = (font_data.width() as u32, font_data.height() as u32);
                 let data = font_data.srgba_pixels(Some(1.0)).collect::<Vec<_>>();
 
-                self.set_image_helper(device, upload_context, id, width, height, &data)
+                self.set_image_helper(
+                    resource_manager,
+                    device,
+                    upload_context,
+                    id,
+                    width,
+                    height,
+                    &data,
+                )
             }
         }
     }
 
     fn set_textures(
         &mut self,
+        resource_manager: &mut ResourceManager,
         device: &Device,
         context: &UploadContext,
         fence: Fence,
@@ -461,7 +495,7 @@ impl EguiIntegration {
     ) -> Result<()> {
         context.begin(device, fence)?;
         for (id, delta) in &textures_delta.set {
-            self.set_image(device, context, id, delta)?;
+            self.set_image(resource_manager, device, context, id, delta)?;
         }
         context.end(device, fence, device.present_queue(), &[], &[], &[])?;
         Ok(())
@@ -479,9 +513,6 @@ impl EguiIntegration {
         self.sampler.destroy(device.raw());
         if let Some(buffer) = &mut self.image_staging_buffer {
             buffer.destroy(device.raw())
-        }
-        for image in self.image_map.values_mut() {
-            image.destroy(device.raw());
         }
         for buffer in &mut self.vertex_buffers {
             buffer.destroy(device.raw());
