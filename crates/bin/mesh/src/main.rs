@@ -7,7 +7,7 @@ use cinder::{
         },
         upload_context::UploadContext,
     },
-    device::Device,
+    device::{Device, ResourceManager},
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
@@ -85,9 +85,10 @@ impl Vertex for MeshVertex {
 }
 
 pub struct Renderer {
+    resource_manager: ResourceManager,
     device: Device,
     view: View,
-    depth_image: Image,
+    depth_image: ResourceHandle<Image>,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
     _upload_context: UploadContext,
@@ -96,19 +97,21 @@ pub struct Renderer {
     ubo_buffer: Buffer,
     image_buffer: Buffer,
     sampler: Sampler,
-    texture: Image,
+    texture_handle: ResourceHandle<Image>,
     init_time: Instant,
     index_count: u32,
 }
 
 impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
+        let mut resource_manager = ResourceManager::default();
         let mut device = Device::new(window, Default::default())?;
         let render_context = RenderContext::new(&device, Default::default())?;
         let upload_context = UploadContext::new(&device, Default::default())?;
         let view = View::new(&device, Default::default())?;
         let surface_rect = device.surface_rect();
         let depth_image = device.create_image(
+            &mut resource_manager,
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFloat,
@@ -118,14 +121,17 @@ impl Renderer {
         )?;
 
         let vertex_shader = device.create_shader(
+            &mut resource_manager,
             include_bytes!("../shaders/spv/mesh.vert.spv"),
             Default::default(),
         )?;
         let fragment_shader = device.create_shader(
+            &mut resource_manager,
             include_bytes!("../shaders/spv/mesh.frag.spv"),
             Default::default(),
         )?;
         let render_pipeline = device.create_graphics_pipeline(
+            &mut resource_manager,
             vertex_shader,
             fragment_shader,
             GraphicsPipelineDescription {
@@ -186,7 +192,12 @@ impl Renderer {
             .unwrap()
             .to_rgba8();
         let (width, height) = image.dimensions();
-        let texture = device.create_image(Size2D::new(width, height), Default::default())?;
+        let texture_handle = device.create_image(
+            &mut resource_manager,
+            Size2D::new(width, height),
+            Default::default(),
+        )?;
+        let texture = device.get_image(&resource_manager, texture_handle).unwrap();
         let image_data = image.into_raw();
 
         let image_buffer = device.create_buffer_with_data(
@@ -212,6 +223,7 @@ impl Renderer {
         )?;
 
         device.write_bind_group(
+            &resource_manager,
             render_pipeline,
             &[
                 BindGroupBindInfo {
@@ -232,6 +244,7 @@ impl Renderer {
         let init_time = Instant::now();
 
         Ok(Self {
+            resource_manager,
             device,
             view,
             depth_image,
@@ -242,7 +255,7 @@ impl Renderer {
             index_buffer,
             image_buffer,
             sampler,
-            texture,
+            texture_handle,
             ubo_buffer,
             init_time,
             index_count: mesh.indices.len() as u32,
@@ -271,12 +284,17 @@ impl Renderer {
             self.render_context
                 .transition_undefined_to_color(&self.device, drawable);
 
+            // TODO: remove get from user code?
+            let depth_image = self
+                .device
+                .get_image(&self.resource_manager, self.depth_image)
+                .unwrap();
             self.render_context.begin_rendering(
                 &self.device,
                 surface_rect,
                 &[RenderAttachment::color(drawable, Default::default())],
                 Some(RenderAttachment::depth(
-                    &self.depth_image,
+                    depth_image,
                     RenderAttachmentDesc {
                         store_op: AttachmentStoreOp::DontCare,
                         layout: Layout::DepthAttachment,
@@ -286,8 +304,11 @@ impl Renderer {
                 )),
             );
             {
-                self.render_context
-                    .bind_graphics_pipeline(&self.device, self.render_pipeline)?;
+                self.render_context.bind_graphics_pipeline(
+                    &self.resource_manager,
+                    &self.device,
+                    self.render_pipeline,
+                )?;
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
@@ -296,7 +317,8 @@ impl Renderer {
                 self.render_context
                     .bind_vertex_buffer(&self.device, &self.vertex_buffer);
                 // TODO: re-think API later when using more than one set
-                self.render_context.bind_descriptor_sets(&self.device)?;
+                self.render_context
+                    .bind_descriptor_sets(&self.resource_manager, &self.device)?;
 
                 self.render_context
                     .draw_offset(&self.device, self.index_count, 0, 0);
@@ -314,8 +336,11 @@ impl Renderer {
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
         self.device.resize(width, height)?;
         self.view.resize(&self.device)?;
-        self.depth_image
-            .resize(&self.device, Size2D::new(width, height))?;
+        let depth_image = self
+            .device
+            .get_image_mut(&mut self.resource_manager, self.depth_image)
+            .unwrap();
+        depth_image.resize(&self.device, Size2D::new(width, height))?;
         Ok(())
     }
 }
@@ -324,9 +349,7 @@ impl Drop for Renderer {
     fn drop(&mut self) {
         self.device.wait_idle().ok();
 
-        self.depth_image.destroy(self.device.raw());
         self.sampler.destroy(self.device.raw());
-        self.texture.destroy(self.device.raw());
 
         self.vertex_buffer.destroy(self.device.raw());
         self.index_buffer.destroy(self.device.raw());
@@ -334,6 +357,7 @@ impl Drop for Renderer {
         self.image_buffer.destroy(self.device.raw());
 
         self.view.destroy(&self.device);
+        self.resource_manager.clean(&self.device);
     }
 }
 
