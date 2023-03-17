@@ -263,9 +263,7 @@ impl Renderer {
             },
         )?;
         {
-            let ubo_buffer = device
-                .get_buffer(&resource_manager, ubo_buffer_handle)
-                .unwrap();
+            let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle).unwrap();
             ubo_buffer.mem_copy(
                 util::offset_of!(UiUniformBufferObject, view) as u64,
                 &[
@@ -312,8 +310,8 @@ impl Renderer {
     pub fn update(&mut self) -> Result<()> {
         let scale = self.model_data.scale;
         let ubo_buffer = self
-            .device
-            .get_buffer(&self.resource_manager, self.ubo_buffer_handle)
+            .resource_manager
+            .get_buffer(self.ubo_buffer_handle)
             .unwrap();
         ubo_buffer.mem_copy(
             util::offset_of!(UiUniformBufferObject, model) as u64,
@@ -334,10 +332,7 @@ impl Renderer {
                 .transition_undefined_to_color(&self.device, drawable);
 
             // TODO: remove get from user code?
-            let depth_image = self
-                .device
-                .get_image(&self.resource_manager, self.depth_image)
-                .unwrap();
+            let depth_image = self.resource_manager.get_image(self.depth_image).unwrap();
             self.render_context.begin_rendering(
                 &self.device,
                 surface_rect,
@@ -362,14 +357,14 @@ impl Renderer {
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
                 let index_buffer = self
-                    .device
-                    .get_buffer(&self.resource_manager, self.index_buffer_handle)
+                    .resource_manager
+                    .get_buffer(self.index_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, index_buffer);
                 let vertex_buffer = self
-                    .device
-                    .get_buffer(&self.resource_manager, self.vertex_buffer_handle)
+                    .resource_manager
+                    .get_buffer(self.vertex_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_vertex_buffer(&self.device, vertex_buffer);
@@ -416,8 +411,8 @@ impl Renderer {
         self.device.resize(width, height)?;
         self.view.resize(&self.device)?;
         let depth_image = self
-            .device
-            .get_image_mut(&mut self.resource_manager, self.depth_image)
+            .resource_manager
+            .get_image_mut(self.depth_image)
             .unwrap();
         depth_image.resize(&self.device, Size2D::new(width, height))?;
         Ok(())

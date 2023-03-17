@@ -211,14 +211,11 @@ impl EguiIntegration {
     ) -> Result<()> {
         let size = window.inner_size();
         let present_index = drawable.index();
-        let vertex_buffer = device
-            .get_buffer(
-                resource_manager,
-                self.vertex_buffers[present_index as usize],
-            )
+        let vertex_buffer = resource_manager
+            .get_buffer(self.vertex_buffers[present_index as usize])
             .unwrap();
-        let index_buffer = device
-            .get_buffer(resource_manager, self.index_buffers[present_index as usize])
+        let index_buffer = resource_manager
+            .get_buffer(self.index_buffers[present_index as usize])
             .unwrap();
         let mut vertex_buffer_ptr = vertex_buffer.ptr().unwrap();
         let mut index_buffer_ptr = index_buffer.ptr().unwrap();
@@ -359,14 +356,11 @@ impl EguiIntegration {
         let vertex_buffer_ptr_next = vertex_buffer_ptr.add(vertex_copy_size);
         let index_buffer_ptr_next = index_buffer_ptr.add(index_copy_size);
 
-        let vertex_buffer = device
-            .get_buffer(
-                resource_manager,
-                self.vertex_buffers[present_index as usize],
-            )
+        let vertex_buffer = resource_manager
+            .get_buffer(self.vertex_buffers[present_index as usize])
             .unwrap();
-        let index_buffer = device
-            .get_buffer(resource_manager, self.index_buffers[present_index as usize])
+        let index_buffer = resource_manager
+            .get_buffer(self.index_buffers[present_index as usize])
             .unwrap();
         if vertex_buffer_ptr_next >= vertex_buffer.end_ptr().unwrap()
             || index_buffer_ptr_next >= index_buffer.end_ptr().unwrap()
@@ -426,12 +420,12 @@ impl EguiIntegration {
                 ..Default::default()
             },
         )?;
-        let image_staging_buffer = device
-            .get_buffer(resource_manager, image_staging_buffer_handle)
+        let image_staging_buffer = resource_manager
+            .get_buffer(image_staging_buffer_handle)
             .unwrap();
         image_staging_buffer.mem_copy(0, data)?;
 
-        let image = device.get_image(resource_manager, image_handle).unwrap();
+        let image = resource_manager.get_image(image_handle).unwrap();
         upload_context.image_barrier_start(device, &image);
         upload_context.copy_buffer_to_image(device, &image_staging_buffer, &image);
         upload_context.image_barrier_end(device, &image);

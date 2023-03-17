@@ -51,9 +51,21 @@ pub enum DeviceError {
     ResourceNotInCache,
 }
 
+macro_rules! getter {
+    ($fn_name:ident, $fn_name_mut:ident, $field:ident, $t:ty) => {
+        pub fn $fn_name(&self, handle: ResourceHandle<$t>) -> Option<&$t> {
+            self.$field.get(handle)
+        }
+
+        pub fn $fn_name_mut(&mut self, handle: ResourceHandle<$t>) -> Option<&mut $t> {
+            self.$field.get_mut(handle)
+        }
+    };
+}
+
 #[derive(Default)]
 pub struct ResourceManager {
-    pipelines: ResourcePool<GraphicsPipeline>,
+    graphics_pipelines: ResourcePool<GraphicsPipeline>,
     shaders: ResourcePool<Shader>,
     images: ResourcePool<Image>,
     buffers: ResourcePool<Buffer>,
@@ -63,7 +75,7 @@ pub struct ResourceManager {
 
 impl ResourceManager {
     pub fn clean(&mut self, device: &Device) {
-        for mut pipeline in self.pipelines.drain() {
+        for mut pipeline in self.graphics_pipelines.drain() {
             pipeline.destroy(device.raw());
         }
         for mut shader in self.shaders.drain() {
@@ -76,6 +88,16 @@ impl ResourceManager {
             buffer.destroy(device.raw());
         }
     }
+
+    getter!(
+        get_graphics_pipeline,
+        get_graphics_pipeline_mut,
+        graphics_pipelines,
+        GraphicsPipeline
+    );
+    getter!(get_shader, get_shader_mut, shaders, Shader);
+    getter!(get_image, get_image_mut, images, Image);
+    getter!(get_buffer, get_buffer_mut, buffers, Buffer);
 }
 
 #[derive(Debug, Default)]
@@ -504,22 +526,6 @@ impl Device {
         Ok(manager.buffers.insert(buffer))
     }
 
-    pub fn get_buffer<'a>(
-        &self,
-        manager: &'a ResourceManager,
-        handle: ResourceHandle<Buffer>,
-    ) -> Option<&'a Buffer> {
-        manager.buffers.get(handle)
-    }
-
-    pub fn get_buffer_mut<'a>(
-        &self,
-        manager: &'a mut ResourceManager,
-        handle: ResourceHandle<Buffer>,
-    ) -> Option<&'a mut Buffer> {
-        manager.buffers.get_mut(handle)
-    }
-
     pub fn create_image(
         &self,
         manager: &mut ResourceManager,
@@ -527,22 +533,6 @@ impl Device {
         desc: ImageDescription,
     ) -> Result<ResourceHandle<Image>> {
         Ok(manager.images.insert(Image::create(self, size, desc)?))
-    }
-
-    pub fn get_image<'a>(
-        &self,
-        manager: &'a ResourceManager,
-        handle: ResourceHandle<Image>,
-    ) -> Option<&'a Image> {
-        manager.images.get(handle)
-    }
-
-    pub fn get_image_mut<'a>(
-        &self,
-        manager: &'a mut ResourceManager,
-        handle: ResourceHandle<Image>,
-    ) -> Option<&'a mut Image> {
-        manager.images.get_mut(handle)
     }
 
     pub fn create_shader(
@@ -573,14 +563,6 @@ impl Device {
         }
     }
 
-    pub(crate) fn get_shader<'a>(
-        &self,
-        manager: &'a ResourceManager,
-        handle: ResourceHandle<Shader>,
-    ) -> Option<&'a Shader> {
-        manager.shaders.get(handle)
-    }
-
     pub fn create_graphics_pipeline(
         &self,
         manager: &mut ResourceManager,
@@ -588,13 +570,13 @@ impl Device {
         fragment_shader_handle: ResourceHandle<Shader>,
         desc: GraphicsPipelineDescription,
     ) -> Result<ResourceHandle<GraphicsPipeline>> {
-        let vertex_shader = self
-            .get_shader(manager, vertex_shader_handle)
+        let vertex_shader = manager
+            .get_shader(vertex_shader_handle)
             .ok_or(DeviceError::ResourceNotInCache)?;
-        let fragment_shader = self
-            .get_shader(manager, fragment_shader_handle)
+        let fragment_shader = manager
+            .get_shader(fragment_shader_handle)
             .ok_or(DeviceError::ResourceNotInCache)?;
-        Ok(manager.pipelines.insert(GraphicsPipeline::create(
+        Ok(manager.graphics_pipelines.insert(GraphicsPipeline::create(
             self,
             vertex_shader,
             vertex_shader_handle,
@@ -610,29 +592,21 @@ impl Device {
         manager: &mut ResourceManager,
         handle: ResourceHandle<GraphicsPipeline>,
     ) -> Result<()> {
-        if let Some(mut old) = manager.pipelines.remove(handle) {
-            let vertex_shader = self
-                .get_shader(manager, old.vertex_shader_handle)
+        if let Some(mut old) = manager.graphics_pipelines.remove(handle) {
+            let vertex_shader = manager
+                .get_shader(old.vertex_shader_handle)
                 .ok_or(DeviceError::ResourceNotInCache)?;
-            let fragment_shader = self
-                .get_shader(manager, old.fragment_shader_handle)
+            let fragment_shader = manager
+                .get_shader(old.fragment_shader_handle)
                 .ok_or(DeviceError::ResourceNotInCache)?;
             manager
                 .purgatory
                 .push(old.recreate(vertex_shader, fragment_shader, self)?);
-            manager.pipelines.replace(handle, old);
+            manager.graphics_pipelines.replace(handle, old);
             Ok(())
         } else {
             Err(DeviceError::InvalidPipelineHandle.into())
         }
-    }
-
-    pub(crate) fn get_graphics_pipeline<'a>(
-        &self,
-        manager: &'a ResourceManager,
-        handle: ResourceHandle<GraphicsPipeline>,
-    ) -> Option<&'a GraphicsPipeline> {
-        manager.pipelines.get(handle)
     }
 
     pub fn create_compute_pipeline(
@@ -691,7 +665,7 @@ impl Device {
         handle: ResourceHandle<GraphicsPipeline>,
         infos: &[BindGroupBindInfo],
     ) -> Result<(), DeviceError> {
-        if let Some(pipeline) = self.get_graphics_pipeline(manager, handle) {
+        if let Some(pipeline) = manager.get_graphics_pipeline(handle) {
             let writes = infos
                 .iter()
                 .map(|info| {

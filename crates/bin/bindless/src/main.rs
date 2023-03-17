@@ -229,9 +229,7 @@ impl Renderer {
             },
         )?;
         {
-            let ubo_buffer = device
-                .get_buffer(&resource_manager, ubo_buffer_handle)
-                .unwrap();
+            let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle).unwrap();
             ubo_buffer.mem_copy(
                 util::offset_of!(BindlessUniformBufferObject, model) as u64,
                 &[
@@ -248,9 +246,7 @@ impl Renderer {
                     ),
                 ],
             )?;
-            let vertex_buffer = device
-                .get_buffer(&resource_manager, vertex_buffer_handle)
-                .unwrap();
+            let vertex_buffer = resource_manager.get_buffer(vertex_buffer_handle).unwrap();
             device.write_bind_group(
                 &resource_manager,
                 render_pipeline,
@@ -297,10 +293,8 @@ impl Renderer {
                         },
                     )
                     .unwrap();
-                let texture = device.get_image(&resource_manager, texture_handle).unwrap();
-                let image_buffer = device
-                    .get_buffer(&resource_manager, image_buffer_handle)
-                    .unwrap();
+                let texture = resource_manager.get_image(texture_handle).unwrap();
+                let image_buffer = resource_manager.get_buffer(image_buffer_handle).unwrap();
                 upload_context.image_barrier_start(&device, &texture);
                 upload_context.copy_buffer_to_image(&device, image_buffer, &texture);
                 upload_context.image_barrier_end(&device, &texture);
@@ -362,8 +356,8 @@ impl Renderer {
 
             // TODO: remove get from user code?
             let depth_image = self
-                .device
-                .get_image(&self.resource_manager, self.depth_image_handle)
+                .resource_manager
+                .get_image(self.depth_image_handle)
                 .unwrap();
             self.render_context.begin_rendering(
                 &self.device,
@@ -389,8 +383,8 @@ impl Renderer {
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
                 let index_buffer = self
-                    .device
-                    .get_buffer(&self.resource_manager, self.index_buffer_handle)
+                    .resource_manager
+                    .get_buffer(self.index_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, index_buffer);
@@ -428,8 +422,8 @@ impl Renderer {
         self.device.resize(width, height)?;
         self.view.resize(&self.device)?;
         let depth_image = self
-            .device
-            .get_image_mut(&mut self.resource_manager, self.depth_image_handle)
+            .resource_manager
+            .get_image_mut(self.depth_image_handle)
             .unwrap();
         depth_image.resize(&self.device, Size2D::new(width, height))?;
         Ok(())

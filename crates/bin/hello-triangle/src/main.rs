@@ -132,14 +132,14 @@ impl Renderer {
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
                 let index_buffer = self
-                    .device
-                    .get_buffer(&self.resource_manager, self.index_buffer_handle)
+                    .resource_manager
+                    .get_buffer(self.index_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, index_buffer);
                 let vertex_buffer = self
-                    .device
-                    .get_buffer(&self.resource_manager, self.vertex_buffer_handle)
+                    .resource_manager
+                    .get_buffer(self.vertex_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_vertex_buffer(&self.device, vertex_buffer);

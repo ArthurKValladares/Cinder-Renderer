@@ -127,11 +127,9 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
-        let image_buffer = device
-            .get_buffer(&resource_manager, image_buffer_handle)
-            .unwrap();
+        let image_buffer = resource_manager.get_buffer(image_buffer_handle).unwrap();
         // TODO: having to call `get` here is bad, will no longer be neede later with better abstractions
-        let texture = device.get_image(&resource_manager, texture_handle).unwrap();
+        let texture = resource_manager.get_image(texture_handle).unwrap();
         // TODO: Will abstract this later
         upload_context.begin(&device, device.setup_fence())?;
         {
@@ -202,14 +200,14 @@ impl Renderer {
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
                 let index_buffer = self
-                    .device
-                    .get_buffer(&self.resource_manager, self.index_buffer_handle)
+                    .resource_manager
+                    .get_buffer(self.index_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, index_buffer);
                 let vertex_buffer = self
-                    .device
-                    .get_buffer(&self.resource_manager, self.vertex_buffer_handle)
+                    .resource_manager
+                    .get_buffer(self.vertex_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_vertex_buffer(&self.device, vertex_buffer);

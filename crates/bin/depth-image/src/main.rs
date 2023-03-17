@@ -272,9 +272,7 @@ impl Renderer {
             },
         )?;
         {
-            let ubo_buffer = device
-                .get_buffer(&resource_manager, ubo_buffer_handle)
-                .unwrap();
+            let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle).unwrap();
             ubo_buffer.mem_copy(
                 util::offset_of!(DepthMeshUniformBufferObject, view) as u64,
                 &[
@@ -338,9 +336,7 @@ impl Renderer {
         let init_time = Instant::now();
 
         let upload_context = UploadContext::new(&device, Default::default())?;
-        let depth_image = device
-            .get_image(&resource_manager, depth_image_handle)
-            .unwrap();
+        let depth_image = resource_manager.get_image(depth_image_handle).unwrap();
         upload_context.begin(&device, device.setup_fence())?;
         {
             upload_context.transition_depth_to_read_only(&device, &depth_image);
@@ -389,8 +385,8 @@ impl Renderer {
     pub fn update(&mut self) -> Result<()> {
         let scale = (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
         let ubo_buffer = self
-            .device
-            .get_buffer_mut(&mut self.resource_manager, self.ubo_buffer_handle)
+            .resource_manager
+            .get_buffer_mut(self.ubo_buffer_handle)
             .unwrap();
         ubo_buffer.mem_copy(
             util::offset_of!(DepthMeshUniformBufferObject, model) as u64,
@@ -415,8 +411,8 @@ impl Renderer {
 
             // Mesh render pass
             let depth_image = self
-                .device
-                .get_image(&self.resource_manager, self.depth_image_handle)
+                .resource_manager
+                .get_image(self.depth_image_handle)
                 .unwrap();
             self.render_context.begin_rendering(
                 &self.device,
@@ -439,14 +435,14 @@ impl Renderer {
                     self.mesh_render_pipeline,
                 )?;
                 let cube_index_buffer = self
-                    .device
-                    .get_buffer(&self.resource_manager, self.cube_index_buffer_handle)
+                    .resource_manager
+                    .get_buffer(self.cube_index_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, cube_index_buffer);
                 let cube_vertex_buffer = self
-                    .device
-                    .get_buffer(&self.resource_manager, self.cube_vertex_buffer_handle)
+                    .resource_manager
+                    .get_buffer(self.cube_vertex_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_vertex_buffer(&self.device, cube_vertex_buffer);
@@ -478,14 +474,14 @@ impl Renderer {
                     self.texture_render_pipeline,
                 )?;
                 let quad_index_buffer = self
-                    .device
-                    .get_buffer(&self.resource_manager, self.quad_index_buffer_handle)
+                    .resource_manager
+                    .get_buffer(self.quad_index_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, quad_index_buffer);
                 let quad_vertex_buffer = self
-                    .device
-                    .get_buffer(&self.resource_manager, self.quad_vertex_buffer_handle)
+                    .resource_manager
+                    .get_buffer(self.quad_vertex_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_vertex_buffer(&self.device, quad_vertex_buffer);
@@ -512,15 +508,15 @@ impl Renderer {
         // TODO: This is really messy
         {
             let depth_image = self
-                .device
-                .get_image_mut(&mut self.resource_manager, self.depth_image_handle)
+                .resource_manager
+                .get_image_mut(self.depth_image_handle)
                 .unwrap();
             depth_image.resize(&self.device, Size2D::new(width, height))?;
         }
 
         let depth_image = self
-            .device
-            .get_image(&self.resource_manager, self.depth_image_handle)
+            .resource_manager
+            .get_image(self.depth_image_handle)
             .unwrap();
         self.upload_context
             .begin(&self.device, self.device.setup_fence())?;

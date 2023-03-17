@@ -289,7 +289,7 @@ impl RenderContext {
         device: &Device,
         handle: ResourceHandle<GraphicsPipeline>,
     ) -> Result<(), PipelineError> {
-        if let Some(pipeline) = device.get_graphics_pipeline(manager, handle) {
+        if let Some(pipeline) = manager.get_graphics_pipeline(handle) {
             unsafe {
                 device.raw().cmd_bind_pipeline(
                     self.shared.command_buffer,
@@ -337,8 +337,8 @@ impl RenderContext {
         device: &Device,
     ) -> Result<(), PipelineError> {
         if let Some(handle) = &self.bound_pipeline {
-            let pipeline = device
-                .get_graphics_pipeline(manager, *handle)
+            let pipeline = manager
+                .get_graphics_pipeline(*handle)
                 .ok_or(PipelineError::InvalidPipelineHandle)?;
 
             unsafe {
@@ -471,8 +471,8 @@ impl RenderContext {
         idx: u32,
     ) -> Result<(), PipelineError> {
         if let Some(handle) = &self.bound_pipeline {
-            let pipeline = device
-                .get_graphics_pipeline(manager, *handle)
+            let pipeline = manager
+                .get_graphics_pipeline(*handle)
                 .ok_or(PipelineError::InvalidPipelineHandle)?;
             self.push_constant(
                 device,
@@ -494,8 +494,8 @@ impl RenderContext {
         idx: u32,
     ) -> Result<(), PipelineError> {
         if let Some(handle) = &self.bound_pipeline {
-            let pipeline = device
-                .get_graphics_pipeline(manager, *handle)
+            let pipeline = manager
+                .get_graphics_pipeline(*handle)
                 .ok_or(PipelineError::InvalidPipelineHandle)?;
             self.push_constant(
                 device,
