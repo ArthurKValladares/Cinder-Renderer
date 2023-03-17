@@ -1,8 +1,55 @@
 use ash::vk;
 
+#[derive(Debug, Clone, Copy)]
+pub enum Filter {
+    Linear,
+    Nearest,
+}
+
+impl Default for Filter {
+    fn default() -> Self {
+        Self::Linear
+    }
+}
+
+impl From<Filter> for vk::Filter {
+    fn from(filter: Filter) -> Self {
+        match filter {
+            Filter::Linear => vk::Filter::LINEAR,
+            Filter::Nearest => vk::Filter::NEAREST,
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum AddressMode {
+    Repear,
+    MirroredRepeat,
+    ClampToEdge,
+    ClampToBorder,
+}
+
+impl Default for AddressMode {
+    fn default() -> Self {
+        Self::Repear
+    }
+}
+
+impl From<AddressMode> for vk::SamplerAddressMode {
+    fn from(value: AddressMode) -> Self {
+        match value {
+            AddressMode::Repear => vk::SamplerAddressMode::REPEAT,
+            AddressMode::MirroredRepeat => vk::SamplerAddressMode::MIRRORED_REPEAT,
+            AddressMode::ClampToEdge => vk::SamplerAddressMode::CLAMP_TO_EDGE,
+            AddressMode::ClampToBorder => vk::SamplerAddressMode::CLAMP_TO_BORDER,
+        }
+    }
+}
 #[derive(Default)]
 pub struct SamplerDescription {
     pub name: Option<&'static str>,
+    pub filter: Filter,
+    pub address_mode: AddressMode,
 }
 
 pub struct Sampler {

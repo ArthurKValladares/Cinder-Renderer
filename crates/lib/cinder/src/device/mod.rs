@@ -619,12 +619,12 @@ impl Device {
 
     pub fn create_sampler(&self, device: &Device, desc: SamplerDescription) -> Result<Sampler> {
         let sampler_info = vk::SamplerCreateInfo {
-            mag_filter: vk::Filter::LINEAR,
-            min_filter: vk::Filter::LINEAR,
+            mag_filter: desc.filter.into(),
+            min_filter: desc.filter.into(),
             mipmap_mode: vk::SamplerMipmapMode::LINEAR,
-            address_mode_u: vk::SamplerAddressMode::MIRRORED_REPEAT,
-            address_mode_v: vk::SamplerAddressMode::MIRRORED_REPEAT,
-            address_mode_w: vk::SamplerAddressMode::MIRRORED_REPEAT,
+            address_mode_u: desc.address_mode.into(),
+            address_mode_v: desc.address_mode.into(),
+            address_mode_w: desc.address_mode.into(),
             max_anisotropy: 1.0,
             border_color: vk::BorderColor::FLOAT_OPAQUE_WHITE,
             compare_op: vk::CompareOp::NEVER,

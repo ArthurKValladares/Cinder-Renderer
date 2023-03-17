@@ -51,20 +51,6 @@ impl From<Layout> for vk::ImageLayout {
     }
 }
 
-pub enum Filter {
-    Linear,
-    Nearest,
-}
-
-impl From<Filter> for vk::Filter {
-    fn from(filter: Filter) -> Self {
-        match filter {
-            Filter::Linear => vk::Filter::LINEAR,
-            Filter::Nearest => vk::Filter::NEAREST,
-        }
-    }
-}
-
 #[repr(C)]
 #[derive(Debug, Deserialize, Clone, Copy)]
 pub enum ClearValue {
