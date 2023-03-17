@@ -127,12 +127,12 @@ pub struct Renderer {
     render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
     _upload_context: UploadContext,
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
-    ubo_buffer: Buffer,
+    vertex_buffer_handle: ResourceHandle<Buffer>,
+    index_buffer_handle: ResourceHandle<Buffer>,
+    ubo_buffer_handle: ResourceHandle<Buffer>,
     sampler: Sampler,
     image_handle: Vec<ResourceHandle<Image>>,
-    image_buffers: Vec<Buffer>,
+    image_buffer_handles: Vec<ResourceHandle<Buffer>>,
     mesh_draws: Vec<MeshDraw>,
 }
 
@@ -203,14 +203,16 @@ impl Renderer {
             (vertices, indices, mesh_draws)
         };
 
-        let vertex_buffer = device.create_buffer_with_data(
+        let vertex_buffer_handle = device.create_buffer_with_data(
+            &mut resource_manager,
             &vertices,
             BufferDescription {
                 usage: BufferUsage::STORAGE | BufferUsage::TRANSFER_DST,
                 ..Default::default()
             },
         )?;
-        let index_buffer = device.create_buffer_with_data(
+        let index_buffer_handle = device.create_buffer_with_data(
+            &mut resource_manager,
             &indices,
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -218,49 +220,56 @@ impl Renderer {
             },
         )?;
 
-        let ubo_buffer = device.create_buffer(
+        let ubo_buffer_handle = device.create_buffer(
+            &mut resource_manager,
             std::mem::size_of::<BindlessUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
                 ..Default::default()
             },
         )?;
-        ubo_buffer.mem_copy(
-            util::offset_of!(BindlessUniformBufferObject, model) as u64,
-            &[
-                Mat4::identity(),
-                look_to(
-                    Vec3::new(0.0, -50.0, 0.0),
-                    Vec3::new(1.0, 0.0, 0.0),
-                    Vec3::new(0.0, 1.0, 0.0),
-                ),
-                new_infinite_perspective_proj(
-                    surface_rect.width() as f32 / surface_rect.height() as f32,
-                    30.0,
-                    0.01,
-                ),
-            ],
-        )?;
-
+        {
+            let ubo_buffer = device
+                .get_buffer(&resource_manager, ubo_buffer_handle)
+                .unwrap();
+            ubo_buffer.mem_copy(
+                util::offset_of!(BindlessUniformBufferObject, model) as u64,
+                &[
+                    Mat4::identity(),
+                    look_to(
+                        Vec3::new(0.0, -50.0, 0.0),
+                        Vec3::new(1.0, 0.0, 0.0),
+                        Vec3::new(0.0, 1.0, 0.0),
+                    ),
+                    new_infinite_perspective_proj(
+                        surface_rect.width() as f32 / surface_rect.height() as f32,
+                        30.0,
+                        0.01,
+                    ),
+                ],
+            )?;
+            let vertex_buffer = device
+                .get_buffer(&resource_manager, vertex_buffer_handle)
+                .unwrap();
+            device.write_bind_group(
+                &resource_manager,
+                render_pipeline,
+                &[
+                    BindGroupBindInfo {
+                        dst_binding: 0,
+                        data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+                    },
+                    BindGroupBindInfo {
+                        dst_binding: 1,
+                        data: BindGroupWriteData::Storage(vertex_buffer.bind_info()),
+                    },
+                ],
+            )?;
+        }
         let sampler = device.create_sampler(&device, Default::default())?;
 
-        device.write_bind_group(
-            &mut resource_manager,
-            render_pipeline,
-            &[
-                BindGroupBindInfo {
-                    dst_binding: 0,
-                    data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-                },
-                BindGroupBindInfo {
-                    dst_binding: 1,
-                    data: BindGroupWriteData::Storage(vertex_buffer.bind_info()),
-                },
-            ],
-        )?;
-
         upload_context.begin(&device, device.setup_fence())?;
-        let (images, image_buffers) = scene
+        let (images, image_buffer_handles) = scene
             .materials
             .iter()
             .enumerate()
@@ -277,10 +286,10 @@ impl Renderer {
                         Default::default(),
                     )
                     .unwrap();
-                let texture = device.get_image(&resource_manager, texture_handle).unwrap();
                 let image_data = image.into_raw();
-                let image_buffer = device
+                let image_buffer_handle = device
                     .create_buffer_with_data(
+                        &mut resource_manager,
                         &image_data,
                         BufferDescription {
                             usage: BufferUsage::TRANSFER_SRC,
@@ -288,9 +297,12 @@ impl Renderer {
                         },
                     )
                     .unwrap();
-
+                let texture = device.get_image(&resource_manager, texture_handle).unwrap();
+                let image_buffer = device
+                    .get_buffer(&resource_manager, image_buffer_handle)
+                    .unwrap();
                 upload_context.image_barrier_start(&device, &texture);
-                upload_context.copy_buffer_to_image(&device, &image_buffer, &texture);
+                upload_context.copy_buffer_to_image(&device, image_buffer, &texture);
                 upload_context.image_barrier_end(&device, &texture);
 
                 device
@@ -308,7 +320,7 @@ impl Renderer {
                     )
                     .unwrap();
 
-                (texture_handle, image_buffer)
+                (texture_handle, image_buffer_handle)
             })
             .unzip::<_, _, Vec<_>, Vec<_>>();
         upload_context.end(
@@ -328,12 +340,12 @@ impl Renderer {
             render_context,
             _upload_context: upload_context,
             render_pipeline,
-            vertex_buffer,
-            index_buffer,
+            vertex_buffer_handle,
+            index_buffer_handle,
             sampler,
             image_handle: images,
-            image_buffers,
-            ubo_buffer,
+            image_buffer_handles,
+            ubo_buffer_handle,
             mesh_draws,
         })
     }
@@ -376,8 +388,12 @@ impl Renderer {
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
+                let index_buffer = self
+                    .device
+                    .get_buffer(&self.resource_manager, self.index_buffer_handle)
+                    .unwrap();
                 self.render_context
-                    .bind_index_buffer(&self.device, &self.index_buffer);
+                    .bind_index_buffer(&self.device, index_buffer);
                 // TODO: re-think API later when using more than one se
                 self.render_context
                     .bind_descriptor_sets(&self.resource_manager, &self.device)?;
@@ -425,13 +441,6 @@ impl Drop for Renderer {
         self.device.wait_idle().ok();
 
         self.sampler.destroy(self.device.raw());
-        for mut buffer in self.image_buffers.drain(..) {
-            buffer.destroy(self.device.raw());
-        }
-
-        self.vertex_buffer.destroy(self.device.raw());
-        self.index_buffer.destroy(self.device.raw());
-        self.ubo_buffer.destroy(self.device.raw());
 
         self.view.destroy(&self.device);
         self.resource_manager.clean(&self.device);
