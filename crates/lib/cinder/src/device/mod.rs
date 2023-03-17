@@ -63,30 +63,32 @@ macro_rules! getter {
     };
 }
 
+macro_rules! cleanup {
+    ($self:ident.$field:ident, $device:ident) => {
+        for mut res in $self.$field.drain() {
+            res.destroy($device.raw());
+        }
+    };
+}
+
 #[derive(Default)]
 pub struct ResourceManager {
     graphics_pipelines: ResourcePool<GraphicsPipeline>,
     shaders: ResourcePool<Shader>,
     images: ResourcePool<Image>,
     buffers: ResourcePool<Buffer>,
+    samplers: ResourcePool<Sampler>,
     // TODO: better abstraction
     purgatory: Vec<vk::Pipeline>,
 }
 
 impl ResourceManager {
     pub fn clean(&mut self, device: &Device) {
-        for mut pipeline in self.graphics_pipelines.drain() {
-            pipeline.destroy(device.raw());
-        }
-        for mut shader in self.shaders.drain() {
-            shader.destroy(device.raw());
-        }
-        for mut image in self.images.drain() {
-            image.destroy(device.raw());
-        }
-        for mut buffer in self.buffers.drain() {
-            buffer.destroy(device.raw());
-        }
+        cleanup!(self.graphics_pipelines, device);
+        cleanup!(self.shaders, device);
+        cleanup!(self.images, device);
+        cleanup!(self.buffers, device);
+        cleanup!(self.samplers, device);
     }
 
     getter!(
@@ -98,6 +100,7 @@ impl ResourceManager {
     getter!(get_shader, get_shader_mut, shaders, Shader);
     getter!(get_image, get_image_mut, images, Image);
     getter!(get_buffer, get_buffer_mut, buffers, Buffer);
+    getter!(get_sampler, get_sampler_mut, samplers, Sampler);
 }
 
 #[derive(Debug, Default)]
@@ -617,7 +620,12 @@ impl Device {
         ComputePipeline::create(self, shader, desc)
     }
 
-    pub fn create_sampler(&self, device: &Device, desc: SamplerDescription) -> Result<Sampler> {
+    pub fn create_sampler(
+        &self,
+        resource_manager: &mut ResourceManager,
+        device: &Device,
+        desc: SamplerDescription,
+    ) -> Result<ResourceHandle<Sampler>> {
         let sampler_info = vk::SamplerCreateInfo {
             mag_filter: desc.filter.into(),
             min_filter: desc.filter.into(),
@@ -637,7 +645,7 @@ impl Device {
             device.set_name(vk::ObjectType::SAMPLER, sampler, name);
         }
 
-        Ok(Sampler { raw: sampler })
+        Ok(resource_manager.samplers.insert(Sampler { raw: sampler }))
     }
 
     pub fn present_complete_semaphore(&self) -> vk::Semaphore {

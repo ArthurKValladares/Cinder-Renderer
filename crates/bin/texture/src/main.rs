@@ -42,7 +42,7 @@ pub struct Renderer {
     vertex_buffer_handle: ResourceHandle<Buffer>,
     index_buffer_handle: ResourceHandle<Buffer>,
     image_buffer_handle: ResourceHandle<Buffer>,
-    sampler: Sampler,
+    sampler_handle: ResourceHandle<Sampler>,
     texture_handle: ResourceHandle<Image>,
 }
 
@@ -106,7 +106,8 @@ impl Renderer {
             },
         )?;
 
-        let sampler = device.create_sampler(&device, Default::default())?;
+        let sampler_handle =
+            device.create_sampler(&mut resource_manager, &device, Default::default())?;
 
         let image = image::load_from_memory(include_bytes!("../assets/rust.png"))
             .unwrap()
@@ -146,6 +147,7 @@ impl Renderer {
             &[],
         )?;
 
+        let sampler = resource_manager.get_sampler(sampler_handle).unwrap();
         device.write_bind_group(
             &resource_manager,
             render_pipeline,
@@ -169,7 +171,7 @@ impl Renderer {
             vertex_buffer_handle,
             index_buffer_handle,
             image_buffer_handle,
-            sampler,
+            sampler_handle,
             texture_handle,
         })
     }
@@ -236,8 +238,6 @@ impl Renderer {
 impl Drop for Renderer {
     fn drop(&mut self) {
         self.device.wait_idle().ok();
-
-        self.sampler.destroy(self.device.raw());
 
         self.view.destroy(&self.device);
         self.resource_manager.clean(&self.device);

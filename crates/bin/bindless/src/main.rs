@@ -262,7 +262,7 @@ impl Renderer {
                 ],
             )?;
         }
-        let sampler = device.create_sampler(&device, Default::default())?;
+        let sampler = device.create_sampler(&mut resource_manager, &device, Default::default())?;
 
         upload_context.begin(&device, device.setup_fence())?;
         let (images, image_buffer_handles) = scene
@@ -433,8 +433,6 @@ impl Renderer {
 impl Drop for Renderer {
     fn drop(&mut self) {
         self.device.wait_idle().ok();
-
-        self.sampler.destroy(self.device.raw());
 
         self.view.destroy(&self.device);
         self.resource_manager.clean(&self.device);
