@@ -64,9 +64,9 @@ pub struct Renderer {
     depth_image: ResourceHandle<Image>,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
-    ubo_buffer: Buffer,
+    vertex_buffer_handle: ResourceHandle<Buffer>,
+    index_buffer_handle: ResourceHandle<Buffer>,
+    ubo_buffer_handle: ResourceHandle<Buffer>,
     init_time: Instant,
 }
 
@@ -107,7 +107,8 @@ impl Renderer {
             },
         )?;
 
-        let vertex_buffer = device.create_buffer_with_data(
+        let vertex_buffer_handle = device.create_buffer_with_data(
+            &mut resource_manager,
             &[
                 // Plane at z: -0.5
                 CubeVertex {
@@ -217,7 +218,8 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
-        let index_buffer = device.create_buffer_with_data(
+        let index_buffer_handle = device.create_buffer_with_data(
+            &mut resource_manager,
             &[
                 0, 1, 2, 2, 1, 3, // First plane
                 4, 5, 6, 6, 5, 7, // Second plane
@@ -232,13 +234,17 @@ impl Renderer {
             },
         )?;
 
-        let ubo_buffer = device.create_buffer(
+        let ubo_buffer_handle = device.create_buffer(
+            &mut resource_manager,
             std::mem::size_of::<CubeUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
                 ..Default::default()
             },
         )?;
+        let ubo_buffer = device
+            .get_buffer(&resource_manager, ubo_buffer_handle)
+            .unwrap();
         ubo_buffer.mem_copy(
             util::offset_of!(CubeUniformBufferObject, view) as u64,
             &[
@@ -273,16 +279,20 @@ impl Renderer {
             depth_image,
             render_context,
             render_pipeline,
-            vertex_buffer,
-            index_buffer,
-            ubo_buffer,
+            vertex_buffer_handle,
+            index_buffer_handle,
+            ubo_buffer_handle,
             init_time,
         })
     }
 
     pub fn update(&mut self) -> Result<()> {
         let scale = (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
-        self.ubo_buffer.mem_copy(
+        let ubo_buffer = self
+            .device
+            .get_buffer_mut(&mut self.resource_manager, self.ubo_buffer_handle)
+            .unwrap();
+        ubo_buffer.mem_copy(
             util::offset_of!(CubeUniformBufferObject, model) as u64,
             &[Mat4::rotate(scale, Vec3::new(1.0, 1.0, 0.0))],
         )?;
@@ -327,10 +337,18 @@ impl Renderer {
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
+                let index_buffer = self
+                    .device
+                    .get_buffer(&self.resource_manager, self.index_buffer_handle)
+                    .unwrap();
                 self.render_context
-                    .bind_index_buffer(&self.device, &self.index_buffer);
+                    .bind_index_buffer(&self.device, index_buffer);
+                let vertex_buffer = self
+                    .device
+                    .get_buffer(&self.resource_manager, self.vertex_buffer_handle)
+                    .unwrap();
                 self.render_context
-                    .bind_vertex_buffer(&self.device, &self.vertex_buffer);
+                    .bind_vertex_buffer(&self.device, vertex_buffer);
                 // TODO: re-think API later when using more than one set
                 self.render_context
                     .bind_descriptor_sets(&self.resource_manager, &self.device)?;
@@ -362,10 +380,6 @@ impl Renderer {
 impl Drop for Renderer {
     fn drop(&mut self) {
         self.device.wait_idle().ok();
-
-        self.vertex_buffer.destroy(self.device.raw());
-        self.index_buffer.destroy(self.device.raw());
-        self.ubo_buffer.destroy(self.device.raw());
 
         self.view.destroy(&self.device);
         self.resource_manager.clean(&self.device);

@@ -53,10 +53,10 @@ pub enum DeviceError {
 
 #[derive(Default)]
 pub struct ResourceManager {
-    // TODO: Experimenting with some resource handling stuff in Device. maybe should be separate
     pipelines: ResourcePool<GraphicsPipeline>,
     shaders: ResourcePool<Shader>,
     images: ResourcePool<Image>,
+    buffers: ResourcePool<Buffer>,
     // TODO: better abstraction
     purgatory: Vec<vk::Pipeline>,
 }
@@ -71,6 +71,9 @@ impl ResourceManager {
         }
         for mut image in self.images.drain() {
             image.destroy(device.raw());
+        }
+        for mut buffer in self.buffers.drain() {
+            buffer.destroy(device.raw());
         }
     }
 }
@@ -480,19 +483,41 @@ impl Device {
         Ok(results)
     }
 
-    pub fn create_buffer(&self, size: u64, desc: BufferDescription) -> Result<Buffer> {
-        Buffer::create(self, size, desc)
+    pub fn create_buffer(
+        &self,
+        manager: &mut ResourceManager,
+        size: u64,
+        desc: BufferDescription,
+    ) -> Result<ResourceHandle<Buffer>> {
+        Ok(manager.buffers.insert(Buffer::create(self, size, desc)?))
     }
 
     pub fn create_buffer_with_data<T: Copy>(
         &self,
+        manager: &mut ResourceManager,
         data: &[T],
         desc: BufferDescription,
-    ) -> Result<Buffer> {
+    ) -> Result<ResourceHandle<Buffer>> {
         let size = size_of_slice(data);
-        let buffer = self.create_buffer(size, desc)?;
+        let buffer = Buffer::create(self, size, desc)?;
         buffer.mem_copy(0, data)?;
-        Ok(buffer)
+        Ok(manager.buffers.insert(buffer))
+    }
+
+    pub fn get_buffer<'a>(
+        &self,
+        manager: &'a ResourceManager,
+        handle: ResourceHandle<Buffer>,
+    ) -> Option<&'a Buffer> {
+        manager.buffers.get(handle)
+    }
+
+    pub fn get_buffer_mut<'a>(
+        &self,
+        manager: &'a mut ResourceManager,
+        handle: ResourceHandle<Buffer>,
+    ) -> Option<&'a mut Buffer> {
+        manager.buffers.get_mut(handle)
     }
 
     pub fn create_image(

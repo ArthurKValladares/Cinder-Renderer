@@ -33,8 +33,8 @@ pub struct Renderer {
     view: View,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
+    vertex_buffer_handle: ResourceHandle<Buffer>,
+    index_buffer_handle: ResourceHandle<Buffer>,
     init_time: Instant,
 }
 
@@ -63,6 +63,7 @@ impl Renderer {
         )?;
 
         let vertex_buffer = device.create_buffer_with_data(
+            &mut resource_manager,
             &[
                 TriangleVertex {
                     i_pos: [0.0, 0.5],
@@ -83,6 +84,7 @@ impl Renderer {
             },
         )?;
         let index_buffer = device.create_buffer_with_data(
+            &mut resource_manager,
             &[0, 1, 2],
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -98,8 +100,8 @@ impl Renderer {
             view,
             render_context,
             render_pipeline,
-            vertex_buffer,
-            index_buffer,
+            vertex_buffer_handle: vertex_buffer,
+            index_buffer_handle: index_buffer,
             init_time,
         })
     }
@@ -129,10 +131,18 @@ impl Renderer {
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
+                let index_buffer = self
+                    .device
+                    .get_buffer(&self.resource_manager, self.index_buffer_handle)
+                    .unwrap();
                 self.render_context
-                    .bind_index_buffer(&self.device, &self.index_buffer);
+                    .bind_index_buffer(&self.device, index_buffer);
+                let vertex_buffer = self
+                    .device
+                    .get_buffer(&self.resource_manager, self.vertex_buffer_handle)
+                    .unwrap();
                 self.render_context
-                    .bind_vertex_buffer(&self.device, &self.vertex_buffer);
+                    .bind_vertex_buffer(&self.device, vertex_buffer);
 
                 self.render_context.set_vertex_bytes(
                     &self.resource_manager,
@@ -168,8 +178,6 @@ impl Drop for Renderer {
     fn drop(&mut self) {
         self.device.wait_idle().ok();
 
-        self.vertex_buffer.destroy(self.device.raw());
-        self.index_buffer.destroy(self.device.raw());
         self.view.destroy(&self.device);
         self.resource_manager.clean(&self.device);
     }
