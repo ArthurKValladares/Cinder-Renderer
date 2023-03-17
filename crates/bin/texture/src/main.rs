@@ -39,9 +39,9 @@ pub struct Renderer {
     render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
     _upload_context: UploadContext,
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
-    image_buffer: Buffer,
+    vertex_buffer_handle: ResourceHandle<Buffer>,
+    index_buffer_handle: ResourceHandle<Buffer>,
+    image_buffer_handle: ResourceHandle<Buffer>,
     sampler: Sampler,
     texture_handle: ResourceHandle<Image>,
 }
@@ -72,7 +72,8 @@ impl Renderer {
             Default::default(),
         )?;
 
-        let vertex_buffer = device.create_buffer_with_data(
+        let vertex_buffer_handle = device.create_buffer_with_data(
+            &mut resource_manager,
             &[
                 TextureVertex {
                     i_pos: [-0.5, -0.5],
@@ -96,7 +97,8 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
-        let index_buffer = device.create_buffer_with_data(
+        let index_buffer_handle = device.create_buffer_with_data(
+            &mut resource_manager,
             &[0, 1, 2, 2, 3, 0],
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -115,17 +117,21 @@ impl Renderer {
             Size2D::new(width, height),
             Default::default(),
         )?;
-        // TODO: having to call `get` here is bad, will no longer be neede later with better abstractions
-        let texture = device.get_image(&resource_manager, texture_handle).unwrap();
         let image_data = image.into_raw();
 
-        let image_buffer = device.create_buffer_with_data(
+        let image_buffer_handle = device.create_buffer_with_data(
+            &mut resource_manager,
             &image_data,
             BufferDescription {
                 usage: BufferUsage::TRANSFER_SRC,
                 ..Default::default()
             },
         )?;
+        let image_buffer = device
+            .get_buffer(&resource_manager, image_buffer_handle)
+            .unwrap();
+        // TODO: having to call `get` here is bad, will no longer be neede later with better abstractions
+        let texture = device.get_image(&resource_manager, texture_handle).unwrap();
         // TODO: Will abstract this later
         upload_context.begin(&device, device.setup_fence())?;
         {
@@ -162,9 +168,9 @@ impl Renderer {
             render_context,
             _upload_context: upload_context,
             render_pipeline,
-            vertex_buffer,
-            index_buffer,
-            image_buffer,
+            vertex_buffer_handle,
+            index_buffer_handle,
+            image_buffer_handle,
             sampler,
             texture_handle,
         })
@@ -195,10 +201,18 @@ impl Renderer {
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
+                let index_buffer = self
+                    .device
+                    .get_buffer(&self.resource_manager, self.index_buffer_handle)
+                    .unwrap();
                 self.render_context
-                    .bind_index_buffer(&self.device, &self.index_buffer);
+                    .bind_index_buffer(&self.device, index_buffer);
+                let vertex_buffer = self
+                    .device
+                    .get_buffer(&self.resource_manager, self.vertex_buffer_handle)
+                    .unwrap();
                 self.render_context
-                    .bind_vertex_buffer(&self.device, &self.vertex_buffer);
+                    .bind_vertex_buffer(&self.device, vertex_buffer);
                 self.render_context
                     .bind_descriptor_sets(&self.resource_manager, &self.device)?;
 
@@ -226,10 +240,6 @@ impl Drop for Renderer {
         self.device.wait_idle().ok();
 
         self.sampler.destroy(self.device.raw());
-
-        self.vertex_buffer.destroy(self.device.raw());
-        self.index_buffer.destroy(self.device.raw());
-        self.image_buffer.destroy(self.device.raw());
 
         self.view.destroy(&self.device);
         self.resource_manager.clean(&self.device);
