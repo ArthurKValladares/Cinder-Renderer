@@ -74,11 +74,11 @@ pub struct Renderer {
     texture_render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
     upload_context: UploadContext,
-    cube_vertex_buffer: Buffer,
-    cube_index_buffer: Buffer,
-    ubo_buffer: Buffer,
-    quad_vertex_buffer: Buffer,
-    quad_index_buffer: Buffer,
+    cube_vertex_buffer_handle: ResourceHandle<Buffer>,
+    cube_index_buffer_handle: ResourceHandle<Buffer>,
+    ubo_buffer_handle: ResourceHandle<Buffer>,
+    quad_vertex_buffer_handle: ResourceHandle<Buffer>,
+    quad_index_buffer_handle: ResourceHandle<Buffer>,
     sampler: Sampler,
     init_time: Instant,
 }
@@ -136,7 +136,8 @@ impl Renderer {
             Default::default(),
         )?;
 
-        let cube_vertex_buffer = device.create_buffer_with_data(
+        let cube_vertex_buffer_handle = device.create_buffer_with_data(
+            &mut resource_manager,
             &[
                 // Plane at z: -0.5
                 DepthMeshVertex {
@@ -246,7 +247,8 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
-        let cube_index_buffer = device.create_buffer_with_data(
+        let cube_index_buffer_handle = device.create_buffer_with_data(
+            &mut resource_manager,
             &[
                 0, 1, 2, 2, 1, 3, // First plane
                 4, 5, 6, 6, 5, 7, // Second plane
@@ -261,39 +263,44 @@ impl Renderer {
             },
         )?;
 
-        let ubo_buffer = device.create_buffer(
+        let ubo_buffer_handle = device.create_buffer(
+            &mut resource_manager,
             std::mem::size_of::<DepthMeshUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
                 ..Default::default()
             },
         )?;
-        ubo_buffer.mem_copy(
-            util::offset_of!(DepthMeshUniformBufferObject, view) as u64,
-            &[
-                look_to(
-                    Vec3::new(2.0, 0.0, 0.0),
-                    Vec3::new(1.0, 0.0, 0.0),
-                    Vec3::new(0.0, 1.0, 0.0),
-                ),
-                new_infinite_perspective_proj(
-                    surface_rect.width() as f32 / surface_rect.height() as f32,
-                    30.0,
-                    0.01,
-                ),
-            ],
-        )?;
-
-        device.write_bind_group(
-            &resource_manager,
-            mesh_render_pipeline,
-            &[BindGroupBindInfo {
-                dst_binding: 0,
-                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-            }],
-        )?;
-
-        let quad_vertex_buffer = device.create_buffer_with_data(
+        {
+            let ubo_buffer = device
+                .get_buffer(&resource_manager, ubo_buffer_handle)
+                .unwrap();
+            ubo_buffer.mem_copy(
+                util::offset_of!(DepthMeshUniformBufferObject, view) as u64,
+                &[
+                    look_to(
+                        Vec3::new(2.0, 0.0, 0.0),
+                        Vec3::new(1.0, 0.0, 0.0),
+                        Vec3::new(0.0, 1.0, 0.0),
+                    ),
+                    new_infinite_perspective_proj(
+                        surface_rect.width() as f32 / surface_rect.height() as f32,
+                        30.0,
+                        0.01,
+                    ),
+                ],
+            )?;
+            device.write_bind_group(
+                &resource_manager,
+                mesh_render_pipeline,
+                &[BindGroupBindInfo {
+                    dst_binding: 0,
+                    data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+                }],
+            )?;
+        }
+        let quad_vertex_buffer_handle = device.create_buffer_with_data(
+            &mut resource_manager,
             &[
                 DepthTextureVertex {
                     i_pos: [-1.0, -1.0],
@@ -317,7 +324,8 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
-        let quad_index_buffer = device.create_buffer_with_data(
+        let quad_index_buffer_handle = device.create_buffer_with_data(
+            &mut resource_manager,
             &[0, 1, 2, 2, 3, 0],
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -368,11 +376,11 @@ impl Renderer {
             upload_context,
             mesh_render_pipeline,
             texture_render_pipeline,
-            cube_vertex_buffer,
-            cube_index_buffer,
-            ubo_buffer,
-            quad_vertex_buffer,
-            quad_index_buffer,
+            cube_vertex_buffer_handle,
+            cube_index_buffer_handle,
+            ubo_buffer_handle,
+            quad_vertex_buffer_handle,
+            quad_index_buffer_handle,
             sampler,
             init_time,
         })
@@ -380,7 +388,11 @@ impl Renderer {
 
     pub fn update(&mut self) -> Result<()> {
         let scale = (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
-        self.ubo_buffer.mem_copy(
+        let ubo_buffer = self
+            .device
+            .get_buffer_mut(&mut self.resource_manager, self.ubo_buffer_handle)
+            .unwrap();
+        ubo_buffer.mem_copy(
             util::offset_of!(DepthMeshUniformBufferObject, model) as u64,
             &[Mat4::rotate(scale, Vec3::new(1.0, 1.0, 0.0))],
         )?;
@@ -426,10 +438,18 @@ impl Renderer {
                     &self.device,
                     self.mesh_render_pipeline,
                 )?;
+                let cube_index_buffer = self
+                    .device
+                    .get_buffer(&self.resource_manager, self.cube_index_buffer_handle)
+                    .unwrap();
                 self.render_context
-                    .bind_index_buffer(&self.device, &self.cube_index_buffer);
+                    .bind_index_buffer(&self.device, cube_index_buffer);
+                let cube_vertex_buffer = self
+                    .device
+                    .get_buffer(&self.resource_manager, self.cube_vertex_buffer_handle)
+                    .unwrap();
                 self.render_context
-                    .bind_vertex_buffer(&self.device, &self.cube_vertex_buffer);
+                    .bind_vertex_buffer(&self.device, cube_vertex_buffer);
                 // TODO: re-think API later when using more than one set
                 self.render_context
                     .bind_descriptor_sets(&self.resource_manager, &self.device)?;
@@ -457,10 +477,18 @@ impl Renderer {
                     &self.device,
                     self.texture_render_pipeline,
                 )?;
+                let quad_index_buffer = self
+                    .device
+                    .get_buffer(&self.resource_manager, self.quad_index_buffer_handle)
+                    .unwrap();
                 self.render_context
-                    .bind_index_buffer(&self.device, &self.quad_index_buffer);
+                    .bind_index_buffer(&self.device, quad_index_buffer);
+                let quad_vertex_buffer = self
+                    .device
+                    .get_buffer(&self.resource_manager, self.quad_vertex_buffer_handle)
+                    .unwrap();
                 self.render_context
-                    .bind_vertex_buffer(&self.device, &self.quad_vertex_buffer);
+                    .bind_vertex_buffer(&self.device, quad_vertex_buffer);
                 // TODO: re-think API later when using more than one set
                 self.render_context
                     .bind_descriptor_sets(&self.resource_manager, &self.device)?;
@@ -532,12 +560,6 @@ impl Drop for Renderer {
         self.device.wait_idle().ok();
 
         self.sampler.destroy(self.device.raw());
-
-        self.cube_vertex_buffer.destroy(self.device.raw());
-        self.cube_index_buffer.destroy(self.device.raw());
-        self.ubo_buffer.destroy(self.device.raw());
-        self.quad_vertex_buffer.destroy(self.device.raw());
-        self.quad_index_buffer.destroy(self.device.raw());
 
         self.view.destroy(&self.device);
         self.resource_manager.clean(&self.device);
