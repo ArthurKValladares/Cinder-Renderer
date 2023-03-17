@@ -92,10 +92,10 @@ pub struct Renderer {
     render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
     _upload_context: UploadContext,
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
-    ubo_buffer: Buffer,
-    image_buffer: Buffer,
+    vertex_buffer_handle: ResourceHandle<Buffer>,
+    index_buffer_handle: ResourceHandle<Buffer>,
+    ubo_buffer_handle: ResourceHandle<Buffer>,
+    image_buffer_handle: ResourceHandle<Buffer>,
     sampler: Sampler,
     texture_handle: ResourceHandle<Image>,
     init_time: Instant,
@@ -105,7 +105,7 @@ pub struct Renderer {
 impl Renderer {
     pub fn new(window: &winit::window::Window) -> Result<Self> {
         let mut resource_manager = ResourceManager::default();
-        let mut device = Device::new(window, Default::default())?;
+        let device = Device::new(window, Default::default())?;
         let render_context = RenderContext::new(&device, Default::default())?;
         let upload_context = UploadContext::new(&device, Default::default())?;
         let view = View::new(&device, Default::default())?;
@@ -148,14 +148,16 @@ impl Renderer {
         )?;
         let mesh = scene.meshes.first().unwrap();
 
-        let vertex_buffer = device.create_buffer_with_data(
+        let vertex_buffer_handle = device.create_buffer_with_data(
+            &mut resource_manager,
             &mesh.vertices,
             BufferDescription {
                 usage: BufferUsage::VERTEX,
                 ..Default::default()
             },
         )?;
-        let index_buffer = device.create_buffer_with_data(
+        let index_buffer_handle = device.create_buffer_with_data(
+            &mut resource_manager,
             &mesh.indices,
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -163,29 +165,34 @@ impl Renderer {
             },
         )?;
 
-        let ubo_buffer = device.create_buffer(
+        let ubo_buffer_handle = device.create_buffer(
+            &mut resource_manager,
             std::mem::size_of::<MeshUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
                 ..Default::default()
             },
         )?;
-        ubo_buffer.mem_copy(
-            util::offset_of!(MeshUniformBufferObject, view) as u64,
-            &[
-                look_to(
-                    Vec3::new(2.0, -0.5, 0.0),
-                    Vec3::new(1.0, 0.0, 0.0),
-                    Vec3::new(0.0, 1.0, 0.0),
-                ),
-                new_infinite_perspective_proj(
-                    surface_rect.width() as f32 / surface_rect.height() as f32,
-                    30.0,
-                    0.01,
-                ),
-            ],
-        )?;
-
+        {
+            let ubo_buffer = device
+                .get_buffer_mut(&mut resource_manager, ubo_buffer_handle)
+                .unwrap();
+            ubo_buffer.mem_copy(
+                util::offset_of!(MeshUniformBufferObject, view) as u64,
+                &[
+                    look_to(
+                        Vec3::new(2.0, -0.5, 0.0),
+                        Vec3::new(1.0, 0.0, 0.0),
+                        Vec3::new(0.0, 1.0, 0.0),
+                    ),
+                    new_infinite_perspective_proj(
+                        surface_rect.width() as f32 / surface_rect.height() as f32,
+                        30.0,
+                        0.01,
+                    ),
+                ],
+            )?;
+        }
         let sampler = device.create_sampler(&device, Default::default())?;
 
         let image = image::load_from_memory(include_bytes!("../assets/textures/viking_room.png"))
@@ -197,20 +204,24 @@ impl Renderer {
             Size2D::new(width, height),
             Default::default(),
         )?;
-        let texture = device.get_image(&resource_manager, texture_handle).unwrap();
         let image_data = image.into_raw();
 
-        let image_buffer = device.create_buffer_with_data(
+        let image_buffer_handle = device.create_buffer_with_data(
+            &mut resource_manager,
             &image_data,
             BufferDescription {
                 usage: BufferUsage::TRANSFER_SRC,
                 ..Default::default()
             },
         )?;
+        let image_buffer = device
+            .get_buffer(&resource_manager, image_buffer_handle)
+            .unwrap();
+        let texture = device.get_image(&resource_manager, texture_handle).unwrap();
         upload_context.begin(&device, device.setup_fence())?;
         {
             upload_context.image_barrier_start(&device, &texture);
-            upload_context.copy_buffer_to_image(&device, &image_buffer, &texture);
+            upload_context.copy_buffer_to_image(&device, image_buffer, &texture);
             upload_context.image_barrier_end(&device, &texture);
         }
         upload_context.end(
@@ -222,6 +233,9 @@ impl Renderer {
             &[],
         )?;
 
+        let ubo_buffer = device
+            .get_buffer(&resource_manager, ubo_buffer_handle)
+            .unwrap();
         device.write_bind_group(
             &resource_manager,
             render_pipeline,
@@ -251,12 +265,12 @@ impl Renderer {
             render_context,
             _upload_context: upload_context,
             render_pipeline,
-            vertex_buffer,
-            index_buffer,
-            image_buffer,
+            vertex_buffer_handle,
+            index_buffer_handle,
+            image_buffer_handle,
             sampler,
             texture_handle,
-            ubo_buffer,
+            ubo_buffer_handle,
             init_time,
             index_count: mesh.indices.len() as u32,
         })
@@ -264,7 +278,11 @@ impl Renderer {
 
     pub fn update(&mut self) -> Result<()> {
         let scale = (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
-        self.ubo_buffer.mem_copy(
+        let ubo_buffer = self
+            .device
+            .get_buffer_mut(&mut self.resource_manager, self.ubo_buffer_handle)
+            .unwrap();
+        ubo_buffer.mem_copy(
             util::offset_of!(MeshUniformBufferObject, model) as u64,
             &[
                 Mat4::rotate(std::f32::consts::PI / 2.0, Vec3::new(1.0, 0.0, 0.0))
@@ -312,10 +330,18 @@ impl Renderer {
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
+                let index_buffer = self
+                    .device
+                    .get_buffer(&self.resource_manager, self.index_buffer_handle)
+                    .unwrap();
                 self.render_context
-                    .bind_index_buffer(&self.device, &self.index_buffer);
+                    .bind_index_buffer(&self.device, index_buffer);
+                let vertex_buffer = self
+                    .device
+                    .get_buffer(&self.resource_manager, self.vertex_buffer_handle)
+                    .unwrap();
                 self.render_context
-                    .bind_vertex_buffer(&self.device, &self.vertex_buffer);
+                    .bind_vertex_buffer(&self.device, vertex_buffer);
                 // TODO: re-think API later when using more than one set
                 self.render_context
                     .bind_descriptor_sets(&self.resource_manager, &self.device)?;
@@ -350,11 +376,6 @@ impl Drop for Renderer {
         self.device.wait_idle().ok();
 
         self.sampler.destroy(self.device.raw());
-
-        self.vertex_buffer.destroy(self.device.raw());
-        self.index_buffer.destroy(self.device.raw());
-        self.ubo_buffer.destroy(self.device.raw());
-        self.image_buffer.destroy(self.device.raw());
 
         self.view.destroy(&self.device);
         self.resource_manager.clean(&self.device);
