@@ -46,10 +46,10 @@ pub struct EguiIntegration {
     // TODO: won't need separate pool in the future
     bind_group_pool: BindGroupPool,
     sampler: Sampler,
-    image_staging_buffer: Option<Buffer>,
+    image_staging_buffer: Option<ResourceHandle<Buffer>>,
     image_map: HashMap<TextureId, ResourceHandle<Image>>,
-    vertex_buffers: Vec<Buffer>,
-    index_buffers: Vec<Buffer>,
+    vertex_buffers: Vec<ResourceHandle<Buffer>>,
+    index_buffers: Vec<ResourceHandle<Buffer>>,
 }
 
 impl EguiIntegration {
@@ -97,6 +97,7 @@ impl EguiIntegration {
             let mut index_buffers = Vec::with_capacity(len);
             for _ in 0..len {
                 let vertex_buffer = device.create_buffer(
+                    resource_manager,
                     VERTEX_BUFFER_SIZE,
                     BufferDescription {
                         usage: BufferUsage::VERTEX,
@@ -106,6 +107,7 @@ impl EguiIntegration {
                 vertex_buffers.push(vertex_buffer);
 
                 let index_buffer = device.create_buffer(
+                    resource_manager,
                     INDEX_BUFFER_SIZE,
                     BufferDescription {
                         usage: BufferUsage::INDEX,
@@ -209,14 +211,20 @@ impl EguiIntegration {
     ) -> Result<()> {
         let size = window.inner_size();
         let present_index = drawable.index();
-        let mut vertex_buffer_ptr = self.vertex_buffers[present_index as usize].ptr().unwrap();
-        let mut index_buffer_ptr = self.index_buffers[present_index as usize].ptr().unwrap();
+        let vertex_buffer = device
+            .get_buffer(
+                resource_manager,
+                self.vertex_buffers[present_index as usize],
+            )
+            .unwrap();
+        let index_buffer = device
+            .get_buffer(resource_manager, self.index_buffers[present_index as usize])
+            .unwrap();
+        let mut vertex_buffer_ptr = vertex_buffer.ptr().unwrap();
+        let mut index_buffer_ptr = index_buffer.ptr().unwrap();
 
         let mut vertex_base = 0;
         let mut index_base = 0;
-
-        let vertex_buffer = &self.vertex_buffers[present_index as usize];
-        let index_buffer = &self.index_buffers[present_index as usize];
 
         render_context.begin_rendering(
             device,
@@ -351,14 +359,17 @@ impl EguiIntegration {
         let vertex_buffer_ptr_next = vertex_buffer_ptr.add(vertex_copy_size);
         let index_buffer_ptr_next = index_buffer_ptr.add(index_copy_size);
 
-        if vertex_buffer_ptr_next
-            >= self.vertex_buffers[present_index as usize]
-                .end_ptr()
-                .unwrap()
-            || index_buffer_ptr_next
-                >= self.index_buffers[present_index as usize]
-                    .end_ptr()
-                    .unwrap()
+        let vertex_buffer = device
+            .get_buffer(
+                resource_manager,
+                self.vertex_buffers[present_index as usize],
+            )
+            .unwrap();
+        let index_buffer = device
+            .get_buffer(resource_manager, self.index_buffers[present_index as usize])
+            .unwrap();
+        if vertex_buffer_ptr_next >= vertex_buffer.end_ptr().unwrap()
+            || index_buffer_ptr_next >= index_buffer.end_ptr().unwrap()
         {
             panic!("egui out of memory");
         }
@@ -400,22 +411,25 @@ impl EguiIntegration {
     ) -> Result<()> {
         // TODO: Revisit image abstraction
         if let Some(mut buffer) = self.image_staging_buffer.take() {
-            buffer.clean(device);
+            // TODO: Queue this to be cleaned
         }
-        let image_staging_buffer = device.create_buffer(
+        let image_handle = device.create_image(
+            resource_manager,
+            Size2D::new(width, height),
+            Default::default(),
+        )?;
+        let image_staging_buffer_handle = device.create_buffer(
+            resource_manager,
             size_of_slice(data),
             BufferDescription {
                 usage: BufferUsage::TRANSFER_SRC,
                 ..Default::default()
             },
         )?;
+        let image_staging_buffer = device
+            .get_buffer(resource_manager, image_staging_buffer_handle)
+            .unwrap();
         image_staging_buffer.mem_copy(0, data)?;
-
-        let image_handle = device.create_image(
-            resource_manager,
-            Size2D::new(width, height),
-            Default::default(),
-        )?;
 
         let image = device.get_image(resource_manager, image_handle).unwrap();
         upload_context.image_barrier_start(device, &image);
@@ -441,7 +455,7 @@ impl EguiIntegration {
         )?;
 
         self.image_map.insert(*id, image_handle);
-        self.image_staging_buffer = Some(image_staging_buffer);
+        self.image_staging_buffer = Some(image_staging_buffer_handle);
 
         Ok(())
     }
@@ -511,14 +525,5 @@ impl EguiIntegration {
     pub fn destroy(&mut self, device: &Device) {
         self.bind_group_pool.destroy(device.raw());
         self.sampler.destroy(device.raw());
-        if let Some(buffer) = &mut self.image_staging_buffer {
-            buffer.destroy(device.raw())
-        }
-        for buffer in &mut self.vertex_buffers {
-            buffer.destroy(device.raw());
-        }
-        for buffer in &mut self.index_buffers {
-            buffer.destroy(device.raw());
-        }
     }
 }

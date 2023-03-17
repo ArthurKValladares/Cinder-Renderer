@@ -83,9 +83,9 @@ pub struct Renderer {
     render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
     upload_context: UploadContext,
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
-    ubo_buffer: Buffer,
+    vertex_buffer_handle: ResourceHandle<Buffer>,
+    index_buffer_handle: ResourceHandle<Buffer>,
+    ubo_buffer_handle: ResourceHandle<Buffer>,
     ui: EguiIntegration,
     model_data: ModelData,
 }
@@ -127,7 +127,8 @@ impl Renderer {
             },
         )?;
 
-        let vertex_buffer = device.create_buffer_with_data(
+        let vertex_buffer_handle = device.create_buffer_with_data(
+            &mut resource_manager,
             &[
                 // Plane at z: -0.5
                 UiVertex {
@@ -237,7 +238,8 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
-        let index_buffer = device.create_buffer_with_data(
+        let index_buffer_handle = device.create_buffer_with_data(
+            &mut resource_manager,
             &[
                 0, 1, 2, 2, 1, 3, // First plane
                 4, 5, 6, 6, 5, 7, // Second plane
@@ -252,38 +254,43 @@ impl Renderer {
             },
         )?;
 
-        let ubo_buffer = device.create_buffer(
+        let ubo_buffer_handle = device.create_buffer(
+            &mut resource_manager,
             std::mem::size_of::<UiUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
                 ..Default::default()
             },
         )?;
-        ubo_buffer.mem_copy(
-            util::offset_of!(UiUniformBufferObject, view) as u64,
-            &[
-                look_to(
-                    Vec3::new(2.0, 0.0, 0.0),
-                    Vec3::new(1.0, 0.0, 0.0),
-                    Vec3::new(0.0, 1.0, 0.0),
-                ),
-                new_infinite_perspective_proj(
-                    surface_rect.width() as f32 / surface_rect.height() as f32,
-                    30.0,
-                    0.01,
-                ),
-            ],
-        )?;
+        {
+            let ubo_buffer = device
+                .get_buffer(&resource_manager, ubo_buffer_handle)
+                .unwrap();
+            ubo_buffer.mem_copy(
+                util::offset_of!(UiUniformBufferObject, view) as u64,
+                &[
+                    look_to(
+                        Vec3::new(2.0, 0.0, 0.0),
+                        Vec3::new(1.0, 0.0, 0.0),
+                        Vec3::new(0.0, 1.0, 0.0),
+                    ),
+                    new_infinite_perspective_proj(
+                        surface_rect.width() as f32 / surface_rect.height() as f32,
+                        30.0,
+                        0.01,
+                    ),
+                ],
+            )?;
 
-        device.write_bind_group(
-            &resource_manager,
-            render_pipeline,
-            &[BindGroupBindInfo {
-                dst_binding: 0,
-                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-            }],
-        )?;
-
+            device.write_bind_group(
+                &resource_manager,
+                render_pipeline,
+                &[BindGroupBindInfo {
+                    dst_binding: 0,
+                    data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+                }],
+            )?;
+        }
         let ui = EguiIntegration::new(event_loop, &mut resource_manager, &mut device, &view)?;
 
         Ok(Self {
@@ -294,9 +301,9 @@ impl Renderer {
             render_context,
             upload_context,
             render_pipeline,
-            vertex_buffer,
-            index_buffer,
-            ubo_buffer,
+            vertex_buffer_handle,
+            index_buffer_handle,
+            ubo_buffer_handle,
             ui,
             model_data: Default::default(),
         })
@@ -304,7 +311,11 @@ impl Renderer {
 
     pub fn update(&mut self) -> Result<()> {
         let scale = self.model_data.scale;
-        self.ubo_buffer.mem_copy(
+        let ubo_buffer = self
+            .device
+            .get_buffer(&self.resource_manager, self.ubo_buffer_handle)
+            .unwrap();
+        ubo_buffer.mem_copy(
             util::offset_of!(UiUniformBufferObject, model) as u64,
             &[Mat4::scale(Vec3::new(scale, scale, scale))
                 * Mat4::rotate(self.model_data.rotation, Vec3::new(1.0, 1.0, 0.0))],
@@ -350,10 +361,18 @@ impl Renderer {
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
+                let index_buffer = self
+                    .device
+                    .get_buffer(&self.resource_manager, self.index_buffer_handle)
+                    .unwrap();
                 self.render_context
-                    .bind_index_buffer(&self.device, &self.index_buffer);
+                    .bind_index_buffer(&self.device, index_buffer);
+                let vertex_buffer = self
+                    .device
+                    .get_buffer(&self.resource_manager, self.vertex_buffer_handle)
+                    .unwrap();
                 self.render_context
-                    .bind_vertex_buffer(&self.device, &self.vertex_buffer);
+                    .bind_vertex_buffer(&self.device, vertex_buffer);
                 self.render_context
                     .bind_descriptor_sets(&self.resource_manager, &self.device)?;
 
@@ -410,10 +429,6 @@ impl Drop for Renderer {
         self.device.wait_idle().ok();
 
         self.ui.destroy(&self.device);
-
-        self.vertex_buffer.destroy(self.device.raw());
-        self.index_buffer.destroy(self.device.raw());
-        self.ubo_buffer.destroy(self.device.raw());
 
         self.view.destroy(&self.device);
         self.resource_manager.clean(&self.device);
