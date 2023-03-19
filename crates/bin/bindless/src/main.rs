@@ -294,9 +294,9 @@ impl Renderer {
                     .unwrap();
                 let texture = resource_manager.get_image(texture_handle).unwrap();
                 let image_buffer = resource_manager.get_buffer(image_buffer_handle).unwrap();
-                upload_context.image_barrier_start(&device, &texture);
-                upload_context.copy_buffer_to_image(&device, image_buffer, &texture);
-                upload_context.image_barrier_end(&device, &texture);
+                upload_context.image_barrier_start(&device, texture);
+                upload_context.copy_buffer_to_image(&device, image_buffer, texture);
+                upload_context.image_barrier_end(&device, texture);
 
                 let s = resource_manager.get_sampler(sampler).unwrap();
                 device

@@ -339,7 +339,7 @@ impl Renderer {
         let depth_image = resource_manager.get_image(depth_image_handle).unwrap();
         upload_context.begin(&device, device.setup_fence())?;
         {
-            upload_context.transition_depth_to_read_only(&device, &depth_image);
+            upload_context.transition_depth_to_read_only(&device, depth_image);
         }
         upload_context.end(
             &device,

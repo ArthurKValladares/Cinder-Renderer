@@ -167,9 +167,9 @@ impl Renderer {
         let texture = resource_manager.get_image(texture_handle).unwrap();
         upload_context.begin(&device, device.setup_fence())?;
         {
-            upload_context.image_barrier_start(&device, &texture);
-            upload_context.copy_buffer_to_image(&device, image_buffer, &texture);
-            upload_context.image_barrier_end(&device, &texture);
+            upload_context.image_barrier_start(&device, texture);
+            upload_context.copy_buffer_to_image(&device, image_buffer, texture);
+            upload_context.image_barrier_end(&device, texture);
         }
         upload_context.end(
             &device,

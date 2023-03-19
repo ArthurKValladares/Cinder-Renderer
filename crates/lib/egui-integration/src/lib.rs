@@ -426,9 +426,9 @@ impl EguiIntegration {
         image_staging_buffer.mem_copy(0, data)?;
 
         let image = resource_manager.get_image(image_handle).unwrap();
-        upload_context.image_barrier_start(device, &image);
-        upload_context.copy_buffer_to_image(device, &image_staging_buffer, &image);
-        upload_context.image_barrier_end(device, &image);
+        upload_context.image_barrier_start(device, image);
+        upload_context.copy_buffer_to_image(device, image_staging_buffer, image);
+        upload_context.image_barrier_end(device, image);
 
         let index = match id {
             TextureId::Managed(index) => *index,
