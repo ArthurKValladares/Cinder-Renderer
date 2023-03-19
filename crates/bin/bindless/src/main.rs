@@ -106,7 +106,6 @@ impl Vertex for BindlessVertex {
     }
 
     fn pos_3d(&self) -> [f32; 3] {
-        // TODO: Maybe rethink this function?
         [self.pos[0], self.pos[1], self.pos[2]]
     }
 }

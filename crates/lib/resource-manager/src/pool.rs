@@ -28,7 +28,6 @@ impl<T> ResourcePool<T> {
         ResourceHandle::from_index(id)
     }
 
-    // TODO: Figure out a more final API later
     pub fn replace(&mut self, handle: ResourceHandle<T>, new: T) {
         if let Some(old) = self.resources.insert(handle.id(), new) {
             self.to_be_freed.push(old);
