@@ -154,7 +154,7 @@ impl Renderer {
             &[BindGroupBindInfo {
                 dst_binding: 0,
                 data: BindGroupWriteData::SampledImage(texture.bind_info(
-                    &sampler,
+                    sampler,
                     Layout::ShaderReadOnly,
                     0,
                 )),

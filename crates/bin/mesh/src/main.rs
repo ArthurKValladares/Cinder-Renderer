@@ -96,7 +96,7 @@ pub struct Renderer {
     index_buffer_handle: ResourceHandle<Buffer>,
     ubo_buffer_handle: ResourceHandle<Buffer>,
     image_buffer_handle: ResourceHandle<Buffer>,
-    sampler: Sampler,
+    sampler: ResourceHandle<Sampler>,
     texture_handle: ResourceHandle<Image>,
     init_time: Instant,
     index_count: u32,
@@ -191,7 +191,7 @@ impl Renderer {
                 ],
             )?;
         }
-        let sampler = device.create_sampler(&device, Default::default())?;
+        let sampler = device.create_sampler(&mut resource_manager, &device, Default::default())?;
 
         let image = image::load_from_memory(include_bytes!("../assets/textures/viking_room.png"))
             .unwrap()
@@ -230,6 +230,7 @@ impl Renderer {
         )?;
 
         let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle).unwrap();
+        let s = resource_manager.get_sampler(sampler).unwrap();
         device.write_bind_group(
             &resource_manager,
             render_pipeline,
@@ -241,7 +242,7 @@ impl Renderer {
                 BindGroupBindInfo {
                     dst_binding: 1,
                     data: BindGroupWriteData::SampledImage(texture.bind_info(
-                        &sampler,
+                        s,
                         Layout::ShaderReadOnly,
                         0,
                     )),
@@ -365,8 +366,6 @@ impl Renderer {
 impl Drop for Renderer {
     fn drop(&mut self) {
         self.device.wait_idle().ok();
-
-        self.sampler.destroy(self.device.raw());
 
         self.view.destroy(&self.device);
         self.resource_manager.clean(&self.device);

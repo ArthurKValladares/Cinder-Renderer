@@ -45,7 +45,7 @@ pub struct EguiIntegration {
     pipeline: ResourceHandle<GraphicsPipeline>,
     // TODO: won't need separate pool in the future
     bind_group_pool: BindGroupPool,
-    sampler: Sampler,
+    sampler: ResourceHandle<Sampler>,
     image_staging_buffer: Option<ResourceHandle<Buffer>>,
     image_map: HashMap<TextureId, ResourceHandle<Image>>,
     vertex_buffers: Vec<ResourceHandle<Buffer>>,
@@ -89,7 +89,7 @@ impl EguiIntegration {
             },
         )?;
 
-        let sampler = device.create_sampler(&device, Default::default())?;
+        let sampler = device.create_sampler(resource_manager, device, Default::default())?;
 
         let (vertex_buffers, index_buffers) = {
             let len = view.drawables_len();
@@ -435,13 +435,14 @@ impl EguiIntegration {
             TextureId::User(_) => unimplemented!(),
         };
 
+        let sampler = resource_manager.get_sampler(self.sampler).unwrap();
         device.write_bind_group(
             resource_manager,
             self.pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
                 data: BindGroupWriteData::SampledImage(image.bind_info(
-                    &self.sampler,
+                    sampler,
                     Layout::ShaderReadOnly,
                     index as u32,
                 )),
@@ -518,6 +519,5 @@ impl EguiIntegration {
 
     pub fn destroy(&mut self, device: &Device) {
         self.bind_group_pool.destroy(device.raw());
-        self.sampler.destroy(device.raw());
     }
 }

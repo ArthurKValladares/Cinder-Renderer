@@ -130,7 +130,7 @@ pub struct Renderer {
     vertex_buffer_handle: ResourceHandle<Buffer>,
     index_buffer_handle: ResourceHandle<Buffer>,
     ubo_buffer_handle: ResourceHandle<Buffer>,
-    sampler: Sampler,
+    sampler: ResourceHandle<Sampler>,
     image_handle: Vec<ResourceHandle<Image>>,
     image_buffer_handles: Vec<ResourceHandle<Buffer>>,
     mesh_draws: Vec<MeshDraw>,
@@ -299,6 +299,7 @@ impl Renderer {
                 upload_context.copy_buffer_to_image(&device, image_buffer, &texture);
                 upload_context.image_barrier_end(&device, &texture);
 
+                let s = resource_manager.get_sampler(sampler).unwrap();
                 device
                     .write_bind_group(
                         &resource_manager,
@@ -306,7 +307,7 @@ impl Renderer {
                         &[BindGroupBindInfo {
                             dst_binding: 2,
                             data: BindGroupWriteData::SampledImage(texture.bind_info(
-                                &sampler,
+                                s,
                                 Layout::ShaderReadOnly,
                                 idx as u32,
                             )),
