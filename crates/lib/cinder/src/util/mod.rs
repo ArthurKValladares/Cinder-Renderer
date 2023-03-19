@@ -33,6 +33,8 @@ pub fn find_memory_type_index(
         .map(|(index, _memory_type)| index as _)
 }
 
+/// # Safety
+/// - pointer must not be null
 pub unsafe fn mem_copy<T: Copy>(ptr: *mut c_void, data: &[T]) {
     let elem_size = std::mem::size_of::<T>() as vk::DeviceSize;
     let size = data.len() as vk::DeviceSize * elem_size;
@@ -46,7 +48,7 @@ unsafe impl Send for MemoryMappablePointer {}
 unsafe impl Sync for MemoryMappablePointer {}
 
 impl MemoryMappablePointer {
-    pub unsafe fn from_raw_ptr(ptr: *mut c_void) -> Self {
+    pub fn from_raw_ptr(ptr: *mut c_void) -> Self {
         Self(ptr)
     }
 

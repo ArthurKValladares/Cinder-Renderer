@@ -126,12 +126,12 @@ pub struct Renderer {
     render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
     _upload_context: UploadContext,
-    vertex_buffer_handle: ResourceHandle<Buffer>,
+    _vertex_buffer_handle: ResourceHandle<Buffer>,
     index_buffer_handle: ResourceHandle<Buffer>,
-    ubo_buffer_handle: ResourceHandle<Buffer>,
-    sampler: ResourceHandle<Sampler>,
-    image_handle: Vec<ResourceHandle<Image>>,
-    image_buffer_handles: Vec<ResourceHandle<Buffer>>,
+    _ubo_buffer_handle: ResourceHandle<Buffer>,
+    _sampler: ResourceHandle<Sampler>,
+    _image_handles: Vec<ResourceHandle<Image>>,
+    _image_buffer_handles: Vec<ResourceHandle<Buffer>>,
     mesh_draws: Vec<MeshDraw>,
 }
 
@@ -264,7 +264,7 @@ impl Renderer {
         let sampler = device.create_sampler(&mut resource_manager, &device, Default::default())?;
 
         upload_context.begin(&device, device.setup_fence())?;
-        let (images, image_buffer_handles) = scene
+        let (image_handles, image_buffer_handles) = scene
             .materials
             .iter()
             .enumerate()
@@ -334,12 +334,12 @@ impl Renderer {
             render_context,
             _upload_context: upload_context,
             render_pipeline,
-            vertex_buffer_handle,
+            _vertex_buffer_handle: vertex_buffer_handle,
             index_buffer_handle,
-            sampler,
-            image_handle: images,
-            image_buffer_handles,
-            ubo_buffer_handle,
+            _sampler: sampler,
+            _image_handles: image_handles,
+            _image_buffer_handles: image_buffer_handles,
+            _ubo_buffer_handle: ubo_buffer_handle,
             mesh_draws,
         })
     }

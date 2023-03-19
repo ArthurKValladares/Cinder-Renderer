@@ -41,9 +41,9 @@ pub struct Renderer {
     _upload_context: UploadContext,
     vertex_buffer_handle: ResourceHandle<Buffer>,
     index_buffer_handle: ResourceHandle<Buffer>,
-    image_buffer_handle: ResourceHandle<Buffer>,
-    sampler_handle: ResourceHandle<Sampler>,
-    texture_handle: ResourceHandle<Image>,
+    _image_buffer_handle: ResourceHandle<Buffer>,
+    _sampler_handle: ResourceHandle<Sampler>,
+    _texture_handle: ResourceHandle<Image>,
 }
 
 impl Renderer {
@@ -170,9 +170,9 @@ impl Renderer {
             render_pipeline,
             vertex_buffer_handle,
             index_buffer_handle,
-            image_buffer_handle,
-            sampler_handle,
-            texture_handle,
+            _image_buffer_handle: image_buffer_handle,
+            _sampler_handle: sampler_handle,
+            _texture_handle: texture_handle,
         })
     }
 

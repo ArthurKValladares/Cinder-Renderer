@@ -289,7 +289,7 @@ impl Renderer {
                 }],
             )?;
         }
-        let ui = EguiIntegration::new(event_loop, &mut resource_manager, &mut device, &view)?;
+        let ui = EguiIntegration::new(event_loop, &mut resource_manager, &device, &view)?;
 
         Ok(Self {
             resource_manager,
