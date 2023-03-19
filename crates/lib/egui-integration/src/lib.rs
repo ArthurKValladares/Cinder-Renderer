@@ -404,7 +404,7 @@ impl EguiIntegration {
         data: &[egui::Color32],
     ) -> Result<()> {
         // TODO: Revisit image abstraction
-        if let Some(mut buffer) = self.image_staging_buffer.take() {
+        if let Some(_buffer) = self.image_staging_buffer.take() {
             // TODO: Queue this to be cleaned
         }
         let image_handle = device.create_image(

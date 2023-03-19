@@ -1,5 +1,5 @@
 use super::{get_pipeline_layout, PipelineCommon};
-use crate::device::{Device, ResourceManager};
+use crate::device::{Device};
 use crate::resources::bind_group::BindGroup;
 use crate::resources::{
     image::{reflect_format_to_vk, Format},
