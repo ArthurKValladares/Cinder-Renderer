@@ -6,13 +6,14 @@ use cinder::{
         },
         upload_context::UploadContext,
     },
-    device::{Device, ResourceManager},
+    device::Device,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{vk::Fence, Buffer, BufferDescription, BufferUsage},
         image::Image,
         pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
+        ResourceManager,
     },
     util::MemoryMappablePointer,
     view::{Drawable, View},
@@ -68,16 +69,14 @@ impl EguiIntegration {
 
         let bind_group_pool =
             BindGroupPool::new(device.raw(), device.max_bindless_descriptor_count()).unwrap();
-        let vertex_shader = device.create_shader(
-            resource_manager,
+        let vertex_shader = resource_manager.insert_shader(device.create_shader(
             include_bytes!("../shaders/spv/egui.vert.spv"),
             Default::default(),
-        )?;
-        let fragment_shader = device.create_shader(
-            resource_manager,
+        )?);
+        let fragment_shader = resource_manager.insert_shader(device.create_shader(
             include_bytes!("../shaders/spv/egui.frag.spv"),
             Default::default(),
-        )?;
+        )?);
         let pipeline = device.create_graphics_pipeline(
             resource_manager,
             vertex_shader,
@@ -89,31 +88,30 @@ impl EguiIntegration {
             },
         )?;
 
-        let sampler = device.create_sampler(resource_manager, device, Default::default())?;
+        let sampler =
+            resource_manager.insert_sampler(device.create_sampler(device, Default::default())?);
 
         let (vertex_buffers, index_buffers) = {
             let len = view.drawables_len();
             let mut vertex_buffers = Vec::with_capacity(len);
             let mut index_buffers = Vec::with_capacity(len);
             for _ in 0..len {
-                let vertex_buffer = device.create_buffer(
-                    resource_manager,
+                let vertex_buffer = resource_manager.insert_buffer(device.create_buffer(
                     VERTEX_BUFFER_SIZE,
                     BufferDescription {
                         usage: BufferUsage::VERTEX,
                         ..Default::default()
                     },
-                )?;
+                )?);
                 vertex_buffers.push(vertex_buffer);
 
-                let index_buffer = device.create_buffer(
-                    resource_manager,
+                let index_buffer = resource_manager.insert_buffer(device.create_buffer(
                     INDEX_BUFFER_SIZE,
                     BufferDescription {
                         usage: BufferUsage::INDEX,
                         ..Default::default()
                     },
-                )?;
+                )?);
                 index_buffers.push(index_buffer);
             }
             (vertex_buffers, index_buffers)
@@ -407,19 +405,15 @@ impl EguiIntegration {
         if let Some(_buffer) = self.image_staging_buffer.take() {
             // TODO: Queue this to be cleaned
         }
-        let image_handle = device.create_image(
-            resource_manager,
-            Size2D::new(width, height),
-            Default::default(),
-        )?;
-        let image_staging_buffer_handle = device.create_buffer(
-            resource_manager,
+        let image_handle = resource_manager
+            .insert_image(device.create_image(Size2D::new(width, height), Default::default())?);
+        let image_staging_buffer_handle = resource_manager.insert_buffer(device.create_buffer(
             size_of_slice(data),
             BufferDescription {
                 usage: BufferUsage::TRANSFER_SRC,
                 ..Default::default()
             },
-        )?;
+        )?);
         let image_staging_buffer = resource_manager
             .get_buffer(image_staging_buffer_handle)
             .unwrap();

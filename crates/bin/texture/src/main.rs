@@ -4,13 +4,14 @@ use cinder::{
         render_context::{Layout, RenderAttachment, RenderContext},
         upload_context::UploadContext,
     },
-    device::{Device, ResourceManager},
+    device::Device,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::Image,
         pipeline::graphics::GraphicsPipeline,
         sampler::Sampler,
+        ResourceManager,
     },
     view::View,
     ResourceHandle,
@@ -55,16 +56,14 @@ impl Renderer {
 
         let view = View::new(&device, Default::default())?;
 
-        let vertex_shader = device.create_shader(
-            &mut resource_manager,
+        let vertex_shader = resource_manager.insert_shader(device.create_shader(
             include_bytes!("../shaders/spv/texture.vert.spv"),
             Default::default(),
-        )?;
-        let fragment_shader = device.create_shader(
-            &mut resource_manager,
+        )?);
+        let fragment_shader = resource_manager.insert_shader(device.create_shader(
             include_bytes!("../shaders/spv/texture.frag.spv"),
             Default::default(),
-        )?;
+        )?);
         let render_pipeline = device.create_graphics_pipeline(
             &mut resource_manager,
             vertex_shader,
@@ -72,8 +71,7 @@ impl Renderer {
             Default::default(),
         )?;
 
-        let vertex_buffer_handle = device.create_buffer_with_data(
-            &mut resource_manager,
+        let vertex_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
             &[
                 TextureVertex {
                     i_pos: [-0.5, -0.5],
@@ -96,38 +94,33 @@ impl Renderer {
                 usage: BufferUsage::VERTEX,
                 ..Default::default()
             },
-        )?;
-        let index_buffer_handle = device.create_buffer_with_data(
-            &mut resource_manager,
+        )?);
+        let index_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
             &[0, 1, 2, 2, 3, 0],
             BufferDescription {
                 usage: BufferUsage::INDEX,
                 ..Default::default()
             },
-        )?;
+        )?);
 
         let sampler_handle =
-            device.create_sampler(&mut resource_manager, &device, Default::default())?;
+            resource_manager.insert_sampler(device.create_sampler(&device, Default::default())?);
 
         let image = image::load_from_memory(include_bytes!("../assets/rust.png"))
             .unwrap()
             .to_rgba8();
         let (width, height) = image.dimensions();
-        let texture_handle = device.create_image(
-            &mut resource_manager,
-            Size2D::new(width, height),
-            Default::default(),
-        )?;
+        let texture_handle = resource_manager
+            .insert_image(device.create_image(Size2D::new(width, height), Default::default())?);
         let image_data = image.into_raw();
 
-        let image_buffer_handle = device.create_buffer_with_data(
-            &mut resource_manager,
+        let image_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
             &image_data,
             BufferDescription {
                 usage: BufferUsage::TRANSFER_SRC,
                 ..Default::default()
             },
-        )?;
+        )?);
         let image_buffer = resource_manager.get_buffer(image_buffer_handle).unwrap();
         // TODO: having to call `get` here is bad, will no longer be neede later with better abstractions
         let texture = resource_manager.get_image(texture_handle).unwrap();

@@ -7,13 +7,14 @@ use cinder::{
         },
         upload_context::UploadContext,
     },
-    device::{Device, ResourceManager},
+    device::Device,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
+        ResourceManager,
     },
     view::View,
     ResourceHandle,
@@ -144,26 +145,23 @@ impl Renderer {
         let upload_context = UploadContext::new(&device, Default::default())?;
         let view = View::new(&device, Default::default())?;
         let surface_rect = device.surface_rect();
-        let depth_image = device.create_image(
-            &mut resource_manager,
+        let depth_image = resource_manager.insert_image(device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFloat,
                 usage: ImageUsage::Depth,
                 ..Default::default()
             },
-        )?;
+        )?);
 
-        let vertex_shader = device.create_shader(
-            &mut resource_manager,
+        let vertex_shader = resource_manager.insert_shader(device.create_shader(
             include_bytes!("../shaders/spv/bindless.vert.spv"),
             Default::default(),
-        )?;
-        let fragment_shader = device.create_shader(
-            &mut resource_manager,
+        )?);
+        let fragment_shader = resource_manager.insert_shader(device.create_shader(
             include_bytes!("../shaders/spv/bindless.frag.spv"),
             Default::default(),
-        )?;
+        )?);
         let render_pipeline = device.create_graphics_pipeline(
             &mut resource_manager,
             vertex_shader,
@@ -203,31 +201,28 @@ impl Renderer {
             (vertices, indices, mesh_draws)
         };
 
-        let vertex_buffer_handle = device.create_buffer_with_data(
-            &mut resource_manager,
+        let vertex_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
             &vertices,
             BufferDescription {
                 usage: BufferUsage::STORAGE | BufferUsage::TRANSFER_DST,
                 ..Default::default()
             },
-        )?;
-        let index_buffer_handle = device.create_buffer_with_data(
-            &mut resource_manager,
+        )?);
+        let index_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
             &indices,
             BufferDescription {
                 usage: BufferUsage::INDEX,
                 ..Default::default()
             },
-        )?;
+        )?);
 
-        let ubo_buffer_handle = device.create_buffer(
-            &mut resource_manager,
+        let ubo_buffer_handle = resource_manager.insert_buffer(device.create_buffer(
             std::mem::size_of::<BindlessUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
                 ..Default::default()
             },
-        )?;
+        )?);
         {
             let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle).unwrap();
             ubo_buffer.mem_copy(
@@ -262,7 +257,8 @@ impl Renderer {
                 ],
             )?;
         }
-        let sampler = device.create_sampler(&mut resource_manager, &device, Default::default())?;
+        let sampler =
+            resource_manager.insert_sampler(device.create_sampler(&device, Default::default())?);
 
         let image_data = scene
             .materials
@@ -281,24 +277,23 @@ impl Renderer {
         let (image_handles, image_buffer_handles) = image_data
             .into_iter()
             .map(|((idx, (width, height)), image_data)| {
-                let texture_handle = device
-                    .create_image(
-                        &mut resource_manager,
-                        Size2D::new(width, height),
-                        Default::default(),
-                    )
-                    .unwrap();
+                let texture_handle = resource_manager.insert_image(
+                    device
+                        .create_image(Size2D::new(width, height), Default::default())
+                        .unwrap(),
+                );
 
-                let image_buffer_handle = device
-                    .create_buffer_with_data(
-                        &mut resource_manager,
-                        &image_data,
-                        BufferDescription {
-                            usage: BufferUsage::TRANSFER_SRC,
-                            ..Default::default()
-                        },
-                    )
-                    .unwrap();
+                let image_buffer_handle = resource_manager.insert_buffer(
+                    device
+                        .create_buffer_with_data(
+                            &image_data,
+                            BufferDescription {
+                                usage: BufferUsage::TRANSFER_SRC,
+                                ..Default::default()
+                            },
+                        )
+                        .unwrap(),
+                );
                 let texture = resource_manager.get_image(texture_handle).unwrap();
                 let image_buffer = resource_manager.get_buffer(image_buffer_handle).unwrap();
                 upload_context.image_barrier_start(&device, texture);

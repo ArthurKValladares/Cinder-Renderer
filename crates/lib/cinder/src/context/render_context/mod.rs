@@ -1,12 +1,13 @@
 use super::ContextShared;
 use crate::{
-    device::{Device, ResourceManager},
+    device::Device,
     profiling::QueryPool,
     resources::{
         buffer::Buffer,
         image::Image,
         pipeline::{compute::ComputePipeline, graphics::GraphicsPipeline, PipelineCommon},
         shader::ShaderStage,
+        ResourceManager,
     },
     util::rect_to_vk,
     view::Drawable,

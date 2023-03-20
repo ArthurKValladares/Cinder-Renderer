@@ -1,10 +1,11 @@
 use anyhow::Result;
 use cinder::{
     context::render_context::{RenderAttachment, RenderContext},
-    device::{Device, ResourceManager},
+    device::Device,
     resources::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         pipeline::graphics::GraphicsPipeline,
+        ResourceManager,
     },
     view::View,
     ResourceHandle,
@@ -45,16 +46,14 @@ impl Renderer {
         let render_context = RenderContext::new(&device, Default::default())?;
         let view = View::new(&device, Default::default())?;
 
-        let vertex_shader = device.create_shader(
-            &mut resource_manager,
+        let vertex_shader = resource_manager.insert_shader(device.create_shader(
             include_bytes!("../shaders/spv/triangle.vert.spv"),
             Default::default(),
-        )?;
-        let fragment_shader = device.create_shader(
-            &mut resource_manager,
+        )?);
+        let fragment_shader = resource_manager.insert_shader(device.create_shader(
             include_bytes!("../shaders/spv/triangle.frag.spv"),
             Default::default(),
-        )?;
+        )?);
         let render_pipeline = device.create_graphics_pipeline(
             &mut resource_manager,
             vertex_shader,
@@ -62,8 +61,7 @@ impl Renderer {
             Default::default(),
         )?;
 
-        let vertex_buffer = device.create_buffer_with_data(
-            &mut resource_manager,
+        let vertex_buffer = resource_manager.insert_buffer(device.create_buffer_with_data(
             &[
                 TriangleVertex {
                     i_pos: [0.0, 0.5],
@@ -82,15 +80,14 @@ impl Renderer {
                 usage: BufferUsage::VERTEX,
                 ..Default::default()
             },
-        )?;
-        let index_buffer = device.create_buffer_with_data(
-            &mut resource_manager,
+        )?);
+        let index_buffer = resource_manager.insert_buffer(device.create_buffer_with_data(
             &[0, 1, 2],
             BufferDescription {
                 usage: BufferUsage::INDEX,
                 ..Default::default()
             },
-        )?;
+        )?);
 
         let init_time = Instant::now();
 

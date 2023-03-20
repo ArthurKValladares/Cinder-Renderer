@@ -7,12 +7,13 @@ use cinder::{
         },
         upload_context::UploadContext,
     },
-    device::{Device, ResourceManager},
+    device::Device,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
+        ResourceManager,
     },
     view::View,
     ResourceHandle,
@@ -98,25 +99,22 @@ impl Renderer {
         let upload_context = UploadContext::new(&device, Default::default())?;
         let view = View::new(&device, Default::default())?;
         let surface_rect = device.surface_rect();
-        let depth_image = device.create_image(
-            &mut resource_manager,
+        let depth_image = resource_manager.insert_image(device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFloat,
                 usage: ImageUsage::Depth,
                 ..Default::default()
             },
-        )?;
-        let vertex_shader = device.create_shader(
-            &mut resource_manager,
+        )?);
+        let vertex_shader = resource_manager.insert_shader(device.create_shader(
             include_bytes!("../shaders/spv/ui.vert.spv"),
             Default::default(),
-        )?;
-        let fragment_shader = device.create_shader(
-            &mut resource_manager,
+        )?);
+        let fragment_shader = resource_manager.insert_shader(device.create_shader(
             include_bytes!("../shaders/spv/ui.frag.spv"),
             Default::default(),
-        )?;
+        )?);
         let render_pipeline = device.create_graphics_pipeline(
             &mut resource_manager,
             vertex_shader,
@@ -127,8 +125,7 @@ impl Renderer {
             },
         )?;
 
-        let vertex_buffer_handle = device.create_buffer_with_data(
-            &mut resource_manager,
+        let vertex_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
             &[
                 // Plane at z: -0.5
                 UiVertex {
@@ -237,9 +234,8 @@ impl Renderer {
                 usage: BufferUsage::VERTEX,
                 ..Default::default()
             },
-        )?;
-        let index_buffer_handle = device.create_buffer_with_data(
-            &mut resource_manager,
+        )?);
+        let index_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
             &[
                 0, 1, 2, 2, 1, 3, // First plane
                 4, 5, 6, 6, 5, 7, // Second plane
@@ -252,16 +248,15 @@ impl Renderer {
                 usage: BufferUsage::INDEX,
                 ..Default::default()
             },
-        )?;
+        )?);
 
-        let ubo_buffer_handle = device.create_buffer(
-            &mut resource_manager,
+        let ubo_buffer_handle = resource_manager.insert_buffer(device.create_buffer(
             std::mem::size_of::<UiUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
                 ..Default::default()
             },
-        )?;
+        )?);
         {
             let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle).unwrap();
             ubo_buffer.mem_copy(

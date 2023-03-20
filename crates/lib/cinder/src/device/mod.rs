@@ -10,6 +10,7 @@ use crate::{
         bind_group::{BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{Buffer, BufferDescription},
         image::{Image, ImageDescription, ImageError},
+        manager::ResourceManager,
         pipeline::{
             compute::{ComputePipeline, ComputePipelineDescription},
             graphics::{GraphicsPipeline, GraphicsPipelineDescription},
@@ -24,7 +25,7 @@ use anyhow::Result;
 use ash::vk::KhrPortabilitySubsetFn;
 use ash::{extensions::khr::DynamicRendering, vk};
 use math::{rect::Rect2D, size::Size2D};
-use resource_manager::{ResourceHandle, ResourcePool};
+use resource_manager::ResourceHandle;
 use thiserror::Error;
 use util::size_of_slice;
 
@@ -49,58 +50,6 @@ pub enum DeviceError {
     InvalidPipelineHandle,
     #[error("Resource not in cache")]
     ResourceNotInCache,
-}
-
-macro_rules! getter {
-    ($fn_name:ident, $fn_name_mut:ident, $field:ident, $t:ty) => {
-        pub fn $fn_name(&self, handle: ResourceHandle<$t>) -> Option<&$t> {
-            self.$field.get(handle)
-        }
-
-        pub fn $fn_name_mut(&mut self, handle: ResourceHandle<$t>) -> Option<&mut $t> {
-            self.$field.get_mut(handle)
-        }
-    };
-}
-
-macro_rules! cleanup {
-    ($self:ident.$field:ident, $device:ident) => {
-        for mut res in $self.$field.drain() {
-            res.destroy($device.raw());
-        }
-    };
-}
-
-#[derive(Default)]
-pub struct ResourceManager {
-    graphics_pipelines: ResourcePool<GraphicsPipeline>,
-    shaders: ResourcePool<Shader>,
-    images: ResourcePool<Image>,
-    buffers: ResourcePool<Buffer>,
-    samplers: ResourcePool<Sampler>,
-    // TODO: better abstraction
-    purgatory: Vec<vk::Pipeline>,
-}
-
-impl ResourceManager {
-    pub fn clean(&mut self, device: &Device) {
-        cleanup!(self.graphics_pipelines, device);
-        cleanup!(self.shaders, device);
-        cleanup!(self.images, device);
-        cleanup!(self.buffers, device);
-        cleanup!(self.samplers, device);
-    }
-
-    getter!(
-        get_graphics_pipeline,
-        get_graphics_pipeline_mut,
-        graphics_pipelines,
-        GraphicsPipeline
-    );
-    getter!(get_shader, get_shader_mut, shaders, Shader);
-    getter!(get_image, get_image_mut, images, Image);
-    getter!(get_buffer, get_buffer_mut, buffers, Buffer);
-    getter!(get_sampler, get_sampler_mut, samplers, Sampler);
 }
 
 #[derive(Debug, Default)]
@@ -508,43 +457,27 @@ impl Device {
         Ok(results)
     }
 
-    pub fn create_buffer(
-        &self,
-        manager: &mut ResourceManager,
-        size: u64,
-        desc: BufferDescription,
-    ) -> Result<ResourceHandle<Buffer>> {
-        Ok(manager.buffers.insert(Buffer::create(self, size, desc)?))
+    pub fn create_buffer(&self, size: u64, desc: BufferDescription) -> Result<Buffer> {
+        Buffer::create(self, size, desc)
     }
 
     pub fn create_buffer_with_data<T: Copy>(
         &self,
-        manager: &mut ResourceManager,
         data: &[T],
         desc: BufferDescription,
-    ) -> Result<ResourceHandle<Buffer>> {
+    ) -> Result<Buffer> {
         let size = size_of_slice(data);
         let buffer = Buffer::create(self, size, desc)?;
         buffer.mem_copy(0, data)?;
-        Ok(manager.buffers.insert(buffer))
+        Ok(buffer)
     }
 
-    pub fn create_image(
-        &self,
-        manager: &mut ResourceManager,
-        size: Size2D<u32>,
-        desc: ImageDescription,
-    ) -> Result<ResourceHandle<Image>> {
-        Ok(manager.images.insert(Image::create(self, size, desc)?))
+    pub fn create_image(&self, size: Size2D<u32>, desc: ImageDescription) -> Result<Image> {
+        Image::create(self, size, desc)
     }
 
-    pub fn create_shader(
-        &self,
-        manager: &mut ResourceManager,
-        bytes: &[u8],
-        desc: ShaderDesc,
-    ) -> Result<ResourceHandle<Shader>> {
-        Ok(manager.shaders.insert(Shader::create(self, bytes, desc)?))
+    pub fn create_shader(&self, bytes: &[u8], desc: ShaderDesc) -> Result<Shader> {
+        Shader::create(self, bytes, desc)
     }
 
     // TODO: Error handling
@@ -555,17 +488,17 @@ impl Device {
         handle: ResourceHandle<Shader>,
     ) {
         let new = manager
-            .shaders
-            .get(handle)
+            .get_shader(handle)
             .map(|old| Shader::create(self, bytes, old.desc).unwrap());
 
         if let Some(new) = new {
-            manager.shaders.replace(handle, new);
+            manager.replace_shader(handle, new);
         } else {
             // TODO: error
         }
     }
 
+    // TODO: rethink
     pub fn create_graphics_pipeline(
         &self,
         manager: &mut ResourceManager,
@@ -579,7 +512,7 @@ impl Device {
         let fragment_shader = manager
             .get_shader(fragment_shader_handle)
             .ok_or(DeviceError::ResourceNotInCache)?;
-        Ok(manager.graphics_pipelines.insert(GraphicsPipeline::create(
+        Ok(manager.insert_graphics_pipeline(GraphicsPipeline::create(
             self,
             vertex_shader,
             vertex_shader_handle,
@@ -595,17 +528,15 @@ impl Device {
         manager: &mut ResourceManager,
         handle: ResourceHandle<GraphicsPipeline>,
     ) -> Result<()> {
-        if let Some(mut old) = manager.graphics_pipelines.remove(handle) {
+        if let Some(mut old) = manager.remove_graphics_pipeline(handle) {
             let vertex_shader = manager
                 .get_shader(old.vertex_shader_handle)
                 .ok_or(DeviceError::ResourceNotInCache)?;
             let fragment_shader = manager
                 .get_shader(old.fragment_shader_handle)
                 .ok_or(DeviceError::ResourceNotInCache)?;
-            manager
-                .purgatory
-                .push(old.recreate(vertex_shader, fragment_shader, self)?);
-            manager.graphics_pipelines.replace(handle, old);
+            manager.add_to_purgatory(old.recreate(vertex_shader, fragment_shader, self)?);
+            manager.replace_graphics_pipeline(handle, old);
             Ok(())
         } else {
             Err(DeviceError::InvalidPipelineHandle.into())
@@ -620,12 +551,7 @@ impl Device {
         ComputePipeline::create(self, shader, desc)
     }
 
-    pub fn create_sampler(
-        &self,
-        resource_manager: &mut ResourceManager,
-        device: &Device,
-        desc: SamplerDescription,
-    ) -> Result<ResourceHandle<Sampler>> {
+    pub fn create_sampler(&self, device: &Device, desc: SamplerDescription) -> Result<Sampler> {
         let sampler_info = vk::SamplerCreateInfo {
             mag_filter: desc.filter.into(),
             min_filter: desc.filter.into(),
@@ -645,7 +571,7 @@ impl Device {
             device.set_name(vk::ObjectType::SAMPLER, sampler, name);
         }
 
-        Ok(resource_manager.samplers.insert(Sampler { raw: sampler }))
+        Ok(Sampler { raw: sampler })
     }
 
     pub fn present_complete_semaphore(&self) -> vk::Semaphore {

@@ -7,13 +7,14 @@ use cinder::{
         },
         upload_context::UploadContext,
     },
-    device::{Device, ResourceManager},
+    device::Device,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
+        ResourceManager,
     },
     view::View,
     ResourceHandle,
@@ -90,25 +91,22 @@ impl Renderer {
         let render_context = RenderContext::new(&device, Default::default())?;
         let view = View::new(&device, Default::default())?;
         let surface_rect = device.surface_rect();
-        let depth_image_handle = device.create_image(
-            &mut resource_manager,
+        let depth_image_handle = resource_manager.insert_image(device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFloat,
                 usage: ImageUsage::DepthSampled,
                 ..Default::default()
             },
-        )?;
-        let mesh_vertex_shader = device.create_shader(
-            &mut resource_manager,
+        )?);
+        let mesh_vertex_shader = resource_manager.insert_shader(device.create_shader(
             include_bytes!("../shaders/spv/depth_mesh.vert.spv"),
             Default::default(),
-        )?;
-        let mesh_fragment_shader = device.create_shader(
-            &mut resource_manager,
+        )?);
+        let mesh_fragment_shader = resource_manager.insert_shader(device.create_shader(
             include_bytes!("../shaders/spv/depth_mesh.frag.spv"),
             Default::default(),
-        )?;
+        )?);
         let mesh_render_pipeline = device.create_graphics_pipeline(
             &mut resource_manager,
             mesh_vertex_shader,
@@ -119,16 +117,14 @@ impl Renderer {
             },
         )?;
 
-        let texture_vertex_shader = device.create_shader(
-            &mut resource_manager,
+        let texture_vertex_shader = resource_manager.insert_shader(device.create_shader(
             include_bytes!("../shaders/spv/depth_texture.vert.spv"),
             Default::default(),
-        )?;
-        let texture_fragment_shader = device.create_shader(
-            &mut resource_manager,
+        )?);
+        let texture_fragment_shader = resource_manager.insert_shader(device.create_shader(
             include_bytes!("../shaders/spv/depth_texture.frag.spv"),
             Default::default(),
-        )?;
+        )?);
         let texture_render_pipeline = device.create_graphics_pipeline(
             &mut resource_manager,
             texture_vertex_shader,
@@ -136,141 +132,140 @@ impl Renderer {
             Default::default(),
         )?;
 
-        let cube_vertex_buffer_handle = device.create_buffer_with_data(
-            &mut resource_manager,
-            &[
-                // Plane at z: -0.5
-                DepthMeshVertex {
-                    i_pos: [-0.5, 0.5, -0.5],
-                    i_normal: [1.0, 0.0, 0.0],
+        let cube_vertex_buffer_handle =
+            resource_manager.insert_buffer(device.create_buffer_with_data(
+                &[
+                    // Plane at z: -0.5
+                    DepthMeshVertex {
+                        i_pos: [-0.5, 0.5, -0.5],
+                        i_normal: [1.0, 0.0, 0.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [0.5, 0.5, -0.5],
+                        i_normal: [1.0, 0.0, 0.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [-0.5, -0.5, -0.5],
+                        i_normal: [1.0, 0.0, 0.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [0.5, -0.5, -0.5],
+                        i_normal: [1.0, 0.0, 0.0],
+                    },
+                    // Plane at z: 0.5
+                    DepthMeshVertex {
+                        i_pos: [-0.5, 0.5, 0.5],
+                        i_normal: [0.0, 0.0, 1.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [0.5, 0.5, 0.5],
+                        i_normal: [0.0, 0.0, 1.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [-0.5, -0.5, 0.5],
+                        i_normal: [0.0, 0.0, 1.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [0.5, -0.5, 0.5],
+                        i_normal: [0.0, 0.0, 1.0],
+                    },
+                    // Plane at x: -0.5
+                    DepthMeshVertex {
+                        i_pos: [-0.5, -0.5, 0.5],
+                        i_normal: [0.0, 1.0, 0.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [-0.5, 0.5, 0.5],
+                        i_normal: [0.0, 1.0, 0.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [-0.5, -0.5, -0.5],
+                        i_normal: [0.0, 1.0, 0.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [-0.5, 0.5, -0.5],
+                        i_normal: [0.0, 1.0, 0.0],
+                    },
+                    // Plane at x: 0.5
+                    DepthMeshVertex {
+                        i_pos: [0.5, -0.5, 0.5],
+                        i_normal: [1.0, 1.0, 0.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [0.5, 0.5, 0.5],
+                        i_normal: [1.0, 1.0, 0.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [0.5, -0.5, -0.5],
+                        i_normal: [1.0, 1.0, 0.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [0.5, 0.5, -0.5],
+                        i_normal: [1.0, 1.0, 0.0],
+                    },
+                    // Plane at y: -0.5
+                    DepthMeshVertex {
+                        i_pos: [-0.5, -0.5, 0.5],
+                        i_normal: [0.0, 1.0, 1.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [0.5, -0.5, 0.5],
+                        i_normal: [0.0, 1.0, 1.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [-0.5, -0.5, -0.5],
+                        i_normal: [0.0, 1.0, 1.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [0.5, -0.5, -0.5],
+                        i_normal: [0.0, 1.0, 1.0],
+                    },
+                    // Plane at y: 0.5
+                    DepthMeshVertex {
+                        i_pos: [-0.5, 0.5, 0.5],
+                        i_normal: [1.0, 1.0, 1.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [0.5, 0.5, 0.5],
+                        i_normal: [1.0, 1.0, 1.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [-0.5, 0.5, -0.5],
+                        i_normal: [1.0, 1.0, 1.0],
+                    },
+                    DepthMeshVertex {
+                        i_pos: [0.5, 0.5, -0.5],
+                        i_normal: [1.0, 1.0, 1.0],
+                    },
+                ],
+                BufferDescription {
+                    usage: BufferUsage::VERTEX,
+                    ..Default::default()
                 },
-                DepthMeshVertex {
-                    i_pos: [0.5, 0.5, -0.5],
-                    i_normal: [1.0, 0.0, 0.0],
+            )?);
+        let cube_index_buffer_handle =
+            resource_manager.insert_buffer(device.create_buffer_with_data(
+                &[
+                    0, 1, 2, 2, 1, 3, // First plane
+                    4, 5, 6, 6, 5, 7, // Second plane
+                    8, 9, 10, 10, 9, 11, // Third plane
+                    12, 13, 14, 14, 13, 15, // Fourth plane
+                    16, 17, 18, 18, 17, 19, // Fifth plane
+                    20, 21, 22, 22, 21, 23, // Sixth plane
+                ],
+                BufferDescription {
+                    usage: BufferUsage::INDEX,
+                    ..Default::default()
                 },
-                DepthMeshVertex {
-                    i_pos: [-0.5, -0.5, -0.5],
-                    i_normal: [1.0, 0.0, 0.0],
-                },
-                DepthMeshVertex {
-                    i_pos: [0.5, -0.5, -0.5],
-                    i_normal: [1.0, 0.0, 0.0],
-                },
-                // Plane at z: 0.5
-                DepthMeshVertex {
-                    i_pos: [-0.5, 0.5, 0.5],
-                    i_normal: [0.0, 0.0, 1.0],
-                },
-                DepthMeshVertex {
-                    i_pos: [0.5, 0.5, 0.5],
-                    i_normal: [0.0, 0.0, 1.0],
-                },
-                DepthMeshVertex {
-                    i_pos: [-0.5, -0.5, 0.5],
-                    i_normal: [0.0, 0.0, 1.0],
-                },
-                DepthMeshVertex {
-                    i_pos: [0.5, -0.5, 0.5],
-                    i_normal: [0.0, 0.0, 1.0],
-                },
-                // Plane at x: -0.5
-                DepthMeshVertex {
-                    i_pos: [-0.5, -0.5, 0.5],
-                    i_normal: [0.0, 1.0, 0.0],
-                },
-                DepthMeshVertex {
-                    i_pos: [-0.5, 0.5, 0.5],
-                    i_normal: [0.0, 1.0, 0.0],
-                },
-                DepthMeshVertex {
-                    i_pos: [-0.5, -0.5, -0.5],
-                    i_normal: [0.0, 1.0, 0.0],
-                },
-                DepthMeshVertex {
-                    i_pos: [-0.5, 0.5, -0.5],
-                    i_normal: [0.0, 1.0, 0.0],
-                },
-                // Plane at x: 0.5
-                DepthMeshVertex {
-                    i_pos: [0.5, -0.5, 0.5],
-                    i_normal: [1.0, 1.0, 0.0],
-                },
-                DepthMeshVertex {
-                    i_pos: [0.5, 0.5, 0.5],
-                    i_normal: [1.0, 1.0, 0.0],
-                },
-                DepthMeshVertex {
-                    i_pos: [0.5, -0.5, -0.5],
-                    i_normal: [1.0, 1.0, 0.0],
-                },
-                DepthMeshVertex {
-                    i_pos: [0.5, 0.5, -0.5],
-                    i_normal: [1.0, 1.0, 0.0],
-                },
-                // Plane at y: -0.5
-                DepthMeshVertex {
-                    i_pos: [-0.5, -0.5, 0.5],
-                    i_normal: [0.0, 1.0, 1.0],
-                },
-                DepthMeshVertex {
-                    i_pos: [0.5, -0.5, 0.5],
-                    i_normal: [0.0, 1.0, 1.0],
-                },
-                DepthMeshVertex {
-                    i_pos: [-0.5, -0.5, -0.5],
-                    i_normal: [0.0, 1.0, 1.0],
-                },
-                DepthMeshVertex {
-                    i_pos: [0.5, -0.5, -0.5],
-                    i_normal: [0.0, 1.0, 1.0],
-                },
-                // Plane at y: 0.5
-                DepthMeshVertex {
-                    i_pos: [-0.5, 0.5, 0.5],
-                    i_normal: [1.0, 1.0, 1.0],
-                },
-                DepthMeshVertex {
-                    i_pos: [0.5, 0.5, 0.5],
-                    i_normal: [1.0, 1.0, 1.0],
-                },
-                DepthMeshVertex {
-                    i_pos: [-0.5, 0.5, -0.5],
-                    i_normal: [1.0, 1.0, 1.0],
-                },
-                DepthMeshVertex {
-                    i_pos: [0.5, 0.5, -0.5],
-                    i_normal: [1.0, 1.0, 1.0],
-                },
-            ],
-            BufferDescription {
-                usage: BufferUsage::VERTEX,
-                ..Default::default()
-            },
-        )?;
-        let cube_index_buffer_handle = device.create_buffer_with_data(
-            &mut resource_manager,
-            &[
-                0, 1, 2, 2, 1, 3, // First plane
-                4, 5, 6, 6, 5, 7, // Second plane
-                8, 9, 10, 10, 9, 11, // Third plane
-                12, 13, 14, 14, 13, 15, // Fourth plane
-                16, 17, 18, 18, 17, 19, // Fifth plane
-                20, 21, 22, 22, 21, 23, // Sixth plane
-            ],
-            BufferDescription {
-                usage: BufferUsage::INDEX,
-                ..Default::default()
-            },
-        )?;
+            )?);
 
-        let ubo_buffer_handle = device.create_buffer(
-            &mut resource_manager,
+        let ubo_buffer_handle = resource_manager.insert_buffer(device.create_buffer(
             std::mem::size_of::<DepthMeshUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
                 ..Default::default()
             },
-        )?;
+        )?);
         {
             let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle).unwrap();
             ubo_buffer.mem_copy(
@@ -297,41 +292,42 @@ impl Renderer {
                 }],
             )?;
         }
-        let quad_vertex_buffer_handle = device.create_buffer_with_data(
-            &mut resource_manager,
-            &[
-                DepthTextureVertex {
-                    i_pos: [-1.0, -1.0],
-                    i_uv: [0.0, 1.0],
+        let quad_vertex_buffer_handle =
+            resource_manager.insert_buffer(device.create_buffer_with_data(
+                &[
+                    DepthTextureVertex {
+                        i_pos: [-1.0, -1.0],
+                        i_uv: [0.0, 1.0],
+                    },
+                    DepthTextureVertex {
+                        i_pos: [-0.25, -1.0],
+                        i_uv: [1.0, 1.0],
+                    },
+                    DepthTextureVertex {
+                        i_pos: [-0.25, -0.25],
+                        i_uv: [1.0, 0.0],
+                    },
+                    DepthTextureVertex {
+                        i_pos: [-1.0, -0.25],
+                        i_uv: [0.0, 0.0],
+                    },
+                ],
+                BufferDescription {
+                    usage: BufferUsage::VERTEX,
+                    ..Default::default()
                 },
-                DepthTextureVertex {
-                    i_pos: [-0.25, -1.0],
-                    i_uv: [1.0, 1.0],
+            )?);
+        let quad_index_buffer_handle =
+            resource_manager.insert_buffer(device.create_buffer_with_data(
+                &[0, 1, 2, 2, 3, 0],
+                BufferDescription {
+                    usage: BufferUsage::INDEX,
+                    ..Default::default()
                 },
-                DepthTextureVertex {
-                    i_pos: [-0.25, -0.25],
-                    i_uv: [1.0, 0.0],
-                },
-                DepthTextureVertex {
-                    i_pos: [-1.0, -0.25],
-                    i_uv: [0.0, 0.0],
-                },
-            ],
-            BufferDescription {
-                usage: BufferUsage::VERTEX,
-                ..Default::default()
-            },
-        )?;
-        let quad_index_buffer_handle = device.create_buffer_with_data(
-            &mut resource_manager,
-            &[0, 1, 2, 2, 3, 0],
-            BufferDescription {
-                usage: BufferUsage::INDEX,
-                ..Default::default()
-            },
-        )?;
+            )?);
 
-        let sampler = device.create_sampler(&mut resource_manager, &device, Default::default())?;
+        let sampler =
+            resource_manager.insert_sampler(device.create_sampler(&device, Default::default())?);
 
         let init_time = Instant::now();
 
