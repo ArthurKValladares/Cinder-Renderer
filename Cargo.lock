@@ -133,6 +133,7 @@ dependencies = [
  "home",
  "image",
  "math",
+ "rayon",
  "rust-shader-tools",
  "scene",
  "serde",

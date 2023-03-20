@@ -50,7 +50,6 @@ fn main() {
     shader_compiler
         .compile_and_write_shader("shaders/hot_reload.frag", ShaderStage::Fragment)
         .expect("Could not compile shader");
-    // TODO: rkvy stuff should be optional
     write_shader_structs(
         &std::fs::read("./shaders/spv/hot_reload.vert.spv").unwrap(),
         "hot_reload",

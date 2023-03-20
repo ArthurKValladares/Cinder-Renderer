@@ -19,6 +19,7 @@ use cinder::{
     ResourceHandle,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
+use rayon::iter::*;
 use scene::{ObjMesh, Scene, Vertex};
 use std::path::PathBuf;
 use winit::{
@@ -263,17 +264,23 @@ impl Renderer {
         }
         let sampler = device.create_sampler(&mut resource_manager, &device, Default::default())?;
 
-        upload_context.begin(&device, device.setup_fence())?;
-        let (image_handles, image_buffer_handles) = scene
+        let image_data = scene
             .materials
-            .iter()
+            .par_iter()
             .enumerate()
             .filter(|(_, material)| material.diffuse.is_some())
             .map(|(idx, material)| {
                 let diffuse = material.diffuse.as_ref().unwrap();
                 let image = diffuse.to_rgba8();
-                let (width, height) = image.dimensions();
+                let dims = image.dimensions();
+                ((idx, dims), image.into_raw())
+            })
+            .collect::<Vec<_>>();
 
+        upload_context.begin(&device, device.setup_fence())?;
+        let (image_handles, image_buffer_handles) = image_data
+            .into_iter()
+            .map(|((idx, (width, height)), image_data)| {
                 let texture_handle = device
                     .create_image(
                         &mut resource_manager,
@@ -281,7 +288,7 @@ impl Renderer {
                         Default::default(),
                     )
                     .unwrap();
-                let image_data = image.into_raw();
+
                 let image_buffer_handle = device
                     .create_buffer_with_data(
                         &mut resource_manager,

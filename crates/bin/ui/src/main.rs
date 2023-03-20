@@ -375,7 +375,6 @@ impl Renderer {
             }
             self.render_context.end_rendering(&self.device);
 
-            // TODO: why is this mut?
             self.ui.run(
                 &mut self.resource_manager,
                 &self.device,
