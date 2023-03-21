@@ -29,16 +29,7 @@ use resource_manager::ResourceHandle;
 use thiserror::Error;
 use util::size_of_slice;
 
-fn max_bindless_descriptor_count_inner(p_device_properties: &vk::PhysicalDeviceProperties) -> u32 {
-    pub const RESERVED_DESCRIPTOR_COUNT: u32 = 32;
-
-    (512 * 1024).min(
-        p_device_properties
-            .limits
-            .max_per_stage_descriptor_sampled_images
-            - RESERVED_DESCRIPTOR_COUNT,
-    )
-}
+pub const MAX_BINDLESS_RESOURCES: u32 = 1024;
 
 #[derive(Debug, Error)]
 pub enum DeviceError {
@@ -241,10 +232,7 @@ impl Device {
             pipeline_cache,
             "pipeline cache",
         );
-        let bind_group_pool = BindGroupPool::new(
-            &device,
-            max_bindless_descriptor_count_inner(&p_device_properties),
-        )?;
+        let bind_group_pool = BindGroupPool::new(&device)?;
         instance::debug::set_object_name(
             instance.debug(),
             device.handle(),
@@ -648,10 +636,6 @@ impl Device {
             self.surface
                 .get_data(self.p_device, Resolution { width, height }, false)?;
         Ok(())
-    }
-
-    pub fn max_bindless_descriptor_count(&self) -> u32 {
-        max_bindless_descriptor_count_inner(&self.p_device_properties)
     }
 }
 

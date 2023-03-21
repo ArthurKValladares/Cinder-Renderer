@@ -1,5 +1,5 @@
 use crate::{
-    device::Device,
+    device::{Device, MAX_BINDLESS_RESOURCES},
     resources::{buffer::BindBufferInfo, image::BindImageInfo, shader::ShaderStage},
 };
 use anyhow::Result;
@@ -28,24 +28,24 @@ impl From<BindGroupType> for vk::DescriptorType {
 pub struct BindGroupPool(pub(crate) vk::DescriptorPool);
 
 impl BindGroupPool {
-    pub fn new(device: &ash::Device, descriptor_count: u32) -> Result<Self> {
+    pub fn new(device: &ash::Device) -> Result<Self> {
         let pool_sizes = [
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
-                descriptor_count,
+                descriptor_count: MAX_BINDLESS_RESOURCES,
             },
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::STORAGE_BUFFER,
-                descriptor_count,
+                descriptor_count: MAX_BINDLESS_RESOURCES,
             },
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::UNIFORM_BUFFER,
-                descriptor_count,
+                descriptor_count: MAX_BINDLESS_RESOURCES,
             },
         ];
 
         let descriptor_pool_info = vk::DescriptorPoolCreateInfo::builder()
-            .max_sets(descriptor_count * pool_sizes.len() as u32)
+            .max_sets(MAX_BINDLESS_RESOURCES * pool_sizes.len() as u32)
             .pool_sizes(&pool_sizes)
             .flags(vk::DescriptorPoolCreateFlags::UPDATE_AFTER_BIND)
             .build();
@@ -111,12 +111,9 @@ impl BindGroupLayout {
             .iter()
             .map(|data| {
                 vk::DescriptorSetLayoutBinding::builder()
-                    .binding(data.binding)
                     .descriptor_type(data.ty.into())
-                    .descriptor_count(
-                        data.count
-                            .unwrap_or_else(|| device.max_bindless_descriptor_count()),
-                    )
+                    .binding(data.binding)
+                    .descriptor_count(data.count.unwrap_or_else(|| MAX_BINDLESS_RESOURCES))
                     .stage_flags(data.shader_stage.into())
                     .build()
             })
@@ -172,7 +169,7 @@ pub struct BindGroup(pub vk::DescriptorSet);
 
 impl BindGroup {
     pub fn new(device: &Device, layouts: &[BindGroupLayout], variable_count: bool) -> Result<Self> {
-        let max_binding = device.max_bindless_descriptor_count() - 1;
+        let max_binding = MAX_BINDLESS_RESOURCES - 1;
 
         let mut count_info = vk::DescriptorSetVariableDescriptorCountAllocateInfo::builder()
             .descriptor_counts(&[max_binding])
