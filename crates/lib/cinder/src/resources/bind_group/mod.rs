@@ -113,7 +113,7 @@ impl BindGroupLayout {
                 vk::DescriptorSetLayoutBinding::builder()
                     .descriptor_type(data.ty.into())
                     .binding(data.binding)
-                    .descriptor_count(data.count.unwrap_or_else(|| MAX_BINDLESS_RESOURCES))
+                    .descriptor_count(data.count.unwrap_or(MAX_BINDLESS_RESOURCES))
                     .stage_flags(data.shader_stage.into())
                     .build()
             })
@@ -168,11 +168,13 @@ pub struct BindGroupBindInfo {
 pub struct BindGroup(pub vk::DescriptorSet);
 
 impl BindGroup {
-    pub fn new(device: &Device, layouts: &[BindGroupLayout], variable_count: bool) -> Result<Self> {
-        let max_binding = MAX_BINDLESS_RESOURCES - 1;
-
+    pub fn new(
+        device: &Device,
+        layouts: &[BindGroupLayout],
+        descriptor_counts: &[u32],
+    ) -> Result<Self> {
         let mut count_info = vk::DescriptorSetVariableDescriptorCountAllocateInfo::builder()
-            .descriptor_counts(&[max_binding])
+            .descriptor_counts(descriptor_counts)
             .build();
 
         let set_layouts = layouts
@@ -182,13 +184,9 @@ impl BindGroup {
 
         let desc_alloc_info = vk::DescriptorSetAllocateInfo::builder()
             .descriptor_pool(device.bind_group_pool.0)
-            .set_layouts(&set_layouts);
-
-        let desc_alloc_info = if variable_count {
-            desc_alloc_info.push_next(&mut count_info).build()
-        } else {
-            desc_alloc_info.build()
-        };
+            .set_layouts(&set_layouts)
+            .push_next(&mut count_info)
+            .build();
 
         let set = unsafe { device.raw().allocate_descriptor_sets(&desc_alloc_info) }?[0];
 

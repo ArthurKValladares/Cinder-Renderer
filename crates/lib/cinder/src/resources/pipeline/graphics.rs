@@ -1,5 +1,5 @@
 use super::{get_pipeline_layout, PipelineCommon};
-use crate::device::Device;
+use crate::device::{Device, MAX_BINDLESS_RESOURCES};
 use crate::resources::bind_group::BindGroup;
 use crate::resources::{
     image::{reflect_format_to_vk, Format},
@@ -261,11 +261,14 @@ impl GraphicsPipeline {
         let bind_group = if common_data.bind_group_layouts().is_empty() {
             None
         } else {
-            let bind_group = BindGroup::new(
-                device,
-                common_data.bind_group_layouts(),
-                common_data.variable_count,
-            )?;
+            let bind_group_layouts = common_data.bind_group_layouts();
+            // TODO: This is very bad, should be determined per layout, as should `variable_count`
+            let descriptor_counts = if common_data.variable_count {
+                [MAX_BINDLESS_RESOURCES - 1]
+            } else {
+                [1]
+            };
+            let bind_group = BindGroup::new(device, bind_group_layouts, &descriptor_counts)?;
 
             if let Some(name) = desc.name {
                 bind_group.set_name(device, name);
