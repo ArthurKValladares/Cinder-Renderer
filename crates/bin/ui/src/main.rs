@@ -417,8 +417,6 @@ impl Drop for Renderer {
     fn drop(&mut self) {
         self.device.wait_idle().ok();
 
-        self.ui.destroy(&self.device);
-
         self.view.destroy(&self.device);
         self.resource_manager.clean(&self.device);
     }

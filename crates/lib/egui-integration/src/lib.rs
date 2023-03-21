@@ -8,7 +8,7 @@ use cinder::{
     },
     device::Device,
     resources::{
-        bind_group::{BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
+        bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{vk::Fence, Buffer, BufferDescription, BufferUsage},
         image::Image,
         pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
@@ -44,8 +44,6 @@ pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_winit: egui_winit::State,
     pipeline: ResourceHandle<GraphicsPipeline>,
-    // TODO: won't need separate pool in the future
-    bind_group_pool: BindGroupPool,
     sampler: ResourceHandle<Sampler>,
     image_staging_buffer: Option<ResourceHandle<Buffer>>,
     image_map: HashMap<TextureId, ResourceHandle<Image>>,
@@ -67,8 +65,6 @@ impl EguiIntegration {
         egui_context.set_pixels_per_point(PPP);
         egui_winit.set_pixels_per_point(PPP);
 
-        let bind_group_pool =
-            BindGroupPool::new(device.raw(), device.max_bindless_descriptor_count()).unwrap();
         let vertex_shader = resource_manager.insert_shader(device.create_shader(
             include_bytes!("../shaders/spv/egui.vert.spv"),
             Default::default(),
@@ -121,7 +117,6 @@ impl EguiIntegration {
             egui_context,
             egui_winit,
             sampler,
-            bind_group_pool,
             pipeline,
             image_staging_buffer: None,
             image_map: Default::default(),
@@ -509,9 +504,5 @@ impl EguiIntegration {
     pub fn set_ui_scale(&mut self, scale: f32) {
         self.egui_context.set_pixels_per_point(scale);
         self.egui_winit.set_pixels_per_point(scale);
-    }
-
-    pub fn destroy(&mut self, device: &Device) {
-        self.bind_group_pool.destroy(device.raw());
     }
 }
