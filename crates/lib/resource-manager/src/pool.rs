@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use crate::ResourceHandle;
+use crate::ResourceId;
 
 pub struct ResourcePool<T> {
     // TODO: Better container for this, generational-arena
@@ -22,27 +22,27 @@ impl<T> ResourcePool<T> {
         Default::default()
     }
 
-    pub fn insert(&mut self, resource: T) -> ResourceHandle<T> {
+    pub fn insert(&mut self, resource: T) -> ResourceId<T> {
         let id = self.resources.len();
         self.resources.insert(id, resource);
-        ResourceHandle::from_index(id)
+        ResourceId::from_index(id)
     }
 
-    pub fn replace(&mut self, handle: ResourceHandle<T>, new: T) {
+    pub fn replace(&mut self, handle: ResourceId<T>, new: T) {
         if let Some(old) = self.resources.insert(handle.id(), new) {
             self.to_be_freed.push(old);
         }
     }
 
-    pub fn get(&self, handle: ResourceHandle<T>) -> Option<&T> {
+    pub fn get(&self, handle: ResourceId<T>) -> Option<&T> {
         self.resources.get(&handle.id())
     }
 
-    pub fn get_mut(&mut self, handle: ResourceHandle<T>) -> Option<&mut T> {
+    pub fn get_mut(&mut self, handle: ResourceId<T>) -> Option<&mut T> {
         self.resources.get_mut(&handle.id())
     }
 
-    pub fn remove(&mut self, handle: ResourceHandle<T>) -> Option<T> {
+    pub fn remove(&mut self, handle: ResourceId<T>) -> Option<T> {
         self.resources.remove(&handle.id())
     }
 

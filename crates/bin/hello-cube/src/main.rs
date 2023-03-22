@@ -9,11 +9,12 @@ use cinder::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage},
+        manager::ResourceHandle,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         ResourceManager,
     },
     view::View,
-    ResourceHandle,
+    ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use std::time::Instant;
@@ -237,7 +238,7 @@ impl Renderer {
                 ..Default::default()
             },
         )?);
-        let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle).unwrap();
+        let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle.id()).unwrap();
         ubo_buffer.mem_copy(
             util::offset_of!(CubeUniformBufferObject, view) as u64,
             &[
@@ -254,9 +255,11 @@ impl Renderer {
             ],
         )?;
 
+        let pipeline = resource_manager
+            .get_graphics_pipeline(render_pipeline.id())
+            .unwrap();
         device.write_bind_group(
-            &resource_manager,
-            render_pipeline,
+            pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
                 data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
@@ -283,7 +286,7 @@ impl Renderer {
         let scale = (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
         let ubo_buffer = self
             .resource_manager
-            .get_buffer_mut(self.ubo_buffer_handle)
+            .get_buffer_mut(self.ubo_buffer_handle.id())
             .unwrap();
         ubo_buffer.mem_copy(
             util::offset_of!(CubeUniformBufferObject, model) as u64,
@@ -303,7 +306,10 @@ impl Renderer {
                 .transition_undefined_to_color(&self.device, drawable);
 
             // TODO: remove get from user code?
-            let depth_image = self.resource_manager.get_image(self.depth_image).unwrap();
+            let depth_image = self
+                .resource_manager
+                .get_image(self.depth_image.id())
+                .unwrap();
             self.render_context.begin_rendering(
                 &self.device,
                 surface_rect,
@@ -319,29 +325,30 @@ impl Renderer {
                 )),
             );
             {
-                self.render_context.bind_graphics_pipeline(
-                    &self.resource_manager,
-                    &self.device,
-                    self.render_pipeline,
-                )?;
+                let pipeline = self
+                    .resource_manager
+                    .get_graphics_pipeline(self.render_pipeline.id())
+                    .unwrap();
+                self.render_context
+                    .bind_graphics_pipeline(&self.device, pipeline);
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
                 let index_buffer = self
                     .resource_manager
-                    .get_buffer(self.index_buffer_handle)
+                    .get_buffer(self.index_buffer_handle.id())
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, index_buffer);
                 let vertex_buffer = self
                     .resource_manager
-                    .get_buffer(self.vertex_buffer_handle)
+                    .get_buffer(self.vertex_buffer_handle.id())
                     .unwrap();
                 self.render_context
                     .bind_vertex_buffer(&self.device, vertex_buffer);
                 // TODO: re-think API later when using more than one set
                 self.render_context
-                    .bind_descriptor_sets(&self.resource_manager, &self.device)?;
+                    .bind_descriptor_sets(&self.device, pipeline);
 
                 self.render_context.draw_offset(&self.device, 36, 0, 0);
             }
@@ -360,7 +367,7 @@ impl Renderer {
         self.view.resize(&self.device)?;
         let depth_image = self
             .resource_manager
-            .get_image_mut(self.depth_image)
+            .get_image_mut(self.depth_image.id())
             .unwrap();
         depth_image.resize(&self.device, Size2D::new(width, height))?;
         Ok(())

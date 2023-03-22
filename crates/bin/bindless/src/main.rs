@@ -17,7 +17,7 @@ use cinder::{
         ResourceManager,
     },
     view::View,
-    ResourceHandle,
+    ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use rayon::iter::*;
@@ -124,16 +124,16 @@ pub struct Renderer {
     resource_manager: ResourceManager,
     device: Device,
     view: View,
-    depth_image_handle: ResourceHandle<Image>,
-    render_pipeline: ResourceHandle<GraphicsPipeline>,
+    depth_image_handle: ResourceId<Image>,
+    render_pipeline: ResourceId<GraphicsPipeline>,
     render_context: RenderContext,
     _upload_context: UploadContext,
-    _vertex_buffer_handle: ResourceHandle<Buffer>,
-    index_buffer_handle: ResourceHandle<Buffer>,
-    _ubo_buffer_handle: ResourceHandle<Buffer>,
-    _sampler: ResourceHandle<Sampler>,
-    _image_handles: Vec<ResourceHandle<Image>>,
-    _image_buffer_handles: Vec<ResourceHandle<Buffer>>,
+    _vertex_buffer_handle: ResourceId<Buffer>,
+    index_buffer_handle: ResourceId<Buffer>,
+    _ubo_buffer_handle: ResourceId<Buffer>,
+    _sampler: ResourceId<Sampler>,
+    _image_handles: Vec<ResourceId<Image>>,
+    _image_buffer_handles: Vec<ResourceId<Buffer>>,
     mesh_draws: Vec<MeshDraw>,
 }
 

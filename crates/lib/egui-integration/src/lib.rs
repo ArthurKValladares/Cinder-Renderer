@@ -17,7 +17,7 @@ use cinder::{
     },
     util::MemoryMappablePointer,
     view::{Drawable, View},
-    ResourceHandle,
+    ResourceId,
 };
 use core::panic;
 pub use egui;
@@ -43,12 +43,12 @@ pub struct EguiCallbackFn {
 pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_winit: egui_winit::State,
-    pipeline: ResourceHandle<GraphicsPipeline>,
-    sampler: ResourceHandle<Sampler>,
-    image_staging_buffer: Option<ResourceHandle<Buffer>>,
-    image_map: HashMap<TextureId, ResourceHandle<Image>>,
-    vertex_buffers: Vec<ResourceHandle<Buffer>>,
-    index_buffers: Vec<ResourceHandle<Buffer>>,
+    pipeline: ResourceId<GraphicsPipeline>,
+    sampler: ResourceId<Sampler>,
+    image_staging_buffer: Option<ResourceId<Buffer>>,
+    image_map: HashMap<TextureId, ResourceId<Image>>,
+    vertex_buffers: Vec<ResourceId<Buffer>>,
+    index_buffers: Vec<ResourceId<Buffer>>,
 }
 
 impl EguiIntegration {

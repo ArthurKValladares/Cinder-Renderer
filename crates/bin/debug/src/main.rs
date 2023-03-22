@@ -9,13 +9,14 @@ use cinder::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Image, ImageDescription},
+        manager::ResourceHandle,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::{Sampler, SamplerDescription},
         shader::ShaderDesc,
         ResourceManager,
     },
     view::{View, ViewDescription},
-    ResourceHandle,
+    ResourceId,
 };
 use math::size::Size2D;
 use winit::{
@@ -157,8 +158,10 @@ impl Renderer {
                 ..Default::default()
             },
         )?);
-        let image_buffer = resource_manager.get_buffer(image_buffer_handle).unwrap();
-        let texture = resource_manager.get_image(texture_handle).unwrap();
+        let image_buffer = resource_manager
+            .get_buffer(image_buffer_handle.id())
+            .unwrap();
+        let texture = resource_manager.get_image(texture_handle.id()).unwrap();
         upload_context.begin(&device, device.setup_fence())?;
         {
             upload_context.image_barrier_start(&device, texture);
@@ -174,10 +177,12 @@ impl Renderer {
             &[],
         )?;
 
-        let s = resource_manager.get_sampler(sampler).unwrap();
+        let pipeline = resource_manager
+            .get_graphics_pipeline(render_pipeline.id())
+            .unwrap();
+        let s = resource_manager.get_sampler(sampler.id()).unwrap();
         device.write_bind_group(
-            &resource_manager,
-            render_pipeline,
+            pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
                 data: BindGroupWriteData::SampledImage(texture.bind_info(
@@ -229,28 +234,29 @@ impl Renderer {
                 None,
             );
             {
-                self.render_context.bind_graphics_pipeline(
-                    &self.resource_manager,
-                    &self.device,
-                    self.render_pipeline,
-                )?;
+                let pipeline = self
+                    .resource_manager
+                    .get_graphics_pipeline(self.render_pipeline.id())
+                    .unwrap();
+                self.render_context
+                    .bind_graphics_pipeline(&self.device, pipeline);
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
                 let index_buffer = self
                     .resource_manager
-                    .get_buffer(self.index_buffer_handle)
+                    .get_buffer(self.index_buffer_handle.id())
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, index_buffer);
                 let vertex_buffer = self
                     .resource_manager
-                    .get_buffer(self.vertex_buffer_handle)
+                    .get_buffer(self.vertex_buffer_handle.id())
                     .unwrap();
                 self.render_context
                     .bind_vertex_buffer(&self.device, vertex_buffer);
                 self.render_context
-                    .bind_descriptor_sets(&self.resource_manager, &self.device)?;
+                    .bind_descriptor_sets(&self.device, pipeline);
 
                 self.render_context.insert_label(
                     &self.device,

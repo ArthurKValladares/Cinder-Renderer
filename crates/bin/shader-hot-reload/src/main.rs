@@ -16,7 +16,7 @@ use cinder::{
         ResourceManager,
     },
     view::View,
-    ResourceHandle,
+    ResourceId,
 };
 use math::size::Size2D;
 use shader_hot_reloader::{ShaderHotReloader, ShaderHotReloaderRunner};
@@ -41,14 +41,14 @@ pub struct Renderer {
     resource_manager: ResourceManager,
     device: Device,
     view: View,
-    render_pipeline: ResourceHandle<GraphicsPipeline>,
+    render_pipeline: ResourceId<GraphicsPipeline>,
     render_context: RenderContext,
     _upload_context: UploadContext,
-    vertex_buffer_handle: ResourceHandle<Buffer>,
-    index_buffer_handle: ResourceHandle<Buffer>,
-    _image_buffer_handle: ResourceHandle<Buffer>,
-    _sampler: ResourceHandle<Sampler>,
-    _texture_handle: ResourceHandle<Image>,
+    vertex_buffer_handle: ResourceId<Buffer>,
+    index_buffer_handle: ResourceId<Buffer>,
+    _image_buffer_handle: ResourceId<Buffer>,
+    _sampler: ResourceId<Sampler>,
+    _texture_handle: ResourceId<Image>,
 }
 
 impl Renderer {

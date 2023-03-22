@@ -1,7 +1,7 @@
 use anyhow::Result;
 use cinder::{
     resources::{pipeline::graphics::GraphicsPipeline, shader::Shader},
-    ResourceHandle,
+    ResourceId,
 };
 use notify_debouncer_mini::{
     new_debouncer,
@@ -18,7 +18,7 @@ use std::{
 
 #[derive(Debug)]
 pub struct UpdateData {
-    pub shader_handle: ResourceHandle<Shader>,
+    pub shader_handle: ResourceId<Shader>,
     pub bytes: Vec<u8>,
 }
 
@@ -42,7 +42,7 @@ impl UpdateList {
 
 pub struct ShaderHotReloader {
     _watcher: Debouncer<RecommendedWatcher>,
-    program_map: HashMap<ResourceHandle<Shader>, ResourceHandle<GraphicsPipeline>>,
+    program_map: HashMap<ResourceId<Shader>, ResourceId<GraphicsPipeline>>,
     // TODO: If I make the Device thread-safe, I don't need this
     to_be_updated: Arc<Mutex<UpdateList>>,
 }
@@ -50,8 +50,8 @@ pub struct ShaderHotReloader {
 pub struct ShaderHotReloaderRunner {
     watcher: Debouncer<RecommendedWatcher>,
     receiver: Receiver<Result<Vec<DebouncedEvent>, Vec<notify::Error>>>,
-    shader_map: HashMap<PathBuf, (ResourceHandle<Shader>, ShaderStage)>,
-    program_map: HashMap<ResourceHandle<Shader>, ResourceHandle<GraphicsPipeline>>,
+    shader_map: HashMap<PathBuf, (ResourceId<Shader>, ShaderStage)>,
+    program_map: HashMap<ResourceId<Shader>, ResourceId<GraphicsPipeline>>,
 }
 
 impl ShaderHotReloaderRunner {
@@ -69,10 +69,10 @@ impl ShaderHotReloaderRunner {
     pub fn set_graphics(
         &mut self,
         absolute_vertex_path: impl AsRef<Path>,
-        vertex_handle: ResourceHandle<Shader>,
+        vertex_handle: ResourceId<Shader>,
         absolute_fragment_path: impl AsRef<Path>,
-        fragment_handle: ResourceHandle<Shader>,
-        program_handle: ResourceHandle<GraphicsPipeline>,
+        fragment_handle: ResourceId<Shader>,
+        program_handle: ResourceId<GraphicsPipeline>,
     ) -> Result<()> {
         let absolute_vertex_path = absolute_vertex_path.as_ref();
         debug_assert!(
@@ -167,8 +167,8 @@ impl ShaderHotReloader {
 
     pub fn get_pipeline(
         &self,
-        handle: ResourceHandle<Shader>,
-    ) -> Option<&ResourceHandle<GraphicsPipeline>> {
+        handle: ResourceId<Shader>,
+    ) -> Option<&ResourceId<GraphicsPipeline>> {
         self.program_map.get(&handle)
     }
 }

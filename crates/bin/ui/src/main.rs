@@ -16,7 +16,7 @@ use cinder::{
         ResourceManager,
     },
     view::View,
-    ResourceHandle,
+    ResourceId,
 };
 use egui_integration::{egui, EguiIntegration};
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
@@ -80,13 +80,13 @@ pub struct Renderer {
     resource_manager: ResourceManager,
     device: Device,
     view: View,
-    depth_image: ResourceHandle<Image>,
-    render_pipeline: ResourceHandle<GraphicsPipeline>,
+    depth_image: ResourceId<Image>,
+    render_pipeline: ResourceId<GraphicsPipeline>,
     render_context: RenderContext,
     upload_context: UploadContext,
-    vertex_buffer_handle: ResourceHandle<Buffer>,
-    index_buffer_handle: ResourceHandle<Buffer>,
-    ubo_buffer_handle: ResourceHandle<Buffer>,
+    vertex_buffer_handle: ResourceId<Buffer>,
+    index_buffer_handle: ResourceId<Buffer>,
+    ubo_buffer_handle: ResourceId<Buffer>,
     ui: EguiIntegration,
     model_data: ModelData,
 }

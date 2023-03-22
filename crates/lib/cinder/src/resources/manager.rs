@@ -4,12 +4,22 @@ use super::{
 };
 use crate::device::Device;
 use ash::vk;
-use resource_manager::{ResourceHandle, ResourcePool};
+use resource_manager::{ResourceId, ResourcePool};
+use std::{collections::HashSet, fmt::Debug, sync::Arc};
+
+pub struct ResourceHandle<T>(Arc<ResourceId<T>>);
+
+impl<T> ResourceHandle<T> {
+    pub fn id(&self) -> ResourceId<T> {
+        *self.0
+    }
+}
 
 macro_rules! replace {
     ($fn_name:ident,  $field:ident, $t:ty) => {
-        pub fn $fn_name(&mut self, handle: ResourceHandle<$t>, res: $t) {
-            self.$field.replace(handle, res)
+        pub fn $fn_name(&mut self, id: ResourceId<$t>, res: $t) {
+            // TODO:
+            // self.$field.replace(handle.0, res)
         }
     };
 }
@@ -17,27 +27,20 @@ macro_rules! replace {
 macro_rules! insert {
     ($fn_name:ident,  $field:ident, $t:ty) => {
         pub fn $fn_name(&mut self, res: $t) -> ResourceHandle<$t> {
-            self.$field.insert(res)
-        }
-    };
-}
-
-macro_rules! remove {
-    ($fn_name:ident,  $field:ident, $t:ty) => {
-        pub fn $fn_name(&mut self, handle: ResourceHandle<$t>) -> Option<$t> {
-            self.$field.remove(handle)
+            let id = self.$field.insert(res);
+            ResourceHandle(Arc::new(id))
         }
     };
 }
 
 macro_rules! getter {
     ($fn_name:ident, $fn_name_mut:ident, $field:ident, $t:ty) => {
-        pub fn $fn_name(&self, handle: ResourceHandle<$t>) -> Option<&$t> {
-            self.$field.get(handle)
+        pub fn $fn_name(&self, id: ResourceId<$t>) -> Option<&$t> {
+            self.$field.get(id)
         }
 
-        pub fn $fn_name_mut(&mut self, handle: ResourceHandle<$t>) -> Option<&mut $t> {
-            self.$field.get_mut(handle)
+        pub fn $fn_name_mut(&mut self, id: ResourceId<$t>) -> Option<&mut $t> {
+            self.$field.get_mut(id)
         }
     };
 }
@@ -57,7 +60,8 @@ pub struct ResourceManager {
     images: ResourcePool<Image>,
     buffers: ResourcePool<Buffer>,
     samplers: ResourcePool<Sampler>,
-    // TODO: better abstraction
+    // TODO: re-think and improve automatic resource management
+    handles: HashSet<Arc<ResourceId<()>>>,
     purgatory: Vec<vk::Pipeline>,
 }
 
@@ -96,17 +100,6 @@ impl ResourceManager {
     replace!(replace_buffer, buffers, Buffer);
     replace!(replace_sampler, samplers, Sampler);
 
-    // Remove
-    remove!(
-        remove_graphics_pipeline,
-        graphics_pipelines,
-        GraphicsPipeline
-    );
-    remove!(remove_shader, shaders, Shader);
-    remove!(remove_image, images, Image);
-    remove!(remove_buffer, buffers, Buffer);
-    remove!(remove_sampler, samplers, Sampler);
-
     // Get
     getter!(
         get_graphics_pipeline,
@@ -118,4 +111,18 @@ impl ResourceManager {
     getter!(get_image, get_image_mut, images, Image);
     getter!(get_buffer, get_buffer_mut, buffers, Buffer);
     getter!(get_sampler, get_sampler_mut, samplers, Sampler);
+}
+
+impl<T> Debug for ResourceHandle<T> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ResourceHandle")
+            .field("id", &self.0)
+            .finish()
+    }
+}
+
+impl<T> Clone for ResourceHandle<T> {
+    fn clone(&self) -> Self {
+        self.clone()
+    }
 }

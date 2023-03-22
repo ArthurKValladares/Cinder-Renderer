@@ -10,7 +10,7 @@ use crate::{
         bind_group::{BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{Buffer, BufferDescription},
         image::{Image, ImageDescription, ImageError},
-        manager::ResourceManager,
+        manager::{ResourceHandle, ResourceManager},
         pipeline::{
             compute::{ComputePipeline, ComputePipelineDescription},
             graphics::{GraphicsPipeline, GraphicsPipelineDescription},
@@ -25,7 +25,7 @@ use anyhow::Result;
 use ash::vk::KhrPortabilitySubsetFn;
 use ash::{extensions::khr::DynamicRendering, vk};
 use math::{rect::Rect2D, size::Size2D};
-use resource_manager::ResourceHandle;
+use resource_manager::ResourceId;
 use thiserror::Error;
 use util::size_of_slice;
 
@@ -473,8 +473,10 @@ impl Device {
         &self,
         manager: &mut ResourceManager,
         bytes: &[u8],
-        handle: ResourceHandle<Shader>,
+        id: ResourceId<Shader>,
     ) {
+        // TODO: re-think with new auto-managed resources
+        /*
         let new = manager
             .get_shader(handle)
             .map(|old| Shader::create(self, bytes, old.desc).unwrap());
@@ -484,6 +486,7 @@ impl Device {
         } else {
             // TODO: error
         }
+        */
     }
 
     // TODO: rethink
@@ -495,10 +498,10 @@ impl Device {
         desc: GraphicsPipelineDescription,
     ) -> Result<ResourceHandle<GraphicsPipeline>> {
         let vertex_shader = manager
-            .get_shader(vertex_shader_handle)
+            .get_shader(vertex_shader_handle.id())
             .ok_or(DeviceError::ResourceNotInCache)?;
         let fragment_shader = manager
-            .get_shader(fragment_shader_handle)
+            .get_shader(fragment_shader_handle.id())
             .ok_or(DeviceError::ResourceNotInCache)?;
         Ok(manager.insert_graphics_pipeline(GraphicsPipeline::create(
             self,
@@ -516,6 +519,9 @@ impl Device {
         manager: &mut ResourceManager,
         handle: ResourceHandle<GraphicsPipeline>,
     ) -> Result<()> {
+        // TODO: re-think with new auto-managed resources
+        Ok(())
+        /*
         if let Some(mut old) = manager.remove_graphics_pipeline(handle) {
             let vertex_shader = manager
                 .get_shader(old.vertex_shader_handle)
@@ -529,6 +535,7 @@ impl Device {
         } else {
             Err(DeviceError::InvalidPipelineHandle.into())
         }
+        */
     }
 
     pub fn create_compute_pipeline(
@@ -583,44 +590,39 @@ impl Device {
 
     pub fn write_bind_group(
         &self,
-        manager: &ResourceManager,
-        handle: ResourceHandle<GraphicsPipeline>,
+        pipeline: &GraphicsPipeline,
         infos: &[BindGroupBindInfo],
     ) -> Result<(), DeviceError> {
-        if let Some(pipeline) = manager.get_graphics_pipeline(handle) {
-            let writes = infos
-                .iter()
-                .map(|info| {
-                    let mut write = vk::WriteDescriptorSet::builder()
-                        .dst_set(pipeline.bind_group.as_ref().unwrap().0)
-                        .dst_binding(info.dst_binding);
-                    write = match &info.data {
-                        BindGroupWriteData::Uniform(buffer_info) => write
-                            .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
-                            .buffer_info(std::slice::from_ref(&buffer_info.0)),
-                        BindGroupWriteData::Storage(buffer_info) => write
-                            .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
-                            .buffer_info(std::slice::from_ref(&buffer_info.0)),
-                        BindGroupWriteData::SampledImage(info) => write
-                            .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
-                            .dst_array_element(info.index)
-                            .image_info(std::slice::from_ref(&info.info)),
-                        BindGroupWriteData::StorageImage(info) => write
-                            .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
-                            .dst_array_element(info.index)
-                            .image_info(std::slice::from_ref(&info.info)),
-                    };
-                    write.build()
-                })
-                .collect::<Vec<_>>();
+        let writes = infos
+            .iter()
+            .map(|info| {
+                let mut write = vk::WriteDescriptorSet::builder()
+                    .dst_set(pipeline.bind_group.as_ref().unwrap().0)
+                    .dst_binding(info.dst_binding);
+                write = match &info.data {
+                    BindGroupWriteData::Uniform(buffer_info) => write
+                        .descriptor_type(vk::DescriptorType::UNIFORM_BUFFER)
+                        .buffer_info(std::slice::from_ref(&buffer_info.0)),
+                    BindGroupWriteData::Storage(buffer_info) => write
+                        .descriptor_type(vk::DescriptorType::STORAGE_BUFFER)
+                        .buffer_info(std::slice::from_ref(&buffer_info.0)),
+                    BindGroupWriteData::SampledImage(info) => write
+                        .descriptor_type(vk::DescriptorType::COMBINED_IMAGE_SAMPLER)
+                        .dst_array_element(info.index)
+                        .image_info(std::slice::from_ref(&info.info)),
+                    BindGroupWriteData::StorageImage(info) => write
+                        .descriptor_type(vk::DescriptorType::STORAGE_IMAGE)
+                        .dst_array_element(info.index)
+                        .image_info(std::slice::from_ref(&info.info)),
+                };
+                write.build()
+            })
+            .collect::<Vec<_>>();
 
-            unsafe {
-                self.raw().update_descriptor_sets(&writes, &[]);
-            }
-            Ok(())
-        } else {
-            Err(DeviceError::InvalidPipelineHandle)
+        unsafe {
+            self.raw().update_descriptor_sets(&writes, &[]);
         }
+        Ok(())
     }
 
     pub fn wait_idle(&self) -> Result<()> {

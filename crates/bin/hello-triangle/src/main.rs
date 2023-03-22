@@ -4,11 +4,11 @@ use cinder::{
     device::Device,
     resources::{
         buffer::{Buffer, BufferDescription, BufferUsage},
+        manager::ResourceHandle,
         pipeline::graphics::GraphicsPipeline,
         ResourceManager,
     },
     view::View,
-    ResourceHandle,
 };
 use math::{mat::Mat4, vec::Vec3};
 use std::time::Instant;
@@ -120,30 +120,31 @@ impl Renderer {
                 None,
             );
             {
-                self.render_context.bind_graphics_pipeline(
-                    &self.resource_manager,
-                    &self.device,
-                    self.render_pipeline,
-                )?;
+                let pipeline = self
+                    .resource_manager
+                    .get_graphics_pipeline(self.render_pipeline.id())
+                    .unwrap();
+                self.render_context
+                    .bind_graphics_pipeline(&self.device, pipeline);
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
                 let index_buffer = self
                     .resource_manager
-                    .get_buffer(self.index_buffer_handle)
+                    .get_buffer(self.index_buffer_handle.id())
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, index_buffer);
                 let vertex_buffer = self
                     .resource_manager
-                    .get_buffer(self.vertex_buffer_handle)
+                    .get_buffer(self.vertex_buffer_handle.id())
                     .unwrap();
                 self.render_context
                     .bind_vertex_buffer(&self.device, vertex_buffer);
 
                 self.render_context.set_vertex_bytes(
-                    &self.resource_manager,
                     &self.device,
+                    pipeline,
                     &Mat4::rotate(
                         (self.init_time.elapsed().as_secs_f32() / 5.0)
                             * (2.0 * std::f32::consts::PI),

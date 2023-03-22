@@ -5,12 +5,12 @@ use std::{
 };
 
 #[repr(transparent)]
-pub struct ResourceHandle<T> {
+pub struct ResourceId<T> {
     id: usize,
     _marker: PhantomData<T>,
 }
 
-impl<T> ResourceHandle<T> {
+impl<T> ResourceId<T> {
     pub fn from_index(id: usize) -> Self {
         Self {
             id,
@@ -22,20 +22,18 @@ impl<T> ResourceHandle<T> {
         self.id
     }
 
-    pub fn as_unit(&self) -> ResourceHandle<()> {
-        ResourceHandle::<()>::from_index(self.id())
+    pub fn as_unit(&self) -> ResourceId<()> {
+        ResourceId::<()>::from_index(self.id())
     }
 }
 
-impl<T> Debug for ResourceHandle<T> {
+impl<T> Debug for ResourceId<T> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ResourceHandle")
-            .field("id", &self.id)
-            .finish()
+        f.debug_struct("ResourceId").field("id", &self.id).finish()
     }
 }
 
-impl<T> Clone for ResourceHandle<T> {
+impl<T> Clone for ResourceId<T> {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
@@ -43,31 +41,31 @@ impl<T> Clone for ResourceHandle<T> {
         }
     }
 }
-impl<T> Copy for ResourceHandle<T> {}
+impl<T> Copy for ResourceId<T> {}
 
-impl<T> PartialEq for ResourceHandle<T> {
+impl<T> PartialEq for ResourceId<T> {
     fn eq(&self, other: &Self) -> bool {
         self.id == other.id
     }
 }
-impl<T> Eq for ResourceHandle<T> {}
+impl<T> Eq for ResourceId<T> {}
 
-impl<T> Hash for ResourceHandle<T> {
+impl<T> Hash for ResourceId<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.id.hash(state);
     }
 }
 
-impl<T> PartialOrd for ResourceHandle<T> {
+impl<T> PartialOrd for ResourceId<T> {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         self.id.partial_cmp(&other.id)
     }
 }
-impl<T> Ord for ResourceHandle<T> {
+impl<T> Ord for ResourceId<T> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.id.cmp(&other.id)
     }
 }
 
-unsafe impl<T> Send for ResourceHandle<T> {}
-unsafe impl<T> Sync for ResourceHandle<T> {}
+unsafe impl<T> Send for ResourceId<T> {}
+unsafe impl<T> Sync for ResourceId<T> {}

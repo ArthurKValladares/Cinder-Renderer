@@ -1,13 +1,14 @@
 use super::{get_pipeline_layout, PipelineCommon};
 use crate::device::{Device, MAX_BINDLESS_RESOURCES};
 use crate::resources::bind_group::BindGroup;
+use crate::resources::manager::ResourceHandle;
 use crate::resources::{
     image::{reflect_format_to_vk, Format},
     shader::Shader,
 };
 use anyhow::Result;
 use ash::vk;
-use resource_manager::ResourceHandle;
+use resource_manager::ResourceId;
 use std::ffi::CStr;
 use thiserror::Error;
 
@@ -232,6 +233,7 @@ impl GraphicsPipeline {
         Ok(pipeline)
     }
 
+    // TODO: re-think API, very sloppy
     pub(crate) fn create(
         device: &Device,
         vertex_shader: &Shader,

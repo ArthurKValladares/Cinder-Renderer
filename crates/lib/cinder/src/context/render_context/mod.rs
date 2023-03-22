@@ -5,6 +5,7 @@ use crate::{
     resources::{
         buffer::Buffer,
         image::Image,
+        manager::ResourceHandle,
         pipeline::{compute::ComputePipeline, graphics::GraphicsPipeline, PipelineCommon},
         shader::ShaderStage,
         ResourceManager,
@@ -15,7 +16,7 @@ use crate::{
 use anyhow::Result;
 use ash::vk;
 use math::rect::Rect2D;
-use resource_manager::ResourceHandle;
+use resource_manager::ResourceId;
 use serde::Deserialize;
 use thiserror::Error;
 
@@ -186,7 +187,6 @@ pub struct RenderContextDescription {
 
 pub struct RenderContext {
     pub shared: ContextShared,
-    bound_pipeline: Option<ResourceHandle<GraphicsPipeline>>,
 }
 
 impl RenderContext {
@@ -208,10 +208,7 @@ impl RenderContext {
             shared.set_name(device, name);
         }
 
-        Ok(Self {
-            shared,
-            bound_pipeline: None,
-        })
+        Ok(Self { shared })
     }
 
     pub fn begin(&self, device: &Device) -> Result<()> {
@@ -266,28 +263,15 @@ impl RenderContext {
                 .dynamic_rendering()
                 .cmd_end_rendering(self.shared.command_buffer)
         };
-        // TODO: Is this the right way to reset bound pipeline?
-        self.bound_pipeline = None;
     }
 
-    pub fn bind_graphics_pipeline(
-        &mut self,
-        manager: &ResourceManager,
-        device: &Device,
-        handle: ResourceHandle<GraphicsPipeline>,
-    ) -> Result<(), PipelineError> {
-        if let Some(pipeline) = manager.get_graphics_pipeline(handle) {
-            unsafe {
-                device.raw().cmd_bind_pipeline(
-                    self.shared.command_buffer,
-                    vk::PipelineBindPoint::GRAPHICS,
-                    pipeline.common.pipeline,
-                );
-            };
-            self.bound_pipeline = Some(handle);
-            Ok(())
-        } else {
-            Err(PipelineError::InvalidPipelineHandle)
+    pub fn bind_graphics_pipeline(&mut self, device: &Device, pipeline: &GraphicsPipeline) {
+        unsafe {
+            device.raw().cmd_bind_pipeline(
+                self.shared.command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                pipeline.common.pipeline,
+            )
         }
     }
 
@@ -318,29 +302,16 @@ impl RenderContext {
         }
     }
 
-    pub fn bind_descriptor_sets(
-        &self,
-        manager: &ResourceManager,
-        device: &Device,
-    ) -> Result<(), PipelineError> {
-        if let Some(handle) = &self.bound_pipeline {
-            let pipeline = manager
-                .get_graphics_pipeline(*handle)
-                .ok_or(PipelineError::InvalidPipelineHandle)?;
-
-            unsafe {
-                device.raw().cmd_bind_descriptor_sets(
-                    self.shared.command_buffer,
-                    vk::PipelineBindPoint::GRAPHICS,
-                    pipeline.common.pipeline_layout,
-                    0,
-                    &[pipeline.bind_group.as_ref().unwrap().0],
-                    &[],
-                );
-            };
-            Ok(())
-        } else {
-            Err(PipelineError::NoBoundPipeline)
+    pub fn bind_descriptor_sets(&self, device: &Device, pipeline: &GraphicsPipeline) {
+        unsafe {
+            device.raw().cmd_bind_descriptor_sets(
+                self.shared.command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                pipeline.common.pipeline_layout,
+                0,
+                &[pipeline.bind_group.as_ref().unwrap().0],
+                &[],
+            )
         }
     }
 
@@ -452,48 +423,34 @@ impl RenderContext {
 
     pub fn set_vertex_bytes<T: Sized>(
         &self,
-        manager: &ResourceManager,
         device: &Device,
+        pipeline: &GraphicsPipeline,
         data: &T,
         idx: u32,
     ) -> Result<(), PipelineError> {
-        if let Some(handle) = &self.bound_pipeline {
-            let pipeline = manager
-                .get_graphics_pipeline(*handle)
-                .ok_or(PipelineError::InvalidPipelineHandle)?;
-            self.push_constant(
-                device,
-                &pipeline.common,
-                ShaderStage::Vertex,
-                idx,
-                util::as_u8_slice(data),
-            )
-        } else {
-            Err(PipelineError::NoBoundPipeline)
-        }
+        self.push_constant(
+            device,
+            &pipeline.common,
+            ShaderStage::Vertex,
+            idx,
+            util::as_u8_slice(data),
+        )
     }
 
     pub fn set_fragment_bytes<T: Sized>(
         &self,
-        manager: &ResourceManager,
         device: &Device,
+        pipeline: &GraphicsPipeline,
         data: &T,
         idx: u32,
     ) -> Result<(), PipelineError> {
-        if let Some(handle) = &self.bound_pipeline {
-            let pipeline = manager
-                .get_graphics_pipeline(*handle)
-                .ok_or(PipelineError::InvalidPipelineHandle)?;
-            self.push_constant(
-                device,
-                &pipeline.common,
-                ShaderStage::Fragment,
-                idx,
-                util::as_u8_slice(data),
-            )
-        } else {
-            Err(PipelineError::NoBoundPipeline)
-        }
+        self.push_constant(
+            device,
+            &pipeline.common,
+            ShaderStage::Fragment,
+            idx,
+            util::as_u8_slice(data),
+        )
     }
 
     pub fn write_timestamp(&self, device: &Device, query_pool: &QueryPool, query: u32) {
