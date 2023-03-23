@@ -11,12 +11,12 @@ use cinder::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::Image,
+        manager::ResourceHandle,
         pipeline::graphics::GraphicsPipeline,
         sampler::Sampler,
         ResourceManager,
     },
     view::View,
-    ResourceId,
 };
 use math::size::Size2D;
 use shader_hot_reloader::{ShaderHotReloader, ShaderHotReloaderRunner};
@@ -41,14 +41,14 @@ pub struct Renderer {
     resource_manager: ResourceManager,
     device: Device,
     view: View,
-    render_pipeline: ResourceId<GraphicsPipeline>,
+    render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
     _upload_context: UploadContext,
-    vertex_buffer_handle: ResourceId<Buffer>,
-    index_buffer_handle: ResourceId<Buffer>,
-    _image_buffer_handle: ResourceId<Buffer>,
-    _sampler: ResourceId<Sampler>,
-    _texture_handle: ResourceId<Image>,
+    vertex_buffer_handle: ResourceHandle<Buffer>,
+    index_buffer_handle: ResourceHandle<Buffer>,
+    _image_buffer_handle: ResourceHandle<Buffer>,
+    _sampler: ResourceHandle<Sampler>,
+    _texture_handle: ResourceHandle<Image>,
 }
 
 impl Renderer {
@@ -70,10 +70,11 @@ impl Renderer {
             include_bytes!("../shaders/spv/hot_reload.frag.spv"),
             Default::default(),
         )?);
+        // TODO: rethink API
         let render_pipeline = device.create_graphics_pipeline(
             &mut resource_manager,
-            vertex_shader,
-            fragment_shader,
+            vertex_shader.clone(),
+            fragment_shader.clone(),
             Default::default(),
         )?;
         shader_hot_reloader.set_graphics(
@@ -81,13 +82,13 @@ impl Renderer {
                 .join("shaders")
                 .join("hot_reload.vert")
                 .canonicalize()?,
-            vertex_shader,
+            vertex_shader.id(),
             Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("shaders")
                 .join("hot_reload.frag")
                 .canonicalize()?,
-            fragment_shader,
-            render_pipeline,
+            fragment_shader.id(),
+            render_pipeline.id(),
         )?;
 
         let vertex_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
@@ -140,8 +141,10 @@ impl Renderer {
                 ..Default::default()
             },
         )?);
-        let image_buffer = resource_manager.get_buffer(image_buffer_handle).unwrap();
-        let texture = resource_manager.get_image(texture_handle).unwrap();
+        let image_buffer = resource_manager
+            .get_buffer(image_buffer_handle.id())
+            .unwrap();
+        let texture = resource_manager.get_image(texture_handle.id()).unwrap();
         upload_context.begin(&device, device.setup_fence())?;
         {
             upload_context.image_barrier_start(&device, texture);
@@ -157,10 +160,12 @@ impl Renderer {
             &[],
         )?;
 
-        let s = resource_manager.get_sampler(sampler).unwrap();
+        let pipeline = resource_manager
+            .get_graphics_pipeline(render_pipeline.id())
+            .unwrap();
+        let s = resource_manager.get_sampler(sampler.id()).unwrap();
         device.write_bind_group(
-            &resource_manager,
-            render_pipeline,
+            pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
                 data: BindGroupWriteData::SampledImage(texture.bind_info(
@@ -204,28 +209,29 @@ impl Renderer {
                 None,
             );
             {
-                self.render_context.bind_graphics_pipeline(
-                    &self.resource_manager,
-                    &self.device,
-                    self.render_pipeline,
-                )?;
+                let pipeline = self
+                    .resource_manager
+                    .get_graphics_pipeline(self.render_pipeline.id())
+                    .unwrap();
+                self.render_context
+                    .bind_graphics_pipeline(&self.device, pipeline);
                 self.render_context
                     .bind_viewport(&self.device, surface_rect, true);
                 self.render_context.bind_scissor(&self.device, surface_rect);
                 let index_buffer = self
                     .resource_manager
-                    .get_buffer(self.index_buffer_handle)
+                    .get_buffer(self.index_buffer_handle.id())
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, index_buffer);
                 let vertex_buffer = self
                     .resource_manager
-                    .get_buffer(self.vertex_buffer_handle)
+                    .get_buffer(self.vertex_buffer_handle.id())
                     .unwrap();
                 self.render_context
                     .bind_vertex_buffer(&self.device, vertex_buffer);
                 self.render_context
-                    .bind_descriptor_sets(&self.resource_manager, &self.device)?;
+                    .bind_descriptor_sets(&self.device, pipeline);
 
                 self.render_context.draw_offset(&self.device, 6, 0, 0);
             }

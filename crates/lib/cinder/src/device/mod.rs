@@ -517,7 +517,7 @@ impl Device {
     pub fn recreate_graphics_pipeline(
         &self,
         manager: &mut ResourceManager,
-        handle: ResourceHandle<GraphicsPipeline>,
+        handle: ResourceId<GraphicsPipeline>,
     ) -> Result<()> {
         // TODO: re-think with new auto-managed resources
         Ok(())

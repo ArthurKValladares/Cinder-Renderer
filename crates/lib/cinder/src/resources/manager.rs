@@ -123,6 +123,6 @@ impl<T> Debug for ResourceHandle<T> {
 
 impl<T> Clone for ResourceHandle<T> {
     fn clone(&self) -> Self {
-        self.clone()
+        Self(self.0.clone())
     }
 }
