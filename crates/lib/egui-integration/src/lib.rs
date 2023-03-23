@@ -11,13 +11,13 @@ use cinder::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{vk::Fence, Buffer, BufferDescription, BufferUsage},
         image::Image,
+        manager::ResourceHandle,
         pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
         ResourceManager,
     },
     util::MemoryMappablePointer,
     view::{Drawable, View},
-    ResourceId,
 };
 use core::panic;
 pub use egui;
@@ -43,12 +43,12 @@ pub struct EguiCallbackFn {
 pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_winit: egui_winit::State,
-    pipeline: ResourceId<GraphicsPipeline>,
-    sampler: ResourceId<Sampler>,
-    image_staging_buffer: Option<ResourceId<Buffer>>,
-    image_map: HashMap<TextureId, ResourceId<Image>>,
-    vertex_buffers: Vec<ResourceId<Buffer>>,
-    index_buffers: Vec<ResourceId<Buffer>>,
+    pipeline: ResourceHandle<GraphicsPipeline>,
+    sampler: ResourceHandle<Sampler>,
+    image_staging_buffer: Option<ResourceHandle<Buffer>>,
+    image_map: HashMap<TextureId, ResourceHandle<Image>>,
+    vertex_buffers: Vec<ResourceHandle<Buffer>>,
+    index_buffers: Vec<ResourceHandle<Buffer>>,
 }
 
 impl EguiIntegration {
@@ -205,10 +205,10 @@ impl EguiIntegration {
         let size = window.inner_size();
         let present_index = drawable.index();
         let vertex_buffer = resource_manager
-            .get_buffer(self.vertex_buffers[present_index as usize])
+            .get_buffer(self.vertex_buffers[present_index as usize].id())
             .unwrap();
         let index_buffer = resource_manager
-            .get_buffer(self.index_buffers[present_index as usize])
+            .get_buffer(self.index_buffers[present_index as usize].id())
             .unwrap();
         let mut vertex_buffer_ptr = vertex_buffer.ptr().unwrap();
         let mut index_buffer_ptr = index_buffer.ptr().unwrap();
@@ -229,7 +229,10 @@ impl EguiIntegration {
             None,
         );
         {
-            render_context.bind_graphics_pipeline(resource_manager, device, self.pipeline)?;
+            let pipeline = resource_manager
+                .get_graphics_pipeline(self.pipeline.id())
+                .unwrap();
+            render_context.bind_graphics_pipeline(device, pipeline);
             render_context.bind_vertex_buffer(device, vertex_buffer);
             render_context.bind_index_buffer(device, index_buffer);
             render_context.bind_viewport(
@@ -239,8 +242,8 @@ impl EguiIntegration {
             );
 
             render_context.set_vertex_bytes(
-                resource_manager,
                 device,
+                pipeline,
                 &[
                     size.width as f32 / pixels_per_point,
                     size.height as f32 / pixels_per_point,
@@ -350,10 +353,10 @@ impl EguiIntegration {
         let index_buffer_ptr_next = index_buffer_ptr.add(index_copy_size);
 
         let vertex_buffer = resource_manager
-            .get_buffer(self.vertex_buffers[present_index as usize])
+            .get_buffer(self.vertex_buffers[present_index as usize].id())
             .unwrap();
         let index_buffer = resource_manager
-            .get_buffer(self.index_buffers[present_index as usize])
+            .get_buffer(self.index_buffers[present_index as usize].id())
             .unwrap();
         if vertex_buffer_ptr_next >= vertex_buffer.end_ptr().unwrap()
             || index_buffer_ptr_next >= index_buffer.end_ptr().unwrap()
@@ -367,7 +370,10 @@ impl EguiIntegration {
         *vertex_buffer_ptr = vertex_buffer_ptr_next;
         *index_buffer_ptr = index_buffer_ptr_next;
 
-        render_context.bind_descriptor_sets(resource_manager, device)?;
+        let pipeline = resource_manager
+            .get_graphics_pipeline(self.pipeline.id())
+            .unwrap();
+        render_context.bind_descriptor_sets(device, pipeline);
 
         let index = match mesh.texture_id {
             TextureId::Managed(index) => index as usize,
@@ -375,7 +381,7 @@ impl EguiIntegration {
         };
 
         render_context
-            .set_fragment_bytes(resource_manager, device, &index, 0)
+            .set_fragment_bytes(device, pipeline, &index, 0)
             .unwrap();
 
         render_context.draw_offset(device, indices.len() as u32, *index_base, *vertex_base);
@@ -410,11 +416,11 @@ impl EguiIntegration {
             },
         )?);
         let image_staging_buffer = resource_manager
-            .get_buffer(image_staging_buffer_handle)
+            .get_buffer(image_staging_buffer_handle.id())
             .unwrap();
         image_staging_buffer.mem_copy(0, data)?;
 
-        let image = resource_manager.get_image(image_handle).unwrap();
+        let image = resource_manager.get_image(image_handle.id()).unwrap();
         upload_context.image_barrier_start(device, image);
         upload_context.copy_buffer_to_image(device, image_staging_buffer, image);
         upload_context.image_barrier_end(device, image);
@@ -424,10 +430,12 @@ impl EguiIntegration {
             TextureId::User(_) => unimplemented!(),
         };
 
-        let sampler = resource_manager.get_sampler(self.sampler).unwrap();
+        let pipeline = resource_manager
+            .get_graphics_pipeline(self.pipeline.id())
+            .unwrap();
+        let sampler = resource_manager.get_sampler(self.sampler.id()).unwrap();
         device.write_bind_group(
-            resource_manager,
-            self.pipeline,
+            pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
                 data: BindGroupWriteData::SampledImage(image.bind_info(
