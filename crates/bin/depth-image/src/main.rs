@@ -15,6 +15,7 @@ use cinder::{
         manager::ResourceHandle,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
+        shader::Shader,
         ResourceManager,
     },
     view::View,
@@ -72,7 +73,11 @@ pub struct Renderer {
     device: Device,
     view: View,
     depth_image_handle: ResourceHandle<Image>,
+    _mesh_vertex_shader: ResourceHandle<Shader>,
+    _mesh_fragment_shader: ResourceHandle<Shader>,
     mesh_render_pipeline: ResourceHandle<GraphicsPipeline>,
+    _texture_vertex_shader: ResourceHandle<Shader>,
+    _texture_fragment_shader: ResourceHandle<Shader>,
     texture_render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
     upload_context: UploadContext,
@@ -100,38 +105,42 @@ impl Renderer {
                 ..Default::default()
             },
         )?);
-        let mesh_vertex_shader = resource_manager.insert_shader(device.create_shader(
+        let mesh_vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/depth_mesh.vert.spv"),
             Default::default(),
-        )?);
-        let mesh_fragment_shader = resource_manager.insert_shader(device.create_shader(
+        )?;
+        let mesh_fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/depth_mesh.frag.spv"),
             Default::default(),
-        )?);
-        let mesh_render_pipeline = device.create_graphics_pipeline(
-            &mut resource_manager,
-            mesh_vertex_shader,
-            mesh_fragment_shader,
-            GraphicsPipelineDescription {
-                depth_format: Some(Format::D32_SFloat),
-                ..Default::default()
-            },
         )?;
+        let mesh_render_pipeline =
+            resource_manager.insert_graphics_pipeline(device.create_graphics_pipeline(
+                &mesh_vertex_shader,
+                &mesh_fragment_shader,
+                GraphicsPipelineDescription {
+                    depth_format: Some(Format::D32_SFloat),
+                    ..Default::default()
+                },
+            )?);
+        let mesh_vertex_shader = resource_manager.insert_shader(mesh_vertex_shader);
+        let mesh_fragment_shader = resource_manager.insert_shader(mesh_fragment_shader);
 
-        let texture_vertex_shader = resource_manager.insert_shader(device.create_shader(
+        let texture_vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/depth_texture.vert.spv"),
             Default::default(),
-        )?);
-        let texture_fragment_shader = resource_manager.insert_shader(device.create_shader(
+        )?;
+        let texture_fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/depth_texture.frag.spv"),
             Default::default(),
-        )?);
-        let texture_render_pipeline = device.create_graphics_pipeline(
-            &mut resource_manager,
-            texture_vertex_shader,
-            texture_fragment_shader,
-            Default::default(),
         )?;
+        let texture_render_pipeline =
+            resource_manager.insert_graphics_pipeline(device.create_graphics_pipeline(
+                &texture_vertex_shader,
+                &texture_fragment_shader,
+                Default::default(),
+            )?);
+        let texture_vertex_shader = resource_manager.insert_shader(texture_vertex_shader);
+        let texture_fragment_shader = resource_manager.insert_shader(texture_fragment_shader);
 
         let cube_vertex_buffer_handle =
             resource_manager.insert_buffer(device.create_buffer_with_data(
@@ -371,7 +380,11 @@ impl Renderer {
             depth_image_handle,
             render_context,
             upload_context,
+            _mesh_vertex_shader: mesh_vertex_shader,
+            _mesh_fragment_shader: mesh_fragment_shader,
             mesh_render_pipeline,
+            _texture_vertex_shader: texture_vertex_shader,
+            _texture_fragment_shader: texture_fragment_shader,
             texture_render_pipeline,
             cube_vertex_buffer_handle,
             cube_index_buffer_handle,

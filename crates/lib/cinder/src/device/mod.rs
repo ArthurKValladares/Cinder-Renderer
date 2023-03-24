@@ -492,25 +492,11 @@ impl Device {
     // TODO: rethink
     pub fn create_graphics_pipeline(
         &self,
-        manager: &mut ResourceManager,
-        vertex_shader_handle: ResourceHandle<Shader>,
-        fragment_shader_handle: ResourceHandle<Shader>,
+        vertex_shader: &Shader,
+        fragment_shader: &Shader,
         desc: GraphicsPipelineDescription,
-    ) -> Result<ResourceHandle<GraphicsPipeline>> {
-        let vertex_shader = manager
-            .get_shader(vertex_shader_handle.id())
-            .ok_or(DeviceError::ResourceNotInCache)?;
-        let fragment_shader = manager
-            .get_shader(fragment_shader_handle.id())
-            .ok_or(DeviceError::ResourceNotInCache)?;
-        Ok(manager.insert_graphics_pipeline(GraphicsPipeline::create(
-            self,
-            vertex_shader,
-            vertex_shader_handle,
-            fragment_shader,
-            fragment_shader_handle,
-            desc,
-        )?))
+    ) -> Result<GraphicsPipeline> {
+        GraphicsPipeline::create(self, vertex_shader, fragment_shader, desc)
     }
 
     // TODO: Error handling

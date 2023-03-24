@@ -14,6 +14,7 @@ use cinder::{
         manager::ResourceHandle,
         pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
+        shader::Shader,
         ResourceManager,
     },
     util::MemoryMappablePointer,
@@ -43,6 +44,8 @@ pub struct EguiCallbackFn {
 pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_winit: egui_winit::State,
+    _vertex_shader: ResourceHandle<Shader>,
+    _fragment_shader: ResourceHandle<Shader>,
     pipeline: ResourceHandle<GraphicsPipeline>,
     sampler: ResourceHandle<Sampler>,
     image_staging_buffer: Option<ResourceHandle<Buffer>>,
@@ -65,24 +68,25 @@ impl EguiIntegration {
         egui_context.set_pixels_per_point(PPP);
         egui_winit.set_pixels_per_point(PPP);
 
-        let vertex_shader = resource_manager.insert_shader(device.create_shader(
+        let vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/egui.vert.spv"),
             Default::default(),
-        )?);
-        let fragment_shader = resource_manager.insert_shader(device.create_shader(
+        )?;
+        let fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/egui.frag.spv"),
             Default::default(),
-        )?);
-        let pipeline = device.create_graphics_pipeline(
-            resource_manager,
-            vertex_shader,
-            fragment_shader,
+        )?;
+        let pipeline = resource_manager.insert_graphics_pipeline(device.create_graphics_pipeline(
+            &vertex_shader,
+            &fragment_shader,
             GraphicsPipelineDescription {
                 blending: ColorBlendState::pma(),
                 surface_format: device.surface_data().format(),
                 ..Default::default()
             },
-        )?;
+        )?);
+        let vertex_shader = resource_manager.insert_shader(vertex_shader);
+        let fragment_shader = resource_manager.insert_shader(fragment_shader);
 
         let sampler =
             resource_manager.insert_sampler(device.create_sampler(device, Default::default())?);
@@ -117,6 +121,8 @@ impl EguiIntegration {
             egui_context,
             egui_winit,
             sampler,
+            _vertex_shader: vertex_shader,
+            _fragment_shader: fragment_shader,
             pipeline,
             image_staging_buffer: None,
             image_map: Default::default(),

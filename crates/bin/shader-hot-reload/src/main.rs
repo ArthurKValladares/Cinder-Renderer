@@ -14,6 +14,7 @@ use cinder::{
         manager::ResourceHandle,
         pipeline::graphics::GraphicsPipeline,
         sampler::Sampler,
+        shader::Shader,
         ResourceManager,
     },
     view::View,
@@ -41,6 +42,8 @@ pub struct Renderer {
     resource_manager: ResourceManager,
     device: Device,
     view: View,
+    _vertex_shader: ResourceHandle<Shader>,
+    _fragment_shader: ResourceHandle<Shader>,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
     _upload_context: UploadContext,
@@ -62,21 +65,24 @@ impl Renderer {
 
         let view = View::new(&device, Default::default())?;
 
-        let vertex_shader = resource_manager.insert_shader(device.create_shader(
+        let vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/hot_reload.vert.spv"),
             Default::default(),
-        )?);
-        let fragment_shader = resource_manager.insert_shader(device.create_shader(
+        )?;
+        let fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/hot_reload.frag.spv"),
             Default::default(),
-        )?);
-        // TODO: rethink API
-        let render_pipeline = device.create_graphics_pipeline(
-            &mut resource_manager,
-            vertex_shader.clone(),
-            fragment_shader.clone(),
-            Default::default(),
         )?;
+        // TODO: rethink API
+        let render_pipeline =
+            resource_manager.insert_graphics_pipeline(device.create_graphics_pipeline(
+                &vertex_shader,
+                &fragment_shader,
+                Default::default(),
+            )?);
+        let vertex_shader = resource_manager.insert_shader(vertex_shader);
+        let fragment_shader = resource_manager.insert_shader(fragment_shader);
+
         shader_hot_reloader.set_graphics(
             Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("shaders")
@@ -183,6 +189,8 @@ impl Renderer {
             view,
             render_context,
             _upload_context: upload_context,
+            _vertex_shader: vertex_shader,
+            _fragment_shader: fragment_shader,
             render_pipeline,
             vertex_buffer_handle,
             index_buffer_handle,

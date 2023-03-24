@@ -8,7 +8,6 @@ use crate::resources::{
 };
 use anyhow::Result;
 use ash::vk;
-use resource_manager::ResourceId;
 use std::ffi::CStr;
 use thiserror::Error;
 
@@ -92,8 +91,6 @@ impl Default for GraphicsPipelineDescription {
 pub struct GraphicsPipeline {
     pub common: PipelineCommon,
     pub bind_group: Option<BindGroup>,
-    pub vertex_shader_handle: ResourceHandle<Shader>,
-    pub fragment_shader_handle: ResourceHandle<Shader>,
     pub desc: GraphicsPipelineDescription,
 }
 
@@ -237,9 +234,7 @@ impl GraphicsPipeline {
     pub(crate) fn create(
         device: &Device,
         vertex_shader: &Shader,
-        vertex_shader_handle: ResourceHandle<Shader>,
         fragment_shader: &Shader,
-        fragment_shader_handle: ResourceHandle<Shader>,
         desc: GraphicsPipelineDescription,
     ) -> Result<Self> {
         //
@@ -290,8 +285,6 @@ impl GraphicsPipeline {
         Ok(GraphicsPipeline {
             common,
             bind_group,
-            vertex_shader_handle,
-            fragment_shader_handle,
             desc,
         })
     }

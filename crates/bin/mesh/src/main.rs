@@ -15,6 +15,7 @@ use cinder::{
         manager::ResourceHandle,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
+        shader::Shader,
         ResourceManager,
     },
     view::View,
@@ -91,6 +92,8 @@ pub struct Renderer {
     device: Device,
     view: View,
     depth_image: ResourceHandle<Image>,
+    _vertex_shader: ResourceHandle<Shader>,
+    _fragment_shader: ResourceHandle<Shader>,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
     _upload_context: UploadContext,
@@ -121,23 +124,25 @@ impl Renderer {
             },
         )?);
 
-        let vertex_shader = resource_manager.insert_shader(device.create_shader(
+        let vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/mesh.vert.spv"),
             Default::default(),
-        )?);
-        let fragment_shader = resource_manager.insert_shader(device.create_shader(
+        )?;
+        let fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/mesh.frag.spv"),
             Default::default(),
-        )?);
-        let render_pipeline = device.create_graphics_pipeline(
-            &mut resource_manager,
-            vertex_shader,
-            fragment_shader,
-            GraphicsPipelineDescription {
-                depth_format: Some(Format::D32_SFloat),
-                ..Default::default()
-            },
         )?;
+        let render_pipeline =
+            resource_manager.insert_graphics_pipeline(device.create_graphics_pipeline(
+                &vertex_shader,
+                &fragment_shader,
+                GraphicsPipelineDescription {
+                    depth_format: Some(Format::D32_SFloat),
+                    ..Default::default()
+                },
+            )?);
+        let vertex_shader = resource_manager.insert_shader(vertex_shader);
+        let fragment_shader = resource_manager.insert_shader(fragment_shader);
 
         let scene = Scene::<MeshVertex>::from_obj(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -257,6 +262,8 @@ impl Renderer {
             depth_image,
             render_context,
             _upload_context: upload_context,
+            _vertex_shader: vertex_shader,
+            _fragment_shader: fragment_shader,
             render_pipeline,
             vertex_buffer_handle,
             index_buffer_handle,
