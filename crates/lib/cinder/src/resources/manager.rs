@@ -18,8 +18,7 @@ impl<T> ResourceHandle<T> {
 macro_rules! replace {
     ($fn_name:ident,  $field:ident, $t:ty) => {
         pub fn $fn_name(&mut self, id: ResourceId<$t>, res: $t) {
-            // TODO:
-            // self.$field.replace(handle.0, res)
+            self.$field.replace(id, res)
         }
     };
 }
@@ -72,6 +71,13 @@ impl ResourceManager {
         cleanup!(self.images, device);
         cleanup!(self.buffers, device);
         cleanup!(self.samplers, device);
+    }
+
+    pub fn remove_graphics_pipeline(
+        &mut self,
+        id: ResourceId<GraphicsPipeline>,
+    ) -> Option<GraphicsPipeline> {
+        self.graphics_pipelines.remove(id)
     }
 
     pub fn add_to_purgatory(&mut self, pipeline: vk::Pipeline) {

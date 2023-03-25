@@ -472,24 +472,21 @@ impl Device {
     pub fn recreate_shader(
         &self,
         manager: &mut ResourceManager,
-        bytes: &[u8],
         id: ResourceId<Shader>,
-    ) {
-        // TODO: re-think with new auto-managed resources
-        /*
+        bytes: &[u8],
+    ) -> Result<(), DeviceError> {
         let new = manager
-            .get_shader(handle)
+            .get_shader(id)
             .map(|old| Shader::create(self, bytes, old.desc).unwrap());
 
         if let Some(new) = new {
-            manager.replace_shader(handle, new);
+            manager.replace_shader(id, new);
+            Ok(())
         } else {
-            // TODO: error
+            Err(DeviceError::ResourceNotInCache)
         }
-        */
     }
 
-    // TODO: rethink
     pub fn create_graphics_pipeline(
         &self,
         vertex_shader: &Shader,
@@ -499,29 +496,26 @@ impl Device {
         GraphicsPipeline::create(self, vertex_shader, fragment_shader, desc)
     }
 
-    // TODO: Error handling
     pub fn recreate_graphics_pipeline(
         &self,
         manager: &mut ResourceManager,
-        handle: ResourceId<GraphicsPipeline>,
+        pipeline_handle: ResourceId<GraphicsPipeline>,
+        vertex_handle: ResourceId<Shader>,
+        fragment_handle: ResourceId<Shader>,
     ) -> Result<()> {
-        // TODO: re-think with new auto-managed resources
-        Ok(())
-        /*
-        if let Some(mut old) = manager.remove_graphics_pipeline(handle) {
+        if let Some(mut old) = manager.remove_graphics_pipeline(pipeline_handle) {
             let vertex_shader = manager
-                .get_shader(old.vertex_shader_handle)
+                .get_shader(vertex_handle)
                 .ok_or(DeviceError::ResourceNotInCache)?;
             let fragment_shader = manager
-                .get_shader(old.fragment_shader_handle)
+                .get_shader(fragment_handle)
                 .ok_or(DeviceError::ResourceNotInCache)?;
             manager.add_to_purgatory(old.recreate(vertex_shader, fragment_shader, self)?);
-            manager.replace_graphics_pipeline(handle, old);
+            manager.replace_graphics_pipeline(pipeline_handle, old);
             Ok(())
         } else {
             Err(DeviceError::InvalidPipelineHandle.into())
         }
-        */
     }
 
     pub fn create_compute_pipeline(

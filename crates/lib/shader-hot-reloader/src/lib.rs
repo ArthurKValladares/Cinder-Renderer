@@ -42,16 +42,23 @@ impl UpdateList {
 
 pub struct ShaderHotReloader {
     _watcher: Debouncer<RecommendedWatcher>,
-    program_map: HashMap<ResourceId<Shader>, ResourceId<GraphicsPipeline>>,
+    program_map: HashMap<ResourceId<Shader>, PipelineShaderIdSet>,
     // TODO: If I make the Device thread-safe, I don't need this
     to_be_updated: Arc<Mutex<UpdateList>>,
+}
+
+#[derive(Debug, Clone, Copy)]
+pub struct PipelineShaderIdSet {
+    pub pipeline_handle: ResourceId<GraphicsPipeline>,
+    pub vertex_handle: ResourceId<Shader>,
+    pub fragment_handle: ResourceId<Shader>,
 }
 
 pub struct ShaderHotReloaderRunner {
     watcher: Debouncer<RecommendedWatcher>,
     receiver: Receiver<Result<Vec<DebouncedEvent>, Vec<notify::Error>>>,
     shader_map: HashMap<PathBuf, (ResourceId<Shader>, ShaderStage)>,
-    program_map: HashMap<ResourceId<Shader>, ResourceId<GraphicsPipeline>>,
+    program_map: HashMap<ResourceId<Shader>, PipelineShaderIdSet>,
 }
 
 impl ShaderHotReloaderRunner {
@@ -72,8 +79,14 @@ impl ShaderHotReloaderRunner {
         vertex_handle: ResourceId<Shader>,
         absolute_fragment_path: impl AsRef<Path>,
         fragment_handle: ResourceId<Shader>,
-        program_handle: ResourceId<GraphicsPipeline>,
+        pipeline_handle: ResourceId<GraphicsPipeline>,
     ) -> Result<()> {
+        let pipeline_shader_set = PipelineShaderIdSet {
+            pipeline_handle,
+            vertex_handle,
+            fragment_handle,
+        };
+
         let absolute_vertex_path = absolute_vertex_path.as_ref();
         debug_assert!(
             absolute_vertex_path.is_absolute(),
@@ -86,7 +99,7 @@ impl ShaderHotReloaderRunner {
             absolute_vertex_path.to_path_buf(),
             (vertex_handle, ShaderStage::Vertex),
         );
-        self.program_map.insert(vertex_handle, program_handle);
+        self.program_map.insert(vertex_handle, pipeline_shader_set);
 
         let absolute_fragment_path = absolute_fragment_path.as_ref();
         debug_assert!(
@@ -100,7 +113,8 @@ impl ShaderHotReloaderRunner {
             absolute_fragment_path.to_path_buf(),
             (fragment_handle, ShaderStage::Fragment),
         );
-        self.program_map.insert(fragment_handle, program_handle);
+        self.program_map
+            .insert(fragment_handle, pipeline_shader_set);
 
         Ok(())
     }
@@ -165,10 +179,7 @@ impl ShaderHotReloader {
         Ok(lock.into_iter())
     }
 
-    pub fn get_pipeline(
-        &self,
-        handle: ResourceId<Shader>,
-    ) -> Option<&ResourceId<GraphicsPipeline>> {
+    pub fn get_pipeline(&self, handle: ResourceId<Shader>) -> Option<&PipelineShaderIdSet> {
         self.program_map.get(&handle)
     }
 }

@@ -261,17 +261,21 @@ impl Renderer {
 
     pub fn update(&mut self) -> Result<()> {
         for update_data in self.shader_hot_reloader.drain()? {
-            if let Some(pipeline_handle) = self
+            if let Some(pipeline_shader_set) = self
                 .shader_hot_reloader
                 .get_pipeline(update_data.shader_handle)
             {
                 self.device.recreate_shader(
                     &mut self.resource_manager,
-                    &update_data.bytes,
                     update_data.shader_handle,
-                );
-                self.device
-                    .recreate_graphics_pipeline(&mut self.resource_manager, *pipeline_handle)?;
+                    &update_data.bytes,
+                )?;
+                self.device.recreate_graphics_pipeline(
+                    &mut self.resource_manager,
+                    pipeline_shader_set.pipeline_handle,
+                    pipeline_shader_set.vertex_handle,
+                    pipeline_shader_set.fragment_handle,
+                )?;
             }
         }
         Ok(())
