@@ -5,7 +5,7 @@ use super::{
 use crate::device::Device;
 use ash::vk;
 use resource_manager::{ResourceId, ResourcePool};
-use std::{collections::HashSet, fmt::Debug, sync::Arc};
+use std::{fmt::Debug, sync::Arc};
 
 pub struct ResourceHandle<T>(Arc<ResourceId<T>>);
 
@@ -20,6 +20,14 @@ macro_rules! insert {
         pub fn $fn_name(&mut self, res: $t) -> ResourceHandle<$t> {
             let id = self.$field.insert(res);
             ResourceHandle(Arc::new(id))
+        }
+    };
+}
+
+macro_rules! delete {
+    ($fn_name:ident, $to_remove_field:ident, $t:ty) => {
+        pub fn $fn_name(&mut self, handle: ResourceHandle<$t>) {
+            self.$to_remove_field.push(handle);
         }
     };
 }
@@ -44,6 +52,8 @@ macro_rules! cleanup {
     };
 }
 
+// TODO: Do I want to queue delete on Drop?
+// TODO: Auto-generate struct with proc-macro?
 #[derive(Default)]
 pub struct ResourceManager {
     graphics_pipelines: ResourcePool<GraphicsPipeline>,
@@ -51,6 +61,12 @@ pub struct ResourceManager {
     images: ResourcePool<Image>,
     buffers: ResourcePool<Buffer>,
     samplers: ResourcePool<Sampler>,
+    // TODO: I don't like this, but it's ok for proof of concept atm
+    to_delete_graphics_pipelines: Vec<ResourceHandle<GraphicsPipeline>>,
+    to_delete_shaders: Vec<ResourceHandle<Shader>>,
+    to_delete_images: Vec<ResourceHandle<Image>>,
+    to_delete_buffers: Vec<ResourceHandle<Buffer>>,
+    to_delete_samplers: Vec<ResourceHandle<Sampler>>,
     // TODO: Purgatory implementation here pretty sloppy
     purgatory: Vec<vk::Pipeline>,
 }
@@ -74,6 +90,17 @@ impl ResourceManager {
     insert!(insert_image, images, Image);
     insert!(insert_buffer, buffers, Buffer);
     insert!(insert_sampler, samplers, Sampler);
+
+    // Delete
+    delete!(
+        delete_graphics_pipeline,
+        to_delete_graphics_pipelines,
+        GraphicsPipeline
+    );
+    delete!(delete_shader, to_delete_shaders, Shader);
+    delete!(delete_image, to_delete_images, Image);
+    delete!(delete_buffer, to_delete_buffers, Buffer);
+    delete!(delete_sampler, to_delete_samplers, Sampler);
 
     // Get
     getter!(

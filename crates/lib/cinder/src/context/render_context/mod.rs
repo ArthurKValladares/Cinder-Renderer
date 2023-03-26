@@ -5,10 +5,8 @@ use crate::{
     resources::{
         buffer::Buffer,
         image::Image,
-        manager::ResourceHandle,
         pipeline::{compute::ComputePipeline, graphics::GraphicsPipeline, PipelineCommon},
         shader::ShaderStage,
-        ResourceManager,
     },
     util::rect_to_vk,
     view::Drawable,
@@ -16,7 +14,6 @@ use crate::{
 use anyhow::Result;
 use ash::vk;
 use math::rect::Rect2D;
-use resource_manager::ResourceId;
 use serde::Deserialize;
 use thiserror::Error;
 
