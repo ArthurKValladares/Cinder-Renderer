@@ -39,14 +39,11 @@ pub struct Renderer {
     resource_manager: ResourceManager,
     device: Device,
     view: View,
-    _vertex_shader: ResourceHandle<Shader>,
-    _fragment_shader: ResourceHandle<Shader>,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
     _upload_context: UploadContext,
     vertex_buffer_handle: ResourceHandle<Buffer>,
     index_buffer_handle: ResourceHandle<Buffer>,
-    _image_buffer_handle: ResourceHandle<Buffer>,
     _sampler_handle: ResourceHandle<Sampler>,
     _texture_handle: ResourceHandle<Image>,
 }
@@ -60,11 +57,11 @@ impl Renderer {
 
         let view = View::new(&device, Default::default())?;
 
-        let vertex_shader = device.create_shader(
+        let mut vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/texture.vert.spv"),
             Default::default(),
         )?;
-        let fragment_shader = device.create_shader(
+        let mut fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/texture.frag.spv"),
             Default::default(),
         )?;
@@ -74,8 +71,8 @@ impl Renderer {
                 &fragment_shader,
                 Default::default(),
             )?);
-        let vertex_shader = resource_manager.insert_shader(vertex_shader);
-        let fragment_shader = resource_manager.insert_shader(fragment_shader);
+        vertex_shader.destroy(device.raw());
+        fragment_shader.destroy(device.raw());
 
         let vertex_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
             &[
@@ -164,18 +161,16 @@ impl Renderer {
             }],
         )?;
 
+        resource_manager.delete_buffer(image_buffer_handle);
         Ok(Self {
             resource_manager,
             device,
             view,
             render_context,
             _upload_context: upload_context,
-            _vertex_shader: vertex_shader,
-            _fragment_shader: fragment_shader,
             render_pipeline,
             vertex_buffer_handle,
             index_buffer_handle,
-            _image_buffer_handle: image_buffer_handle,
             _sampler_handle: sampler_handle,
             _texture_handle: texture_handle,
         })

@@ -6,7 +6,6 @@ use cinder::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         manager::ResourceHandle,
         pipeline::graphics::GraphicsPipeline,
-        shader::Shader,
         ResourceManager,
     },
     view::View,
@@ -34,8 +33,6 @@ pub struct Renderer {
     device: Device,
     view: View,
     render_context: RenderContext,
-    _vertex_shader: ResourceHandle<Shader>,
-    _fragment_shader: ResourceHandle<Shader>,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
     vertex_buffer_handle: ResourceHandle<Buffer>,
     index_buffer_handle: ResourceHandle<Buffer>,
@@ -49,11 +46,11 @@ impl Renderer {
         let render_context = RenderContext::new(&device, Default::default())?;
         let view = View::new(&device, Default::default())?;
 
-        let vertex_shader = device.create_shader(
+        let mut vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/triangle.vert.spv"),
             Default::default(),
         )?;
-        let fragment_shader = device.create_shader(
+        let mut fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/triangle.frag.spv"),
             Default::default(),
         )?;
@@ -63,8 +60,8 @@ impl Renderer {
                 &fragment_shader,
                 Default::default(),
             )?);
-        let vertex_shader = resource_manager.insert_shader(vertex_shader);
-        let fragment_shader = resource_manager.insert_shader(fragment_shader);
+        vertex_shader.destroy(device.raw());
+        fragment_shader.destroy(device.raw());
 
         let vertex_buffer = resource_manager.insert_buffer(device.create_buffer_with_data(
             &[
@@ -101,8 +98,6 @@ impl Renderer {
             device,
             view,
             render_context,
-            _vertex_shader: vertex_shader,
-            _fragment_shader: fragment_shader,
             render_pipeline,
             vertex_buffer_handle: vertex_buffer,
             index_buffer_handle: index_buffer,
