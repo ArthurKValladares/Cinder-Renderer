@@ -510,7 +510,11 @@ impl Device {
             let fragment_shader = manager
                 .get_shader(fragment_handle)
                 .ok_or(DeviceError::ResourceNotInCache)?;
-            manager.add_to_purgatory(old.recreate(vertex_shader, fragment_shader, self)?);
+            manager.add_pipeline_to_purgatory(old.recreate(
+                vertex_shader,
+                fragment_shader,
+                self,
+            )?);
             manager.replace_graphics_pipeline(pipeline_handle, old);
             Ok(())
         } else {

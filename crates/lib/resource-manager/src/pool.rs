@@ -5,14 +5,14 @@ use crate::ResourceId;
 pub struct ResourcePool<T> {
     // TODO: Better container for this, generational-arena
     resources: HashMap<usize, T>,
-    to_be_freed: Vec<T>,
+    purgatory: Vec<T>,
 }
 
 impl<T> Default for ResourcePool<T> {
     fn default() -> Self {
         Self {
             resources: Default::default(),
-            to_be_freed: Default::default(),
+            purgatory: Default::default(),
         }
     }
 }
@@ -30,7 +30,7 @@ impl<T> ResourcePool<T> {
 
     pub fn replace(&mut self, handle: ResourceId<T>, new: T) {
         if let Some(old) = self.resources.insert(handle.id(), new) {
-            self.to_be_freed.push(old);
+            self.purgatory.push(old);
         }
     }
 

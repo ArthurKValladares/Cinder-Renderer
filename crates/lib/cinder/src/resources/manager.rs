@@ -15,14 +15,6 @@ impl<T> ResourceHandle<T> {
     }
 }
 
-macro_rules! replace {
-    ($fn_name:ident,  $field:ident, $t:ty) => {
-        pub fn $fn_name(&mut self, id: ResourceId<$t>, res: $t) {
-            self.$field.replace(id, res)
-        }
-    };
-}
-
 macro_rules! insert {
     ($fn_name:ident,  $field:ident, $t:ty) => {
         pub fn $fn_name(&mut self, res: $t) -> ResourceHandle<$t> {
@@ -59,8 +51,7 @@ pub struct ResourceManager {
     images: ResourcePool<Image>,
     buffers: ResourcePool<Buffer>,
     samplers: ResourcePool<Sampler>,
-    // TODO: re-think and improve automatic resource management
-    handles: HashSet<Arc<ResourceId<()>>>,
+    // TODO: Purgatory implementation here pretty sloppy
     purgatory: Vec<vk::Pipeline>,
 }
 
@@ -71,17 +62,6 @@ impl ResourceManager {
         cleanup!(self.images, device);
         cleanup!(self.buffers, device);
         cleanup!(self.samplers, device);
-    }
-
-    pub fn remove_graphics_pipeline(
-        &mut self,
-        id: ResourceId<GraphicsPipeline>,
-    ) -> Option<GraphicsPipeline> {
-        self.graphics_pipelines.remove(id)
-    }
-
-    pub fn add_to_purgatory(&mut self, pipeline: vk::Pipeline) {
-        self.purgatory.push(pipeline)
     }
 
     // Insert
@@ -95,17 +75,6 @@ impl ResourceManager {
     insert!(insert_buffer, buffers, Buffer);
     insert!(insert_sampler, samplers, Sampler);
 
-    // Replace
-    replace!(
-        replace_graphics_pipeline,
-        graphics_pipelines,
-        GraphicsPipeline
-    );
-    replace!(replace_shader, shaders, Shader);
-    replace!(replace_image, images, Image);
-    replace!(replace_buffer, buffers, Buffer);
-    replace!(replace_sampler, samplers, Sampler);
-
     // Get
     getter!(
         get_graphics_pipeline,
@@ -117,6 +86,30 @@ impl ResourceManager {
     getter!(get_image, get_image_mut, images, Image);
     getter!(get_buffer, get_buffer_mut, buffers, Buffer);
     getter!(get_sampler, get_sampler_mut, samplers, Sampler);
+
+    // TODO: Temp pipeline-specific functions
+    pub fn remove_graphics_pipeline(
+        &mut self,
+        id: ResourceId<GraphicsPipeline>,
+    ) -> Option<GraphicsPipeline> {
+        self.graphics_pipelines.remove(id)
+    }
+
+    pub fn replace_graphics_pipeline(
+        &mut self,
+        id: ResourceId<GraphicsPipeline>,
+        res: GraphicsPipeline,
+    ) {
+        self.graphics_pipelines.replace(id, res)
+    }
+
+    pub fn replace_shader(&mut self, id: ResourceId<Shader>, res: Shader) {
+        self.shaders.replace(id, res)
+    }
+
+    pub fn add_pipeline_to_purgatory(&mut self, pipeline: vk::Pipeline) {
+        self.purgatory.push(pipeline)
+    }
 }
 
 impl<T> Debug for ResourceHandle<T> {
