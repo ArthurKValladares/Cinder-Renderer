@@ -14,7 +14,6 @@ use cinder::{
         manager::ResourceHandle,
         pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
-        shader::Shader,
         ResourceManager,
     },
     util::MemoryMappablePointer,

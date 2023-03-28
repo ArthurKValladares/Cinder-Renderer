@@ -10,7 +10,7 @@ use crate::{
         bind_group::{BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
         buffer::{Buffer, BufferDescription},
         image::{Image, ImageDescription, ImageError},
-        manager::{ResourceHandle, ResourceManager},
+        manager::ResourceManager,
         pipeline::{
             compute::{ComputePipeline, ComputePipelineDescription},
             graphics::{GraphicsPipeline, GraphicsPipelineDescription},

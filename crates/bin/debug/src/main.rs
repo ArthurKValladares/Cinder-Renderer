@@ -12,7 +12,7 @@ use cinder::{
         manager::ResourceHandle,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::{Sampler, SamplerDescription},
-        shader::{Shader, ShaderDesc},
+        shader::ShaderDesc,
         ResourceManager,
     },
     view::{View, ViewDescription},
@@ -43,7 +43,6 @@ pub struct Renderer {
     _upload_context: UploadContext,
     vertex_buffer_handle: ResourceHandle<Buffer>,
     index_buffer_handle: ResourceHandle<Buffer>,
-    _image_buffer_handle: ResourceHandle<Buffer>,
     _sampler: ResourceHandle<Sampler>,
     _texture_handle: ResourceHandle<Image>,
 }
@@ -194,6 +193,7 @@ impl Renderer {
             }],
         )?;
 
+        resource_manager.delete_buffer(image_buffer_handle);
         Ok(Self {
             resource_manager,
             device,
@@ -203,7 +203,6 @@ impl Renderer {
             render_pipeline,
             vertex_buffer_handle,
             index_buffer_handle,
-            _image_buffer_handle: image_buffer_handle,
             _sampler: sampler,
             _texture_handle: texture_handle,
         })

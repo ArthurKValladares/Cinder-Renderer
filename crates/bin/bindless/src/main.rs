@@ -15,7 +15,6 @@ use cinder::{
         manager::ResourceHandle,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
-        shader::Shader,
         ResourceManager,
     },
     view::View,

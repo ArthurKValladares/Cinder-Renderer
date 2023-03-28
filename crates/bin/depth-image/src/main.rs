@@ -15,11 +15,9 @@ use cinder::{
         manager::ResourceHandle,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
-        shader::Shader,
         ResourceManager,
     },
     view::View,
-    ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use std::time::Instant;
@@ -455,7 +453,7 @@ impl Renderer {
                     .bind_vertex_buffer(&self.device, cube_vertex_buffer);
                 // TODO: re-think API later when using more than one set
                 self.render_context
-                    .bind_descriptor_sets(&&self.device, pipeline);
+                    .bind_descriptor_sets(&self.device, pipeline);
 
                 self.render_context.draw_offset(&self.device, 36, 0, 0);
             }

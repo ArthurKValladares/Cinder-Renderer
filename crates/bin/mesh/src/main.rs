@@ -15,11 +15,9 @@ use cinder::{
         manager::ResourceHandle,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
-        shader::Shader,
         ResourceManager,
     },
     view::View,
-    ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use scene::{ObjMesh, Scene, Vertex};
@@ -98,7 +96,6 @@ pub struct Renderer {
     vertex_buffer_handle: ResourceHandle<Buffer>,
     index_buffer_handle: ResourceHandle<Buffer>,
     ubo_buffer_handle: ResourceHandle<Buffer>,
-    _image_buffer_handle: ResourceHandle<Buffer>,
     _sampler: ResourceHandle<Sampler>,
     _texture_handle: ResourceHandle<Image>,
     init_time: Instant,
@@ -252,7 +249,7 @@ impl Renderer {
         )?;
 
         let init_time = Instant::now();
-
+        resource_manager.delete_buffer(image_buffer_handle);
         Ok(Self {
             resource_manager,
             device,
@@ -263,7 +260,6 @@ impl Renderer {
             render_pipeline,
             vertex_buffer_handle,
             index_buffer_handle,
-            _image_buffer_handle: image_buffer_handle,
             _sampler: sampler,
             _texture_handle: texture_handle,
             ubo_buffer_handle,

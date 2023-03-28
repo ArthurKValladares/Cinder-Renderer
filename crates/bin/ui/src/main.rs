@@ -14,11 +14,9 @@ use cinder::{
         image::{Format, Image, ImageDescription, ImageUsage},
         manager::ResourceHandle,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
-        shader::Shader,
         ResourceManager,
     },
     view::View,
-    ResourceId,
 };
 use egui_integration::{egui, EguiIntegration};
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
@@ -96,7 +94,7 @@ pub struct Renderer {
 impl Renderer {
     pub fn new(event_loop: &EventLoop<()>, window: &winit::window::Window) -> Result<Self> {
         let mut resource_manager = ResourceManager::default();
-        let mut device = Device::new(window, Default::default())?;
+        let device = Device::new(window, Default::default())?;
         let render_context = RenderContext::new(&device, Default::default())?;
         let upload_context = UploadContext::new(&device, Default::default())?;
         let view = View::new(&device, Default::default())?;
