@@ -129,8 +129,6 @@ pub struct Renderer {
     _upload_context: UploadContext,
     mesh_draws: Vec<MeshDraw>,
     depth_image_handle: ResourceHandle<Image>,
-    _vertex_shader: ResourceHandle<Shader>,
-    _fragment_shader: ResourceHandle<Shader>,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
     _vertex_buffer_handle: ResourceHandle<Buffer>,
     index_buffer_handle: ResourceHandle<Buffer>,
@@ -157,11 +155,11 @@ impl Renderer {
             },
         )?);
 
-        let vertex_shader = device.create_shader(
+        let mut vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/bindless.vert.spv"),
             Default::default(),
         )?;
-        let fragment_shader = device.create_shader(
+        let mut fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/bindless.frag.spv"),
             Default::default(),
         )?;
@@ -174,8 +172,8 @@ impl Renderer {
                     ..Default::default()
                 },
             )?);
-        let vertex_shader = resource_manager.insert_shader(vertex_shader);
-        let fragment_shader = resource_manager.insert_shader(fragment_shader);
+        vertex_shader.destroy(device.raw());
+        fragment_shader.destroy(device.raw());
 
         let scene = Scene::<BindlessVertex>::from_obj(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -347,8 +345,6 @@ impl Renderer {
             depth_image_handle: depth_image,
             render_context,
             _upload_context: upload_context,
-            _vertex_shader: vertex_shader,
-            _fragment_shader: fragment_shader,
             render_pipeline,
             _vertex_buffer_handle: vertex_buffer_handle,
             index_buffer_handle,

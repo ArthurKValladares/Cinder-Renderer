@@ -12,11 +12,9 @@ use cinder::{
         manager::ResourceHandle,
         pipeline::graphics::GraphicsPipeline,
         sampler::Sampler,
-        shader::Shader,
         ResourceManager,
     },
     view::View,
-    ResourceId,
 };
 use math::size::Size2D;
 use winit::{

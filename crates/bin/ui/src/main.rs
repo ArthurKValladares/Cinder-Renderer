@@ -83,8 +83,6 @@ pub struct Renderer {
     device: Device,
     view: View,
     depth_image: ResourceHandle<Image>,
-    _vertex_shader: ResourceHandle<Shader>,
-    _fragment_shader: ResourceHandle<Shader>,
     render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
     upload_context: UploadContext,
@@ -111,11 +109,11 @@ impl Renderer {
                 ..Default::default()
             },
         )?);
-        let vertex_shader = device.create_shader(
+        let mut vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/ui.vert.spv"),
             Default::default(),
         )?;
-        let fragment_shader = device.create_shader(
+        let mut fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/ui.frag.spv"),
             Default::default(),
         )?;
@@ -128,8 +126,8 @@ impl Renderer {
                     ..Default::default()
                 },
             )?);
-        let vertex_shader = resource_manager.insert_shader(vertex_shader);
-        let fragment_shader = resource_manager.insert_shader(fragment_shader);
+        vertex_shader.destroy(device.raw());
+        fragment_shader.destroy(device.raw());
 
         let vertex_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
             &[
@@ -301,8 +299,6 @@ impl Renderer {
             depth_image,
             render_context,
             upload_context,
-            _vertex_shader: vertex_shader,
-            _fragment_shader: fragment_shader,
             render_pipeline,
             vertex_buffer_handle,
             index_buffer_handle,

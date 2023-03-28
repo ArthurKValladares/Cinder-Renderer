@@ -73,11 +73,7 @@ pub struct Renderer {
     device: Device,
     view: View,
     depth_image_handle: ResourceHandle<Image>,
-    _mesh_vertex_shader: ResourceHandle<Shader>,
-    _mesh_fragment_shader: ResourceHandle<Shader>,
     mesh_render_pipeline: ResourceHandle<GraphicsPipeline>,
-    _texture_vertex_shader: ResourceHandle<Shader>,
-    _texture_fragment_shader: ResourceHandle<Shader>,
     texture_render_pipeline: ResourceHandle<GraphicsPipeline>,
     render_context: RenderContext,
     upload_context: UploadContext,
@@ -105,11 +101,11 @@ impl Renderer {
                 ..Default::default()
             },
         )?);
-        let mesh_vertex_shader = device.create_shader(
+        let mut mesh_vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/depth_mesh.vert.spv"),
             Default::default(),
         )?;
-        let mesh_fragment_shader = device.create_shader(
+        let mut mesh_fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/depth_mesh.frag.spv"),
             Default::default(),
         )?;
@@ -122,14 +118,14 @@ impl Renderer {
                     ..Default::default()
                 },
             )?);
-        let mesh_vertex_shader = resource_manager.insert_shader(mesh_vertex_shader);
-        let mesh_fragment_shader = resource_manager.insert_shader(mesh_fragment_shader);
+        mesh_vertex_shader.destroy(device.raw());
+        mesh_fragment_shader.destroy(device.raw());
 
-        let texture_vertex_shader = device.create_shader(
+        let mut texture_vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/depth_texture.vert.spv"),
             Default::default(),
         )?;
-        let texture_fragment_shader = device.create_shader(
+        let mut texture_fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/depth_texture.frag.spv"),
             Default::default(),
         )?;
@@ -139,8 +135,8 @@ impl Renderer {
                 &texture_fragment_shader,
                 Default::default(),
             )?);
-        let texture_vertex_shader = resource_manager.insert_shader(texture_vertex_shader);
-        let texture_fragment_shader = resource_manager.insert_shader(texture_fragment_shader);
+        texture_vertex_shader.destroy(device.raw());
+        texture_fragment_shader.destroy(device.raw());
 
         let cube_vertex_buffer_handle =
             resource_manager.insert_buffer(device.create_buffer_with_data(
@@ -380,11 +376,7 @@ impl Renderer {
             depth_image_handle,
             render_context,
             upload_context,
-            _mesh_vertex_shader: mesh_vertex_shader,
-            _mesh_fragment_shader: mesh_fragment_shader,
             mesh_render_pipeline,
-            _texture_vertex_shader: texture_vertex_shader,
-            _texture_fragment_shader: texture_fragment_shader,
             texture_render_pipeline,
             cube_vertex_buffer_handle,
             cube_index_buffer_handle,

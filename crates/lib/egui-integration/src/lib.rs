@@ -44,8 +44,6 @@ pub struct EguiCallbackFn {
 pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_winit: egui_winit::State,
-    _vertex_shader: ResourceHandle<Shader>,
-    _fragment_shader: ResourceHandle<Shader>,
     pipeline: ResourceHandle<GraphicsPipeline>,
     sampler: ResourceHandle<Sampler>,
     image_staging_buffer: Option<ResourceHandle<Buffer>>,
@@ -68,11 +66,11 @@ impl EguiIntegration {
         egui_context.set_pixels_per_point(PPP);
         egui_winit.set_pixels_per_point(PPP);
 
-        let vertex_shader = device.create_shader(
+        let mut vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/egui.vert.spv"),
             Default::default(),
         )?;
-        let fragment_shader = device.create_shader(
+        let mut fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/egui.frag.spv"),
             Default::default(),
         )?;
@@ -85,8 +83,8 @@ impl EguiIntegration {
                 ..Default::default()
             },
         )?);
-        let vertex_shader = resource_manager.insert_shader(vertex_shader);
-        let fragment_shader = resource_manager.insert_shader(fragment_shader);
+        vertex_shader.destroy(device.raw());
+        fragment_shader.destroy(device.raw());
 
         let sampler =
             resource_manager.insert_sampler(device.create_sampler(device, Default::default())?);
@@ -121,8 +119,6 @@ impl EguiIntegration {
             egui_context,
             egui_winit,
             sampler,
-            _vertex_shader: vertex_shader,
-            _fragment_shader: fragment_shader,
             pipeline,
             image_staging_buffer: None,
             image_map: Default::default(),
