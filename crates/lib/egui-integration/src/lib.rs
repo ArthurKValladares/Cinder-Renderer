@@ -137,6 +137,7 @@ impl EguiIntegration {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn run(
         &mut self,
         resource_manager: &mut ResourceManager,
@@ -192,6 +193,7 @@ impl EguiIntegration {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn paint(
         &mut self,
         resource_manager: &ResourceManager,
@@ -329,6 +331,7 @@ impl EguiIntegration {
         Ok(())
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn paint_mesh(
         &mut self,
         resource_manager: &ResourceManager,
@@ -399,16 +402,15 @@ impl EguiIntegration {
         device: &Device,
         upload_context: &UploadContext,
         id: &TextureId,
-        width: u32,
-        height: u32,
+        size: Size2D<u32>,
         data: &[egui::Color32],
     ) -> Result<()> {
         // TODO: Revisit image abstraction
         if let Some(_buffer) = self.image_staging_buffer.take() {
             // TODO: Queue this to be cleaned
         }
-        let image_handle = resource_manager
-            .insert_image(device.create_image(Size2D::new(width, height), Default::default())?);
+        let image_handle =
+            resource_manager.insert_image(device.create_image(size, Default::default())?);
         let image_staging_buffer_handle = resource_manager.insert_buffer(device.create_buffer(
             size_of_slice(data),
             BufferDescription {
@@ -462,21 +464,16 @@ impl EguiIntegration {
         delta: &ImageDelta,
     ) -> Result<()> {
         match &delta.image {
-            ImageData::Color(color_data) => {
-                let (width, height) = (color_data.size[0] as u32, color_data.size[1] as u32);
-
-                self.set_image_helper(
-                    resource_manager,
-                    device,
-                    upload_context,
-                    id,
-                    width,
-                    height,
-                    &color_data.pixels,
-                )
-            }
+            ImageData::Color(color_data) => self.set_image_helper(
+                resource_manager,
+                device,
+                upload_context,
+                id,
+                Size2D::new(color_data.size[0] as u32, color_data.size[1] as u32),
+                &color_data.pixels,
+            ),
             ImageData::Font(font_data) => {
-                let (width, height) = (font_data.width() as u32, font_data.height() as u32);
+                // TODO: Get rid of collect
                 let data = font_data.srgba_pixels(Some(1.0)).collect::<Vec<_>>();
 
                 self.set_image_helper(
@@ -484,8 +481,7 @@ impl EguiIntegration {
                     device,
                     upload_context,
                     id,
-                    width,
-                    height,
+                    Size2D::new(font_data.width() as u32, font_data.height() as u32),
                     &data,
                 )
             }
