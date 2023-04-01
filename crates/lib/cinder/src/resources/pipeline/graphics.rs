@@ -230,7 +230,6 @@ impl GraphicsPipeline {
         Ok(pipeline)
     }
 
-    // TODO: re-think API, very sloppy
     pub(crate) fn create(
         device: &Device,
         vertex_shader: &Shader,

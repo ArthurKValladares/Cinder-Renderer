@@ -45,7 +45,6 @@ pub struct EguiIntegration {
     egui_winit: egui_winit::State,
     pipeline: ResourceHandle<GraphicsPipeline>,
     sampler: ResourceHandle<Sampler>,
-    image_staging_buffer: Option<ResourceHandle<Buffer>>,
     image_map: HashMap<TextureId, ResourceHandle<Image>>,
     vertex_buffers: Vec<ResourceHandle<Buffer>>,
     index_buffers: Vec<ResourceHandle<Buffer>>,
@@ -119,7 +118,6 @@ impl EguiIntegration {
             egui_winit,
             sampler,
             pipeline,
-            image_staging_buffer: None,
             image_map: Default::default(),
             vertex_buffers,
             index_buffers,
@@ -331,7 +329,6 @@ impl EguiIntegration {
         Ok(())
     }
 
-    #[allow(clippy::too_many_arguments)]
     fn paint_mesh(
         &mut self,
         resource_manager: &ResourceManager,
@@ -405,27 +402,21 @@ impl EguiIntegration {
         size: Size2D<u32>,
         data: &[egui::Color32],
     ) -> Result<()> {
-        // TODO: Revisit image abstraction
-        if let Some(_buffer) = self.image_staging_buffer.take() {
-            // TODO: Queue this to be cleaned
-        }
         let image_handle =
             resource_manager.insert_image(device.create_image(size, Default::default())?);
-        let image_staging_buffer_handle = resource_manager.insert_buffer(device.create_buffer(
+        let image_staging_buffer = device.create_buffer(
             size_of_slice(data),
             BufferDescription {
                 usage: BufferUsage::TRANSFER_SRC,
                 ..Default::default()
             },
-        )?);
-        let image_staging_buffer = resource_manager
-            .get_buffer(image_staging_buffer_handle.id())
-            .unwrap();
+        )?;
+
         image_staging_buffer.mem_copy(0, data)?;
 
         let image = resource_manager.get_image(image_handle.id()).unwrap();
         upload_context.image_barrier_start(device, image);
-        upload_context.copy_buffer_to_image(device, image_staging_buffer, image);
+        upload_context.copy_buffer_to_image(device, &image_staging_buffer, image);
         upload_context.image_barrier_end(device, image);
 
         let index = match id {
@@ -450,7 +441,6 @@ impl EguiIntegration {
         )?;
 
         self.image_map.insert(*id, image_handle);
-        self.image_staging_buffer = Some(image_staging_buffer_handle);
 
         Ok(())
     }
@@ -473,7 +463,6 @@ impl EguiIntegration {
                 &color_data.pixels,
             ),
             ImageData::Font(font_data) => {
-                // TODO: Get rid of collect
                 let data = font_data.srgba_pixels(Some(1.0)).collect::<Vec<_>>();
 
                 self.set_image_helper(

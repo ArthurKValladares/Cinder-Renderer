@@ -111,8 +111,7 @@ impl Renderer {
             .unwrap()
             .to_rgba8();
         let (width, height) = image.dimensions();
-        let texture_handle = resource_manager
-            .insert_image(device.create_image(Size2D::new(width, height), Default::default())?);
+        let texture = device.create_image(Size2D::new(width, height), Default::default())?;
         let image_data = image.into_raw();
 
         let image_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
@@ -125,14 +124,12 @@ impl Renderer {
         let image_buffer = resource_manager
             .get_buffer(image_buffer_handle.id())
             .unwrap();
-        // TODO: having to call `get` here is bad, will no longer be neede later with better abstractions
-        let texture = resource_manager.get_image(texture_handle.id()).unwrap();
         // TODO: Will abstract this later
         upload_context.begin(&device, device.setup_fence())?;
         {
-            upload_context.image_barrier_start(&device, texture);
-            upload_context.copy_buffer_to_image(&device, image_buffer, texture);
-            upload_context.image_barrier_end(&device, texture);
+            upload_context.image_barrier_start(&device, &texture);
+            upload_context.copy_buffer_to_image(&device, image_buffer, &texture);
+            upload_context.image_barrier_end(&device, &texture);
         }
         upload_context.end(
             &device,
@@ -158,7 +155,7 @@ impl Renderer {
                 )),
             }],
         )?;
-
+        let texture_handle = resource_manager.insert_image(texture);
         resource_manager.delete_buffer(image_buffer_handle);
         Ok(Self {
             resource_manager,

@@ -73,7 +73,7 @@ impl Renderer {
             include_bytes!("../shaders/spv/hot_reload.frag.spv"),
             Default::default(),
         )?;
-        // TODO: rethink API
+
         let render_pipeline =
             resource_manager.insert_graphics_pipeline(device.create_graphics_pipeline(
                 &vertex_shader,
