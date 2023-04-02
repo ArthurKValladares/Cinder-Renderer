@@ -38,11 +38,15 @@ macro_rules! insert {
 }
 
 macro_rules! delete {
-    ($fn_name:ident, $field:ident, $t:ty, $k:ident) => {
+    ($fn_name:ident, $fn_name_raw:ident, $field:ident, $t:ty, $k:ident) => {
         pub fn $fn_name(&mut self, handle: ResourceId<$t>, current_frame_index: usize) {
             if let Some(old) = self.$field.remove(handle) {
                 self.to_consume[current_frame_index].push(Resource::$k(old));
             }
+        }
+
+        pub fn $fn_name_raw(&mut self, res: $t, current_frame_index: usize) {
+            self.to_consume[current_frame_index].push(Resource::$k(res));
         }
     };
 }
@@ -163,14 +167,21 @@ impl ResourceManager {
     // Delete
     delete!(
         delete_graphics_pipeline,
+        delete_graphics_pipeline_raw,
         graphics_pipelines,
         GraphicsPipeline,
         GraphicsPipeline
     );
-    delete!(delete_shader, shaders, Shader, Shader);
-    delete!(delete_image, images, Image, Image);
-    delete!(delete_buffer, buffers, Buffer, Buffer);
-    delete!(delete_sampler, samplers, Sampler, Sampler);
+    delete!(delete_shader, delete_shader_raw, shaders, Shader, Shader);
+    delete!(delete_image, delete_image_raw, images, Image, Image);
+    delete!(delete_buffer, delete_buffer_raw, buffers, Buffer, Buffer);
+    delete!(
+        delete_sampler,
+        delete_sampler_raw,
+        samplers,
+        Sampler,
+        Sampler
+    );
 
     // Getters
     getter!(

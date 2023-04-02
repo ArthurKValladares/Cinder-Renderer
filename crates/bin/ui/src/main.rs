@@ -12,11 +12,11 @@ use cinder::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage},
-        manager::ResourceId,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         ResourceManager,
     },
     view::View,
+    ResourceId,
 };
 use egui_integration::{egui, EguiIntegration};
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
@@ -260,7 +260,7 @@ impl Renderer {
             },
         )?);
         {
-            let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle.id()).unwrap();
+            let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle).unwrap();
             ubo_buffer.mem_copy(
                 util::offset_of!(UiUniformBufferObject, view) as u64,
                 &[
@@ -278,7 +278,7 @@ impl Renderer {
             )?;
 
             let pipeline = resource_manager
-                .get_graphics_pipeline(render_pipeline.id())
+                .get_graphics_pipeline(render_pipeline)
                 .unwrap();
             device.write_bind_group(
                 pipeline,
@@ -310,7 +310,7 @@ impl Renderer {
         let scale = self.model_data.scale;
         let ubo_buffer = self
             .resource_manager
-            .get_buffer(self.ubo_buffer_handle.id())
+            .get_buffer(self.ubo_buffer_handle)
             .unwrap();
         ubo_buffer.mem_copy(
             util::offset_of!(UiUniformBufferObject, model) as u64,
@@ -331,10 +331,7 @@ impl Renderer {
                 .transition_undefined_to_color(&self.device, drawable);
 
             // TODO: remove get from user code?
-            let depth_image = self
-                .resource_manager
-                .get_image(self.depth_image.id())
-                .unwrap();
+            let depth_image = self.resource_manager.get_image(self.depth_image).unwrap();
             self.render_context.begin_rendering(
                 &self.device,
                 surface_rect,
@@ -352,7 +349,7 @@ impl Renderer {
             {
                 let pipeline = self
                     .resource_manager
-                    .get_graphics_pipeline(self.render_pipeline.id())
+                    .get_graphics_pipeline(self.render_pipeline)
                     .unwrap();
                 self.render_context
                     .bind_graphics_pipeline(&self.device, pipeline);
@@ -361,13 +358,13 @@ impl Renderer {
                 self.render_context.bind_scissor(&self.device, surface_rect);
                 let index_buffer = self
                     .resource_manager
-                    .get_buffer(self.index_buffer_handle.id())
+                    .get_buffer(self.index_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, index_buffer);
                 let vertex_buffer = self
                     .resource_manager
-                    .get_buffer(self.vertex_buffer_handle.id())
+                    .get_buffer(self.vertex_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_vertex_buffer(&self.device, vertex_buffer);
@@ -414,7 +411,7 @@ impl Renderer {
         self.view.resize(&self.device)?;
         let depth_image = self
             .resource_manager
-            .get_image_mut(self.depth_image.id())
+            .get_image_mut(self.depth_image)
             .unwrap();
         depth_image.resize(&self.device, Size2D::new(width, height))?;
         Ok(())

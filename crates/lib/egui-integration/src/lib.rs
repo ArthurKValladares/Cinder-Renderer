@@ -11,13 +11,13 @@ use cinder::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{vk::Fence, Buffer, BufferDescription, BufferUsage},
         image::Image,
-        manager::ResourceId,
         pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
-        sampler::Sampler,
+        sampler::{AddressMode, Sampler, SamplerDescription},
         ResourceManager,
     },
     util::MemoryMappablePointer,
     view::{Drawable, View},
+    ResourceId,
 };
 use core::panic;
 pub use egui;
@@ -84,8 +84,13 @@ impl EguiIntegration {
         vertex_shader.destroy(device.raw());
         fragment_shader.destroy(device.raw());
 
-        let sampler =
-            resource_manager.insert_sampler(device.create_sampler(device, Default::default())?);
+        let sampler = resource_manager.insert_sampler(device.create_sampler(
+            device,
+            SamplerDescription {
+                address_mode: AddressMode::ClampToEdge,
+                ..Default::default()
+            },
+        )?);
 
         let (vertex_buffers, index_buffers) = {
             let len = view.drawables_len();
@@ -206,10 +211,10 @@ impl EguiIntegration {
         let size = window.inner_size();
         let present_index = drawable.index();
         let vertex_buffer = resource_manager
-            .get_buffer(self.vertex_buffers[present_index as usize].id())
+            .get_buffer(self.vertex_buffers[present_index as usize])
             .unwrap();
         let index_buffer = resource_manager
-            .get_buffer(self.index_buffers[present_index as usize].id())
+            .get_buffer(self.index_buffers[present_index as usize])
             .unwrap();
         let mut vertex_buffer_ptr = vertex_buffer.ptr().unwrap();
         let mut index_buffer_ptr = index_buffer.ptr().unwrap();
@@ -231,7 +236,7 @@ impl EguiIntegration {
         );
         {
             let pipeline = resource_manager
-                .get_graphics_pipeline(self.pipeline.id())
+                .get_graphics_pipeline(self.pipeline)
                 .unwrap();
             render_context.bind_graphics_pipeline(device, pipeline);
             render_context.bind_vertex_buffer(device, vertex_buffer);
@@ -354,10 +359,10 @@ impl EguiIntegration {
         let index_buffer_ptr_next = index_buffer_ptr.add(index_copy_size);
 
         let vertex_buffer = resource_manager
-            .get_buffer(self.vertex_buffers[present_index as usize].id())
+            .get_buffer(self.vertex_buffers[present_index as usize])
             .unwrap();
         let index_buffer = resource_manager
-            .get_buffer(self.index_buffers[present_index as usize].id())
+            .get_buffer(self.index_buffers[present_index as usize])
             .unwrap();
         if vertex_buffer_ptr_next >= vertex_buffer.end_ptr().unwrap()
             || index_buffer_ptr_next >= index_buffer.end_ptr().unwrap()
@@ -372,7 +377,7 @@ impl EguiIntegration {
         *index_buffer_ptr = index_buffer_ptr_next;
 
         let pipeline = resource_manager
-            .get_graphics_pipeline(self.pipeline.id())
+            .get_graphics_pipeline(self.pipeline)
             .unwrap();
         render_context.bind_descriptor_sets(device, pipeline);
 
@@ -414,7 +419,7 @@ impl EguiIntegration {
 
         image_staging_buffer.mem_copy(0, data)?;
 
-        let image = resource_manager.get_image(image_handle.id()).unwrap();
+        let image = resource_manager.get_image(image_handle).unwrap();
         upload_context.image_barrier_start(device, image);
         upload_context.copy_buffer_to_image(device, &image_staging_buffer, image);
         upload_context.image_barrier_end(device, image);
@@ -425,9 +430,9 @@ impl EguiIntegration {
         };
 
         let pipeline = resource_manager
-            .get_graphics_pipeline(self.pipeline.id())
+            .get_graphics_pipeline(self.pipeline)
             .unwrap();
-        let sampler = resource_manager.get_sampler(self.sampler.id()).unwrap();
+        let sampler = resource_manager.get_sampler(self.sampler).unwrap();
         device.write_bind_group(
             pipeline,
             &[BindGroupBindInfo {
@@ -441,6 +446,7 @@ impl EguiIntegration {
         )?;
 
         self.image_map.insert(*id, image_handle);
+        resource_manager.delete_buffer_raw(image_staging_buffer, device.current_frame_in_flight);
 
         Ok(())
     }

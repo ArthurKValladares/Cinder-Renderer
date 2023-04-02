@@ -23,7 +23,7 @@ impl From<Filter> for vk::Filter {
 
 #[derive(Debug, Clone, Copy)]
 pub enum AddressMode {
-    Repear,
+    Repeat,
     MirroredRepeat,
     ClampToEdge,
     ClampToBorder,
@@ -31,14 +31,14 @@ pub enum AddressMode {
 
 impl Default for AddressMode {
     fn default() -> Self {
-        Self::Repear
+        Self::Repeat
     }
 }
 
 impl From<AddressMode> for vk::SamplerAddressMode {
     fn from(value: AddressMode) -> Self {
         match value {
-            AddressMode::Repear => vk::SamplerAddressMode::REPEAT,
+            AddressMode::Repeat => vk::SamplerAddressMode::REPEAT,
             AddressMode::MirroredRepeat => vk::SamplerAddressMode::MIRRORED_REPEAT,
             AddressMode::ClampToEdge => vk::SamplerAddressMode::CLAMP_TO_EDGE,
             AddressMode::ClampToBorder => vk::SamplerAddressMode::CLAMP_TO_BORDER,
