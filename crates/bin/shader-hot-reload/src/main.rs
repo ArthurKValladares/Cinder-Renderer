@@ -11,13 +11,13 @@ use cinder::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::Image,
-        manager::ResourceHandle,
         pipeline::graphics::GraphicsPipeline,
         sampler::Sampler,
         shader::Shader,
         ResourceManager,
     },
     view::View,
+    ResourceId,
 };
 use math::size::Size2D;
 use shader_hot_reloader::{ShaderHotReloader, ShaderHotReloaderRunner};
@@ -42,16 +42,16 @@ pub struct Renderer {
     resource_manager: ResourceManager,
     device: Device,
     view: View,
-    _vertex_shader: ResourceHandle<Shader>,
-    _fragment_shader: ResourceHandle<Shader>,
-    render_pipeline: ResourceHandle<GraphicsPipeline>,
+    _vertex_shader: ResourceId<Shader>,
+    _fragment_shader: ResourceId<Shader>,
+    render_pipeline: ResourceId<GraphicsPipeline>,
     render_context: RenderContext,
     _upload_context: UploadContext,
-    vertex_buffer_handle: ResourceHandle<Buffer>,
-    index_buffer_handle: ResourceHandle<Buffer>,
-    _image_buffer_handle: ResourceHandle<Buffer>,
-    _sampler: ResourceHandle<Sampler>,
-    _texture_handle: ResourceHandle<Image>,
+    vertex_buffer_handle: ResourceId<Buffer>,
+    index_buffer_handle: ResourceId<Buffer>,
+    _image_buffer_handle: ResourceId<Buffer>,
+    _sampler: ResourceId<Sampler>,
+    _texture_handle: ResourceId<Image>,
 }
 
 impl Renderer {
@@ -88,13 +88,13 @@ impl Renderer {
                 .join("shaders")
                 .join("hot_reload.vert")
                 .canonicalize()?,
-            vertex_shader.id(),
+            vertex_shader,
             Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("shaders")
                 .join("hot_reload.frag")
                 .canonicalize()?,
-            fragment_shader.id(),
-            render_pipeline.id(),
+            fragment_shader,
+            render_pipeline,
         )?;
 
         let vertex_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
@@ -147,10 +147,8 @@ impl Renderer {
                 ..Default::default()
             },
         )?);
-        let image_buffer = resource_manager
-            .get_buffer(image_buffer_handle.id())
-            .unwrap();
-        let texture = resource_manager.get_image(texture_handle.id()).unwrap();
+        let image_buffer = resource_manager.get_buffer(image_buffer_handle).unwrap();
+        let texture = resource_manager.get_image(texture_handle).unwrap();
         upload_context.begin(&device, device.setup_fence())?;
         {
             upload_context.image_barrier_start(&device, texture);
@@ -167,9 +165,9 @@ impl Renderer {
         )?;
 
         let pipeline = resource_manager
-            .get_graphics_pipeline(render_pipeline.id())
+            .get_graphics_pipeline(render_pipeline)
             .unwrap();
-        let s = resource_manager.get_sampler(sampler.id()).unwrap();
+        let s = resource_manager.get_sampler(sampler).unwrap();
         device.write_bind_group(
             pipeline,
             &[BindGroupBindInfo {
@@ -219,7 +217,7 @@ impl Renderer {
             {
                 let pipeline = self
                     .resource_manager
-                    .get_graphics_pipeline(self.render_pipeline.id())
+                    .get_graphics_pipeline(self.render_pipeline)
                     .unwrap();
                 self.render_context
                     .bind_graphics_pipeline(&self.device, pipeline);
@@ -228,13 +226,13 @@ impl Renderer {
                 self.render_context.bind_scissor(&self.device, surface_rect);
                 let index_buffer = self
                     .resource_manager
-                    .get_buffer(self.index_buffer_handle.id())
+                    .get_buffer(self.index_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, index_buffer);
                 let vertex_buffer = self
                     .resource_manager
-                    .get_buffer(self.vertex_buffer_handle.id())
+                    .get_buffer(self.vertex_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_vertex_buffer(&self.device, vertex_buffer);
@@ -287,7 +285,7 @@ impl Drop for Renderer {
         self.device.wait_idle().ok();
 
         self.view.destroy(&self.device);
-        self.resource_manager.clean(&self.device);
+        self.resource_manager.force_destroy(&self.device);
     }
 }
 

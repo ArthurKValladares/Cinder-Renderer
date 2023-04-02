@@ -12,12 +12,12 @@ use cinder::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage},
-        manager::ResourceHandle,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
         ResourceManager,
     },
     view::View,
+    ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use rayon::iter::*;
@@ -127,14 +127,14 @@ pub struct Renderer {
     render_context: RenderContext,
     _upload_context: UploadContext,
     mesh_draws: Vec<MeshDraw>,
-    depth_image_handle: ResourceHandle<Image>,
-    render_pipeline: ResourceHandle<GraphicsPipeline>,
-    _vertex_buffer_handle: ResourceHandle<Buffer>,
-    index_buffer_handle: ResourceHandle<Buffer>,
-    _ubo_buffer_handle: ResourceHandle<Buffer>,
-    _sampler: ResourceHandle<Sampler>,
-    _image_handles: Vec<ResourceHandle<Image>>,
-    _image_buffer_handles: Vec<ResourceHandle<Buffer>>,
+    depth_image_handle: ResourceId<Image>,
+    render_pipeline: ResourceId<GraphicsPipeline>,
+    _vertex_buffer_handle: ResourceId<Buffer>,
+    index_buffer_handle: ResourceId<Buffer>,
+    _ubo_buffer_handle: ResourceId<Buffer>,
+    _sampler: ResourceId<Sampler>,
+    _image_handles: Vec<ResourceId<Image>>,
+    _image_buffer_handles: Vec<ResourceId<Buffer>>,
 }
 
 impl Renderer {
@@ -226,7 +226,7 @@ impl Renderer {
             },
         )?);
         {
-            let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle.id()).unwrap();
+            let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle).unwrap();
             ubo_buffer.mem_copy(
                 util::offset_of!(BindlessUniformBufferObject, model) as u64,
                 &[
@@ -243,11 +243,9 @@ impl Renderer {
                     ),
                 ],
             )?;
-            let vertex_buffer = resource_manager
-                .get_buffer(vertex_buffer_handle.id())
-                .unwrap();
+            let vertex_buffer = resource_manager.get_buffer(vertex_buffer_handle).unwrap();
             let pipeline = resource_manager
-                .get_graphics_pipeline(render_pipeline.id())
+                .get_graphics_pipeline(render_pipeline)
                 .unwrap();
             device.write_bind_group(
                 pipeline,
@@ -300,16 +298,14 @@ impl Renderer {
                         )
                         .unwrap(),
                 );
-                let texture = resource_manager.get_image(texture_handle.id()).unwrap();
-                let image_buffer = resource_manager
-                    .get_buffer(image_buffer_handle.id())
-                    .unwrap();
+                let texture = resource_manager.get_image(texture_handle).unwrap();
+                let image_buffer = resource_manager.get_buffer(image_buffer_handle).unwrap();
                 upload_context.image_barrier_start(&device, texture);
                 upload_context.copy_buffer_to_image(&device, image_buffer, texture);
                 upload_context.image_barrier_end(&device, texture);
 
                 let pipeline = resource_manager
-                    .get_graphics_pipeline(render_pipeline.id())
+                    .get_graphics_pipeline(render_pipeline)
                     .unwrap();
                 device
                     .write_bind_group(
@@ -317,7 +313,7 @@ impl Renderer {
                         &[BindGroupBindInfo {
                             dst_binding: 2,
                             data: BindGroupWriteData::SampledImage(texture.bind_info(
-                                resource_manager.get_sampler(sampler.id()).unwrap(),
+                                resource_manager.get_sampler(sampler).unwrap(),
                                 Layout::ShaderReadOnly,
                                 idx as u32,
                             )),
@@ -368,7 +364,7 @@ impl Renderer {
             // TODO: remove get from user code?
             let depth_image = self
                 .resource_manager
-                .get_image(self.depth_image_handle.id())
+                .get_image(self.depth_image_handle)
                 .unwrap();
             self.render_context.begin_rendering(
                 &self.device,
@@ -387,7 +383,7 @@ impl Renderer {
             {
                 let pipeline = self
                     .resource_manager
-                    .get_graphics_pipeline(self.render_pipeline.id())
+                    .get_graphics_pipeline(self.render_pipeline)
                     .unwrap();
                 self.render_context
                     .bind_graphics_pipeline(&self.device, pipeline);
@@ -396,7 +392,7 @@ impl Renderer {
                 self.render_context.bind_scissor(&self.device, surface_rect);
                 let index_buffer = self
                     .resource_manager
-                    .get_buffer(self.index_buffer_handle.id())
+                    .get_buffer(self.index_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, index_buffer);
@@ -435,7 +431,7 @@ impl Renderer {
         self.view.resize(&self.device)?;
         let depth_image = self
             .resource_manager
-            .get_image_mut(self.depth_image_handle.id())
+            .get_image_mut(self.depth_image_handle)
             .unwrap();
         depth_image.resize(&self.device, Size2D::new(width, height))?;
         Ok(())
@@ -447,7 +443,7 @@ impl Drop for Renderer {
         self.device.wait_idle().ok();
 
         self.view.destroy(&self.device);
-        self.resource_manager.clean(&self.device);
+        self.resource_manager.force_destroy(&self.device);
     }
 }
 

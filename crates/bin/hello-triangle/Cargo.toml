@@ -7,7 +7,7 @@ edition = "2021"
 [dependencies]
 anyhow = "1"
 cinder = {path = "../../lib/cinder"}
-winit = "0.27"
+winit = "0.28"
 image = "0.24.3"
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
 serde = { version = "1", features = ["derive"] }

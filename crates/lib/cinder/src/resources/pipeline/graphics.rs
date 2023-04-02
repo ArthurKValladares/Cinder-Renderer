@@ -1,20 +1,20 @@
 use super::{get_pipeline_layout, PipelineCommon};
 use crate::device::{Device, MAX_BINDLESS_RESOURCES};
 use crate::resources::bind_group::BindGroup;
-use crate::resources::manager::ResourceHandle;
 use crate::resources::{
     image::{reflect_format_to_vk, Format},
     shader::Shader,
 };
 use anyhow::Result;
 use ash::vk;
+use resource_manager::ResourceId;
 use std::ffi::CStr;
 use thiserror::Error;
 
 #[derive(Debug, Error)]
 pub enum GraphicsPipelineError {
     #[error("shader for handle not in resource pool: {0:?}")]
-    ShaderNotInResourcePool(ResourceHandle<Shader>),
+    ShaderNotInResourcePool(ResourceId<Shader>),
 }
 
 #[repr(C)]

@@ -4,11 +4,11 @@ use cinder::{
     device::Device,
     resources::{
         buffer::{Buffer, BufferDescription, BufferUsage},
-        manager::ResourceHandle,
         pipeline::graphics::GraphicsPipeline,
         ResourceManager,
     },
     view::View,
+    ResourceId,
 };
 use math::{mat::Mat4, vec::Vec3};
 use std::time::Instant;
@@ -33,9 +33,9 @@ pub struct Renderer {
     device: Device,
     view: View,
     render_context: RenderContext,
-    render_pipeline: ResourceHandle<GraphicsPipeline>,
-    vertex_buffer_handle: ResourceHandle<Buffer>,
-    index_buffer_handle: ResourceHandle<Buffer>,
+    render_pipeline: ResourceId<GraphicsPipeline>,
+    vertex_buffer_handle: ResourceId<Buffer>,
+    index_buffer_handle: ResourceId<Buffer>,
     init_time: Instant,
 }
 
@@ -124,7 +124,7 @@ impl Renderer {
             {
                 let pipeline = self
                     .resource_manager
-                    .get_graphics_pipeline(self.render_pipeline.id())
+                    .get_graphics_pipeline(self.render_pipeline)
                     .unwrap();
                 self.render_context
                     .bind_graphics_pipeline(&self.device, pipeline);
@@ -133,13 +133,13 @@ impl Renderer {
                 self.render_context.bind_scissor(&self.device, surface_rect);
                 let index_buffer = self
                     .resource_manager
-                    .get_buffer(self.index_buffer_handle.id())
+                    .get_buffer(self.index_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, index_buffer);
                 let vertex_buffer = self
                     .resource_manager
-                    .get_buffer(self.vertex_buffer_handle.id())
+                    .get_buffer(self.vertex_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_vertex_buffer(&self.device, vertex_buffer);
@@ -179,7 +179,7 @@ impl Drop for Renderer {
         self.device.wait_idle().ok();
 
         self.view.destroy(&self.device);
-        self.resource_manager.clean(&self.device);
+        self.resource_manager.force_destroy(&self.device);
     }
 }
 

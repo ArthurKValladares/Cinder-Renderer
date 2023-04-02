@@ -12,12 +12,12 @@ use cinder::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage},
-        manager::ResourceHandle,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
         ResourceManager,
     },
     view::View,
+    ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use std::time::Instant;
@@ -70,17 +70,17 @@ pub struct Renderer {
     resource_manager: ResourceManager,
     device: Device,
     view: View,
-    depth_image_handle: ResourceHandle<Image>,
-    mesh_render_pipeline: ResourceHandle<GraphicsPipeline>,
-    texture_render_pipeline: ResourceHandle<GraphicsPipeline>,
+    depth_image_handle: ResourceId<Image>,
+    mesh_render_pipeline: ResourceId<GraphicsPipeline>,
+    texture_render_pipeline: ResourceId<GraphicsPipeline>,
     render_context: RenderContext,
     upload_context: UploadContext,
-    cube_vertex_buffer_handle: ResourceHandle<Buffer>,
-    cube_index_buffer_handle: ResourceHandle<Buffer>,
-    ubo_buffer_handle: ResourceHandle<Buffer>,
-    quad_vertex_buffer_handle: ResourceHandle<Buffer>,
-    quad_index_buffer_handle: ResourceHandle<Buffer>,
-    sampler: ResourceHandle<Sampler>,
+    cube_vertex_buffer_handle: ResourceId<Buffer>,
+    cube_index_buffer_handle: ResourceId<Buffer>,
+    ubo_buffer_handle: ResourceId<Buffer>,
+    quad_vertex_buffer_handle: ResourceId<Buffer>,
+    quad_index_buffer_handle: ResourceId<Buffer>,
+    sampler: ResourceId<Sampler>,
     init_time: Instant,
 }
 
@@ -271,7 +271,7 @@ impl Renderer {
             },
         )?);
         {
-            let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle.id()).unwrap();
+            let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle).unwrap();
             ubo_buffer.mem_copy(
                 util::offset_of!(DepthMeshUniformBufferObject, view) as u64,
                 &[
@@ -288,7 +288,7 @@ impl Renderer {
                 ],
             )?;
             let pipeline = resource_manager
-                .get_graphics_pipeline(mesh_render_pipeline.id())
+                .get_graphics_pipeline(mesh_render_pipeline)
                 .unwrap();
             device.write_bind_group(
                 pipeline,
@@ -338,7 +338,7 @@ impl Renderer {
         let init_time = Instant::now();
 
         let upload_context = UploadContext::new(&device, Default::default())?;
-        let depth_image = resource_manager.get_image(depth_image_handle.id()).unwrap();
+        let depth_image = resource_manager.get_image(depth_image_handle).unwrap();
         upload_context.begin(&device, device.setup_fence())?;
         {
             upload_context.transition_depth_to_read_only(&device, depth_image);
@@ -353,14 +353,14 @@ impl Renderer {
         )?;
 
         let pipeline = resource_manager
-            .get_graphics_pipeline(texture_render_pipeline.id())
+            .get_graphics_pipeline(texture_render_pipeline)
             .unwrap();
         device.write_bind_group(
             pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
                 data: BindGroupWriteData::SampledImage(depth_image.bind_info(
-                    resource_manager.get_sampler(sampler.id()).unwrap(),
+                    resource_manager.get_sampler(sampler).unwrap(),
                     Layout::DepthStencilReadOnly,
                     0,
                 )),
@@ -390,7 +390,7 @@ impl Renderer {
         let scale = (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
         let ubo_buffer = self
             .resource_manager
-            .get_buffer_mut(self.ubo_buffer_handle.id())
+            .get_buffer_mut(self.ubo_buffer_handle)
             .unwrap();
         ubo_buffer.mem_copy(
             util::offset_of!(DepthMeshUniformBufferObject, model) as u64,
@@ -416,7 +416,7 @@ impl Renderer {
             // Mesh render pass
             let depth_image = self
                 .resource_manager
-                .get_image(self.depth_image_handle.id())
+                .get_image(self.depth_image_handle)
                 .unwrap();
             self.render_context.begin_rendering(
                 &self.device,
@@ -435,19 +435,19 @@ impl Renderer {
             {
                 let pipeline = self
                     .resource_manager
-                    .get_graphics_pipeline(self.mesh_render_pipeline.id())
+                    .get_graphics_pipeline(self.mesh_render_pipeline)
                     .unwrap();
                 self.render_context
                     .bind_graphics_pipeline(&self.device, pipeline);
                 let cube_index_buffer = self
                     .resource_manager
-                    .get_buffer(self.cube_index_buffer_handle.id())
+                    .get_buffer(self.cube_index_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, cube_index_buffer);
                 let cube_vertex_buffer = self
                     .resource_manager
-                    .get_buffer(self.cube_vertex_buffer_handle.id())
+                    .get_buffer(self.cube_vertex_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_vertex_buffer(&self.device, cube_vertex_buffer);
@@ -475,19 +475,19 @@ impl Renderer {
             {
                 let pipeline = self
                     .resource_manager
-                    .get_graphics_pipeline(self.texture_render_pipeline.id())
+                    .get_graphics_pipeline(self.texture_render_pipeline)
                     .unwrap();
                 self.render_context
                     .bind_graphics_pipeline(&self.device, pipeline);
                 let quad_index_buffer = self
                     .resource_manager
-                    .get_buffer(self.quad_index_buffer_handle.id())
+                    .get_buffer(self.quad_index_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, quad_index_buffer);
                 let quad_vertex_buffer = self
                     .resource_manager
-                    .get_buffer(self.quad_vertex_buffer_handle.id())
+                    .get_buffer(self.quad_vertex_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_vertex_buffer(&self.device, quad_vertex_buffer);
@@ -515,14 +515,14 @@ impl Renderer {
         {
             let depth_image = self
                 .resource_manager
-                .get_image_mut(self.depth_image_handle.id())
+                .get_image_mut(self.depth_image_handle)
                 .unwrap();
             depth_image.resize(&self.device, Size2D::new(width, height))?;
         }
 
         let depth_image = self
             .resource_manager
-            .get_image(self.depth_image_handle.id())
+            .get_image(self.depth_image_handle)
             .unwrap();
         self.upload_context
             .begin(&self.device, self.device.setup_fence())?;
@@ -542,21 +542,17 @@ impl Renderer {
 
         let pipeline = self
             .resource_manager
-            .get_graphics_pipeline(self.texture_render_pipeline.id())
+            .get_graphics_pipeline(self.texture_render_pipeline)
             .unwrap();
         self.device.write_bind_group(
             pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
-                data: BindGroupWriteData::SampledImage(
-                    depth_image.bind_info(
-                        self.resource_manager
-                            .get_sampler(self.sampler.id())
-                            .unwrap(),
-                        Layout::DepthStencilReadOnly,
-                        0,
-                    ),
-                ),
+                data: BindGroupWriteData::SampledImage(depth_image.bind_info(
+                    self.resource_manager.get_sampler(self.sampler).unwrap(),
+                    Layout::DepthStencilReadOnly,
+                    0,
+                )),
             }],
         )?;
 
@@ -569,7 +565,7 @@ impl Drop for Renderer {
         self.device.wait_idle().ok();
 
         self.view.destroy(&self.device);
-        self.resource_manager.clean(&self.device);
+        self.resource_manager.force_destroy(&self.device);
     }
 }
 

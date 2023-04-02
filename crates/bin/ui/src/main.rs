@@ -12,7 +12,7 @@ use cinder::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage},
-        manager::ResourceHandle,
+        manager::ResourceId,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         ResourceManager,
     },
@@ -80,13 +80,13 @@ pub struct Renderer {
     resource_manager: ResourceManager,
     device: Device,
     view: View,
-    depth_image: ResourceHandle<Image>,
-    render_pipeline: ResourceHandle<GraphicsPipeline>,
+    depth_image: ResourceId<Image>,
+    render_pipeline: ResourceId<GraphicsPipeline>,
     render_context: RenderContext,
     upload_context: UploadContext,
-    vertex_buffer_handle: ResourceHandle<Buffer>,
-    index_buffer_handle: ResourceHandle<Buffer>,
-    ubo_buffer_handle: ResourceHandle<Buffer>,
+    vertex_buffer_handle: ResourceId<Buffer>,
+    index_buffer_handle: ResourceId<Buffer>,
+    ubo_buffer_handle: ResourceId<Buffer>,
     ui: EguiIntegration,
     model_data: ModelData,
 }
@@ -426,7 +426,7 @@ impl Drop for Renderer {
         self.device.wait_idle().ok();
 
         self.view.destroy(&self.device);
-        self.resource_manager.clean(&self.device);
+        self.resource_manager.force_destroy(&self.device);
     }
 }
 

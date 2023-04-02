@@ -9,13 +9,13 @@ use cinder::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Image, ImageDescription},
-        manager::ResourceHandle,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::{Sampler, SamplerDescription},
         shader::ShaderDesc,
         ResourceManager,
     },
     view::{View, ViewDescription},
+    ResourceId,
 };
 use math::size::Size2D;
 use winit::{
@@ -38,13 +38,13 @@ pub struct Renderer {
     resource_manager: ResourceManager,
     device: Device,
     view: View,
-    render_pipeline: ResourceHandle<GraphicsPipeline>,
+    render_pipeline: ResourceId<GraphicsPipeline>,
     render_context: RenderContext,
     _upload_context: UploadContext,
-    vertex_buffer_handle: ResourceHandle<Buffer>,
-    index_buffer_handle: ResourceHandle<Buffer>,
-    _sampler: ResourceHandle<Sampler>,
-    _texture_handle: ResourceHandle<Image>,
+    vertex_buffer_handle: ResourceId<Buffer>,
+    index_buffer_handle: ResourceId<Buffer>,
+    _sampler: ResourceId<Sampler>,
+    _texture_handle: ResourceId<Image>,
 }
 
 impl Renderer {
@@ -158,10 +158,8 @@ impl Renderer {
                 ..Default::default()
             },
         )?);
-        let image_buffer = resource_manager
-            .get_buffer(image_buffer_handle.id())
-            .unwrap();
-        let texture = resource_manager.get_image(texture_handle.id()).unwrap();
+        let image_buffer = resource_manager.get_buffer(image_buffer_handle).unwrap();
+        let texture = resource_manager.get_image(texture_handle).unwrap();
         upload_context.begin(&device, device.setup_fence())?;
         {
             upload_context.image_barrier_start(&device, texture);
@@ -178,9 +176,9 @@ impl Renderer {
         )?;
 
         let pipeline = resource_manager
-            .get_graphics_pipeline(render_pipeline.id())
+            .get_graphics_pipeline(render_pipeline)
             .unwrap();
-        let s = resource_manager.get_sampler(sampler.id()).unwrap();
+        let s = resource_manager.get_sampler(sampler).unwrap();
         device.write_bind_group(
             pipeline,
             &[BindGroupBindInfo {
@@ -193,7 +191,7 @@ impl Renderer {
             }],
         )?;
 
-        resource_manager.delete_buffer(image_buffer_handle);
+        resource_manager.delete_buffer(image_buffer_handle, device.current_frame_in_flight);
         Ok(Self {
             resource_manager,
             device,
@@ -236,7 +234,7 @@ impl Renderer {
             {
                 let pipeline = self
                     .resource_manager
-                    .get_graphics_pipeline(self.render_pipeline.id())
+                    .get_graphics_pipeline(self.render_pipeline)
                     .unwrap();
                 self.render_context
                     .bind_graphics_pipeline(&self.device, pipeline);
@@ -245,13 +243,13 @@ impl Renderer {
                 self.render_context.bind_scissor(&self.device, surface_rect);
                 let index_buffer = self
                     .resource_manager
-                    .get_buffer(self.index_buffer_handle.id())
+                    .get_buffer(self.index_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, index_buffer);
                 let vertex_buffer = self
                     .resource_manager
-                    .get_buffer(self.vertex_buffer_handle.id())
+                    .get_buffer(self.vertex_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_vertex_buffer(&self.device, vertex_buffer);
@@ -289,7 +287,7 @@ impl Drop for Renderer {
         self.device.wait_idle().ok();
 
         self.view.destroy(&self.device);
-        self.resource_manager.clean(&self.device);
+        self.resource_manager.force_destroy(&self.device);
     }
 }
 

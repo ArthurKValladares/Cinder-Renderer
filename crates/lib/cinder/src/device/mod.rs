@@ -29,6 +29,7 @@ use resource_manager::ResourceId;
 use thiserror::Error;
 use util::size_of_slice;
 
+pub const MAX_FRAMES_IN_FLIGHT: usize = 3;
 pub const MAX_BINDLESS_RESOURCES: u32 = 1024;
 
 #[derive(Debug, Error)]
@@ -37,8 +38,8 @@ pub enum DeviceError {
     NoSuitableDevice,
     #[error(transparent)]
     ImageCreateError(#[from] ImageError),
-    #[error("Invalid pipeline handle")]
-    InvalidPipelineHandle,
+    #[error(transparent)]
+    ResourceManagerError(#[from] crate::resources::manager::ResourceManagerError),
     #[error("Resource not in cache")]
     ResourceNotInCache,
 }
@@ -48,6 +49,7 @@ pub struct DeviceDescription<'a> {
     pub required_extensions: &'a [Extension],
 }
 
+// TODO: this holds way too much stuff
 pub struct Device {
     p_device: vk::PhysicalDevice,
     p_device_properties: vk::PhysicalDeviceProperties,
@@ -68,6 +70,8 @@ pub struct Device {
     pub(crate) setup_commands_reuse_fence: vk::Fence,
     // TODO: Probably some place to shove extensions
     dynamic_rendering: DynamicRendering,
+    // TODO: once again, just keeping this here for now
+    pub current_frame_in_flight: usize,
 }
 
 impl Device {
@@ -314,6 +318,7 @@ impl Device {
             rendering_complete_semaphore,
             draw_commands_reuse_fence,
             setup_commands_reuse_fence,
+            current_frame_in_flight: 0,
         })
     }
 
@@ -480,7 +485,7 @@ impl Device {
             .map(|old| Shader::create(self, bytes, old.desc).unwrap());
 
         if let Some(new) = new {
-            manager.replace_shader(id, new);
+            manager.replace_shader(id, new, self.current_frame_in_flight);
             Ok(())
         } else {
             Err(DeviceError::ResourceNotInCache)
@@ -503,23 +508,13 @@ impl Device {
         vertex_handle: ResourceId<Shader>,
         fragment_handle: ResourceId<Shader>,
     ) -> Result<()> {
-        if let Some(mut old) = manager.remove_graphics_pipeline(pipeline_handle) {
-            let vertex_shader = manager
-                .get_shader(vertex_handle)
-                .ok_or(DeviceError::ResourceNotInCache)?;
-            let fragment_shader = manager
-                .get_shader(fragment_handle)
-                .ok_or(DeviceError::ResourceNotInCache)?;
-            manager.add_pipeline_to_purgatory(old.recreate(
-                vertex_shader,
-                fragment_shader,
-                self,
-            )?);
-            manager.replace_graphics_pipeline(pipeline_handle, old);
-            Ok(())
-        } else {
-            Err(DeviceError::InvalidPipelineHandle.into())
-        }
+        manager.recreate_graphics_pipeline(
+            self,
+            pipeline_handle,
+            vertex_handle,
+            fragment_handle,
+        )?;
+        Ok(())
     }
 
     pub fn create_compute_pipeline(

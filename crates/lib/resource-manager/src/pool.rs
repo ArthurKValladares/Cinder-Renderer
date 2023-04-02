@@ -5,14 +5,12 @@ use crate::ResourceId;
 pub struct ResourcePool<T> {
     // TODO: Better container for this, generational-arena
     resources: HashMap<usize, T>,
-    purgatory: Vec<T>,
 }
 
 impl<T> Default for ResourcePool<T> {
     fn default() -> Self {
         Self {
             resources: Default::default(),
-            purgatory: Default::default(),
         }
     }
 }
@@ -23,15 +21,14 @@ impl<T> ResourcePool<T> {
     }
 
     pub fn insert(&mut self, resource: T) -> ResourceId<T> {
+        // Needs to guarantee unique id, so insert it not replacing an old resource
         let id = self.resources.len();
         self.resources.insert(id, resource);
         ResourceId::from_index(id)
     }
 
-    pub fn replace(&mut self, handle: ResourceId<T>, new: T) {
-        if let Some(old) = self.resources.insert(handle.id(), new) {
-            self.purgatory.push(old);
-        }
+    pub fn replace(&mut self, handle: ResourceId<T>, new: T) -> Option<T> {
+        self.resources.insert(handle.id(), new)
     }
 
     pub fn get(&self, handle: ResourceId<T>) -> Option<&T> {

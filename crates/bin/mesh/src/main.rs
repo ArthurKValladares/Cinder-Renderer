@@ -12,12 +12,12 @@ use cinder::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage},
-        manager::ResourceHandle,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
         ResourceManager,
     },
     view::View,
+    ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use scene::{ObjMesh, Scene, Vertex};
@@ -89,15 +89,15 @@ pub struct Renderer {
     resource_manager: ResourceManager,
     device: Device,
     view: View,
-    depth_image: ResourceHandle<Image>,
-    render_pipeline: ResourceHandle<GraphicsPipeline>,
+    depth_image: ResourceId<Image>,
+    render_pipeline: ResourceId<GraphicsPipeline>,
     render_context: RenderContext,
     _upload_context: UploadContext,
-    vertex_buffer_handle: ResourceHandle<Buffer>,
-    index_buffer_handle: ResourceHandle<Buffer>,
-    ubo_buffer_handle: ResourceHandle<Buffer>,
-    _sampler: ResourceHandle<Sampler>,
-    _texture_handle: ResourceHandle<Image>,
+    vertex_buffer_handle: ResourceId<Buffer>,
+    index_buffer_handle: ResourceId<Buffer>,
+    ubo_buffer_handle: ResourceId<Buffer>,
+    _sampler: ResourceId<Sampler>,
+    _texture_handle: ResourceId<Image>,
     init_time: Instant,
     index_count: u32,
 }
@@ -170,9 +170,7 @@ impl Renderer {
             },
         )?);
         {
-            let ubo_buffer = resource_manager
-                .get_buffer_mut(ubo_buffer_handle.id())
-                .unwrap();
+            let ubo_buffer = resource_manager.get_buffer_mut(ubo_buffer_handle).unwrap();
             ubo_buffer.mem_copy(
                 util::offset_of!(MeshUniformBufferObject, view) as u64,
                 &[
@@ -207,10 +205,8 @@ impl Renderer {
                 ..Default::default()
             },
         )?);
-        let image_buffer = resource_manager
-            .get_buffer(image_buffer_handle.id())
-            .unwrap();
-        let texture = resource_manager.get_image(texture_handle.id()).unwrap();
+        let image_buffer = resource_manager.get_buffer(image_buffer_handle).unwrap();
+        let texture = resource_manager.get_image(texture_handle).unwrap();
         upload_context.begin(&device, device.setup_fence())?;
         {
             upload_context.image_barrier_start(&device, texture);
@@ -227,9 +223,9 @@ impl Renderer {
         )?;
 
         let pipeline = resource_manager
-            .get_graphics_pipeline(render_pipeline.id())
+            .get_graphics_pipeline(render_pipeline)
             .unwrap();
-        let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle.id()).unwrap();
+        let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle).unwrap();
         device.write_bind_group(
             pipeline,
             &[
@@ -240,7 +236,7 @@ impl Renderer {
                 BindGroupBindInfo {
                     dst_binding: 1,
                     data: BindGroupWriteData::SampledImage(texture.bind_info(
-                        resource_manager.get_sampler(sampler.id()).unwrap(),
+                        resource_manager.get_sampler(sampler).unwrap(),
                         Layout::ShaderReadOnly,
                         0,
                     )),
@@ -249,7 +245,7 @@ impl Renderer {
         )?;
 
         let init_time = Instant::now();
-        resource_manager.delete_buffer(image_buffer_handle);
+        resource_manager.delete_buffer(image_buffer_handle, device.current_frame_in_flight);
         Ok(Self {
             resource_manager,
             device,
@@ -272,7 +268,7 @@ impl Renderer {
         let scale = (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
         let ubo_buffer = self
             .resource_manager
-            .get_buffer_mut(self.ubo_buffer_handle.id())
+            .get_buffer_mut(self.ubo_buffer_handle)
             .unwrap();
         ubo_buffer.mem_copy(
             util::offset_of!(MeshUniformBufferObject, model) as u64,
@@ -295,10 +291,7 @@ impl Renderer {
                 .transition_undefined_to_color(&self.device, drawable);
 
             // TODO: remove get from user code?
-            let depth_image = self
-                .resource_manager
-                .get_image(self.depth_image.id())
-                .unwrap();
+            let depth_image = self.resource_manager.get_image(self.depth_image).unwrap();
             self.render_context.begin_rendering(
                 &self.device,
                 surface_rect,
@@ -316,7 +309,7 @@ impl Renderer {
             {
                 let pipeline = self
                     .resource_manager
-                    .get_graphics_pipeline(self.render_pipeline.id())
+                    .get_graphics_pipeline(self.render_pipeline)
                     .unwrap();
                 self.render_context
                     .bind_graphics_pipeline(&self.device, pipeline);
@@ -325,13 +318,13 @@ impl Renderer {
                 self.render_context.bind_scissor(&self.device, surface_rect);
                 let index_buffer = self
                     .resource_manager
-                    .get_buffer(self.index_buffer_handle.id())
+                    .get_buffer(self.index_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_index_buffer(&self.device, index_buffer);
                 let vertex_buffer = self
                     .resource_manager
-                    .get_buffer(self.vertex_buffer_handle.id())
+                    .get_buffer(self.vertex_buffer_handle)
                     .unwrap();
                 self.render_context
                     .bind_vertex_buffer(&self.device, vertex_buffer);
@@ -357,7 +350,7 @@ impl Renderer {
         self.view.resize(&self.device)?;
         let depth_image = self
             .resource_manager
-            .get_image_mut(self.depth_image.id())
+            .get_image_mut(self.depth_image)
             .unwrap();
         depth_image.resize(&self.device, Size2D::new(width, height))?;
         Ok(())
@@ -369,7 +362,7 @@ impl Drop for Renderer {
         self.device.wait_idle().ok();
 
         self.view.destroy(&self.device);
-        self.resource_manager.clean(&self.device);
+        self.resource_manager.force_destroy(&self.device);
     }
 }
 
