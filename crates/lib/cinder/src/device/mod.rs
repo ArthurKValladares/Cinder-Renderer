@@ -485,7 +485,7 @@ impl Device {
             .map(|old| Shader::create(self, bytes, old.desc).unwrap());
 
         if let Some(new) = new {
-            manager.replace_shader(id, new, self.current_frame_in_flight);
+            manager.replace_shader(id, new, self.frame_index());
             Ok(())
         } else {
             Err(DeviceError::ResourceNotInCache)
@@ -617,6 +617,14 @@ impl Device {
             self.surface
                 .get_data(self.p_device, Resolution { width, height }, false)?;
         Ok(())
+    }
+
+    pub fn frame_index(&self) -> usize {
+        self.current_frame_in_flight % MAX_FRAMES_IN_FLIGHT
+    }
+
+    pub fn bump_frame(&mut self) {
+        self.current_frame_in_flight += 1;
     }
 }
 

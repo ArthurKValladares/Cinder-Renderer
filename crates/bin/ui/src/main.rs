@@ -466,6 +466,9 @@ fn main() {
             }
             Event::RedrawRequested(_) => {
                 renderer.draw(&window).unwrap();
+
+                renderer.resource_manager.consume(&renderer.device);
+                renderer.device.bump_frame();
             }
             _ => {}
         }

@@ -145,8 +145,7 @@ impl ResourceManager {
             let old_raw_pipeline = old
                 .recreate(vertex_shader, fragment_shader, device)
                 .map_err(ResourceManagerError::FallbackError)?;
-            self.to_consume[device.current_frame_in_flight]
-                .push(Resource::RawPipeline(old_raw_pipeline));
+            self.to_consume[device.frame_index()].push(Resource::RawPipeline(old_raw_pipeline));
             Ok(())
         } else {
             Err(ResourceManagerError::InvalidPipelineHandle)

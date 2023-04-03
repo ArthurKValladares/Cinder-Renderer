@@ -446,7 +446,7 @@ impl EguiIntegration {
         )?;
 
         self.image_map.insert(*id, image_handle);
-        resource_manager.delete_buffer_raw(image_staging_buffer, device.current_frame_in_flight);
+        resource_manager.delete_buffer_raw(image_staging_buffer, device.frame_index());
 
         Ok(())
     }

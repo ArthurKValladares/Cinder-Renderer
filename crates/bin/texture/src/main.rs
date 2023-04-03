@@ -154,7 +154,7 @@ impl Renderer {
             }],
         )?;
         let texture_handle = resource_manager.insert_image(texture);
-        resource_manager.delete_buffer(image_buffer_handle, device.current_frame_in_flight);
+        resource_manager.delete_buffer(image_buffer_handle, device.frame_index());
         Ok(Self {
             resource_manager,
             device,
