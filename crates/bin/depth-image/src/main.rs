@@ -605,6 +605,9 @@ fn main() {
             },
             Event::RedrawRequested(_) => {
                 renderer.draw().unwrap();
+
+                renderer.resource_manager.consume(&renderer.device);
+                renderer.device.bump_frame();
             }
             _ => {}
         }
