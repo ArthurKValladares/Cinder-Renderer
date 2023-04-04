@@ -5,7 +5,7 @@ use anyhow::Result;
 use ash::vk;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
 use ash::vk::{KhrGetPhysicalDeviceProperties2Fn, KhrPortabilityEnumerationFn};
-use raw_window_handle::HasRawDisplayHandle;
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use std::{
     ffi::{CStr, CString},
     os::raw::c_char,
@@ -51,7 +51,10 @@ pub struct Instance {
 }
 
 impl Instance {
-    pub fn new(window: &winit::window::Window, required_extensions: &[Extension]) -> Result<Self> {
+    pub fn new<W>(window: &W, required_extensions: &[Extension]) -> Result<Self>
+    where
+        W: HasRawWindowHandle + HasRawDisplayHandle,
+    {
         let entry = unsafe { ash::Entry::load()? };
 
         let layers = layer_names();

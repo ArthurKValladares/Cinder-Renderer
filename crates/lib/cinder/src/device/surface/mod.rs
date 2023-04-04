@@ -10,7 +10,10 @@ pub struct Surface {
 }
 
 impl Surface {
-    pub fn new(window: &winit::window::Window, instance: &Instance) -> Result<Self> {
+    pub fn new<W>(window: &W, instance: &Instance) -> Result<Self>
+    where
+        W: HasRawWindowHandle + HasRawDisplayHandle,
+    {
         let surface_loader = ash::extensions::khr::Surface::new(instance.entry(), instance.raw());
         let surface = unsafe {
             ash_window::create_surface(

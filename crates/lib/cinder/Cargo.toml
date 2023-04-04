@@ -8,13 +8,12 @@ edition = "2021"
 anyhow = "1"
 ash = {version = "0.37"}
 ash-window = {version = "0.12.0"}
-winit = "0.28"
 thiserror = "1"
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
 util = { path = "../util" }
 resource-manager = { path = "../resource-manager" }
 tracing = "0.1"
-raw-window-handle = "0.5"
+raw-window-handle = "0.5.0"
 rust-shader-tools = { git = "https://github.com/ArthurKValladares/Rust-Shader-Tools", features = ["shader-structs"] }
 num = "0.4.0"
 bitflags = "1.3.2"

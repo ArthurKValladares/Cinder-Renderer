@@ -25,6 +25,7 @@ use anyhow::Result;
 use ash::vk::KhrPortabilitySubsetFn;
 use ash::{extensions::khr::DynamicRendering, vk};
 use math::{rect::Rect2D, size::Size2D};
+use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use resource_manager::ResourceId;
 use thiserror::Error;
 use util::size_of_slice;
@@ -75,7 +76,10 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn new(window: &winit::window::Window, desc: DeviceDescription) -> Result<Self> {
+    pub fn new<W>(window: &W, width: u32, height: u32, desc: DeviceDescription) -> Result<Self>
+    where
+        W: HasRawWindowHandle + HasRawDisplayHandle,
+    {
         let instance = Instance::new(window, desc.required_extensions)?;
         let surface = Surface::new(window, &instance)?;
 
@@ -245,15 +249,7 @@ impl Device {
             "descriptor pool",
         );
 
-        let window_size = window.inner_size();
-        let surface_data = surface.get_data(
-            p_device,
-            Resolution {
-                width: window_size.width,
-                height: window_size.height,
-            },
-            false,
-        )?;
+        let surface_data = surface.get_data(p_device, Resolution { width, height }, false)?;
 
         // TODO: Figure out sync story
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
