@@ -104,7 +104,6 @@ pub struct Renderer {
     _ubo_buffer_handle: ResourceId<Buffer>,
     _sampler: ResourceId<Sampler>,
     _image_handles: Vec<ResourceId<Image>>,
-    _image_buffer_handles: Vec<ResourceId<Buffer>>,
 }
 
 impl Renderer {
@@ -304,6 +303,10 @@ impl Renderer {
             &[],
         )?;
 
+        for handle in image_buffer_handles {
+            resource_manager.delete_buffer(handle, device.frame_index());
+        }
+
         Ok(Self {
             resource_manager,
             device,
@@ -316,7 +319,6 @@ impl Renderer {
             index_buffer_handle,
             _sampler: sampler,
             _image_handles: image_handles,
-            _image_buffer_handles: image_buffer_handles,
             _ubo_buffer_handle: ubo_buffer_handle,
             mesh_draws,
         })
