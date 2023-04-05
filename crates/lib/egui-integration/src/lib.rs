@@ -1,3 +1,5 @@
+mod sdl;
+
 use anyhow::Result;
 use cinder::{
     context::{
@@ -26,7 +28,8 @@ use egui::{
     ClippedPrimitive, ImageData, Mesh, RawInput, TextureId, TexturesDelta,
 };
 use math::{point::Point2D, rect::Rect2D, size::Size2D};
-use sdl2::video::Window;
+use sdl::{EguiSdl, EventResponse};
+use sdl2::{event::Event, video::Window};
 use std::collections::HashMap;
 use util::size_of_slice;
 
@@ -36,6 +39,7 @@ static INDEX_BUFFER_SIZE: u64 = 1024 * 1024 * 2;
 // TODO: Share image buffer with rest of the codebase
 pub struct EguiIntegration {
     egui_context: egui::Context,
+    egui_sdl: EguiSdl,
     pipeline: ResourceId<GraphicsPipeline>,
     sampler: ResourceId<Sampler>,
     image_map: HashMap<TextureId, ResourceId<Image>>,
@@ -45,13 +49,14 @@ pub struct EguiIntegration {
 
 impl EguiIntegration {
     pub fn new(
+        window: &Window,
         resource_manager: &mut ResourceManager,
         device: &Device,
         view: &View,
     ) -> Result<Self> {
         const PPP: f32 = 3.5;
-
         let egui_context = egui::Context::default();
+        let egui_sdl = EguiSdl::new(window);
         egui_context.set_visuals(egui::Visuals::light());
         egui_context.set_pixels_per_point(PPP);
 
@@ -111,6 +116,7 @@ impl EguiIntegration {
 
         Ok(Self {
             egui_context,
+            egui_sdl,
             sampler,
             pipeline,
             image_map: Default::default(),
@@ -121,6 +127,10 @@ impl EguiIntegration {
 
     pub fn context(&self) -> &egui::Context {
         &self.egui_context
+    }
+
+    pub fn on_event(&mut self, event: &Event) -> EventResponse {
+        self.egui_sdl.on_event(event)
     }
 
     #[allow(clippy::too_many_arguments)]

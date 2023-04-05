@@ -282,7 +282,7 @@ impl Renderer {
                 }],
             )?;
         }
-        let ui = EguiIntegration::new(&mut resource_manager, &device, &view)?;
+        let ui = EguiIntegration::new(&window, &mut resource_manager, &device, &view)?;
 
         Ok(Self {
             resource_manager,
@@ -436,21 +436,24 @@ fn main() {
 
     'running: loop {
         for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => {
-                    break 'running;
+            let response = renderer.ui.on_event(&event);
+            if !response.consumed {
+                match event {
+                    Event::Quit { .. }
+                    | Event::KeyDown {
+                        keycode: Some(Keycode::Escape),
+                        ..
+                    } => {
+                        break 'running;
+                    }
+                    Event::Window {
+                        win_event: sdl2::event::WindowEvent::SizeChanged(width, height),
+                        ..
+                    } => {
+                        renderer.resize(width as u32, height as u32).unwrap();
+                    }
+                    _ => {}
                 }
-                Event::Window {
-                    win_event: sdl2::event::WindowEvent::SizeChanged(width, height),
-                    ..
-                } => {
-                    renderer.resize(width as u32, height as u32).unwrap();
-                }
-                _ => {}
             }
         }
 
