@@ -18,6 +18,7 @@ use cinder::{
 };
 use math::size::Size2D;
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
+use util::{SdlContext, WindowDescription};
 
 pub const WINDOW_WIDTH: u32 = 1280;
 pub const WINDOW_HEIGHT: u32 = 1280;
@@ -234,21 +235,17 @@ impl Drop for Renderer {
 }
 
 fn main() {
-    let sdl_context = sdl2::init().unwrap();
-    let mut event_pump = sdl_context.event_pump().unwrap();
-    let window = sdl_context
-        .video()
-        .unwrap()
-        .window("hello-triangle", WINDOW_WIDTH, WINDOW_HEIGHT)
-        .position_centered()
-        .resizable()
-        .build()
-        .unwrap();
+    let mut sdl = SdlContext::new(
+        WINDOW_WIDTH,
+        WINDOW_HEIGHT,
+        WindowDescription { title: "ui" },
+    )
+    .unwrap();
 
-    let mut renderer = Renderer::new(&window).unwrap();
+    let mut renderer = Renderer::new(&sdl.window).unwrap();
 
     'running: loop {
-        for event in event_pump.poll_iter() {
+        for event in sdl.event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
                 | Event::KeyDown {
