@@ -20,17 +20,10 @@ use cinder::{
 };
 use egui_integration::{egui, EguiIntegration};
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
+use sdl2::{event::Event, keyboard::Keycode, video::Window};
 
-use winit::{
-    dpi::PhysicalSize,
-    event::VirtualKeyCode,
-    event::{Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop},
-    window::WindowBuilder,
-};
-
-pub const WINDOW_WIDTH: u32 = 2000;
-pub const WINDOW_HEIGHT: u32 = 2000;
+pub const WINDOW_WIDTH: u32 = 1280;
+pub const WINDOW_HEIGHT: u32 = 1280;
 
 include!(concat!(
     env!("CARGO_MANIFEST_DIR"),
@@ -92,9 +85,10 @@ pub struct Renderer {
 }
 
 impl Renderer {
-    pub fn new(event_loop: &EventLoop<()>, window: &winit::window::Window) -> Result<Self> {
+    pub fn new(window: &Window) -> Result<Self> {
         let mut resource_manager = ResourceManager::default();
-        let device = Device::new(window, Default::default())?;
+        let (width, height) = window.drawable_size();
+        let device = Device::new(window, width, height, Default::default())?;
         let render_context = RenderContext::new(&device, Default::default())?;
         let upload_context = UploadContext::new(&device, Default::default())?;
         let view = View::new(&device, Default::default())?;
@@ -288,7 +282,7 @@ impl Renderer {
                 }],
             )?;
         }
-        let ui = EguiIntegration::new(event_loop, &mut resource_manager, &device, &view)?;
+        let ui = EguiIntegration::new(&mut resource_manager, &device, &view)?;
 
         Ok(Self {
             resource_manager,
@@ -320,7 +314,7 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn draw(&mut self, window: &winit::window::Window) -> Result<bool> {
+    pub fn draw(&mut self) -> Result<bool> {
         let drawable = self.view.get_current_drawable(&self.device)?;
 
         self.render_context.begin(&self.device)?;
@@ -383,7 +377,6 @@ impl Renderer {
                 self.device.setup_fence(),
                 &mut self.render_context,
                 surface_rect,
-                window,
                 |ctx| {
                     let pi_2 = std::f32::consts::PI * 2.0;
                     egui::Window::new("UI").show(ctx, |ui| {
@@ -428,51 +421,43 @@ impl Drop for Renderer {
 }
 
 fn main() {
-    let event_loop = EventLoop::new();
-    let window = WindowBuilder::new()
-        .with_title("Cinder Window")
-        .with_inner_size(PhysicalSize {
-            width: WINDOW_WIDTH,
-            height: WINDOW_HEIGHT,
-        })
-        .build(&event_loop)
+    let sdl_context = sdl2::init().unwrap();
+    let mut event_pump = sdl_context.event_pump().unwrap();
+    let window = sdl_context
+        .video()
+        .unwrap()
+        .window("hello-triangle", WINDOW_WIDTH, WINDOW_HEIGHT)
+        .position_centered()
+        .resizable()
+        .build()
         .unwrap();
 
-    let mut renderer = Renderer::new(&event_loop, &window).unwrap();
+    let mut renderer = Renderer::new(&window).unwrap();
 
-    event_loop.run(move |event, _, control_flow| {
-        *control_flow = ControlFlow::Poll;
-
-        renderer.update().expect("could not update renderer");
-
-        match event {
-            Event::WindowEvent {
-                event: window_event,
-                ..
-            } => {
-                renderer.ui.on_event(&window_event);
-                match window_event {
-                    WindowEvent::KeyboardInput { input, .. } => {
-                        if let Some(VirtualKeyCode::Escape) = input.virtual_keycode {
-                            *control_flow = ControlFlow::Exit;
-                        }
-                    }
-                    WindowEvent::Resized(size) => {
-                        renderer.resize(size.width, size.height).unwrap();
-                    }
-                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                    _ => {}
+    'running: loop {
+        for event in event_pump.poll_iter() {
+            match event {
+                Event::Quit { .. }
+                | Event::KeyDown {
+                    keycode: Some(Keycode::Escape),
+                    ..
+                } => {
+                    break 'running;
                 }
+                Event::Window {
+                    win_event: sdl2::event::WindowEvent::SizeChanged(width, height),
+                    ..
+                } => {
+                    renderer.resize(width as u32, height as u32).unwrap();
+                }
+                _ => {}
             }
-            Event::RedrawRequested(_) => {
-                renderer.draw(&window).unwrap();
-
-                renderer.resource_manager.consume(&renderer.device);
-                renderer.device.bump_frame();
-            }
-            _ => {}
         }
 
-        window.request_redraw();
-    });
+        renderer.update().unwrap();
+        renderer.draw().unwrap();
+
+        renderer.resource_manager.consume(&renderer.device);
+        renderer.device.bump_frame();
+    }
 }

@@ -9,7 +9,7 @@ anyhow = "1"
 cinder = {path = "../../lib/cinder"}
 util = {path = "../../lib/util"}
 egui-integration = {path = "../../lib/egui-integration"}
-winit = "0.28"
+sdl2 = { git = "https://github.com/Rust-SDL2/rust-sdl2", features = ["bundled", "raw-window-handle"] }
 image = "0.24.3"
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
 serde = { version = "1", features = ["derive"] }

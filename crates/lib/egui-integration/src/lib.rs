@@ -23,26 +23,19 @@ use core::panic;
 pub use egui;
 use egui::{
     epaint::{ImageDelta, Primitive},
-    ClippedPrimitive, ImageData, Mesh, PaintCallbackInfo, TextureId, TexturesDelta,
+    ClippedPrimitive, ImageData, Mesh, RawInput, TextureId, TexturesDelta,
 };
 use math::{point::Point2D, rect::Rect2D, size::Size2D};
+use sdl2::video::Window;
 use std::collections::HashMap;
 use util::size_of_slice;
-use winit::{event::WindowEvent, event_loop::EventLoopWindowTarget, window::Window};
 
 static VERTEX_BUFFER_SIZE: u64 = 1024 * 1024 * 4;
 static INDEX_BUFFER_SIZE: u64 = 1024 * 1024 * 2;
 
-type DrawCallback = dyn for<'a, 'b> Fn(PaintCallbackInfo, &Device) + Sync + Send;
-
-pub struct EguiCallbackFn {
-    pub draw: Box<DrawCallback>,
-}
-
 // TODO: Share image buffer with rest of the codebase
 pub struct EguiIntegration {
     egui_context: egui::Context,
-    egui_winit: egui_winit::State,
     pipeline: ResourceId<GraphicsPipeline>,
     sampler: ResourceId<Sampler>,
     image_map: HashMap<TextureId, ResourceId<Image>>,
@@ -51,18 +44,16 @@ pub struct EguiIntegration {
 }
 
 impl EguiIntegration {
-    pub fn new<T>(
-        event_loop: &EventLoopWindowTarget<T>,
+    pub fn new(
         resource_manager: &mut ResourceManager,
         device: &Device,
         view: &View,
     ) -> Result<Self> {
+        const PPP: f32 = 3.5;
+
         let egui_context = egui::Context::default();
         egui_context.set_visuals(egui::Visuals::light());
-        let mut egui_winit = egui_winit::State::new(event_loop);
-        const PPP: f32 = 3.5;
         egui_context.set_pixels_per_point(PPP);
-        egui_winit.set_pixels_per_point(PPP);
 
         let mut vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/egui.vert.spv"),
@@ -120,7 +111,6 @@ impl EguiIntegration {
 
         Ok(Self {
             egui_context,
-            egui_winit,
             sampler,
             pipeline,
             image_map: Default::default(),
@@ -133,13 +123,6 @@ impl EguiIntegration {
         &self.egui_context
     }
 
-    pub fn on_event(&mut self, event: &WindowEvent<'_>) {
-        let response = self.egui_winit.on_event(&self.egui_context, event);
-        if response.repaint {
-            // TODO
-        }
-    }
-
     #[allow(clippy::too_many_arguments)]
     pub fn run(
         &mut self,
@@ -150,13 +133,11 @@ impl EguiIntegration {
         upload_fence: Fence,
         render_context: &mut RenderContext,
         render_area: Rect2D<i32, u32>,
-        window: &Window,
         f: impl FnOnce(&egui::Context),
     ) -> Result<()> {
-        self.egui_winit
-            .set_pixels_per_point(self.egui_context.pixels_per_point());
+        // TODO: Actually get this
+        let raw_input = RawInput::default();
 
-        let raw_input = self.egui_winit.take_egui_input(window);
         // TODO: Hook up repaint_after
         let egui::FullOutput {
             platform_output,
@@ -166,10 +147,6 @@ impl EguiIntegration {
         } = self.egui_context.run(raw_input, f);
 
         let clipped_primitives = self.egui_context.tessellate(shapes);
-
-        // TOOD: Separate this step maybe?
-        self.egui_winit
-            .handle_platform_output(window, &self.egui_context, platform_output);
 
         // TODO? Make this a separate step
         self.set_textures(
@@ -186,7 +163,6 @@ impl EguiIntegration {
             drawable,
             render_context,
             render_area,
-            window,
             self.egui_context.pixels_per_point(),
             &clipped_primitives,
         )?;
@@ -204,11 +180,9 @@ impl EguiIntegration {
         drawable: Drawable,
         render_context: &mut RenderContext,
         render_area: Rect2D<i32, u32>,
-        window: &Window,
         pixels_per_point: f32,
         clipped_primitives: &[ClippedPrimitive],
     ) -> Result<()> {
-        let size = window.inner_size();
         let present_index = drawable.index();
         let vertex_buffer = resource_manager
             .get_buffer(self.vertex_buffers[present_index as usize])
@@ -222,6 +196,7 @@ impl EguiIntegration {
         let mut vertex_base = 0;
         let mut index_base = 0;
 
+        let size = render_area.size();
         render_context.begin_rendering(
             device,
             render_area,
@@ -243,7 +218,7 @@ impl EguiIntegration {
             render_context.bind_index_buffer(device, index_buffer);
             render_context.bind_viewport(
                 device,
-                Rect2D::from_width_height(size.width, size.height),
+                Rect2D::from_width_height(size.width(), size.height()),
                 false,
             );
 
@@ -251,8 +226,8 @@ impl EguiIntegration {
                 device,
                 pipeline,
                 &[
-                    size.width as f32 / pixels_per_point,
-                    size.height as f32 / pixels_per_point,
+                    size.width() as f32 / pixels_per_point,
+                    size.height() as f32 / pixels_per_point,
                 ],
                 0,
             )?;
@@ -267,15 +242,15 @@ impl EguiIntegration {
                         let min = clip_rect.min;
 
                         egui::Pos2 {
-                            x: f32::clamp(min.x * pixels_per_point, 0.0, size.width as f32),
-                            y: f32::clamp(min.y * pixels_per_point, 0.0, size.height as f32),
+                            x: f32::clamp(min.x * pixels_per_point, 0.0, size.width() as f32),
+                            y: f32::clamp(min.y * pixels_per_point, 0.0, size.height() as f32),
                         }
                     };
                     let max = {
                         let max = clip_rect.max;
                         egui::Pos2 {
-                            x: f32::clamp(max.x * pixels_per_point, min.x, size.width as f32),
-                            y: f32::clamp(max.y * pixels_per_point, min.y, size.height as f32),
+                            x: f32::clamp(max.x * pixels_per_point, min.x, size.width() as f32),
+                            y: f32::clamp(max.y * pixels_per_point, min.y, size.height() as f32),
                         }
                     };
                     render_context.bind_scissor(
@@ -304,27 +279,8 @@ impl EguiIntegration {
                             &mut index_base,
                         )?;
                     }
-                    Primitive::Callback(callback) => {
-                        let cbfn =
-                            if let Some(c) = callback.callback.downcast_ref::<EguiCallbackFn>() {
-                                c
-                            } else {
-                                println!(
-                                    "Could not cast callback to type required by the egui backend"
-                                );
-                                continue;
-                            };
-                        let screen_size_px = {
-                            let size = window.inner_size();
-                            [size.width, size.height]
-                        };
-                        let paint_callback_info = PaintCallbackInfo {
-                            viewport: callback.rect,
-                            clip_rect: *clip_rect,
-                            pixels_per_point,
-                            screen_size_px,
-                        };
-                        (cbfn.draw)(paint_callback_info, device);
+                    Primitive::Callback(_) => {
+                        println!("Egui callback primitives not supported");
                     }
                 }
             }
@@ -503,6 +459,5 @@ impl EguiIntegration {
 
     pub fn set_ui_scale(&mut self, scale: f32) {
         self.egui_context.set_pixels_per_point(scale);
-        self.egui_winit.set_pixels_per_point(scale);
     }
 }
