@@ -90,6 +90,7 @@ name = "bindless"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "camera",
  "cinder",
  "home",
  "image",
@@ -161,6 +162,13 @@ name = "byteorder"
 version = "1.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
+
+[[package]]
+name = "camera"
+version = "0.1.0"
+dependencies = [
+ "math",
+]
 
 [[package]]
 name = "cc"
@@ -360,6 +368,7 @@ name = "depth-image"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "camera",
  "cinder",
  "home",
  "image",
@@ -567,6 +576,7 @@ name = "hello-cube"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "camera",
  "cinder",
  "home",
  "image",
@@ -777,6 +787,7 @@ name = "mesh"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "camera",
  "cinder",
  "home",
  "image",
@@ -1508,6 +1519,7 @@ name = "ui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "camera",
  "cinder",
  "egui-integration",
  "home",

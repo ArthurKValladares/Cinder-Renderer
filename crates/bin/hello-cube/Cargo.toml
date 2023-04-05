@@ -6,6 +6,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
+camera = {path = "../../lib/camera"}
 cinder = {path = "../../lib/cinder"}
 util = {path = "../../lib/util"}
 image = "0.24.3"

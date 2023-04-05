@@ -6,4 +6,3 @@ edition = "2021"
 
 [dependencies]
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
-cinder = {path = "../cinder"}

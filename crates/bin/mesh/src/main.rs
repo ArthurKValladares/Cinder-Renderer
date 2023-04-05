@@ -33,31 +33,6 @@ include!(concat!(
     "/gen/mesh_shader_structs.rs"
 ));
 
-#[rustfmt::skip]
-fn look_to(eye: Vec3, front: Vec3, world_up: Vec3) -> Mat4 {
-    let front = (front * -1.0).normalized();
-    let side = world_up.cross(&front).normalized();
-    let up = front.cross(&side);
-
-    Mat4::from_data(
-        side.x(),  side.y(),  side.z(),  -side.dot(&eye),
-        up.x(),    up.y(),    up.z(),    -up.dot(&eye),
-        front.x(), front.y(), front.z(), -front.dot(&eye),
-        0.0,       0.0,       0.0,       1.0,
-    )
-}
-
-#[rustfmt::skip]
-fn new_infinite_perspective_proj(aspect_ratio: f32, y_fov: f32, z_near: f32) -> Mat4 {
-    let f = 1.0 / (y_fov / 2.0).tan();
-    Mat4::from_data(
-        f / aspect_ratio, 0., 0.0, 0.0,
-        0.0,              f,  0.0, 0.0,
-        0.0,              0., 0.0, z_near,
-        0.0,              0., 1.0, 0.0,
-    )
-}
-
 impl Vertex for MeshVertex {
     fn from_obj_mesh_index(mesh: &ObjMesh, i: usize) -> Self {
         let i_pos = [
@@ -170,12 +145,12 @@ impl Renderer {
             ubo_buffer.mem_copy(
                 util::offset_of!(MeshUniformBufferObject, view) as u64,
                 &[
-                    look_to(
+                    camera::look_to(
                         Vec3::new(2.0, -0.5, 0.0),
                         Vec3::new(1.0, 0.0, 0.0),
                         Vec3::new(0.0, 1.0, 0.0),
                     ),
-                    new_infinite_perspective_proj(
+                    camera::new_infinite_perspective_proj(
                         surface_rect.width() as f32 / surface_rect.height() as f32,
                         30.0,
                         0.01,

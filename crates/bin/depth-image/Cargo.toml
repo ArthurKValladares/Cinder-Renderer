@@ -6,6 +6,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
+camera = {path = "../../lib/camera"}
 cinder = {path = "../../lib/cinder"}
 util = {path = "../../lib/util"}
 sdl2 = { git = "https://github.com/Rust-SDL2/rust-sdl2", features = ["bundled", "raw-window-handle"] }
