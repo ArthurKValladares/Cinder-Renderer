@@ -161,7 +161,7 @@ impl Renderer {
             .unwrap()
             .to_rgba8();
         let (width, height) = image.dimensions();
-        let texture_handle = device.create_image(Size2D::new(width, height), Default::default())?;
+        let texture = device.create_image(Size2D::new(width, height), Default::default())?;
         let image_data = image.into_raw();
 
         let image_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(

@@ -1,9 +1,13 @@
+mod material;
+mod mesh;
+mod vertex;
+
 use anyhow::Result;
 use image::DynamicImage;
 use rayon::iter::*;
 use std::path::Path;
 use thiserror::Error;
-pub use tobj::Mesh as ObjMesh;
+pub use {material::*, mesh::*, vertex::*};
 
 #[derive(Debug, Error)]
 pub enum SceneError {
@@ -11,25 +15,6 @@ pub enum SceneError {
     FileError { err: std::io::Error, path: String },
     #[error(transparent)]
     ImageError(#[from] image::error::ImageError),
-}
-
-pub trait Vertex {
-    fn from_obj_mesh_index(mesh: &ObjMesh, i: usize) -> Self;
-
-    fn pos_3d(&self) -> [f32; 3];
-}
-
-#[derive(Debug)]
-pub struct Material {
-    pub diffuse: Option<DynamicImage>,
-}
-
-pub struct Mesh<V: Vertex> {
-    pub indices: Vec<u32>,
-    pub vertices: Vec<V>,
-    pub material_index: Option<usize>,
-    pub min_pos: [f32; 3],
-    pub max_pos: [f32; 3],
 }
 
 pub struct Scene<V: Vertex> {
@@ -78,38 +63,16 @@ where
 
         let mut min_pos = [f32::INFINITY; 3];
         let mut max_pos = [f32::NEG_INFINITY; 3];
-        let mut meshes = Vec::new();
+        let mut meshes = Vec::with_capacity(models.len());
         for model in models {
-            let mut mesh_min_pos = [f32::INFINITY; 3];
-            let mut mesh_max_pos = [f32::NEG_INFINITY; 3];
-            let mut vertices = Vec::new();
-
-            let obj_mesh = model.mesh;
-
-            for i in 0..obj_mesh.positions.len() / 3 {
-                let vertex = V::from_obj_mesh_index(&obj_mesh, i);
-                let pos = vertex.pos_3d();
-
-                vertices.push(vertex);
-
-                for i in 0..3 {
-                    mesh_min_pos[i] = f32::min(mesh_min_pos[i], pos[i]);
-                    mesh_max_pos[i] = f32::max(mesh_max_pos[i], pos[i]);
-                }
-            }
+            let mesh = Mesh::from_obj_model(model);
 
             for i in 0..3 {
-                min_pos[i] = f32::min(min_pos[i], mesh_min_pos[i]);
-                max_pos[i] = f32::max(max_pos[i], mesh_max_pos[i]);
+                min_pos[i] = f32::min(min_pos[i], mesh.min_pos[i]);
+                max_pos[i] = f32::max(max_pos[i], mesh.max_pos[i]);
             }
 
-            meshes.push(Mesh {
-                indices: obj_mesh.indices,
-                vertices,
-                material_index: obj_mesh.material_id,
-                min_pos: mesh_min_pos,
-                max_pos: mesh_max_pos,
-            });
+            meshes.push(mesh);
         }
 
         Ok(Self {
