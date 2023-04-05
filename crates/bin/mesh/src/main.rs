@@ -62,12 +62,9 @@ pub struct Renderer {
     depth_image: ResourceId<Image>,
     render_pipeline: ResourceId<GraphicsPipeline>,
     render_context: RenderContext,
-    _upload_context: UploadContext,
     vertex_buffer_handle: ResourceId<Buffer>,
     index_buffer_handle: ResourceId<Buffer>,
     ubo_buffer_handle: ResourceId<Buffer>,
-    _sampler: ResourceId<Sampler>,
-    _texture_handle: ResourceId<Image>,
     init_time: Instant,
     index_count: u32,
 }
@@ -158,15 +155,13 @@ impl Renderer {
                 ],
             )?;
         }
-        let sampler =
-            resource_manager.insert_sampler(device.create_sampler(&device, Default::default())?);
+        let sampler = device.create_sampler(&device, Default::default())?;
 
         let image = image::load_from_memory(include_bytes!("../assets/textures/viking_room.png"))
             .unwrap()
             .to_rgba8();
         let (width, height) = image.dimensions();
-        let texture_handle = resource_manager
-            .insert_image(device.create_image(Size2D::new(width, height), Default::default())?);
+        let texture_handle = device.create_image(Size2D::new(width, height), Default::default())?;
         let image_data = image.into_raw();
 
         let image_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
@@ -177,12 +172,11 @@ impl Renderer {
             },
         )?);
         let image_buffer = resource_manager.get_buffer(image_buffer_handle).unwrap();
-        let texture = resource_manager.get_image(texture_handle).unwrap();
         upload_context.begin(&device, device.setup_fence())?;
         {
-            upload_context.image_barrier_start(&device, texture);
-            upload_context.copy_buffer_to_image(&device, image_buffer, texture);
-            upload_context.image_barrier_end(&device, texture);
+            upload_context.image_barrier_start(&device, &texture);
+            upload_context.copy_buffer_to_image(&device, image_buffer, &texture);
+            upload_context.image_barrier_end(&device, &texture);
         }
         upload_context.end(
             &device,
@@ -207,7 +201,7 @@ impl Renderer {
                 BindGroupBindInfo {
                     dst_binding: 1,
                     data: BindGroupWriteData::SampledImage(texture.bind_info(
-                        resource_manager.get_sampler(sampler).unwrap(),
+                        &sampler,
                         Layout::ShaderReadOnly,
                         0,
                     )),
@@ -215,22 +209,22 @@ impl Renderer {
             ],
         )?;
 
-        let init_time = Instant::now();
+        resource_manager.insert_sampler(sampler);
+        resource_manager.insert_image(texture);
+
         resource_manager.delete_buffer(image_buffer_handle, device.current_frame_in_flight);
+
         Ok(Self {
             resource_manager,
             device,
             view,
             depth_image,
             render_context,
-            _upload_context: upload_context,
             render_pipeline,
             vertex_buffer_handle,
             index_buffer_handle,
-            _sampler: sampler,
-            _texture_handle: texture_handle,
             ubo_buffer_handle,
-            init_time,
+            init_time: Instant::now(),
             index_count: mesh.indices.len() as u32,
         })
     }

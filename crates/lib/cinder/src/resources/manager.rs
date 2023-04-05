@@ -2,7 +2,10 @@ use super::{
     buffer::Buffer, image::Image, pipeline::graphics::GraphicsPipeline, sampler::Sampler,
     shader::Shader,
 };
-use crate::device::{Device, MAX_FRAMES_IN_FLIGHT};
+use crate::{
+    context::upload_context::UploadContext,
+    device::{Device, MAX_FRAMES_IN_FLIGHT},
+};
 use ash::vk;
 use resource_manager::{ResourceId, ResourcePool};
 use thiserror::Error;
@@ -93,6 +96,7 @@ impl ResourceManager {
         for mut res in self.samplers.drain() {
             res.destroy(device.raw());
         }
+
         for _ in 0..MAX_FRAMES_IN_FLIGHT {
             self.consume(device);
         }

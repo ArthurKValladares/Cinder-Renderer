@@ -37,16 +37,10 @@ pub struct Renderer {
     resource_manager: ResourceManager,
     device: Device,
     view: View,
-    _vertex_shader: ResourceId<Shader>,
-    _fragment_shader: ResourceId<Shader>,
     render_pipeline: ResourceId<GraphicsPipeline>,
     render_context: RenderContext,
-    _upload_context: UploadContext,
     vertex_buffer_handle: ResourceId<Buffer>,
     index_buffer_handle: ResourceId<Buffer>,
-    _image_buffer_handle: ResourceId<Buffer>,
-    _sampler: ResourceId<Sampler>,
-    _texture_handle: ResourceId<Image>,
 }
 
 impl Renderer {
@@ -61,35 +55,32 @@ impl Renderer {
 
         let view = View::new(&device, Default::default())?;
 
-        let vertex_shader = device.create_shader(
+        let mut vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/hot_reload.vert.spv"),
             Default::default(),
         )?;
-        let fragment_shader = device.create_shader(
+        let mut fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/hot_reload.frag.spv"),
             Default::default(),
         )?;
-
         let render_pipeline =
             resource_manager.insert_graphics_pipeline(device.create_graphics_pipeline(
                 &vertex_shader,
                 &fragment_shader,
                 Default::default(),
             )?);
-        let vertex_shader = resource_manager.insert_shader(vertex_shader);
-        let fragment_shader = resource_manager.insert_shader(fragment_shader);
 
         shader_hot_reloader.set_graphics(
             Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("shaders")
                 .join("hot_reload.vert")
                 .canonicalize()?,
-            vertex_shader,
+            resource_manager.insert_shader(vertex_shader),
             Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("shaders")
                 .join("hot_reload.frag")
                 .canonicalize()?,
-            fragment_shader,
+            resource_manager.insert_shader(fragment_shader),
             render_pipeline,
         )?;
 
@@ -125,17 +116,14 @@ impl Renderer {
             },
         )?);
 
-        let sampler =
-            resource_manager.insert_sampler(device.create_sampler(&device, Default::default())?);
+        let sampler = device.create_sampler(&device, Default::default())?;
 
         let image = image::load_from_memory(include_bytes!("../assets/rust.png"))
             .unwrap()
             .to_rgba8();
         let (width, height) = image.dimensions();
-        let texture_handle = resource_manager
-            .insert_image(device.create_image(Size2D::new(width, height), Default::default())?);
+        let texture = device.create_image(Size2D::new(width, height), Default::default())?;
         let image_data = image.into_raw();
-
         let image_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
             &image_data,
             BufferDescription {
@@ -144,12 +132,11 @@ impl Renderer {
             },
         )?);
         let image_buffer = resource_manager.get_buffer(image_buffer_handle).unwrap();
-        let texture = resource_manager.get_image(texture_handle).unwrap();
         upload_context.begin(&device, device.setup_fence())?;
         {
-            upload_context.image_barrier_start(&device, texture);
-            upload_context.copy_buffer_to_image(&device, image_buffer, texture);
-            upload_context.image_barrier_end(&device, texture);
+            upload_context.image_barrier_start(&device, &texture);
+            upload_context.copy_buffer_to_image(&device, image_buffer, &texture);
+            upload_context.image_barrier_end(&device, &texture);
         }
         upload_context.end(
             &device,
@@ -163,18 +150,22 @@ impl Renderer {
         let pipeline = resource_manager
             .get_graphics_pipeline(render_pipeline)
             .unwrap();
-        let s = resource_manager.get_sampler(sampler).unwrap();
         device.write_bind_group(
             pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
                 data: BindGroupWriteData::SampledImage(texture.bind_info(
-                    s,
+                    &sampler,
                     Layout::ShaderReadOnly,
                     0,
                 )),
             }],
         )?;
+
+        resource_manager.insert_sampler(sampler);
+        resource_manager.insert_image(texture);
+
+        resource_manager.delete_buffer(image_buffer_handle, device.frame_index());
 
         Ok(Self {
             shader_hot_reloader: shader_hot_reloader.run(),
@@ -182,15 +173,9 @@ impl Renderer {
             device,
             view,
             render_context,
-            _upload_context: upload_context,
-            _vertex_shader: vertex_shader,
-            _fragment_shader: fragment_shader,
             render_pipeline,
             vertex_buffer_handle,
             index_buffer_handle,
-            _image_buffer_handle: image_buffer_handle,
-            _sampler: sampler,
-            _texture_handle: texture_handle,
         })
     }
 

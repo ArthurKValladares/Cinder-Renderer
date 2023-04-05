@@ -34,11 +34,8 @@ pub struct Renderer {
     view: View,
     render_pipeline: ResourceId<GraphicsPipeline>,
     render_context: RenderContext,
-    _upload_context: UploadContext,
     vertex_buffer_handle: ResourceId<Buffer>,
     index_buffer_handle: ResourceId<Buffer>,
-    _sampler_handle: ResourceId<Sampler>,
-    _texture_handle: ResourceId<Image>,
 }
 
 impl Renderer {
@@ -100,8 +97,7 @@ impl Renderer {
             },
         )?);
 
-        let sampler_handle =
-            resource_manager.insert_sampler(device.create_sampler(&device, Default::default())?);
+        let sampler = device.create_sampler(&device, Default::default())?;
 
         let image = image::load_from_memory(include_bytes!("../assets/rust.png"))
             .unwrap()
@@ -137,31 +133,31 @@ impl Renderer {
         let pipeline = resource_manager
             .get_graphics_pipeline(render_pipeline)
             .unwrap();
-        let sampler = resource_manager.get_sampler(sampler_handle).unwrap();
         device.write_bind_group(
             pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
                 data: BindGroupWriteData::SampledImage(texture.bind_info(
-                    sampler,
+                    &sampler,
                     Layout::ShaderReadOnly,
                     0,
                 )),
             }],
         )?;
-        let texture_handle = resource_manager.insert_image(texture);
+
+        resource_manager.insert_sampler(sampler);
+        resource_manager.insert_image(texture);
+
         resource_manager.delete_buffer(image_buffer_handle, device.frame_index());
+
         Ok(Self {
             resource_manager,
             device,
             view,
             render_context,
-            _upload_context: upload_context,
             render_pipeline,
             vertex_buffer_handle,
             index_buffer_handle,
-            _sampler_handle: sampler_handle,
-            _texture_handle: texture_handle,
         })
     }
 

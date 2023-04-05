@@ -35,11 +35,8 @@ pub struct Renderer {
     view: View,
     render_pipeline: ResourceId<GraphicsPipeline>,
     render_context: RenderContext,
-    _upload_context: UploadContext,
     vertex_buffer_handle: ResourceId<Buffer>,
     index_buffer_handle: ResourceId<Buffer>,
-    _sampler: ResourceId<Sampler>,
-    _texture_handle: ResourceId<Image>,
 }
 
 impl Renderer {
@@ -125,25 +122,25 @@ impl Renderer {
             },
         )?);
 
-        let sampler = resource_manager.insert_sampler(device.create_sampler(
+        let sampler = device.create_sampler(
             &device,
             SamplerDescription {
                 name: Some("sampler"),
                 ..Default::default()
             },
-        )?);
+        )?;
 
         let image = image::load_from_memory(include_bytes!("../assets/rust.png"))
             .unwrap()
             .to_rgba8();
         let (width, height) = image.dimensions();
-        let texture_handle = resource_manager.insert_image(device.create_image(
+        let texture = device.create_image(
             Size2D::new(width, height),
             ImageDescription {
                 name: Some("debug image"),
                 ..Default::default()
             },
-        )?);
+        )?;
         let image_data = image.into_raw();
 
         let image_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
@@ -155,12 +152,11 @@ impl Renderer {
             },
         )?);
         let image_buffer = resource_manager.get_buffer(image_buffer_handle).unwrap();
-        let texture = resource_manager.get_image(texture_handle).unwrap();
         upload_context.begin(&device, device.setup_fence())?;
         {
-            upload_context.image_barrier_start(&device, texture);
-            upload_context.copy_buffer_to_image(&device, image_buffer, texture);
-            upload_context.image_barrier_end(&device, texture);
+            upload_context.image_barrier_start(&device, &texture);
+            upload_context.copy_buffer_to_image(&device, image_buffer, &texture);
+            upload_context.image_barrier_end(&device, &texture);
         }
         upload_context.end(
             &device,
@@ -174,18 +170,20 @@ impl Renderer {
         let pipeline = resource_manager
             .get_graphics_pipeline(render_pipeline)
             .unwrap();
-        let s = resource_manager.get_sampler(sampler).unwrap();
         device.write_bind_group(
             pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
                 data: BindGroupWriteData::SampledImage(texture.bind_info(
-                    s,
+                    &sampler,
                     Layout::ShaderReadOnly,
                     0,
                 )),
             }],
         )?;
+
+        resource_manager.insert_sampler(sampler);
+        resource_manager.insert_image(texture);
 
         resource_manager.delete_buffer(image_buffer_handle, device.frame_index());
         Ok(Self {
@@ -193,12 +191,9 @@ impl Renderer {
             device,
             view,
             render_context,
-            _upload_context: upload_context,
             render_pipeline,
             vertex_buffer_handle,
             index_buffer_handle,
-            _sampler: sampler,
-            _texture_handle: texture_handle,
         })
     }
 
