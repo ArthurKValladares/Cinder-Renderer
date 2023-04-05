@@ -67,18 +67,22 @@ impl Renderer {
 
         let vertex_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
             &[
+                // Top-left
                 TextureVertex {
                     i_pos: [-0.5, -0.5],
                     i_uv: [0.0, 1.0],
                 },
+                // Top-right
                 TextureVertex {
                     i_pos: [0.5, -0.5],
                     i_uv: [1.0, 1.0],
                 },
+                // Bottom-right
                 TextureVertex {
                     i_pos: [0.5, 0.5],
                     i_uv: [1.0, 0.0],
                 },
+                // Bottom-left
                 TextureVertex {
                     i_pos: [-0.5, 0.5],
                     i_uv: [0.0, 0.0],

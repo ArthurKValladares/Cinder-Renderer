@@ -1,5 +1,6 @@
 mod material;
 mod mesh;
+pub mod primitives;
 mod vertex;
 
 use anyhow::Result;

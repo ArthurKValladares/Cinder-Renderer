@@ -80,6 +80,13 @@ impl Vertex for BindlessVertex {
     fn pos_3d(&self) -> [f32; 3] {
         [self.pos[0], self.pos[1], self.pos[2]]
     }
+
+    fn set_pos_3d(mut self, x: f32, y: f32, z: f32) -> Self {
+        self.pos[0] = x;
+        self.pos[1] = y;
+        self.pos[2] = z;
+        self
+    }
 }
 
 #[derive(Debug)]

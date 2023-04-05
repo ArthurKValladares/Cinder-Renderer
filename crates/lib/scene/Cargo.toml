@@ -8,5 +8,6 @@ edition = "2021"
 anyhow = "1"
 tobj = "3.2.3"
 image = "0.24.3"
-thiserror = "1"
+math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
 rayon = "1.6.1"
+thiserror = "1"

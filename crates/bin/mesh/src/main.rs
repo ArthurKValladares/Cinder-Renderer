@@ -53,6 +53,11 @@ impl Vertex for MeshVertex {
     fn pos_3d(&self) -> [f32; 3] {
         self.i_pos
     }
+
+    fn set_pos_3d(mut self, x: f32, y: f32, z: f32) -> Self {
+        self.i_pos = [x, y, z];
+        self
+    }
 }
 
 pub struct Renderer {
