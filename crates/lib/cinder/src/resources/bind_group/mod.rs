@@ -66,29 +66,19 @@ impl BindGroupPool {
 pub struct BindGroupLayoutData {
     pub binding: u32,
     pub ty: BindGroupType,
-    pub count: Option<u32>,
+    pub count: u32,
     pub shader_stage: ShaderStage,
     pub flags: vk::DescriptorBindingFlags,
 }
 
 impl BindGroupLayoutData {
-    pub fn new(binding: u32, ty: BindGroupType, shader_stage: ShaderStage) -> Self {
+    pub fn new(binding: u32, ty: BindGroupType, count: u32, shader_stage: ShaderStage) -> Self {
         Self {
             binding,
             ty,
-            count: Some(1),
+            count,
             shader_stage,
             flags: Default::default(),
-        }
-    }
-
-    pub fn new_bindless(binding: u32, ty: BindGroupType, shader_stage: ShaderStage) -> Self {
-        Self {
-            binding,
-            ty,
-            count: None,
-            shader_stage,
-            flags: bindless_bind_group_flags(),
         }
     }
 }
@@ -113,7 +103,7 @@ impl BindGroupLayout {
                 vk::DescriptorSetLayoutBinding::builder()
                     .descriptor_type(data.ty.into())
                     .binding(data.binding)
-                    .descriptor_count(data.count.unwrap_or(MAX_BINDLESS_RESOURCES))
+                    .descriptor_count(data.count)
                     .stage_flags(data.shader_stage.into())
                     .build()
             })
