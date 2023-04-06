@@ -13,7 +13,6 @@ use cinder::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
-        sampler::Sampler,
         ResourceManager,
     },
     view::View,
@@ -149,7 +148,7 @@ impl Renderer {
                 &[
                     camera::look_to(
                         Vec3::new(2.0, -0.5, 0.0),
-                        Vec3::new(1.0, 0.0, 0.0),
+                        Vec3::new(-1.0, 0.0, 0.0),
                         Vec3::new(0.0, 1.0, 0.0),
                     ),
                     camera::new_infinite_perspective_proj(

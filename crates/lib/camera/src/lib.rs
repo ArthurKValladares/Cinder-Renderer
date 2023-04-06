@@ -13,7 +13,7 @@ pub fn new_infinite_perspective_proj(aspect_ratio: f32, y_fov: f32, z_near: f32)
 
 #[rustfmt::skip]
 pub fn look_to(eye: Vec3, front: Vec3, world_up: Vec3) -> Mat4 {
-    let front = (front * -1.0).normalized();
+    let front = front.normalized();
     let side = world_up.cross(&front).normalized();
     let up = front.cross(&side);
 
