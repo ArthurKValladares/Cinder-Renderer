@@ -1,8 +1,9 @@
 mod instance;
+mod properties;
 mod surface;
 
 pub use self::{instance::Extension, surface::SurfaceData};
-use self::{instance::Instance, surface::Surface};
+use self::{instance::Instance, properties::DeviceProperties, surface::Surface};
 use crate::{
     context::ContextShared,
     profiling::QueryPool,
@@ -53,11 +54,7 @@ pub struct DeviceDescription<'a> {
 // TODO: this holds way too much stuff
 pub struct Device {
     p_device: vk::PhysicalDevice,
-    p_device_properties: vk::PhysicalDeviceProperties,
-    p_device_properties2: vk::PhysicalDeviceProperties2,
-    p_device_memory_properties: vk::PhysicalDeviceMemoryProperties,
-    pub(crate) p_device_descriptor_indexing_properties:
-        vk::PhysicalDeviceDescriptorIndexingProperties,
+    properties: DeviceProperties,
     device: ash::Device,
     queue_family_index: u32,
     present_queue: vk::Queue,
@@ -130,21 +127,7 @@ impl Device {
             })
             .ok_or(DeviceError::NoSuitableDevice)?;
 
-        let mut p_device_descriptor_indexing_properties =
-            ash::vk::PhysicalDeviceDescriptorIndexingProperties::builder().build();
-        let mut p_device_properties2 = ash::vk::PhysicalDeviceProperties2::builder()
-            .push_next(&mut p_device_descriptor_indexing_properties)
-            .build();
-        unsafe {
-            instance
-                .raw()
-                .get_physical_device_properties2(p_device, &mut p_device_properties2)
-        };
-        let p_device_memory_properties = unsafe {
-            instance
-                .raw()
-                .get_physical_device_memory_properties(p_device)
-        };
+        let properties = DeviceProperties::new(instance.raw(), p_device, p_device_properties);
 
         let device_extension_names = [
             ash::extensions::khr::Swapchain::name(),
@@ -314,10 +297,7 @@ impl Device {
             surface,
             surface_data,
             p_device,
-            p_device_properties,
-            p_device_properties2,
-            p_device_memory_properties,
-            p_device_descriptor_indexing_properties,
+            properties,
             device,
             queue_family_index,
             present_queue,
@@ -398,12 +378,16 @@ impl Device {
         self.p_device
     }
 
-    pub fn properties(&self) -> &vk::PhysicalDeviceProperties {
-        &self.p_device_properties
+    pub fn properties(&self) -> vk::PhysicalDeviceProperties {
+        self.properties.properties()
     }
 
-    pub fn memopry_properties(&self) -> &vk::PhysicalDeviceMemoryProperties {
-        &self.p_device_memory_properties
+    pub fn memopry_properties(&self) -> vk::PhysicalDeviceMemoryProperties {
+        self.properties.memory_properties()
+    }
+
+    pub fn descriptor_indexing_properties(&self) -> vk::PhysicalDeviceDescriptorIndexingProperties {
+        self.properties.descriptor_indexing_properties()
     }
 
     pub fn queue_family_index(&self) -> u32 {

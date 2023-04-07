@@ -96,9 +96,7 @@ pub fn get_pipeline_layout(
     let (bind_group_layouts, counts) = {
         let mut data_map: BTreeMap<u32, Vec<BindGroupLayoutData>> = Default::default();
         for shader in shaders {
-            for (set, data) in
-                shader.bind_group_layouts(device.p_device_descriptor_indexing_properties)?
-            {
+            for (set, data) in shader.bind_group_layouts(device.descriptor_indexing_properties())? {
                 let entry = data_map.entry(set).or_insert_with(Vec::new);
                 entry.extend(data);
             }

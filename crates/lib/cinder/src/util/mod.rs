@@ -20,7 +20,7 @@ pub fn align_size<T>(data: &[T]) -> u64 {
 
 pub fn find_memory_type_index(
     memory_req: &vk::MemoryRequirements,
-    memory_prop: &vk::PhysicalDeviceMemoryProperties,
+    memory_prop: vk::PhysicalDeviceMemoryProperties,
     flags: vk::MemoryPropertyFlags,
 ) -> Option<u32> {
     memory_prop.memory_types[..memory_prop.memory_type_count as _]
