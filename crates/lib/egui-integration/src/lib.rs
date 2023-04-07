@@ -55,10 +55,12 @@ impl EguiIntegration {
         view: &View,
     ) -> Result<Self> {
         const PPP: f32 = 3.5;
+
         let egui_context = egui::Context::default();
-        let egui_sdl = EguiSdl::new(window);
+        let mut egui_sdl = EguiSdl::new();
         egui_context.set_visuals(egui::Visuals::light());
         egui_context.set_pixels_per_point(PPP);
+        egui_sdl.set_pixels_per_point(PPP);
 
         let mut vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/egui.vert.spv"),
@@ -130,7 +132,7 @@ impl EguiIntegration {
     }
 
     pub fn on_event(&mut self, event: &Event) -> EventResponse {
-        self.egui_sdl.on_event(event)
+        self.egui_sdl.on_event(&self.egui_context, event)
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -138,6 +140,7 @@ impl EguiIntegration {
         &mut self,
         resource_manager: &mut ResourceManager,
         device: &Device,
+        window: &Window,
         drawable: Drawable,
         upload_context: &UploadContext,
         upload_fence: Fence,
@@ -145,8 +148,7 @@ impl EguiIntegration {
         render_area: Rect2D<i32, u32>,
         f: impl FnOnce(&egui::Context),
     ) -> Result<()> {
-        // TODO: Actually get this
-        let raw_input = RawInput::default();
+        let raw_input = self.egui_sdl.take_egui_input(window);
 
         // TODO: Hook up repaint_after
         let egui::FullOutput {
@@ -157,6 +159,9 @@ impl EguiIntegration {
         } = self.egui_context.run(raw_input, f);
 
         let clipped_primitives = self.egui_context.tessellate(shapes);
+
+        self.egui_sdl
+            .handle_platform_output(window, &self.egui_context, platform_output);
 
         // TODO? Make this a separate step
         self.set_textures(
@@ -467,7 +472,8 @@ impl EguiIntegration {
 
     fn free_textures(&mut self, _textures_delta: TexturesDelta) {}
 
-    pub fn set_ui_scale(&mut self, scale: f32) {
-        self.egui_context.set_pixels_per_point(scale);
+    pub fn set_pixels_per_point(&mut self, ppp: f32) {
+        self.egui_context.set_pixels_per_point(ppp);
+        self.egui_sdl.set_pixels_per_point(ppp);
     }
 }

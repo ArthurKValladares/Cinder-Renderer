@@ -290,7 +290,7 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn draw(&mut self) -> Result<bool> {
+    pub fn draw(&mut self, window: &Window) -> Result<bool> {
         let drawable = self.view.get_current_drawable(&self.device)?;
 
         self.render_context.begin(&self.device)?;
@@ -348,6 +348,7 @@ impl Renderer {
             self.ui.run(
                 &mut self.resource_manager,
                 &self.device,
+                window,
                 drawable,
                 &self.upload_context,
                 self.device.setup_fence(),
@@ -430,7 +431,7 @@ fn main() {
         }
 
         renderer.update().unwrap();
-        renderer.draw().unwrap();
+        renderer.draw(&sdl.window).unwrap();
 
         renderer.resource_manager.consume(&renderer.device);
         renderer.device.bump_frame();
