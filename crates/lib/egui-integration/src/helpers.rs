@@ -1,17 +1,16 @@
-use egui::{Response, Ui};
+use egui::Ui;
 
-use crate::EguiIntegration;
+use crate::{EguiIntegration, DEFAULT_PPP};
 
 pub struct HelperEguiMenu {
     pixels_per_point: f32,
-    // TODO: Just trying stuff out
     should_set_ppp: bool,
 }
 
 impl Default for HelperEguiMenu {
     fn default() -> Self {
         Self {
-            pixels_per_point: 3.0,
+            pixels_per_point: DEFAULT_PPP,
             should_set_ppp: false,
         }
     }

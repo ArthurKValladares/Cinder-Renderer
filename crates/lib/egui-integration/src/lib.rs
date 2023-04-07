@@ -34,8 +34,10 @@ use sdl2::{event::Event, video::Window};
 use std::collections::HashMap;
 use util::size_of_slice;
 
-static VERTEX_BUFFER_SIZE: u64 = 1024 * 1024 * 4;
-static INDEX_BUFFER_SIZE: u64 = 1024 * 1024 * 2;
+pub(crate) const DEFAULT_PPP: f32 = 3.0;
+
+const VERTEX_BUFFER_SIZE: u64 = 1024 * 1024 * 4;
+const INDEX_BUFFER_SIZE: u64 = 1024 * 1024 * 2;
 
 // TODO: Share image buffer with rest of the codebase
 pub struct EguiIntegration {
@@ -54,13 +56,11 @@ impl EguiIntegration {
         device: &Device,
         view: &View,
     ) -> Result<Self> {
-        const PPP: f32 = 3.0;
-
         let egui_context = egui::Context::default();
         let mut egui_sdl = EguiSdl::new();
         egui_context.set_visuals(egui::Visuals::light());
-        egui_context.set_pixels_per_point(PPP);
-        egui_sdl.set_pixels_per_point(PPP);
+        egui_context.set_pixels_per_point(DEFAULT_PPP);
+        egui_sdl.set_pixels_per_point(DEFAULT_PPP);
 
         let mut vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/egui.vert.spv"),
