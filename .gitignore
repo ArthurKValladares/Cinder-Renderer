@@ -13,4 +13,6 @@ Cargo.lock
 /target
 
 #generated files/dirs
-/compiled_scenes/
+**/*.spv
+**/shaders/spv
+crates/bin/*/gen
