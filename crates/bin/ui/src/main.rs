@@ -18,7 +18,7 @@ use cinder::{
     view::View,
     ResourceId,
 };
-use egui_integration::{egui, EguiIntegration};
+use egui_integration::{egui, helpers::HelperEguiMenu, EguiIntegration};
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
@@ -57,6 +57,7 @@ pub struct Renderer {
     index_buffer_handle: ResourceId<Buffer>,
     ubo_buffer_handle: ResourceId<Buffer>,
     ui: EguiIntegration,
+    helper_egui_menu: HelperEguiMenu,
     model_data: ModelData,
 }
 
@@ -258,7 +259,7 @@ impl Renderer {
                 }],
             )?;
         }
-        let ui = EguiIntegration::new(&window, &mut resource_manager, &device, &view)?;
+        let ui = EguiIntegration::new(&mut resource_manager, &device, &view)?;
 
         Ok(Self {
             resource_manager,
@@ -272,6 +273,7 @@ impl Renderer {
             index_buffer_handle,
             ubo_buffer_handle,
             ui,
+            helper_egui_menu: HelperEguiMenu::default(),
             model_data: Default::default(),
         })
     }
@@ -364,9 +366,11 @@ impl Renderer {
                         ui.add(
                             egui::Slider::new(&mut self.model_data.scale, 1.0..=2.0).text("Scale"),
                         );
+                        self.helper_egui_menu.draw(ui);
                     });
                 },
             )?;
+            self.helper_egui_menu.update(&mut self.ui);
 
             self.render_context
                 .transition_color_to_present(&self.device, drawable);

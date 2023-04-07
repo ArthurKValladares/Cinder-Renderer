@@ -1,3 +1,4 @@
+pub mod helpers;
 mod sdl;
 
 use anyhow::Result;
@@ -25,7 +26,7 @@ use core::panic;
 pub use egui;
 use egui::{
     epaint::{ImageDelta, Primitive},
-    ClippedPrimitive, ImageData, Mesh, RawInput, TextureId, TexturesDelta,
+    ClippedPrimitive, ImageData, Mesh, TextureId, TexturesDelta,
 };
 use math::{point::Point2D, rect::Rect2D, size::Size2D};
 use sdl::{EguiSdl, EventResponse};
@@ -49,12 +50,11 @@ pub struct EguiIntegration {
 
 impl EguiIntegration {
     pub fn new(
-        window: &Window,
         resource_manager: &mut ResourceManager,
         device: &Device,
         view: &View,
     ) -> Result<Self> {
-        const PPP: f32 = 3.5;
+        const PPP: f32 = 3.0;
 
         let egui_context = egui::Context::default();
         let mut egui_sdl = EguiSdl::new();
