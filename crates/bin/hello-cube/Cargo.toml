@@ -19,4 +19,4 @@ sdl2 = { git = "https://github.com/Rust-SDL2/rust-sdl2", features = ["bundled", 
 
 [build-dependencies]
 home = "0.5.3"
-rust-shader-tools = { git = "https://github.com/ArthurKValladares/Rust-Shader-Tools", features = ["shader-structs"] }
+rust-shader-tools = { git = "https://github.com/ArthurKValladares/Rust-Shader-Tools" }

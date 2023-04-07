@@ -103,7 +103,7 @@ impl GraphicsPipeline {
         pipeline_layout: vk::PipelineLayout,
     ) -> Result<vk::Pipeline> {
         let atttributes = vertex_shader.reflect_data.get_vertex_attributes();
-        let binding = 0; // TODO: Support non-zero bindings
+        let binding = 0; // TODO: Support non-zero bindings, need to be done shader-side, probably in the name atm
         let vertex_input_binding_descriptions = [vk::VertexInputBindingDescription {
             binding,
             stride: atttributes.stride / 8,

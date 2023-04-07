@@ -66,8 +66,6 @@ macro_rules! getter {
     };
 }
 
-// TODO: Do I want to queue delete on Drop?
-// TODO: Auto-generate struct with proc-macro?
 #[derive(Default)]
 pub struct ResourceManager {
     graphics_pipelines: ResourcePool<GraphicsPipeline>,
