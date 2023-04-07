@@ -258,12 +258,8 @@ impl GraphicsPipeline {
             None
         } else {
             let bind_group_layouts = common_data.bind_group_layouts();
-            // TODO: This is very bad, should be determined per layout, as should `variable_count`
-            let descriptor_counts = if common_data.variable_count {
-                [MAX_BINDLESS_RESOURCES - 1]
-            } else {
-                [1]
-            };
+            let descriptor_counts = common_data.descriptor_counts();
+
             let bind_group = BindGroup::new(device, bind_group_layouts, &descriptor_counts)?;
 
             if let Some(name) = desc.name {

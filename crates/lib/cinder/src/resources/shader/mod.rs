@@ -104,7 +104,10 @@ impl Shader {
             .collect::<Vec<_>>())
     }
 
-    pub fn bind_group_layouts(&self) -> Result<BTreeMap<u32, Vec<BindGroupLayoutData>>> {
+    pub fn bind_group_layouts(
+        &self,
+        p_device_descriptor_indexing_properties: vk::PhysicalDeviceDescriptorIndexingProperties,
+    ) -> Result<BTreeMap<u32, Vec<BindGroupLayoutData>>> {
         let shader_stage = self.stage();
         Ok(self
             .reflect_data
@@ -138,16 +141,29 @@ impl Shader {
                             } else {
                                 false
                             };
-                        // TODO: Is this good?
-                        if array {
-                            BindGroupLayoutData::new_bindless(
-                                reflect_binding.binding,
-                                ty,
-                                shader_stage,
-                            )
+                        let count = if array {
+                            match ty {
+                                BindGroupType::ImageSampler => {
+                                    p_device_descriptor_indexing_properties
+                                        .max_per_stage_descriptor_update_after_bind_samplers
+                                }
+                                BindGroupType::StorageImage => {
+                                    p_device_descriptor_indexing_properties
+                                        .max_per_stage_descriptor_update_after_bind_storage_images
+                                }
+                                BindGroupType::UniformBuffer => {
+                                    p_device_descriptor_indexing_properties
+                                        .max_per_stage_descriptor_update_after_bind_uniform_buffers
+                                }
+                                BindGroupType::StorageBuffer => {
+                                    p_device_descriptor_indexing_properties
+                                        .max_per_stage_descriptor_update_after_bind_storage_buffers
+                                }
+                            }
                         } else {
-                            BindGroupLayoutData::new(reflect_binding.binding, ty, shader_stage)
-                        }
+                            1
+                        };
+                        BindGroupLayoutData::new(reflect_binding.binding, ty, count, shader_stage)
                     })
                     .collect::<Vec<_>>();
                 (set.set, data)

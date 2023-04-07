@@ -22,12 +22,16 @@ pub struct PipelineCommonData {
     push_constants: HashMap<(ShaderStage, u32), PushConstant>,
     // TODO: Also need a better way to get these
     bind_group_layouts: Vec<BindGroupLayout>,
-    variable_count: bool,
+    counts: Vec<u32>,
 }
 
 impl PipelineCommonData {
     pub fn bind_group_layouts(&self) -> &[BindGroupLayout] {
         &self.bind_group_layouts
+    }
+
+    pub fn descriptor_counts(&self) -> &[u32] {
+        &self.counts
     }
 
     pub fn destroy(&mut self, device: &ash::Device) {
@@ -88,31 +92,31 @@ pub fn get_pipeline_layout(
         }
         map
     };
-    // TODO: figure out variable_count situation
-    let mut variable_count = false;
-    let bind_group_layouts = {
+
+    let (bind_group_layouts, counts) = {
         let mut data_map: BTreeMap<u32, Vec<BindGroupLayoutData>> = Default::default();
         for shader in shaders {
-            for (set, data) in shader.bind_group_layouts()? {
+            for (set, data) in
+                shader.bind_group_layouts(device.p_device_descriptor_indexing_properties)?
+            {
                 let entry = data_map.entry(set).or_insert_with(Vec::new);
                 entry.extend(data);
             }
         }
-        data_map
-            .values()
-            .enumerate()
-            .map(|(i, layout_data)| {
-                variable_count |= layout_data
-                    .last()
-                    .map_or(false, |data| data.count.is_none());
-                let layout = BindGroupLayout::new(device, layout_data)?;
-                if let Some(name) = name {
-                    layout.set_name(device, &format!("{name} [descriptor set layout {i}]"));
-                }
-                Ok(layout)
-            })
-            .collect::<Result<Vec<_>>>()
-    }?;
+
+        let mut bind_group_layouts = Vec::with_capacity(data_map.len());
+        let mut counts = Vec::with_capacity(data_map.len());
+        for (i, layout_data) in data_map.values().enumerate() {
+            let count = layout_data.last().unwrap().count;
+            let layout = BindGroupLayout::new(device, layout_data)?;
+            if let Some(name) = name {
+                layout.set_name(device, &format!("{name} [descriptor set layout {i}]"));
+            }
+            bind_group_layouts.push(layout);
+            counts.push(count);
+        }
+        (bind_group_layouts, counts)
+    };
     let set_layouts = unsafe {
         std::mem::transmute::<&[BindGroupLayout], &[vk::DescriptorSetLayout]>(&bind_group_layouts)
     };
@@ -134,7 +138,7 @@ pub fn get_pipeline_layout(
     let pipeline_common_data = PipelineCommonData {
         push_constants,
         bind_group_layouts,
-        variable_count,
+        counts,
     };
 
     Ok((pipeline_layout, pipeline_common_data))

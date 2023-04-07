@@ -56,7 +56,8 @@ pub struct Device {
     p_device_properties: vk::PhysicalDeviceProperties,
     p_device_properties2: vk::PhysicalDeviceProperties2,
     p_device_memory_properties: vk::PhysicalDeviceMemoryProperties,
-    p_device_descriptor_indexing_properties: vk::PhysicalDeviceDescriptorIndexingProperties,
+    pub(crate) p_device_descriptor_indexing_properties:
+        vk::PhysicalDeviceDescriptorIndexingProperties,
     device: ash::Device,
     queue_family_index: u32,
     present_queue: vk::Queue,
