@@ -78,7 +78,11 @@ impl BindGroupLayoutData {
             ty,
             count,
             shader_stage,
-            flags: Default::default(),
+            flags: if count > 1 {
+                bindless_bind_group_flags()
+            } else {
+                Default::default()
+            },
         }
     }
 }
