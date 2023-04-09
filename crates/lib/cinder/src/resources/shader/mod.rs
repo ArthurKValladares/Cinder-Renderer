@@ -45,6 +45,8 @@ impl From<ReflectShaderStageFlags> for ShaderStage {
 pub enum ShaderError {
     #[error("{0}")]
     ReflectionError(&'static str),
+    #[error("Unsupported descriptor type: {0:#?}")]
+    UnsupportedDescriptorType(ReflectDescriptorType),
 }
 
 #[derive(Default, Copy, Clone)]
@@ -107,10 +109,9 @@ impl Shader {
     pub fn bind_group_layouts(
         &self,
         p_device_descriptor_indexing_properties: vk::PhysicalDeviceDescriptorIndexingProperties,
-    ) -> Result<BTreeMap<u32, Vec<BindGroupLayoutData>>> {
+    ) -> Result<BTreeMap<u32, Vec<BindGroupLayoutData>>, ShaderError> {
         let shader_stage = self.stage();
-        Ok(self
-            .reflect_data
+        self.reflect_data
             .module()
             .enumerate_descriptor_sets(None)
             .map_err(ShaderError::ReflectionError)?
@@ -122,27 +123,28 @@ impl Shader {
                     .map(|reflect_binding| {
                         let ty = match reflect_binding.descriptor_type {
                             ReflectDescriptorType::CombinedImageSampler => {
-                                BindGroupType::ImageSampler
+                                Some(BindGroupType::ImageSampler)
                             }
-                            ReflectDescriptorType::UniformBuffer => BindGroupType::UniformBuffer,
-                            ReflectDescriptorType::StorageBuffer => BindGroupType::StorageBuffer,
-                            ReflectDescriptorType::StorageImage => BindGroupType::StorageImage,
-                            _ => {
-                                // TODO: need a better way to handle returning errors from here later
-                                panic!(
-                                    "Unsupported descriptor type: {:#?}",
-                                    reflect_binding.descriptor_type
-                                );
+                            ReflectDescriptorType::UniformBuffer => {
+                                Some(BindGroupType::UniformBuffer)
                             }
+                            ReflectDescriptorType::StorageBuffer => {
+                                Some(BindGroupType::StorageBuffer)
+                            }
+                            ReflectDescriptorType::StorageImage => {
+                                Some(BindGroupType::StorageImage)
+                            }
+                            _ => None,
                         };
-                        let array =
-                            if let Some(type_description) = &reflect_binding.type_description {
-                                is_runtime_array(type_description.op)
-                            } else {
-                                false
-                            };
-                        let count = if array {
-                            match ty {
+                        if let Some(ty) = ty {
+                            let array =
+                                if let Some(type_description) = &reflect_binding.type_description {
+                                    is_runtime_array(type_description.op)
+                                } else {
+                                    false
+                                };
+                            let count = if array {
+                                match ty {
                                 BindGroupType::ImageSampler => {
                                     p_device_descriptor_indexing_properties
                                         .max_per_stage_descriptor_update_after_bind_samplers
@@ -160,15 +162,25 @@ impl Shader {
                                         .max_per_stage_descriptor_update_after_bind_storage_buffers
                                 }
                             }
+                            } else {
+                                1
+                            };
+                            Ok(BindGroupLayoutData::new(
+                                reflect_binding.binding,
+                                ty,
+                                count,
+                                shader_stage,
+                            ))
                         } else {
-                            1
-                        };
-                        BindGroupLayoutData::new(reflect_binding.binding, ty, count, shader_stage)
+                            Err(ShaderError::UnsupportedDescriptorType(
+                                reflect_binding.descriptor_type,
+                            ))
+                        }
                     })
-                    .collect::<Vec<_>>();
-                (set.set, data)
+                    .collect::<Result<Vec<_>, ShaderError>>()?;
+                Ok((set.set, data))
             })
-            .collect::<BTreeMap<_, _>>())
+            .collect::<Result<BTreeMap<_, _>, ShaderError>>()
     }
 
     pub fn local_size(&self) -> ReflectEntryPointLocalSize {

@@ -96,7 +96,6 @@ impl From<vk::Format> for Format {
     }
 }
 
-// TODO: enum doesn't really work here, should be something more bitfield-like
 #[derive(Debug, Deserialize, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum ImageUsage {
     Depth,
