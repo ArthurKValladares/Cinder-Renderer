@@ -341,7 +341,6 @@ impl Renderer {
             self.render_context
                 .transition_undefined_to_color(&self.device, drawable);
 
-            // TODO: remove get from user code?
             let depth_image = self
                 .resource_manager
                 .get_image(self.depth_image_handle)
