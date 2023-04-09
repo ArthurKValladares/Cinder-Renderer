@@ -75,7 +75,6 @@ fn create_swapchain_structures(
 pub struct Swapchain {
     pub swapchain_loader: ash::extensions::khr::Swapchain,
     pub swapchain: vk::SwapchainKHR,
-    // TODO: Should these be `Image`s (yes)
     pub present_images: Vec<vk::Image>,
     pub present_image_views: Vec<vk::ImageView>,
     name: Option<&'static str>,
@@ -145,22 +144,5 @@ impl Swapchain {
         }
     }
 
-    pub(crate) fn set_name(&self, device: &Device, name: &str) {
-        device.set_name(vk::ObjectType::SWAPCHAIN_KHR, self.swapchain, name);
-
-        for (idx, image) in self.present_images.iter().enumerate() {
-            device.set_name(
-                vk::ObjectType::IMAGE,
-                *image,
-                &format!("{name} [image {idx}]"),
-            );
-        }
-        for (idx, image_view) in self.present_image_views.iter().enumerate() {
-            device.set_name(
-                vk::ObjectType::IMAGE_VIEW,
-                *image_view,
-                &format!("{name} [image view {idx}]"),
-            );
-        }
-    }
+    pub(crate) fn set_name(&self, device: &Device, name: &str) {}
 }

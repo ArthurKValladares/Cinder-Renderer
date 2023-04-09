@@ -158,7 +158,6 @@ pub struct Image {
     pub size: Size2D<u32>,
     pub desc: ImageDescription,
     pub view: vk::ImageView,
-    // TODO: Have memory live somewhere else, and manage it all together?
     pub memory: Memory,
     pub ptr: Option<MemoryMappablePointer>,
 }

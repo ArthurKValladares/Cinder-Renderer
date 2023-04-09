@@ -30,7 +30,6 @@ impl ComputePipeline {
             module: shader.module,
             p_name: shader_entry_name.as_ptr(),
             stage: vk::ShaderStageFlags::COMPUTE,
-            // TODO: Specialization
             ..Default::default()
         };
 

@@ -187,7 +187,6 @@ impl GraphicsPipeline {
             },
         ];
 
-        // TODO: Will make this better
         let surface_format = desc.surface_format.into();
         let pipeline_rendering_ci = vk::PipelineRenderingCreateInfo::builder()
             .color_attachment_formats(std::slice::from_ref(&surface_format));

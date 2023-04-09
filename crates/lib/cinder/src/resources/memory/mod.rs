@@ -44,7 +44,6 @@ impl Memory {
         }
     }
 
-    // TODO: set_name function standard way to do this
     pub(crate) fn set_name(&self, device: &Device, name: &str) {
         device.set_name(
             vk::ObjectType::DEVICE_MEMORY,

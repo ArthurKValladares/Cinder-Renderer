@@ -56,7 +56,7 @@ impl PipelineCommon {
         self.common_data.bind_group_layouts()
     }
 
-    pub(crate) fn set_name(&self, device: &Device, name: &str) {
+    fn set_name(&self, device: &Device, name: &str) {
         device.set_name(
             vk::ObjectType::PIPELINE,
             self.pipeline,

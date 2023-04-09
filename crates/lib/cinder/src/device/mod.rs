@@ -1,9 +1,13 @@
+mod extensions;
 mod instance;
 mod properties;
 mod surface;
 
+use self::{
+    extensions::DeviceExtensions, instance::Instance, properties::DeviceProperties,
+    surface::Surface,
+};
 pub use self::{instance::Extension, surface::SurfaceData};
-use self::{instance::Instance, properties::DeviceProperties, surface::Surface};
 use crate::{
     context::ContextShared,
     profiling::QueryPool,
@@ -69,8 +73,7 @@ pub struct Device {
     pub(crate) rendering_complete_semaphore: vk::Semaphore,
     pub(crate) draw_commands_reuse_fence: vk::Fence,
     pub(crate) setup_commands_reuse_fence: vk::Fence,
-    // TODO: Probably some place to shove extensions
-    dynamic_rendering: DynamicRendering,
+    extensions: DeviceExtensions,
     // TODO: once again, just keeping this here for now
     pub current_frame_in_flight: usize,
 }
@@ -247,7 +250,6 @@ impl Device {
 
         let surface_data = surface.get_data(p_device, Resolution { width, height }, false)?;
 
-        // TODO: Figure out sync story
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
 
         let present_complete_semaphore =
@@ -291,7 +293,8 @@ impl Device {
             "setup commands reuse fence",
         );
 
-        let dynamic_rendering = DynamicRendering::new(instance.raw(), &device);
+        let extensions = DeviceExtensions::new(&instance, &device);
+
         Ok(Self {
             instance,
             surface,
@@ -304,7 +307,7 @@ impl Device {
             command_pool,
             pipeline_cache,
             bind_group_pool,
-            dynamic_rendering,
+            extensions,
             present_complete_semaphore,
             rendering_complete_semaphore,
             draw_commands_reuse_fence,
@@ -403,7 +406,7 @@ impl Device {
     }
 
     pub fn dynamic_rendering(&self) -> &DynamicRendering {
-        &self.dynamic_rendering
+        self.extensions.dynamic_rendering()
     }
 
     pub fn get_query_pool_results_u32(
@@ -468,7 +471,6 @@ impl Device {
         Shader::create(self, bytes, desc)
     }
 
-    // TODO: Error handling
     pub fn recreate_shader(
         &self,
         manager: &mut ResourceManager,
