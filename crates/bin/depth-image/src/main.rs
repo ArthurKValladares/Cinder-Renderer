@@ -333,7 +333,7 @@ impl Renderer {
                 data: BindGroupWriteData::SampledImage(depth_image.bind_info(
                     resource_manager.get_sampler(sampler).unwrap(),
                     Layout::DepthStencilReadOnly,
-                    0,
+                    None,
                 )),
             }],
         )?;
@@ -522,7 +522,7 @@ impl Renderer {
                 data: BindGroupWriteData::SampledImage(depth_image.bind_info(
                     self.resource_manager.get_sampler(self.sampler).unwrap(),
                     Layout::DepthStencilReadOnly,
-                    0,
+                    None,
                 )),
             }],
         )?;

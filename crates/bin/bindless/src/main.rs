@@ -292,7 +292,7 @@ impl Renderer {
                             data: BindGroupWriteData::SampledImage(texture.bind_info(
                                 resource_manager.get_sampler(sampler).unwrap(),
                                 Layout::ShaderReadOnly,
-                                idx as u32,
+                                Some(idx as u32),
                             )),
                         }],
                     )

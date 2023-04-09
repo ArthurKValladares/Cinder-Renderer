@@ -39,7 +39,6 @@ pub(crate) const DEFAULT_PPP: f32 = 3.0;
 const VERTEX_BUFFER_SIZE: u64 = 1024 * 1024 * 4;
 const INDEX_BUFFER_SIZE: u64 = 1024 * 1024 * 2;
 
-// TODO: Share image buffer with rest of the codebase
 pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_sdl: EguiSdl,
@@ -411,7 +410,7 @@ impl EguiIntegration {
                 data: BindGroupWriteData::SampledImage(image.bind_info(
                     sampler,
                     Layout::ShaderReadOnly,
-                    index as u32,
+                    Some(index as u32),
                 )),
             }],
         )?;

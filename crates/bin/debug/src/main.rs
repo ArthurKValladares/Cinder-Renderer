@@ -177,7 +177,7 @@ impl Renderer {
                 data: BindGroupWriteData::SampledImage(texture.bind_info(
                     &sampler,
                     Layout::ShaderReadOnly,
-                    0,
+                    None,
                 )),
             }],
         )?;

@@ -288,7 +288,7 @@ impl Image {
         &self,
         sampler: &Sampler,
         image_layout: Layout,
-        index: u32, // TODO: This only makes sense for bindless
+        index: Option<u32>,
     ) -> BindImageInfo {
         BindImageInfo {
             info: vk::DescriptorImageInfo {
@@ -296,7 +296,7 @@ impl Image {
                 image_view: self.view,
                 sampler: sampler.raw,
             },
-            index,
+            index: index.unwrap_or(0),
         }
     }
 }
