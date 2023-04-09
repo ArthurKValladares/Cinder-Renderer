@@ -5,7 +5,6 @@ use crate::{
 use anyhow::Result;
 use ash::vk;
 
-// TODO, maybe could be separate enums, to make bind_buffer, bind_image, etc type-safe
 #[derive(Debug, Copy, Clone)]
 pub enum BindGroupType {
     ImageSampler,
