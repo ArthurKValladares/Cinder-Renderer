@@ -482,7 +482,6 @@ impl Renderer {
         self.device.resize(width, height)?;
         self.view.resize(&self.device)?;
 
-        // TODO: This is really messy
         {
             let depth_image = self
                 .resource_manager
