@@ -774,6 +774,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "memmap2"
+version = "0.5.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "83faa42c0a078c393f6b29d5db232d8be22776a891f8f56e5284faee4a20b327"
+dependencies = [
+ "libc",
+]
+
+[[package]]
 name = "memoffset"
 version = "0.8.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1435,6 +1444,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "util",
+ "zero-copy-assets",
 ]
 
 [[package]]
@@ -1820,6 +1830,15 @@ name = "xmlparser"
 version = "0.13.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4d25c75bf9ea12c4040a97f829154768bbbce366287e2dc044af160cd79a13fd"
+
+[[package]]
+name = "zero-copy-assets"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "memmap2",
+ "rkyv",
+]
 
 [[package]]
 name = "zune-inflate"
