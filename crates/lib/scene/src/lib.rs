@@ -4,10 +4,10 @@ pub mod primitives;
 mod vertex;
 
 use anyhow::Result;
-use image::DynamicImage;
 use rayon::iter::*;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use thiserror::Error;
+use zero_copy_assets::ImageData;
 pub use {material::*, mesh::*, vertex::*};
 
 #[derive(Debug, Error)]
@@ -15,7 +15,7 @@ pub enum SceneError {
     #[error("Could not open file at {path}: {err}")]
     FileError { err: std::io::Error, path: String },
     #[error(transparent)]
-    ImageError(#[from] image::error::ImageError),
+    ImageError(#[from] zero_copy_assets::ImageError),
 }
 
 pub struct Scene<V: Vertex> {
@@ -40,21 +40,23 @@ where
             materials
                 .into_par_iter()
                 .map(|material| {
-                    let diffuse: Result<Option<DynamicImage>, SceneError> =
+                    let diffuse: Result<Option<ImageData>, SceneError> =
                         if material.diffuse_texture.is_empty() {
                             Ok(None)
                         } else {
-                            let image_data = std::fs::read(path.join(&material.diffuse_texture))
-                                .map_err(|err| SceneError::FileError {
-                                    err,
-                                    path: material.diffuse_texture,
-                                })
-                                .unwrap();
-                            let image = image::load_from_memory(&image_data).unwrap();
+                            let image_path = path.join(&material.diffuse_texture);
+                            let image_stem = image_path.file_stem().unwrap();
+                            let image = ImageData::try_decoded_file(
+                                &image_path,
+                                PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                                    .join("assets")
+                                    .join("gen")
+                                    .join(format!("{}.adi", image_stem.to_str().unwrap())),
+                            )
+                            .unwrap();
                             Ok(Some(image))
                         };
                     let diffuse = diffuse?;
-
                     Ok(Material { diffuse })
                 })
                 .collect::<Result<Vec<_>, SceneError>>()?

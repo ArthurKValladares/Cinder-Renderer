@@ -93,7 +93,6 @@ dependencies = [
  "camera",
  "cinder",
  "home",
- "image",
  "math",
  "rayon",
  "rust-shader-tools",
@@ -1241,11 +1240,12 @@ name = "scene"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "image",
  "math",
  "rayon",
  "thiserror",
  "tobj",
+ "zero-copy-assets",
+ "zune-png",
 ]
 
 [[package]]
@@ -1442,7 +1442,6 @@ dependencies = [
  "anyhow",
  "cinder",
  "home",
- "image",
  "math",
  "rust-shader-tools",
  "sdl2",
@@ -1843,10 +1842,10 @@ name = "zero-copy-assets"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "image",
  "memmap2",
  "rkyv",
  "thiserror",
- "zune-png",
 ]
 
 [[package]]

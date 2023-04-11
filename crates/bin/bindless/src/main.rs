@@ -246,40 +246,32 @@ impl Renderer {
             .par_iter()
             .enumerate()
             .filter(|(_, material)| material.diffuse.is_some())
-            .map(|(idx, material)| {
-                let diffuse = material.diffuse.as_ref().unwrap();
-                let image = diffuse.to_rgba8();
-                let dims = image.dimensions();
-                ((idx, dims), image.into_raw())
-            })
+            .map(|(idx, material)| (idx, material.diffuse.as_ref().unwrap()))
             .collect::<Vec<_>>();
 
         upload_context.begin(&device, device.setup_fence())?;
         let (image_handles, image_buffer_handles) = image_data
             .into_iter()
-            .map(|((idx, (width, height)), image_data)| {
-                let texture_handle = resource_manager.insert_image(
-                    device
-                        .create_image(Size2D::new(width, height), Default::default())
-                        .unwrap(),
-                );
+            .map(|(idx, image_data)| {
+                let texture = device
+                    .create_image(
+                        Size2D::new(image_data.width, image_data.height),
+                        Default::default(),
+                    )
+                    .unwrap();
+                let image_buffer = device
+                    .create_buffer_with_data(
+                        &image_data.bytes,
+                        BufferDescription {
+                            usage: BufferUsage::TRANSFER_SRC,
+                            ..Default::default()
+                        },
+                    )
+                    .unwrap();
 
-                let image_buffer_handle = resource_manager.insert_buffer(
-                    device
-                        .create_buffer_with_data(
-                            &image_data,
-                            BufferDescription {
-                                usage: BufferUsage::TRANSFER_SRC,
-                                ..Default::default()
-                            },
-                        )
-                        .unwrap(),
-                );
-                let texture = resource_manager.get_image(texture_handle).unwrap();
-                let image_buffer = resource_manager.get_buffer(image_buffer_handle).unwrap();
-                upload_context.image_barrier_start(&device, texture);
-                upload_context.copy_buffer_to_image(&device, image_buffer, texture);
-                upload_context.image_barrier_end(&device, texture);
+                upload_context.image_barrier_start(&device, &texture);
+                upload_context.copy_buffer_to_image(&device, &image_buffer, &texture);
+                upload_context.image_barrier_end(&device, &texture);
 
                 let pipeline = resource_manager
                     .get_graphics_pipeline(render_pipeline)
@@ -298,6 +290,8 @@ impl Renderer {
                     )
                     .unwrap();
 
+                let texture_handle = resource_manager.insert_image(texture);
+                let image_buffer_handle = resource_manager.insert_buffer(image_buffer);
                 (texture_handle, image_buffer_handle)
             })
             .unzip::<_, _, Vec<_>, Vec<_>>();

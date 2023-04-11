@@ -1,6 +1,6 @@
-use image::DynamicImage;
+use zero_copy_assets::ImageData;
 
 #[derive(Debug)]
 pub struct Material {
-    pub diffuse: Option<DynamicImage>,
+    pub diffuse: Option<ImageData>,
 }

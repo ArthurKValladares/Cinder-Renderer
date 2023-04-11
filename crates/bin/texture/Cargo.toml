@@ -10,7 +10,6 @@ cinder = {path = "../../lib/cinder"}
 util = {path = "../../lib/util"}
 zero-copy-assets = {path = "../../lib/zero-copy-assets"}
 sdl2 = { git = "https://github.com/Rust-SDL2/rust-sdl2", features = ["bundled", "raw-window-handle"] }
-image = "0.24.3"
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"

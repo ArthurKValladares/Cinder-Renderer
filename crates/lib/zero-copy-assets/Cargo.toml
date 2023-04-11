@@ -8,8 +8,11 @@ anyhow = "1"
 memmap2 = "0.5.10"
 rkyv = {version = "0.7.41", features = ["alloc", "validation"]}
 thiserror = "1"
-zune-png = "0.2.0"
+image = "0.24.5"
 
-# `zune-png` package will be always built with optimizations
-[profile.dev.package.zune-png]
+[profile.dev.package.image]
 opt-level = 3
+debug = false
+debug-assertions = false
+overflow-checks = false
+codegen-units = 1

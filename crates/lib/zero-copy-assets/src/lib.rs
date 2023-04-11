@@ -7,7 +7,6 @@ use rkyv::{
     Archive, Deserialize, Serialize,
 };
 use thiserror::Error;
-use zune_png::{error::PngDecodeErrors, PngDecoder};
 
 // TODO: Figure a good number here
 const SCRATCH_SPACE: usize = 4096;
@@ -16,8 +15,8 @@ const SCRATCH_SPACE: usize = 4096;
 pub enum ImageError {
     #[error(transparent)]
     IoError(#[from] std::io::Error),
-    #[error("Png decode error: {0:?}")]
-    PngDecodeError(PngDecodeErrors),
+    #[error(transparent)]
+    ImageError(#[from] image::ImageError),
     #[error("Invalid UTF-8 in path {0:?}")]
     InvalidUtf8(std::path::PathBuf),
     #[error(transparent)]
@@ -33,7 +32,6 @@ pub enum ImageError {
     ),
 }
 
-#[repr(C)]
 #[derive(Archive, Serialize, Deserialize, Debug)]
 pub struct ImageData {
     pub width: u32,
@@ -75,15 +73,10 @@ impl ImageData {
             Self::from_decoded_file(decoded_path)
         } else {
             let file_bytes = std::fs::read(original_path)?;
-            let mut decoded_image = PngDecoder::new(&file_bytes);
-            decoded_image
-                .decode_headers()
-                .map_err(ImageError::PngDecodeError)?;
-            let (width, height) = decoded_image.get_dimensions().unwrap();
-            let image_data = decoded_image
-                .decode_raw()
-                .map_err(ImageError::PngDecodeError)?;
-            let ret = Self::from_parts(width as u32, height as u32, image_data);
+            let image = image::load_from_memory(&file_bytes)?.to_rgba8();
+            let (width, height) = image.dimensions();
+            let image_data = image.into_raw();
+            let ret = Self::from_parts(width, height, image_data);
             let parent = decoded_path
                 .parent()
                 .ok_or_else(|| ImageError::InvalidUtf8(decoded_path.to_owned()))?;
