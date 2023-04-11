@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use anyhow::Result;
 use cinder::{
     context::{
@@ -17,6 +19,7 @@ use cinder::{
 use math::size::Size2D;
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
+use zune_png::PngDecoder;
 
 pub const WINDOW_WIDTH: u32 = 1280;
 pub const WINDOW_HEIGHT: u32 = 1280;
@@ -101,15 +104,23 @@ impl Renderer {
 
         let sampler = device.create_sampler(&device, Default::default())?;
 
-        let image = image::load_from_memory(include_bytes!("../assets/rust.png"))
-            .unwrap()
-            .to_rgba8();
-        let (width, height) = image.dimensions();
-        let texture = device.create_image(Size2D::new(width, height), Default::default())?;
-        let image_data = image.into_raw();
+        let image_data = zero_copy_assets::ImageData::try_decoded_file(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("assets")
+                .join("rust.png"),
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("assets")
+                .join("gen")
+                .join("rust.adi"),
+        )
+        .unwrap();
+        let texture = device.create_image(
+            Size2D::new(image_data.width, image_data.height),
+            Default::default(),
+        )?;
 
         let image_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
-            &image_data,
+            &image_data.bytes,
             BufferDescription {
                 usage: BufferUsage::TRANSFER_SRC,
                 ..Default::default()

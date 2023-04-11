@@ -15,4 +15,5 @@ Cargo.lock
 #generated files/dirs
 **/*.spv
 **/shaders/spv
+**/assets/gen
 crates/bin/*/gen

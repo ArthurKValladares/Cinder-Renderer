@@ -7,3 +7,9 @@ edition = "2021"
 anyhow = "1"
 memmap2 = "0.5.10"
 rkyv = {version = "0.7.41", features = ["alloc", "validation"]}
+thiserror = "1"
+zune-png = "0.2.0"
+
+# `zune-png` package will be always built with optimizations
+[profile.dev.package.zune-png]
+opt-level = 3
