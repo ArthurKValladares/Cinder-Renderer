@@ -102,15 +102,10 @@ pub struct Renderer {
     device: Device,
     view: View,
     render_context: RenderContext,
-    _upload_context: UploadContext,
     mesh_draws: Vec<MeshDraw>,
     depth_image_handle: ResourceId<Image>,
     render_pipeline: ResourceId<GraphicsPipeline>,
-    _vertex_buffer_handle: ResourceId<Buffer>,
     index_buffer_handle: ResourceId<Buffer>,
-    _ubo_buffer_handle: ResourceId<Buffer>,
-    _sampler: ResourceId<Sampler>,
-    _image_handles: Vec<ResourceId<Image>>,
 }
 
 impl Renderer {
@@ -314,13 +309,8 @@ impl Renderer {
             view,
             depth_image_handle: depth_image,
             render_context,
-            _upload_context: upload_context,
             render_pipeline,
-            _vertex_buffer_handle: vertex_buffer_handle,
             index_buffer_handle,
-            _sampler: sampler,
-            _image_handles: image_handles,
-            _ubo_buffer_handle: ubo_buffer_handle,
             mesh_draws,
         })
     }

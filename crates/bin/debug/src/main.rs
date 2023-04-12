@@ -8,9 +8,9 @@ use cinder::{
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
-        image::{Image, ImageDescription},
+        image::ImageDescription,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
-        sampler::{Sampler, SamplerDescription},
+        sampler::SamplerDescription,
         shader::ShaderDesc,
         ResourceManager,
     },
