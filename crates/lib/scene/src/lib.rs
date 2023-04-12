@@ -5,9 +5,10 @@ mod vertex;
 
 use anyhow::Result;
 use rayon::iter::*;
+use rkyv::{Archive, Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use thiserror::Error;
-use zero_copy_assets::ImageData;
+use zero_copy_assets::{try_decoded_file, ImageData, LoadFromPath, ZeroCopyError};
 pub use {material::*, mesh::*, vertex::*};
 
 #[derive(Debug, Error)]
@@ -15,14 +16,15 @@ pub enum SceneError {
     #[error("Could not open file at {path}: {err}")]
     FileError { err: std::io::Error, path: String },
     #[error(transparent)]
-    ImageError(#[from] zero_copy_assets::ImageError),
+    ImageError(#[from] zero_copy_assets::ZeroCopyError),
 }
 
+#[derive(Archive, Serialize, Deserialize, Debug)]
 pub struct Scene<V: Vertex> {
-    pub meshes: Vec<Mesh<V>>,
-    pub materials: Vec<Material>,
     pub min_pos: [f32; 3],
     pub max_pos: [f32; 3],
+    pub meshes: Vec<Mesh<V>>,
+    pub materials: Vec<Material>,
 }
 
 impl<V> Scene<V>
@@ -46,7 +48,7 @@ where
                         } else {
                             let image_path = path.join(&material.diffuse_texture);
                             let image_stem = image_path.file_stem().unwrap();
-                            let image = ImageData::try_decoded_file(
+                            let image = try_decoded_file::<ImageData>(
                                 &image_path,
                                 PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                                     .join("assets")
@@ -84,5 +86,27 @@ where
             min_pos,
             max_pos,
         })
+    }
+}
+
+impl<V> LoadFromPath for Scene<V>
+where
+    V: Vertex,
+{
+    fn from_resource_path(
+        path: impl AsRef<Path>,
+    ) -> std::result::Result<Self, zero_copy_assets::ZeroCopyError> {
+        let path = path.as_ref();
+        // TODO: Errors here are not always truthful, need to add more options
+        let file = path
+            .file_name()
+            .ok_or_else(|| ZeroCopyError::InvalidUtf8(path.to_owned()))?;
+        let parent = path
+            .parent()
+            .ok_or_else(|| ZeroCopyError::InvalidUtf8(path.to_owned()))?;
+
+        let ret = Scene::<V>::from_obj(parent, file)
+            .map_err(|err| ZeroCopyError::Fallback(err.to_string()))?;
+        Ok(ret)
     }
 }

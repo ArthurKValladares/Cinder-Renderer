@@ -20,5 +20,6 @@ fn main() {
         &std::fs::read("./shaders/spv/hot_reload.vert.spv").unwrap(),
         "hot_reload",
         PathBuf::from("gen").join("hot_reload_shader_structs.rs"),
+        false,
     );
 }

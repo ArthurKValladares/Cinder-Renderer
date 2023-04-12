@@ -20,6 +20,7 @@ fn main() {
         &std::fs::read("./shaders/spv/depth_mesh.vert.spv").unwrap(),
         "depth_mesh",
         PathBuf::from("gen").join("depth_mesh_shader_structs.rs"),
+        false,
     );
 
     shader_compiler
@@ -32,5 +33,6 @@ fn main() {
         &std::fs::read("./shaders/spv/depth_texture.vert.spv").unwrap(),
         "depth_texture",
         PathBuf::from("gen").join("depth_texture_shader_structs.rs"),
+        false,
     );
 }

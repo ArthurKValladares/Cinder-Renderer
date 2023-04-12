@@ -21,5 +21,6 @@ fn main() {
         &std::fs::read("./shaders/spv/triangle.vert.spv").unwrap(),
         "triangle",
         PathBuf::from("gen").join("triangle_shader_structs.rs"),
+        false,
     );
 }

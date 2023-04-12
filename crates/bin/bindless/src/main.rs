@@ -145,12 +145,18 @@ impl Renderer {
         vertex_shader.destroy(device.raw());
         fragment_shader.destroy(device.raw());
 
-        let scene = Scene::<BindlessVertex>::from_obj(
+        let init_time = std::time::Instant::now();
+        let scene = zero_copy_assets::try_decoded_file::<Scene<BindlessVertex>>(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("assets")
-                .join("sponza"),
-            "sponza.obj",
+                .join("sponza")
+                .join("sponza.obj"),
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("assets")
+                .join("gen")
+                .join("sponza.adm"),
         )?;
+        println!("Scene creation: {:?}", init_time.elapsed().as_millis());
         let (vertices, indices, mesh_draws) = {
             let mut vertices: Vec<BindlessVertex> = Default::default();
             let mut indices: Vec<u32> = Default::default();

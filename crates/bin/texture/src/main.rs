@@ -20,7 +20,6 @@ use math::size::Size2D;
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
 
-
 pub const WINDOW_WIDTH: u32 = 1280;
 pub const WINDOW_HEIGHT: u32 = 1280;
 
@@ -104,7 +103,7 @@ impl Renderer {
 
         let sampler = device.create_sampler(&device, Default::default())?;
 
-        let image_data = zero_copy_assets::ImageData::try_decoded_file(
+        let image_data = zero_copy_assets::try_decoded_file::<zero_copy_assets::ImageData>(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("assets")
                 .join("rust.png"),

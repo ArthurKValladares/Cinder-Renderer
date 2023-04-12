@@ -21,6 +21,7 @@ fn main() {
         &std::fs::read("./shaders/spv/ui.vert.spv").unwrap(),
         "ui",
         PathBuf::from("gen").join("ui_shader_structs.rs"),
+        false,
     );
 
     shader_compiler

@@ -20,5 +20,6 @@ fn main() {
         &std::fs::read("./shaders/spv/cube.vert.spv").unwrap(),
         "cube",
         PathBuf::from("gen").join("cube_shader_structs.rs"),
+        false,
     );
 }

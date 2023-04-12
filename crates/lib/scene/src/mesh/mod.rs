@@ -1,6 +1,8 @@
 use crate::Vertex;
+use rkyv::{Archive, Deserialize, Serialize};
 use tobj::Model;
 
+#[derive(Archive, Serialize, Deserialize, Debug)]
 pub struct Mesh<V: Vertex> {
     pub indices: Vec<u32>,
     pub vertices: Vec<V>,

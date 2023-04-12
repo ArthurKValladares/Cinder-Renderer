@@ -20,5 +20,6 @@ fn main() {
         &std::fs::read("./shaders/spv/bindless.vert.spv").unwrap(),
         "bindless",
         PathBuf::from("gen").join("bindless_shader_structs.rs"),
+        true,
     );
 }

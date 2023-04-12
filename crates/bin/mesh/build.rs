@@ -20,5 +20,6 @@ fn main() {
         &std::fs::read("./shaders/spv/mesh.vert.spv").unwrap(),
         "mesh",
         PathBuf::from("gen").join("mesh_shader_structs.rs"),
+        false,
     );
 }

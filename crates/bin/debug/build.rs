@@ -20,5 +20,6 @@ fn main() {
         &std::fs::read("./shaders/spv/debug.vert.spv").unwrap(),
         "debug",
         PathBuf::from("gen").join("debug_shader_structs.rs"),
+        false,
     );
 }
