@@ -144,5 +144,5 @@ impl Swapchain {
         }
     }
 
-    pub(crate) fn set_name(&self, device: &Device, name: &str) {}
+    pub(crate) fn set_name(&self, _device: &Device, _name: &str) {}
 }

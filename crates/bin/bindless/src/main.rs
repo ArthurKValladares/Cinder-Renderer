@@ -13,7 +13,6 @@ use cinder::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
-        sampler::Sampler,
         ResourceManager,
     },
     view::View,
@@ -245,7 +244,7 @@ impl Renderer {
             .collect::<Vec<_>>();
 
         upload_context.begin(&device, device.setup_fence())?;
-        let (image_handles, image_buffer_handles) = image_data
+        let (_image_handles, image_buffer_handles) = image_data
             .into_iter()
             .map(|(idx, image_data)| {
                 let texture = device

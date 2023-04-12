@@ -3,7 +3,6 @@ use super::{
     shader::Shader,
 };
 use crate::{
-    context::upload_context::UploadContext,
     device::{Device, MAX_FRAMES_IN_FLIGHT},
 };
 use ash::vk;

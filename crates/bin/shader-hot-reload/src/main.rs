@@ -10,10 +10,7 @@ use cinder::{
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
-        image::Image,
         pipeline::graphics::GraphicsPipeline,
-        sampler::Sampler,
-        shader::Shader,
         ResourceManager,
     },
     view::View,
@@ -55,11 +52,11 @@ impl Renderer {
 
         let view = View::new(&device, Default::default())?;
 
-        let mut vertex_shader = device.create_shader(
+        let vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/hot_reload.vert.spv"),
             Default::default(),
         )?;
-        let mut fragment_shader = device.create_shader(
+        let fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/hot_reload.frag.spv"),
             Default::default(),
         )?;
