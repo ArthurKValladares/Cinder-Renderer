@@ -12,4 +12,4 @@ rayon = "1.6.1"
 thiserror = "1"
 zune-png = "0.2.0"
 zero-copy-assets = {path = "../../lib/zero-copy-assets"}
-rkyv = {version = "0.7.41", features = ["alloc", "validation"]}
+rkyv = {version = "0.7.41", features = ["alloc"]}
