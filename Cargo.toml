@@ -11,3 +11,18 @@ members = [
     "crates/bin/shader-hot-reload",
     "crates/lib/cinder",
 ]
+
+[profile.dev.package.zero-copy-assets]
+opt-level = 3
+
+[profile.dev.package.memmap2]
+opt-level = 3
+
+[profile.dev.package.rkyv]
+opt-level = 3
+
+[profile.dev.package.image]
+opt-level = 3
+
+[profile.dev.package.png]
+opt-level = 3

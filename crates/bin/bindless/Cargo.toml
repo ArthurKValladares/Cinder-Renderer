@@ -25,35 +25,15 @@ rust-shader-tools = { git = "https://github.com/ArthurKValladares/Rust-Shader-To
 
 [profile.dev.package.zero-copy-assets]
 opt-level = 3
-debug = false
-debug-assertions = false
-overflow-checks = false
-codegen-units = 1
 
 [profile.dev.package.memmap2]
 opt-level = 3
-debug = false
-debug-assertions = false
-overflow-checks = false
-codegen-units = 1
 
 [profile.dev.package.rkyv]
 opt-level = 3
-debug = false
-debug-assertions = false
-overflow-checks = false
-codegen-units = 1
 
 [profile.dev.package.image]
 opt-level = 3
-debug = false
-debug-assertions = false
-overflow-checks = false
-codegen-units = 1
 
 [profile.dev.package.png]
 opt-level = 3
-debug = false
-debug-assertions = false
-overflow-checks = false
-codegen-units = 1

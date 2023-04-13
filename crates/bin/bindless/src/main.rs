@@ -156,7 +156,7 @@ impl Renderer {
                 .join("gen")
                 .join("sponza.adm"),
         )?;
-        println!("Scene creation: {:?}", init_time.elapsed().as_millis());
+        println!("Scene creation: {:?}ms", init_time.elapsed().as_millis());
         let (vertices, indices, mesh_draws) = {
             let mut vertices: Vec<BindlessVertex> = Default::default();
             let mut indices: Vec<u32> = Default::default();
