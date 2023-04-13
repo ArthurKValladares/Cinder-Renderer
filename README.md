@@ -2,6 +2,30 @@
 Modern renderer written in rust, aiming to be a modern, cross-platform, GPU-driven renderer.
 API and backend code are both still very temporary and going trough a major refactoring pass.
 
+# Building And Running
+
+To build and run the project, you need to install [Rust](https://www.rust-lang.org/tools/install).
+
+After Rust is installed, simply open a command promp at the project root directiory and run the command:
+
+```
+cargo run --bin <BIN> --release
+```
+
+The currently available binaries to un are:
+
+```
+hello-triangle
+hello-cube
+texture
+ui
+mesh
+debug
+depth-image
+bindless
+shader-hot-reload
+```
+
 ## Examples
 ### [Hello Triangle](./crates/bin/hello-triangle/src/main.rs)<br/>
 Hello triangle example with vertex colors and a transform matrix sent per-frame to the vertex buffer.
