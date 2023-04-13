@@ -41,6 +41,7 @@ Render Depth image to the screen in a second pass.
 
 ### [Bindless](./crates/bin/bindless/src/main.rs)<br/>
 Draw a complex scene using bindless textures and a uniform buffer for vertex data.
+Will be very slow to load the first time as we are processing mesh and texture data and writting an efficient zero-copy deserializable runtime format that will be used in subsequent loads.
 
 
 ![sponza](https://user-images.githubusercontent.com/23410311/218249268-324efc6f-941c-4787-babb-00d82991ae1d.png)
