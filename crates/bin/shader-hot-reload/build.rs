@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use rust_shader_tools::{EnvVersion, OptimizationLevel, ShaderCompiler, ShaderData, ShaderStage};
+use rust_shader_tools::{EnvVersion, OptimizationLevel, ShaderCompiler, ShaderStage};
 
 fn main() {
     let shader_compiler = ShaderCompiler::new(
