@@ -1,5 +1,5 @@
 use super::{get_pipeline_layout, PipelineCommon};
-use crate::device::{Device};
+use crate::device::Device;
 use crate::resources::bind_group::BindGroup;
 use crate::resources::{
     image::{reflect_format_to_vk, Format},
@@ -259,7 +259,7 @@ impl GraphicsPipeline {
             let bind_group_layouts = common_data.bind_group_layouts();
             let descriptor_counts = common_data.descriptor_counts();
 
-            let bind_group = BindGroup::new(device, bind_group_layouts, &descriptor_counts)?;
+            let bind_group = BindGroup::new(device, bind_group_layouts, descriptor_counts)?;
 
             if let Some(name) = desc.name {
                 bind_group.set_name(device, name);
