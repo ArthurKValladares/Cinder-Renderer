@@ -1227,7 +1227,7 @@ dependencies = [
 [[package]]
 name = "rust-shader-tools"
 version = "0.1.0"
-source = "git+https://github.com/ArthurKValladares/Rust-Shader-Tools#da39427b3cc131f904bb686a3d29b1bfbdbd80f4"
+source = "git+https://github.com/ArthurKValladares/Rust-Shader-Tools#629cbae9b51e1fe47095392e65fb3d816c2f7820"
 dependencies = [
  "anyhow",
  "heck",
@@ -1327,9 +1327,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.95"
+version = "1.0.96"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d721eca97ac802aa7777b701877c8004d950fc142651367300d21c1cc0194744"
+checksum = "057d394a50403bcac12672b2b18fb387ab6d289d957dab67dd201875391e52f1"
 dependencies = [
  "itoa",
  "ryu",
