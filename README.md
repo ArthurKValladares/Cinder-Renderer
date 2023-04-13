@@ -4,7 +4,7 @@ API and backend code are both still very temporary and going trough a major refa
 
 # Building And Running
 
-To build and run the project, you need to install [Rust](https://www.rust-lang.org/tools/install).
+To build and run the project, you need to install [Rust](https://www.rust-lang.org/tools/install) and [CMake](https://cmake.org/).
 
 After Rust is installed, simply open a command promp at the project root directiory and run the command:
 
