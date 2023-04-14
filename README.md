@@ -12,7 +12,7 @@ After Rust is installed, simply open a command promp at the project root directi
 cargo run --bin <BIN> --release
 ```
 
-The currently available binaries to un are:
+The currently available binaries to run are:
 
 ```
 hello-triangle
@@ -26,6 +26,11 @@ bindless
 shader-hot-reload
 ```
 
+### macOS
+ We currently rely on MoltenVK to run on macOS. To run the project, you must install the [LunarG Vulkan SDK](https://www.lunarg.com/vulkan-sdk/). 
+ 
+Once installed, set the environment variable `VULKAN_SDK_PATH` to the path you installed the SDK in, by default: `$HOME/VulkanSDK/<version>`. Then, run the command `source tools/setup_molten_vk.sh`, and if everything succeeds, you should be able to use the regular steps to run the project.
+ 
 ## Examples
 ### [Hello Triangle](./crates/bin/hello-triangle/src/main.rs)<br/>
 Hello triangle example with vertex colors and a transform matrix sent per-frame to the vertex buffer.
