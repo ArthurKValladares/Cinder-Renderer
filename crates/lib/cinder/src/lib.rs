@@ -5,6 +5,7 @@ pub mod context;
 pub mod device;
 pub mod profiling;
 pub mod resources;
+pub mod synch;
 pub mod util;
 pub mod view;
 
