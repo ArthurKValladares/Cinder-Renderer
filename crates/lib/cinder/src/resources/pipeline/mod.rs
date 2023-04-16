@@ -1,3 +1,7 @@
+pub mod compute;
+pub mod graphics;
+pub mod push_constant;
+
 use crate::{
     device::Device,
     resources::{
@@ -9,12 +13,18 @@ use crate::{
 use anyhow::Result;
 use ash::vk;
 use std::collections::{BTreeMap, HashMap};
-
-pub mod compute;
-pub mod graphics;
-pub mod push_constant;
+use thiserror::Error;
 
 // TODO: Can refactor a bunch of pipeline stuff
+#[derive(Debug, Error)]
+pub enum PipelineError {
+    #[error("invalid push constant")]
+    InvalidPushConstant,
+    #[error("invalid pipeline handle")]
+    InvalidPipelineHandle,
+    #[error("no bound pipeline")]
+    NoBoundPipeline,
+}
 
 #[derive(Debug)]
 pub struct PipelineCommonData {

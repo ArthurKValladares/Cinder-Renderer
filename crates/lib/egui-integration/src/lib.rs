@@ -3,7 +3,7 @@ mod sdl;
 
 use anyhow::Result;
 use cinder::{
-    context::{
+    command_queue::{
         render_context::{
             AttachmentLoadOp, Layout, RenderAttachment, RenderAttachmentDesc, RenderContext,
         },
@@ -416,7 +416,7 @@ impl EguiIntegration {
         )?;
 
         self.image_map.insert(*id, image_handle);
-        resource_manager.delete_buffer_raw(image_staging_buffer, device.frame_index());
+        resource_manager.delete_buffer_raw(image_staging_buffer, device.current_frame_in_flight());
 
         Ok(())
     }

@@ -1,12 +1,12 @@
 use math::size::Size2D;
 
 pub mod cinder;
-pub mod context;
+pub mod command_queue;
 pub mod device;
 pub mod profiling;
 pub mod resources;
+pub mod swapchain;
 pub mod util;
-pub mod view;
 
 pub use resource_manager::*;
 

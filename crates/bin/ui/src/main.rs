@@ -1,6 +1,6 @@
 use anyhow::Result;
 use cinder::{
-    context::{
+    command_queue::{
         render_context::{
             AttachmentStoreOp, ClearValue, Layout, RenderAttachment, RenderAttachmentDesc,
             RenderContext,
@@ -15,7 +15,7 @@ use cinder::{
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         ResourceManager,
     },
-    view::View,
+    swapchain::View,
     ResourceId,
 };
 use egui_integration::{egui, helpers::HelperEguiMenu, EguiIntegration};

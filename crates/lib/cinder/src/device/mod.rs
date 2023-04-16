@@ -9,7 +9,7 @@ use self::{
 };
 pub use self::{instance::Extension, surface::SurfaceData};
 use crate::{
-    context::ContextShared,
+    command_queue::CommandQueue,
     profiling::QueryPool,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
@@ -62,20 +62,14 @@ pub struct Device {
     device: ash::Device,
     queue_family_index: u32,
     present_queue: vk::Queue,
-    command_pool: vk::CommandPool,
     surface: Surface,
     instance: Instance,
     pub(crate) pipeline_cache: vk::PipelineCache,
     pub(crate) bind_group_pool: BindGroupPool,
     pub(crate) surface_data: SurfaceData,
-    // TODO: Probably will have better syncronization in the future, not pub
-    pub(crate) present_complete_semaphore: vk::Semaphore,
-    pub(crate) rendering_complete_semaphore: vk::Semaphore,
-    pub(crate) draw_commands_reuse_fence: vk::Fence,
-    pub(crate) setup_commands_reuse_fence: vk::Fence,
     extensions: DeviceExtensions,
     // TODO: once again, just keeping this here for now
-    pub current_frame_in_flight: usize,
+    pub frame_index: usize,
 }
 
 impl Device {
@@ -205,6 +199,7 @@ impl Device {
             "physical device",
         );
 
+        // TODO: Review queue stuff
         let present_queue = unsafe { device.get_device_queue(queue_family_index, 0) };
         instance::debug::set_object_name(
             instance.debug(),
@@ -212,22 +207,6 @@ impl Device {
             vk::ObjectType::QUEUE,
             present_queue,
             "present queue",
-        );
-
-        let command_pool = unsafe {
-            device.create_command_pool(
-                &vk::CommandPoolCreateInfo::builder()
-                    .flags(vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER)
-                    .queue_family_index(queue_family_index),
-                None,
-            )
-        }?;
-        instance::debug::set_object_name(
-            instance.debug(),
-            device.handle(),
-            vk::ObjectType::COMMAND_POOL,
-            command_pool,
-            "command pool",
         );
 
         let ci = vk::PipelineCacheCreateInfo::builder().build();
@@ -250,49 +229,6 @@ impl Device {
 
         let surface_data = surface.get_data(p_device, Resolution { width, height }, false)?;
 
-        let semaphore_create_info = vk::SemaphoreCreateInfo::default();
-
-        let present_complete_semaphore =
-            unsafe { device.create_semaphore(&semaphore_create_info, None) }?;
-        instance::debug::set_object_name(
-            instance.debug(),
-            device.handle(),
-            vk::ObjectType::SEMAPHORE,
-            present_complete_semaphore,
-            "present complete semaphore",
-        );
-
-        let rendering_complete_semaphore =
-            unsafe { device.create_semaphore(&semaphore_create_info, None) }?;
-        instance::debug::set_object_name(
-            instance.debug(),
-            device.handle(),
-            vk::ObjectType::SEMAPHORE,
-            rendering_complete_semaphore,
-            "rendering complete semaphore",
-        );
-
-        let fence_create_info =
-            vk::FenceCreateInfo::builder().flags(vk::FenceCreateFlags::SIGNALED);
-
-        let draw_commands_reuse_fence = unsafe { device.create_fence(&fence_create_info, None) }?;
-        instance::debug::set_object_name(
-            instance.debug(),
-            device.handle(),
-            vk::ObjectType::FENCE,
-            draw_commands_reuse_fence,
-            "draw commands reuse fence",
-        );
-
-        let setup_commands_reuse_fence = unsafe { device.create_fence(&fence_create_info, None) }?;
-        instance::debug::set_object_name(
-            instance.debug(),
-            device.handle(),
-            vk::ObjectType::FENCE,
-            setup_commands_reuse_fence,
-            "setup commands reuse fence",
-        );
-
         let extensions = DeviceExtensions::new(&instance, &device);
 
         Ok(Self {
@@ -304,15 +240,10 @@ impl Device {
             device,
             queue_family_index,
             present_queue,
-            command_pool,
             pipeline_cache,
             bind_group_pool,
             extensions,
-            present_complete_semaphore,
-            rendering_complete_semaphore,
-            draw_commands_reuse_fence,
-            setup_commands_reuse_fence,
-            current_frame_in_flight: 0,
+            frame_index: 0,
         })
     }
 
@@ -331,26 +262,26 @@ impl Device {
         )
     }
 
-    pub fn begin_context_label(&self, context: &ContextShared, name: &str, color: [f32; 4]) {
-        instance::debug::cmd_begin_label(
-            self.instance.debug(),
-            context.command_buffer,
-            name,
-            color,
-        );
+    pub fn begin_context_label(&self, context: &CommandQueue, name: &str, color: [f32; 4]) {
+        //instance::debug::cmd_begin_label(
+        //    self.instance.debug(),
+        //    context.command_buffer,
+        //    name,
+        //    color,
+        //);
     }
 
-    pub fn end_context_label(&self, context: &ContextShared) {
-        instance::debug::cmd_end_label(self.instance.debug(), context.command_buffer);
+    pub fn end_context_label(&self, context: &CommandQueue) {
+        //instance::debug::cmd_end_label(self.instance.debug(), context.command_buffer);
     }
 
-    pub fn insert_context_label(&self, context: &ContextShared, name: &str, color: [f32; 4]) {
-        instance::debug::cmd_insert_label(
-            self.instance.debug(),
-            context.command_buffer,
-            name,
-            color,
-        );
+    pub fn insert_context_label(&self, context: &CommandQueue, name: &str, color: [f32; 4]) {
+        //instance::debug::cmd_insert_label(
+        //    self.instance.debug(),
+        //    context.command_buffer,
+        //    name,
+        //    color,
+        //);
     }
 
     pub fn begin_queue_label(&self, name: &str, color: [f32; 4]) {
@@ -399,10 +330,6 @@ impl Device {
 
     pub fn present_queue(&self) -> vk::Queue {
         self.present_queue
-    }
-
-    pub fn command_pool(&self) -> vk::CommandPool {
-        self.command_pool
     }
 
     pub fn dynamic_rendering(&self) -> &DynamicRendering {
@@ -482,7 +409,7 @@ impl Device {
             .map(|old| Shader::create(self, bytes, old.desc).unwrap());
 
         if let Some(new) = new {
-            manager.replace_shader(id, new, self.frame_index());
+            manager.replace_shader(id, new, self.current_frame_in_flight());
             Ok(())
         } else {
             Err(DeviceError::ResourceNotInCache)
@@ -543,14 +470,6 @@ impl Device {
         }
 
         Ok(Sampler { raw: sampler })
-    }
-
-    pub fn present_complete_semaphore(&self) -> vk::Semaphore {
-        self.present_complete_semaphore
-    }
-
-    pub fn setup_fence(&self) -> vk::Fence {
-        self.setup_commands_reuse_fence
     }
 
     pub fn surface_data(&self) -> &SurfaceData {
@@ -616,12 +535,18 @@ impl Device {
         Ok(())
     }
 
-    pub fn frame_index(&self) -> usize {
-        self.current_frame_in_flight % MAX_FRAMES_IN_FLIGHT
+    pub(crate) fn frame_index(&self) -> usize {
+        self.frame_index
     }
 
+    // TODO: Maybe this should be context-side
+    pub fn current_frame_in_flight(&self) -> usize {
+        self.frame_index % MAX_FRAMES_IN_FLIGHT
+    }
+
+    // TODO: Review where and when to do this
     pub fn bump_frame(&mut self) {
-        self.current_frame_in_flight += 1;
+        self.frame_index += 1;
     }
 }
 
@@ -635,16 +560,6 @@ impl Drop for Device {
             self.device
                 .destroy_pipeline_cache(self.pipeline_cache, None);
 
-            self.device
-                .destroy_semaphore(self.rendering_complete_semaphore, None);
-            self.device
-                .destroy_semaphore(self.present_complete_semaphore, None);
-            self.device
-                .destroy_fence(self.setup_commands_reuse_fence, None);
-            self.device
-                .destroy_fence(self.draw_commands_reuse_fence, None);
-
-            self.device.destroy_command_pool(self.command_pool, None);
             self.device.destroy_device(None);
         }
     }

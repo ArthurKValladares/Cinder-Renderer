@@ -1,13 +1,13 @@
 use anyhow::Result;
 use cinder::{
-    context::render_context::{RenderAttachment, RenderContext},
+    command_queue::{CommandQueue, RenderAttachment},
     device::Device,
     resources::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         pipeline::graphics::GraphicsPipeline,
         ResourceManager,
     },
-    view::View,
+    swapchain::Swapchain,
     ResourceId,
 };
 use math::{mat::Mat4, vec::Vec3};
@@ -26,8 +26,8 @@ include!(concat!(
 pub struct Renderer {
     resource_manager: ResourceManager,
     device: Device,
-    view: View,
-    render_context: RenderContext,
+    swapchain: Swapchain,
+    command_queue: CommandQueue,
     render_pipeline: ResourceId<GraphicsPipeline>,
     vertex_buffer_handle: ResourceId<Buffer>,
     index_buffer_handle: ResourceId<Buffer>,
@@ -39,8 +39,8 @@ impl Renderer {
         let mut resource_manager = ResourceManager::default();
         let (width, height) = window.drawable_size();
         let device = Device::new(window, width, height, Default::default())?;
-        let render_context = RenderContext::new(&device, Default::default())?;
-        let view = View::new(&device, Default::default())?;
+        let command_queue = CommandQueue::new(&device)?;
+        let swapchain = Swapchain::new(&device, Default::default())?;
 
         let mut vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/triangle.vert.spv"),
@@ -92,8 +92,8 @@ impl Renderer {
         Ok(Self {
             resource_manager,
             device,
-            view,
-            render_context,
+            swapchain,
+            command_queue,
             render_pipeline,
             vertex_buffer_handle: vertex_buffer,
             index_buffer_handle: index_buffer,
@@ -102,45 +102,42 @@ impl Renderer {
     }
 
     pub fn draw(&mut self) -> Result<bool> {
-        let drawable = self.view.get_current_drawable(&self.device)?;
+        let swapchain_image = self.swapchain.acquire_image(&self.device)?;
+        let surface_rect = self.device.surface_rect();
 
-        self.render_context.begin(&self.device)?;
+        let mut submit_desc = self.command_queue.begin(&self.device)?;
         {
-            let surface_rect = self.device.surface_rect();
-
-            self.render_context
-                .transition_undefined_to_color(&self.device, drawable);
-
-            self.render_context.begin_rendering(
+            self.command_queue.begin_rendering(
                 &self.device,
                 surface_rect,
-                &[RenderAttachment::color(drawable, Default::default())],
+                &[RenderAttachment::color(swapchain_image, Default::default())],
                 None,
             );
             {
-                let pipeline = self
-                    .resource_manager
-                    .get_graphics_pipeline(self.render_pipeline)
-                    .unwrap();
-                self.render_context
-                    .bind_graphics_pipeline(&self.device, pipeline);
-                self.render_context
-                    .bind_viewport(&self.device, surface_rect, true);
-                self.render_context.bind_scissor(&self.device, surface_rect);
                 let index_buffer = self
                     .resource_manager
                     .get_buffer(self.index_buffer_handle)
                     .unwrap();
-                self.render_context
-                    .bind_index_buffer(&self.device, index_buffer);
                 let vertex_buffer = self
                     .resource_manager
                     .get_buffer(self.vertex_buffer_handle)
                     .unwrap();
-                self.render_context
+
+                let pipeline = self
+                    .resource_manager
+                    .get_graphics_pipeline(self.render_pipeline)
+                    .unwrap();
+                self.command_queue
+                    .bind_graphics_pipeline(&self.device, pipeline);
+                self.command_queue
+                    .bind_viewport(&self.device, surface_rect, true);
+                self.command_queue.bind_scissor(&self.device, surface_rect);
+                self.command_queue
+                    .bind_index_buffer(&self.device, index_buffer);
+                self.command_queue
                     .bind_vertex_buffer(&self.device, vertex_buffer);
 
-                self.render_context.set_vertex_bytes(
+                self.command_queue.set_vertex_bytes(
                     &self.device,
                     pipeline,
                     &Mat4::rotate(
@@ -151,21 +148,18 @@ impl Renderer {
                     0,
                 )?;
 
-                self.render_context.draw_offset(&self.device, 3, 0, 0);
+                self.command_queue.draw_offset(&self.device, 3, 0, 0);
             }
-            self.render_context.end_rendering(&self.device);
-
-            self.render_context
-                .transition_color_to_present(&self.device, drawable);
+            self.command_queue.end_rendering(&self.device);
         }
-        self.render_context.end(&self.device)?;
+        self.command_queue.end(&self.device, &submit_desc)?;
 
-        self.view.present(&self.device, drawable)
+        self.swapchain.present(&self.device, swapchain_image)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
         self.device.resize(width, height)?;
-        self.view.resize(&self.device)?;
+        self.swapchain.resize(&self.device)?;
         Ok(())
     }
 }
@@ -173,8 +167,8 @@ impl Renderer {
 impl Drop for Renderer {
     fn drop(&mut self) {
         self.device.wait_idle().ok();
-
-        self.view.destroy(&self.device);
+        self.command_queue.destroy(&self.device);
+        self.swapchain.destroy(&self.device);
         self.resource_manager.force_destroy(&self.device);
     }
 }

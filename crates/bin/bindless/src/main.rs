@@ -1,6 +1,6 @@
 use anyhow::Result;
 use cinder::{
-    context::{
+    command_queue::{
         render_context::{
             AttachmentStoreOp, ClearValue, Layout, RenderAttachment, RenderAttachmentDesc,
             RenderContext,
@@ -305,7 +305,7 @@ impl Renderer {
         )?;
 
         for handle in image_buffer_handles {
-            resource_manager.delete_buffer(handle, device.frame_index());
+            resource_manager.delete_buffer(handle, device.current_frame_in_flight());
         }
 
         Ok(Self {

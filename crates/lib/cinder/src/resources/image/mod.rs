@@ -3,7 +3,6 @@ use super::{
     sampler::Sampler,
 };
 use crate::{
-    context::render_context::Layout,
     device::Device,
     util::{find_memory_type_index, MemoryMappablePointer},
 };
@@ -92,6 +91,39 @@ impl From<vk::Format> for Format {
             vk::Format::R32G32_SFLOAT => Self::R32G32_SFloat,
             vk::Format::R32_SFLOAT => Self::R32_SFloat,
             _ => panic!("Unsupported image format: {vk:?}"),
+        }
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+pub enum Layout {
+    Undefined,
+    General,
+    ColorAttachment,
+    DepthAttachment,
+    Present,
+    TransferDst,
+    ShaderReadOnly,
+    DepthStencilReadOnly,
+}
+
+impl Default for Layout {
+    fn default() -> Self {
+        Self::ColorAttachment
+    }
+}
+
+impl From<Layout> for vk::ImageLayout {
+    fn from(layout: Layout) -> Self {
+        match layout {
+            Layout::Undefined => vk::ImageLayout::UNDEFINED,
+            Layout::General => vk::ImageLayout::GENERAL,
+            Layout::ColorAttachment => vk::ImageLayout::COLOR_ATTACHMENT_OPTIMAL,
+            Layout::DepthAttachment => vk::ImageLayout::DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+            Layout::Present => vk::ImageLayout::PRESENT_SRC_KHR,
+            Layout::TransferDst => vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+            Layout::ShaderReadOnly => vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            Layout::DepthStencilReadOnly => vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
         }
     }
 }
