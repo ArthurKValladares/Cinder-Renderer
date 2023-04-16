@@ -176,6 +176,7 @@ impl SubmitDescription {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct CommandList {
     command_buffer: vk::CommandBuffer,
     fence: vk::Fence,
@@ -206,6 +207,10 @@ impl CommandList {
             command_buffer,
             fence,
         })
+    }
+
+    pub fn buffer(&self) -> vk::CommandBuffer {
+        self.command_buffer
     }
 
     pub fn destroy(&self, device: &Device) {
@@ -243,8 +248,8 @@ impl CommandQueue {
         })
     }
 
-    pub fn begin(&self, device: &Device) -> Result<SubmitDescription> {
-        let cmd_list = &self.command_lists[device.current_frame_in_flight()];
+    pub fn begin(&self, device: &Device) -> Result<(SubmitDescription, CommandList)> {
+        let cmd_list = self.command_lists[device.current_frame_in_flight()];
 
         unsafe {
             device
@@ -270,7 +275,7 @@ impl CommandQueue {
                 .begin_command_buffer(cmd_list.command_buffer, &command_buffer_begin_info)
         }?;
 
-        Ok(SubmitDescription::default())
+        Ok((SubmitDescription::default(), cmd_list))
     }
 
     pub fn end(&mut self, device: &Device, desc: &SubmitDescription) -> Result<()> {

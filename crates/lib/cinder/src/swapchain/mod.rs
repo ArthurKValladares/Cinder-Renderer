@@ -1,4 +1,7 @@
-use crate::{command_queue::set_image_memory_barrier, device::Device};
+use crate::{
+    command_queue::{set_image_memory_barrier, CommandList},
+    device::Device,
+};
 use anyhow::Result;
 use ash::vk;
 
@@ -139,7 +142,11 @@ impl Swapchain {
         Ok(ret)
     }
 
-    pub fn acquire_image(&self, device: &Device) -> Result<SwapchainImage> {
+    pub fn acquire_image(
+        &mut self,
+        device: &Device,
+        command_list: &CommandList,
+    ) -> Result<SwapchainImage> {
         let semaphore_index = device.frame_index() % self.present_complete_semaphores.len();
         let present_complete_semaphore = self.present_complete_semaphores[semaphore_index];
         let rendering_complete_semaphore = self.rendering_complete_semaphores[semaphore_index];
@@ -153,13 +160,17 @@ impl Swapchain {
             )
         }?;
 
-        Ok(SwapchainImage {
+        let swapchain_image = SwapchainImage {
             index,
             image: self.present_images[index as usize],
             image_view: self.present_image_views[index as usize],
             is_suboptimal,
             rendering_complete_semaphore,
-        })
+        };
+
+        self.transition_image(device, command_list, swapchain_image);
+
+        Ok(swapchain_image)
     }
 
     pub fn present(&self, device: &Device, image: SwapchainImage) -> Result<bool> {
@@ -178,7 +189,7 @@ impl Swapchain {
     pub fn transition_image(
         &mut self,
         device: &Device,
-        command_buffer: vk::CommandBuffer,
+        command_list: &CommandList,
         swapchain_image: SwapchainImage,
     ) {
         let layout = &mut self.present_image_layouts[swapchain_image.index as usize];
@@ -199,7 +210,7 @@ impl Swapchain {
 
         set_image_memory_barrier(
             device.raw(),
-            command_buffer,
+            command_list.buffer(),
             self.present_images[swapchain_image.index as usize],
             vk::ImageAspectFlags::COLOR,
             *layout,

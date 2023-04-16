@@ -102,56 +102,58 @@ impl Renderer {
     }
 
     pub fn draw(&mut self) -> Result<bool> {
-        let swapchain_image = self.swapchain.acquire_image(&self.device)?;
         let surface_rect = self.device.surface_rect();
 
-        let mut submit_desc = self.command_queue.begin(&self.device)?;
-        {
-            self.command_queue.begin_rendering(
-                &self.device,
-                surface_rect,
-                &[RenderAttachment::color(swapchain_image, Default::default())],
-                None,
-            );
-            {
-                let index_buffer = self
-                    .resource_manager
-                    .get_buffer(self.index_buffer_handle)
-                    .unwrap();
-                let vertex_buffer = self
-                    .resource_manager
-                    .get_buffer(self.vertex_buffer_handle)
-                    .unwrap();
+        let (mut submit_desc, cmd_list) = self.command_queue.begin(&self.device)?;
 
-                let pipeline = self
-                    .resource_manager
-                    .get_graphics_pipeline(self.render_pipeline)
-                    .unwrap();
-                self.command_queue
-                    .bind_graphics_pipeline(&self.device, pipeline);
-                self.command_queue
-                    .bind_viewport(&self.device, surface_rect, true);
-                self.command_queue.bind_scissor(&self.device, surface_rect);
-                self.command_queue
-                    .bind_index_buffer(&self.device, index_buffer);
-                self.command_queue
-                    .bind_vertex_buffer(&self.device, vertex_buffer);
+        let swapchain_image = self.swapchain.acquire_image(&self.device, &cmd_list)?;
 
-                self.command_queue.set_vertex_bytes(
-                    &self.device,
-                    pipeline,
-                    &Mat4::rotate(
-                        (self.init_time.elapsed().as_secs_f32() / 5.0)
-                            * (2.0 * std::f32::consts::PI),
-                        Vec3::new(0.0, 0.0, 1.0),
-                    ),
-                    0,
-                )?;
+        self.command_queue.begin_rendering(
+            &self.device,
+            surface_rect,
+            &[RenderAttachment::color(swapchain_image, Default::default())],
+            None,
+        );
+        let index_buffer = self
+            .resource_manager
+            .get_buffer(self.index_buffer_handle)
+            .unwrap();
+        let vertex_buffer = self
+            .resource_manager
+            .get_buffer(self.vertex_buffer_handle)
+            .unwrap();
 
-                self.command_queue.draw_offset(&self.device, 3, 0, 0);
-            }
-            self.command_queue.end_rendering(&self.device);
-        }
+        let pipeline = self
+            .resource_manager
+            .get_graphics_pipeline(self.render_pipeline)
+            .unwrap();
+        self.command_queue
+            .bind_graphics_pipeline(&self.device, pipeline);
+        self.command_queue
+            .bind_viewport(&self.device, surface_rect, true);
+        self.command_queue.bind_scissor(&self.device, surface_rect);
+        self.command_queue
+            .bind_index_buffer(&self.device, index_buffer);
+        self.command_queue
+            .bind_vertex_buffer(&self.device, vertex_buffer);
+
+        self.command_queue.set_vertex_bytes(
+            &self.device,
+            pipeline,
+            &Mat4::rotate(
+                (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI),
+                Vec3::new(0.0, 0.0, 1.0),
+            ),
+            0,
+        )?;
+
+        self.command_queue.draw_offset(&self.device, 3, 0, 0);
+
+        self.command_queue.end_rendering(&self.device);
+
+        self.swapchain
+            .transition_image(&self.device, &cmd_list, swapchain_image);
+
         self.command_queue.end(&self.device, &submit_desc)?;
 
         self.swapchain.present(&self.device, swapchain_image)
