@@ -68,6 +68,9 @@ pub struct Device {
     pub(crate) bind_group_pool: BindGroupPool,
     pub(crate) surface_data: SurfaceData,
     extensions: DeviceExtensions,
+    render_complete_semaphores: Vec<vk::Semaphore>,
+    image_acquired_semaphore: vk::Semaphore,
+    command_buffer_executed_fences: Vec<vk::Fence>,
     // TODO: once again, just keeping this here for now
     pub frame_index: usize,
 }
@@ -231,6 +234,24 @@ impl Device {
 
         let extensions = DeviceExtensions::new(&instance, &device);
 
+        let semaphore_create_info = vk::SemaphoreCreateInfo::default();
+
+        let render_complete_semaphores = (0..MAX_FRAMES_IN_FLIGHT)
+            .map(|_| unsafe { device.create_semaphore(&semaphore_create_info, None) })
+            .collect::<Result<Vec<_>, vk::Result>>()?;
+
+        let image_acquired_semaphore =
+            unsafe { device.create_semaphore(&semaphore_create_info, None) }?;
+
+        let fence_create_info = vk::FenceCreateInfo {
+            flags: vk::FenceCreateFlags::SIGNALED,
+            ..Default::default()
+        };
+
+        let command_buffer_executed_fences = (0..MAX_FRAMES_IN_FLIGHT)
+            .map(|_| unsafe { device.create_fence(&fence_create_info, None) })
+            .collect::<Result<Vec<_>, vk::Result>>()?;
+
         Ok(Self {
             instance,
             surface,
@@ -243,8 +264,28 @@ impl Device {
             pipeline_cache,
             bind_group_pool,
             extensions,
+            render_complete_semaphores,
+            image_acquired_semaphore,
+            command_buffer_executed_fences,
             frame_index: 0,
         })
+    }
+
+    pub fn new_frame(&mut self) -> Result<()> {
+        let render_complete_fence = self.command_buffer_executed_fence();
+        unsafe {
+            match self.device.get_fence_status(render_complete_fence) {
+                Ok(false) | Err(_) => {
+                    self.device
+                        .wait_for_fences(&[render_complete_fence], true, std::u64::MAX)?;
+                }
+                _ => {}
+            }
+
+            self.device.reset_fences(&[render_complete_fence])?;
+        }
+
+        Ok(())
     }
 
     pub(crate) fn set_name(
@@ -535,11 +576,18 @@ impl Device {
         Ok(())
     }
 
-    pub(crate) fn frame_index(&self) -> usize {
-        self.frame_index
+    pub(crate) fn render_complete_semaphore(&self) -> vk::Semaphore {
+        self.render_complete_semaphores[self.current_frame_in_flight()]
     }
 
-    // TODO: Maybe this should be context-side
+    pub(crate) fn image_acquired_semaphore(&self) -> vk::Semaphore {
+        self.image_acquired_semaphore
+    }
+
+    pub(crate) fn command_buffer_executed_fence(&self) -> vk::Fence {
+        self.command_buffer_executed_fences[self.current_frame_in_flight()]
+    }
+
     pub fn current_frame_in_flight(&self) -> usize {
         self.frame_index % MAX_FRAMES_IN_FLIGHT
     }
@@ -560,6 +608,18 @@ impl Drop for Device {
             self.device
                 .destroy_pipeline_cache(self.pipeline_cache, None);
 
+            for fence in &self.command_buffer_executed_fences {
+                self.device.destroy_fence(*fence, None);
+            }
+
+            for semaphore in &self.render_complete_semaphores {
+                self.device.destroy_semaphore(*semaphore, None);
+            }
+
+            self.device
+                .destroy_semaphore(self.image_acquired_semaphore, None);
+
+            // MUST BE DESTROYED LAST!
             self.device.destroy_device(None);
         }
     }

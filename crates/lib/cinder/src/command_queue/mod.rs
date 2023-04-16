@@ -154,32 +154,9 @@ impl Default for ImageBarrierDescription {
     }
 }
 
-#[derive(Default)]
-pub struct SubmitDescription {
-    wait_masks: Vec<vk::PipelineStageFlags>,
-    wait_semaphores: Vec<vk::Semaphore>,
-    signal_semaphores: Vec<vk::Semaphore>,
-}
-
-impl SubmitDescription {
-    pub fn add_wait_semaphore(
-        &mut self,
-        semaphore: vk::Semaphore,
-        wait_mask: vk::PipelineStageFlags,
-    ) {
-        self.wait_semaphores.push(semaphore);
-        self.wait_masks.push(wait_mask);
-    }
-
-    pub fn add_signal_semaphore(&mut self, semaphore: vk::Semaphore) {
-        self.signal_semaphores.push(semaphore);
-    }
-}
-
 #[derive(Debug, Clone, Copy)]
 pub struct CommandList {
     command_buffer: vk::CommandBuffer,
-    fence: vk::Fence,
 }
 
 impl CommandList {
@@ -197,115 +174,30 @@ impl CommandList {
                 .allocate_command_buffers(&command_buffer_allocate_info)?[0]
         };
 
-        let fence_create_info = vk::FenceCreateInfo {
-            flags: vk::FenceCreateFlags::SIGNALED,
-            ..Default::default()
-        };
-        let fence = unsafe { device.raw().create_fence(&fence_create_info, None) }?;
-
-        Ok(Self {
-            command_buffer,
-            fence,
-        })
+        Ok(Self { command_buffer })
     }
 
-    pub fn buffer(&self) -> vk::CommandBuffer {
-        self.command_buffer
-    }
-
-    pub fn destroy(&self, device: &Device) {
-        unsafe {
-            device.raw().destroy_fence(self.fence, None);
-        }
-    }
-}
-
-pub struct CommandQueue {
-    command_pool: vk::CommandPool,
-    command_lists: Vec<CommandList>,
-}
-
-impl CommandQueue {
-    pub fn new(device: &Device) -> Result<Self> {
-        let command_pool = unsafe {
-            device.raw().create_command_pool(
-                &vk::CommandPoolCreateInfo {
-                    flags: vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
-                    queue_family_index: device.queue_family_index(),
-                    ..Default::default()
-                },
-                None,
-            )
-        }?;
-
-        let command_lists = (0..MAX_FRAMES_IN_FLIGHT)
-            .map(|_| CommandList::new(device, command_pool))
-            .collect::<Result<Vec<_>, vk::Result>>()?;
-
-        Ok(Self {
-            command_pool,
-            command_lists,
-        })
-    }
-
-    pub fn begin(&self, device: &Device) -> Result<(SubmitDescription, CommandList)> {
-        let cmd_list = self.command_lists[device.current_frame_in_flight()];
-
-        unsafe {
-            device
-                .raw()
-                .wait_for_fences(&[cmd_list.fence], true, std::u64::MAX)
-        }?;
-
-        unsafe { device.raw().reset_fences(&[cmd_list.fence]) }?;
-
-        unsafe {
-            device.raw().reset_command_buffer(
-                cmd_list.command_buffer,
-                vk::CommandBufferResetFlags::RELEASE_RESOURCES,
-            )
-        }?;
-
+    pub fn begin(&self, device: &Device) -> Result<()> {
         let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder()
             .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
 
         unsafe {
             device
                 .raw()
-                .begin_command_buffer(cmd_list.command_buffer, &command_buffer_begin_info)
-        }?;
-
-        Ok((SubmitDescription::default(), cmd_list))
-    }
-
-    pub fn end(&mut self, device: &Device, desc: &SubmitDescription) -> Result<()> {
-        let cmd_list = &self.command_lists[device.current_frame_in_flight()];
-
-        unsafe { device.raw().end_command_buffer(cmd_list.command_buffer) }?;
-
-        let submit_info = vk::SubmitInfo::builder()
-            .command_buffers(&[cmd_list.command_buffer])
-            .wait_semaphores(&desc.wait_semaphores)
-            .wait_dst_stage_mask(&desc.wait_masks)
-            .signal_semaphores(&desc.signal_semaphores)
-            .build();
-
-        unsafe {
-            device
-                .raw()
-                .queue_submit(device.present_queue(), &[submit_info], cmd_list.fence)
+                .begin_command_buffer(self.command_buffer, &command_buffer_begin_info)
         }?;
 
         Ok(())
     }
 
-    pub fn destroy(&self, device: &Device) {
-        unsafe {
-            device.raw().destroy_command_pool(self.command_pool, None);
-            for command_list in &self.command_lists {
-                command_list.destroy(device);
-            }
-        }
+    pub fn end(&self, device: &Device) -> Result<()> {
+        unsafe { device.raw().end_command_buffer(self.command_buffer) }?;
+
+        Ok(())
+    }
+
+    pub fn buffer(&self) -> vk::CommandBuffer {
+        self.command_buffer
     }
 
     // TODO: This abstraction is too close to raw Vulkan,
@@ -317,8 +209,6 @@ impl CommandQueue {
         color_attachments: &[RenderAttachment],
         depth_attahcment: Option<RenderAttachment>,
     ) {
-        let cmd_list = &self.command_lists[device.current_frame_in_flight()];
-
         let color_attachments = unsafe {
             std::mem::transmute::<&[RenderAttachment], &[vk::RenderingAttachmentInfo]>(
                 color_attachments,
@@ -338,24 +228,22 @@ impl CommandQueue {
         unsafe {
             device
                 .dynamic_rendering()
-                .cmd_begin_rendering(cmd_list.command_buffer, &rendering_info);
+                .cmd_begin_rendering(self.command_buffer, &rendering_info);
         }
     }
 
-    pub fn end_rendering(&mut self, device: &Device) {
-        let cmd_list = &self.command_lists[device.current_frame_in_flight()];
+    pub fn end_rendering(&self, device: &Device) {
         unsafe {
             device
                 .dynamic_rendering()
-                .cmd_end_rendering(cmd_list.command_buffer)
+                .cmd_end_rendering(self.command_buffer)
         };
     }
 
-    pub fn bind_graphics_pipeline(&mut self, device: &Device, pipeline: &GraphicsPipeline) {
-        let cmd_list = &self.command_lists[device.current_frame_in_flight()];
+    pub fn bind_graphics_pipeline(&self, device: &Device, pipeline: &GraphicsPipeline) {
         unsafe {
             device.raw().cmd_bind_pipeline(
-                cmd_list.command_buffer,
+                self.command_buffer,
                 vk::PipelineBindPoint::GRAPHICS,
                 pipeline.common.pipeline,
             )
@@ -363,10 +251,9 @@ impl CommandQueue {
     }
 
     pub fn bind_scissor(&self, device: &Device, rect: Rect2D<i32, u32>) {
-        let cmd_list = &self.command_lists[device.current_frame_in_flight()];
         unsafe {
             device.raw().cmd_set_scissor(
-                cmd_list.command_buffer,
+                self.command_buffer,
                 0,
                 &[vk::Rect2D {
                     offset: vk::Offset2D {
@@ -383,7 +270,6 @@ impl CommandQueue {
     }
 
     pub fn bind_viewport(&self, device: &Device, rect: Rect2D<i32, u32>, flipped: bool) {
-        let cmd_list = &self.command_lists[device.current_frame_in_flight()];
         let (y, height) = if flipped {
             (
                 rect.height() as f32 - rect.offset().y() as f32,
@@ -394,7 +280,7 @@ impl CommandQueue {
         };
         unsafe {
             device.raw().cmd_set_viewport(
-                cmd_list.command_buffer,
+                self.command_buffer,
                 0,
                 &[vk::Viewport {
                     x: rect.offset().x() as f32,
@@ -409,19 +295,17 @@ impl CommandQueue {
     }
 
     pub fn bind_vertex_buffer(&self, device: &Device, buffer: &Buffer) {
-        let cmd_list = &self.command_lists[device.current_frame_in_flight()];
         unsafe {
             device
                 .raw()
-                .cmd_bind_vertex_buffers(cmd_list.command_buffer, 0, &[buffer.raw], &[0])
+                .cmd_bind_vertex_buffers(self.command_buffer, 0, &[buffer.raw], &[0])
         }
     }
 
     pub fn bind_index_buffer(&self, device: &Device, buffer: &Buffer) {
-        let cmd_list = &self.command_lists[device.current_frame_in_flight()];
         unsafe {
             device.raw().cmd_bind_index_buffer(
-                cmd_list.command_buffer,
+                self.command_buffer,
                 buffer.raw,
                 0,
                 vk::IndexType::UINT32,
@@ -437,11 +321,10 @@ impl CommandQueue {
         idx: u32,
         data: &[u8],
     ) -> Result<(), PipelineError> {
-        let cmd_list = &self.command_lists[device.current_frame_in_flight()];
         if let Some(push_constant) = pipeline_common.get_push_constant(shader_stage, idx) {
             unsafe {
                 device.raw().cmd_push_constants(
-                    cmd_list.command_buffer,
+                    self.command_buffer,
                     pipeline_common.pipeline_layout,
                     push_constant.stage.into(),
                     push_constant.offset,
@@ -493,16 +376,56 @@ impl CommandQueue {
         first_index: u32,
         vertex_offset: i32,
     ) {
-        let cmd_list = &self.command_lists[device.current_frame_in_flight()];
         unsafe {
             device.raw().cmd_draw_indexed(
-                cmd_list.command_buffer,
+                self.command_buffer,
                 index_count,
                 1,
                 first_index,
                 vertex_offset,
                 1,
             )
+        }
+    }
+}
+
+pub struct CommandQueue {
+    command_pool: vk::CommandPool,
+    command_lists: Vec<CommandList>,
+}
+
+impl CommandQueue {
+    pub fn new(device: &Device) -> Result<Self> {
+        let command_pool = unsafe {
+            device.raw().create_command_pool(
+                &vk::CommandPoolCreateInfo {
+                    flags: vk::CommandPoolCreateFlags::RESET_COMMAND_BUFFER,
+                    queue_family_index: device.queue_family_index(),
+                    ..Default::default()
+                },
+                None,
+            )
+        }?;
+
+        let command_lists = (0..MAX_FRAMES_IN_FLIGHT)
+            .map(|_| CommandList::new(device, command_pool))
+            .collect::<Result<Vec<_>, vk::Result>>()?;
+
+        Ok(Self {
+            command_pool,
+            command_lists,
+        })
+    }
+
+    pub fn get_command_list(&self, device: &Device) -> Result<CommandList> {
+        let cmd_list = self.command_lists[device.current_frame_in_flight()];
+        cmd_list.begin(device)?;
+        Ok(cmd_list)
+    }
+
+    pub fn destroy(&self, device: &Device) {
+        unsafe {
+            device.raw().destroy_command_pool(self.command_pool, None);
         }
     }
 }

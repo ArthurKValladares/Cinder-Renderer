@@ -96,7 +96,6 @@ pub struct SwapchainImage {
     pub(crate) image_view: vk::ImageView,
     pub(crate) index: u32,
     pub(crate) is_suboptimal: bool,
-    rendering_complete_semaphore: vk::Semaphore,
 }
 
 pub struct Swapchain {
@@ -105,8 +104,6 @@ pub struct Swapchain {
     pub present_images: Vec<vk::Image>,
     pub present_image_views: Vec<vk::ImageView>,
     pub present_image_layouts: Vec<vk::ImageLayout>,
-    pub present_complete_semaphores: Vec<vk::Semaphore>,
-    pub rendering_complete_semaphores: Vec<vk::Semaphore>,
     name: Option<&'static str>,
 }
 
@@ -118,24 +115,12 @@ impl Swapchain {
         let (swapchain, present_images, present_image_views, present_image_layouts) =
             create_swapchain_structures(device, &swapchain_loader, None)?;
 
-        let semaphore_create_info = vk::SemaphoreCreateInfo::default();
-
-        let present_complete_semaphores = (0..present_images.len())
-            .map(|_| unsafe { device.raw().create_semaphore(&semaphore_create_info, None) })
-            .collect::<Result<Vec<_>, vk::Result>>()?;
-
-        let rendering_complete_semaphores = (0..present_images.len())
-            .map(|_| unsafe { device.raw().create_semaphore(&semaphore_create_info, None) })
-            .collect::<Result<Vec<_>, vk::Result>>()?;
-
         let ret = Self {
             swapchain_loader,
             swapchain,
             present_images,
             present_image_views,
             present_image_layouts,
-            present_complete_semaphores,
-            rendering_complete_semaphores,
             name,
         };
 
@@ -147,15 +132,11 @@ impl Swapchain {
         device: &Device,
         command_list: &CommandList,
     ) -> Result<SwapchainImage> {
-        let semaphore_index = device.frame_index() % self.present_complete_semaphores.len();
-        let present_complete_semaphore = self.present_complete_semaphores[semaphore_index];
-        let rendering_complete_semaphore = self.rendering_complete_semaphores[semaphore_index];
-
         let (index, is_suboptimal) = unsafe {
             self.swapchain_loader.acquire_next_image(
                 self.swapchain,
                 std::u64::MAX,
-                present_complete_semaphore,
+                device.image_acquired_semaphore(),
                 vk::Fence::null(),
             )
         }?;
@@ -165,7 +146,6 @@ impl Swapchain {
             image: self.present_images[index as usize],
             image_view: self.present_image_views[index as usize],
             is_suboptimal,
-            rendering_complete_semaphore,
         };
 
         self.transition_image(device, command_list, swapchain_image);
@@ -173,20 +153,47 @@ impl Swapchain {
         Ok(swapchain_image)
     }
 
-    pub fn present(&self, device: &Device, image: SwapchainImage) -> Result<bool> {
-        Ok(unsafe {
-            self.swapchain_loader.queue_present(
+    pub fn present(
+        &mut self,
+        device: &Device,
+        cmd_list: CommandList,
+        image: SwapchainImage,
+    ) -> Result<bool> {
+        self.transition_image(device, &cmd_list, image);
+
+        cmd_list.end(device)?;
+
+        let render_complete_fence = device.command_buffer_executed_fence();
+        let render_complete_semaphore = device.render_complete_semaphore();
+
+        let submit_info = vk::SubmitInfo::builder()
+            .command_buffers(&[cmd_list.buffer()])
+            .wait_semaphores(&[device.image_acquired_semaphore()])
+            .wait_dst_stage_mask(&[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
+            .signal_semaphores(&[render_complete_semaphore])
+            .build();
+
+        unsafe {
+            device.raw().queue_submit(
                 device.present_queue(),
-                &vk::PresentInfoKHR::builder()
-                    .wait_semaphores(std::slice::from_ref(&image.rendering_complete_semaphore))
-                    .swapchains(std::slice::from_ref(&self.swapchain))
-                    .image_indices(std::slice::from_ref(&image.index))
-                    .build(),
+                &[submit_info],
+                render_complete_fence,
             )
+        }?;
+
+        let present_info = vk::PresentInfoKHR::builder()
+            .wait_semaphores(&[render_complete_semaphore])
+            .swapchains(&[self.swapchain])
+            .image_indices(&[image.index])
+            .build();
+
+        Ok(unsafe {
+            self.swapchain_loader
+                .queue_present(device.present_queue(), &present_info)
         }?)
     }
 
-    pub fn transition_image(
+    fn transition_image(
         &mut self,
         device: &Device,
         command_list: &CommandList,
@@ -248,12 +255,6 @@ impl Swapchain {
         unsafe {
             self.swapchain_loader
                 .destroy_swapchain(self.swapchain, None);
-            for semaphore in &self.rendering_complete_semaphores {
-                device.raw().destroy_semaphore(*semaphore, None);
-            }
-            for semaphore in &self.present_complete_semaphores {
-                device.raw().destroy_semaphore(*semaphore, None);
-            }
         }
     }
 }
