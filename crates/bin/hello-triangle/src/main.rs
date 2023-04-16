@@ -102,20 +102,7 @@ impl Renderer {
     }
 
     pub fn draw(&mut self) -> Result<bool> {
-        self.device.new_frame()?;
-
         let surface_rect = self.device.surface_rect();
-
-        let cmd_list = self.command_queue.get_command_list(&self.device)?;
-
-        let swapchain_image = self.swapchain.acquire_image(&self.device, &cmd_list)?;
-
-        cmd_list.begin_rendering(
-            &self.device,
-            surface_rect,
-            &[RenderAttachment::color(swapchain_image, Default::default())],
-            None,
-        );
         let index_buffer = self
             .resource_manager
             .get_buffer(self.index_buffer_handle)
@@ -129,6 +116,15 @@ impl Renderer {
             .get_graphics_pipeline(self.render_pipeline)
             .unwrap();
 
+        let cmd_list = self.command_queue.get_command_list(&self.device)?;
+        let swapchain_image = self.swapchain.acquire_image(&self.device, &cmd_list)?;
+
+        cmd_list.begin_rendering(
+            &self.device,
+            surface_rect,
+            &[RenderAttachment::color(swapchain_image, Default::default())],
+            None,
+        );
         cmd_list.bind_graphics_pipeline(&self.device, pipeline);
         cmd_list.bind_viewport(&self.device, surface_rect, true);
         cmd_list.bind_scissor(&self.device, surface_rect);
@@ -144,7 +140,6 @@ impl Renderer {
             0,
         )?;
         cmd_list.draw_offset(&self.device, 3, 0, 0);
-
         cmd_list.end_rendering(&self.device);
 
         self.swapchain
@@ -178,6 +173,8 @@ fn main() {
     let mut renderer = Renderer::new(&sdl.window).unwrap();
 
     'running: loop {
+        renderer.device.new_frame().unwrap();
+
         for event in sdl.event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }

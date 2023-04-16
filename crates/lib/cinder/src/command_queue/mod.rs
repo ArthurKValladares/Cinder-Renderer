@@ -313,6 +313,19 @@ impl CommandList {
         }
     }
 
+    pub fn bind_descriptor_sets(&self, device: &Device, pipeline: &GraphicsPipeline) {
+        unsafe {
+            device.raw().cmd_bind_descriptor_sets(
+                self.command_buffer,
+                vk::PipelineBindPoint::GRAPHICS,
+                pipeline.common.pipeline_layout,
+                0,
+                &[pipeline.bind_group.as_ref().unwrap().0],
+                &[],
+            )
+        }
+    }
+
     fn push_constant(
         &self,
         device: &Device,

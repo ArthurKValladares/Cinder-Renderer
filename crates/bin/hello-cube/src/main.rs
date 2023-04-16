@@ -1,18 +1,17 @@
 use anyhow::Result;
 use cinder::{
-    command_queue::render_context::{
-        AttachmentStoreOp, ClearValue, Layout, RenderAttachment, RenderAttachmentDesc,
-        RenderContext,
+    command_queue::{
+        AttachmentStoreOp, ClearValue, CommandQueue, RenderAttachment, RenderAttachmentDesc,
     },
     device::Device,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
-        image::{Format, Image, ImageDescription, ImageUsage},
+        image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         ResourceManager,
     },
-    swapchain::View,
+    swapchain::Swapchain,
     ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
@@ -31,10 +30,10 @@ include!(concat!(
 pub struct Renderer {
     resource_manager: ResourceManager,
     device: Device,
-    view: View,
+    swapchain: Swapchain,
     depth_image: ResourceId<Image>,
     render_pipeline: ResourceId<GraphicsPipeline>,
-    render_context: RenderContext,
+    command_queue: CommandQueue,
     vertex_buffer_handle: ResourceId<Buffer>,
     index_buffer_handle: ResourceId<Buffer>,
     ubo_buffer_handle: ResourceId<Buffer>,
@@ -46,8 +45,8 @@ impl Renderer {
         let mut resource_manager = ResourceManager::default();
         let (width, height) = window.drawable_size();
         let device = Device::new(window, width, height, Default::default())?;
-        let render_context = RenderContext::new(&device, Default::default())?;
-        let view = View::new(&device, Default::default())?;
+        let command_queue = CommandQueue::new(&device)?;
+        let swapchain = Swapchain::new(&device, Default::default())?;
         let surface_rect = device.surface_rect();
         let depth_image = resource_manager.insert_image(device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
@@ -243,9 +242,9 @@ impl Renderer {
         Ok(Self {
             resource_manager,
             device,
-            view,
+            swapchain,
             depth_image,
-            render_context,
+            command_queue,
             render_pipeline,
             vertex_buffer_handle,
             index_buffer_handle,
@@ -268,71 +267,55 @@ impl Renderer {
     }
 
     pub fn draw(&mut self) -> Result<bool> {
-        let drawable = self.view.get_current_drawable(&self.device)?;
+        let surface_rect = self.device.surface_rect();
+        let depth_image = self.resource_manager.get_image(self.depth_image).unwrap();
+        let pipeline = self
+            .resource_manager
+            .get_graphics_pipeline(self.render_pipeline)
+            .unwrap();
+        let index_buffer = self
+            .resource_manager
+            .get_buffer(self.index_buffer_handle)
+            .unwrap();
+        let vertex_buffer = self
+            .resource_manager
+            .get_buffer(self.vertex_buffer_handle)
+            .unwrap();
 
-        self.render_context.begin(&self.device)?;
-        {
-            let surface_rect = self.device.surface_rect();
+        let cmd_list = self.command_queue.get_command_list(&self.device)?;
+        let swapchain_image = self.swapchain.acquire_image(&self.device, &cmd_list)?;
 
-            self.render_context
-                .transition_undefined_to_color(&self.device, drawable);
+        cmd_list.begin_rendering(
+            &self.device,
+            surface_rect,
+            &[RenderAttachment::color(swapchain_image, Default::default())],
+            Some(RenderAttachment::depth(
+                depth_image,
+                RenderAttachmentDesc {
+                    store_op: AttachmentStoreOp::DontCare,
+                    layout: Layout::DepthAttachment,
+                    clear_value: ClearValue::default_depth(),
+                    ..Default::default()
+                },
+            )),
+        );
+        cmd_list.bind_graphics_pipeline(&self.device, pipeline);
+        cmd_list.bind_viewport(&self.device, surface_rect, true);
+        cmd_list.bind_scissor(&self.device, surface_rect);
+        cmd_list.bind_index_buffer(&self.device, index_buffer);
+        cmd_list.bind_vertex_buffer(&self.device, vertex_buffer);
+        // TODO: re-think API later when using more than one set
+        cmd_list.bind_descriptor_sets(&self.device, pipeline);
+        cmd_list.draw_offset(&self.device, 36, 0, 0);
+        cmd_list.end_rendering(&self.device);
 
-            let depth_image = self.resource_manager.get_image(self.depth_image).unwrap();
-            self.render_context.begin_rendering(
-                &self.device,
-                surface_rect,
-                &[RenderAttachment::color(drawable, Default::default())],
-                Some(RenderAttachment::depth(
-                    depth_image,
-                    RenderAttachmentDesc {
-                        store_op: AttachmentStoreOp::DontCare,
-                        layout: Layout::DepthAttachment,
-                        clear_value: ClearValue::default_depth(),
-                        ..Default::default()
-                    },
-                )),
-            );
-            {
-                let pipeline = self
-                    .resource_manager
-                    .get_graphics_pipeline(self.render_pipeline)
-                    .unwrap();
-                self.render_context
-                    .bind_graphics_pipeline(&self.device, pipeline);
-                self.render_context
-                    .bind_viewport(&self.device, surface_rect, true);
-                self.render_context.bind_scissor(&self.device, surface_rect);
-                let index_buffer = self
-                    .resource_manager
-                    .get_buffer(self.index_buffer_handle)
-                    .unwrap();
-                self.render_context
-                    .bind_index_buffer(&self.device, index_buffer);
-                let vertex_buffer = self
-                    .resource_manager
-                    .get_buffer(self.vertex_buffer_handle)
-                    .unwrap();
-                self.render_context
-                    .bind_vertex_buffer(&self.device, vertex_buffer);
-                // TODO: re-think API later when using more than one set
-                self.render_context
-                    .bind_descriptor_sets(&self.device, pipeline);
-
-                self.render_context.draw_offset(&self.device, 36, 0, 0);
-            }
-            self.render_context.end_rendering(&self.device);
-
-            self.render_context
-                .transition_color_to_present(&self.device, drawable);
-        }
-        self.render_context.end(&self.device)?;
-
-        self.view.present(&self.device, drawable)
+        self.swapchain
+            .present(&self.device, cmd_list, swapchain_image)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
         self.device.resize(width, height)?;
-        self.view.resize(&self.device)?;
+        self.swapchain.resize(&self.device)?;
         let depth_image = self
             .resource_manager
             .get_image_mut(self.depth_image)
@@ -345,8 +328,8 @@ impl Renderer {
 impl Drop for Renderer {
     fn drop(&mut self) {
         self.device.wait_idle().ok();
-
-        self.view.destroy(&self.device);
+        self.command_queue.destroy(&self.device);
+        self.swapchain.destroy(&self.device);
         self.resource_manager.force_destroy(&self.device);
     }
 }
@@ -362,6 +345,8 @@ fn main() {
     let mut renderer = Renderer::new(&sdl.window).unwrap();
 
     'running: loop {
+        renderer.device.new_frame().unwrap();
+
         for event in sdl.event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }
