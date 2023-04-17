@@ -2,18 +2,16 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use cinder::{
-    command_queue::{
-        render_context::{Layout, RenderAttachment, RenderContext},
-        upload_context::UploadContext,
-    },
+    command_queue::{CommandQueue, RenderAttachment},
     device::Device,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
+        image::Layout,
         pipeline::graphics::GraphicsPipeline,
         ResourceManager,
     },
-    view::View,
+    swapchain::Swapchain,
     ResourceId,
 };
 use math::size::Size2D;
@@ -29,42 +27,82 @@ include!(concat!(
 ));
 
 pub struct Renderer {
-    resource_manager: ResourceManager,
     device: Device,
-    view: View,
-    render_pipeline: ResourceId<GraphicsPipeline>,
-    render_context: RenderContext,
+    swapchain: Swapchain,
+    command_queue: CommandQueue,
+    resource_manager: ResourceManager,
+    render_pipeline_handle: ResourceId<GraphicsPipeline>,
     vertex_buffer_handle: ResourceId<Buffer>,
     index_buffer_handle: ResourceId<Buffer>,
 }
 
 impl Renderer {
     pub fn new(window: &Window) -> Result<Self> {
-        let mut resource_manager = ResourceManager::default();
+        //
+        // Create Base Resources
+        //
         let (width, height) = window.drawable_size();
         let device = Device::new(window, width, height, Default::default())?;
-        let render_context = RenderContext::new(&device, Default::default())?;
-        let upload_context = UploadContext::new(&device, Default::default())?;
+        let command_queue = CommandQueue::new(&device)?;
+        let swapchain = Swapchain::new(&device, Default::default())?;
 
-        let view = View::new(&device, Default::default())?;
-
-        let mut vertex_shader = device.create_shader(
+        //
+        // Create App Resources
+        //
+        let vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/texture.vert.spv"),
             Default::default(),
         )?;
-        let mut fragment_shader = device.create_shader(
+        let fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/texture.frag.spv"),
             Default::default(),
         )?;
-        let render_pipeline =
-            resource_manager.insert_graphics_pipeline(device.create_graphics_pipeline(
-                &vertex_shader,
-                &fragment_shader,
-                Default::default(),
-            )?);
-        vertex_shader.destroy(device.raw());
-        fragment_shader.destroy(device.raw());
+        let render_pipeline = device.create_graphics_pipeline(
+            &vertex_shader,
+            &fragment_shader,
+            Default::default(),
+        )?;
+        let sampler = device.create_sampler(&device, Default::default())?;
+        let image_data = zero_copy_assets::try_decoded_file::<zero_copy_assets::ImageData>(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("assets")
+                .join("rust.png"),
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("assets")
+                .join("gen")
+                .join("rust.adi"),
+        )
+        .unwrap();
+        let texture = device.create_image_with_data(
+            Size2D::new(image_data.width, image_data.height),
+            &image_data.bytes,
+            &command_queue,
+            Default::default(),
+        )?;
+        device.write_bind_group(
+            &render_pipeline,
+            &[BindGroupBindInfo {
+                dst_binding: 0,
+                data: BindGroupWriteData::SampledImage(texture.bind_info(
+                    &sampler,
+                    Layout::ShaderReadOnly,
+                    None,
+                )),
+            }],
+        )?;
 
+        //
+        // Add resources to ResourceManager
+        //
+        let mut resource_manager = ResourceManager::default();
+        let render_pipeline_handle = resource_manager.insert_graphics_pipeline(render_pipeline);
+        let index_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
+            &[0, 1, 2, 2, 3, 0],
+            BufferDescription {
+                usage: BufferUsage::INDEX,
+                ..Default::default()
+            },
+        )?);
         let vertex_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
             &[
                 // Top-left
@@ -93,142 +131,66 @@ impl Renderer {
                 ..Default::default()
             },
         )?);
-        let index_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
-            &[0, 1, 2, 2, 3, 0],
-            BufferDescription {
-                usage: BufferUsage::INDEX,
-                ..Default::default()
-            },
-        )?);
-
-        let sampler = device.create_sampler(&device, Default::default())?;
-
-        let image_data = zero_copy_assets::try_decoded_file::<zero_copy_assets::ImageData>(
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("assets")
-                .join("rust.png"),
-            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-                .join("assets")
-                .join("gen")
-                .join("rust.adi"),
-        )
-        .unwrap();
-        let texture = device.create_image(
-            Size2D::new(image_data.width, image_data.height),
-            Default::default(),
-        )?;
-
-        let image_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
-            &image_data.bytes,
-            BufferDescription {
-                usage: BufferUsage::TRANSFER_SRC,
-                ..Default::default()
-            },
-        )?);
-        let image_buffer = resource_manager.get_buffer(image_buffer_handle).unwrap();
-        // TODO: Will abstract this later
-        upload_context.begin(&device, device.setup_fence())?;
-        {
-            upload_context.image_barrier_start(&device, &texture);
-            upload_context.copy_buffer_to_image(&device, image_buffer, &texture);
-            upload_context.image_barrier_end(&device, &texture);
-        }
-        upload_context.end(
-            &device,
-            device.setup_fence(),
-            device.present_queue(),
-            &[],
-            &[],
-            &[],
-        )?;
-
-        let pipeline = resource_manager
-            .get_graphics_pipeline(render_pipeline)
-            .unwrap();
-        device.write_bind_group(
-            pipeline,
-            &[BindGroupBindInfo {
-                dst_binding: 0,
-                data: BindGroupWriteData::SampledImage(texture.bind_info(
-                    &sampler,
-                    Layout::ShaderReadOnly,
-                    None,
-                )),
-            }],
-        )?;
-
         resource_manager.insert_sampler(sampler);
         resource_manager.insert_image(texture);
 
-        resource_manager.delete_buffer(image_buffer_handle, device.current_frame_in_flight());
+        //
+        // Cleanup
+        //
+        vertex_shader.destroy(device.raw());
+        fragment_shader.destroy(device.raw());
 
         Ok(Self {
             resource_manager,
             device,
-            view,
-            render_context,
-            render_pipeline,
+            swapchain,
+            command_queue,
+            render_pipeline_handle,
             vertex_buffer_handle,
             index_buffer_handle,
         })
     }
 
     pub fn draw(&mut self) -> Result<bool> {
-        let drawable = self.view.get_current_drawable(&self.device)?;
+        let surface_rect = self.device.surface_rect();
+        let index_buffer = self
+            .resource_manager
+            .get_buffer(self.index_buffer_handle)
+            .unwrap();
+        let vertex_buffer = self
+            .resource_manager
+            .get_buffer(self.vertex_buffer_handle)
+            .unwrap();
+        let pipeline = self
+            .resource_manager
+            .get_graphics_pipeline(self.render_pipeline_handle)
+            .unwrap();
 
-        self.render_context.begin(&self.device)?;
-        {
-            let surface_rect = self.device.surface_rect();
+        let cmd_list = self.command_queue.get_command_list(&self.device)?;
+        let swapchain_image = self.swapchain.acquire_image(&self.device, &cmd_list)?;
 
-            self.render_context
-                .transition_undefined_to_color(&self.device, drawable);
+        cmd_list.begin_rendering(
+            &self.device,
+            surface_rect,
+            &[RenderAttachment::color(swapchain_image, Default::default())],
+            None,
+        );
+        cmd_list.bind_graphics_pipeline(&self.device, pipeline);
+        cmd_list.bind_viewport(&self.device, surface_rect, true);
+        cmd_list.bind_scissor(&self.device, surface_rect);
+        cmd_list.bind_index_buffer(&self.device, index_buffer);
+        cmd_list.bind_vertex_buffer(&self.device, vertex_buffer);
+        cmd_list.bind_descriptor_sets(&self.device, pipeline);
+        cmd_list.draw_offset(&self.device, 6, 0, 0);
+        cmd_list.end_rendering(&self.device);
 
-            self.render_context.begin_rendering(
-                &self.device,
-                surface_rect,
-                &[RenderAttachment::color(drawable, Default::default())],
-                None,
-            );
-            {
-                let pipeline = self
-                    .resource_manager
-                    .get_graphics_pipeline(self.render_pipeline)
-                    .unwrap();
-                self.render_context
-                    .bind_graphics_pipeline(&self.device, pipeline);
-                self.render_context
-                    .bind_viewport(&self.device, surface_rect, true);
-                self.render_context.bind_scissor(&self.device, surface_rect);
-                let index_buffer = self
-                    .resource_manager
-                    .get_buffer(self.index_buffer_handle)
-                    .unwrap();
-                self.render_context
-                    .bind_index_buffer(&self.device, index_buffer);
-                let vertex_buffer = self
-                    .resource_manager
-                    .get_buffer(self.vertex_buffer_handle)
-                    .unwrap();
-                self.render_context
-                    .bind_vertex_buffer(&self.device, vertex_buffer);
-                self.render_context
-                    .bind_descriptor_sets(&self.device, pipeline);
-
-                self.render_context.draw_offset(&self.device, 6, 0, 0);
-            }
-            self.render_context.end_rendering(&self.device);
-
-            self.render_context
-                .transition_color_to_present(&self.device, drawable);
-        }
-        self.render_context.end(&self.device)?;
-
-        self.view.present(&self.device, drawable)
+        self.swapchain
+            .present(&self.device, cmd_list, swapchain_image)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
         self.device.resize(width, height)?;
-        self.view.resize(&self.device)?;
+        self.swapchain.resize(&self.device)?;
         Ok(())
     }
 }
@@ -236,8 +198,8 @@ impl Renderer {
 impl Drop for Renderer {
     fn drop(&mut self) {
         self.device.wait_idle().ok();
-
-        self.view.destroy(&self.device);
+        self.command_queue.destroy(&self.device);
+        self.swapchain.destroy(&self.device);
         self.resource_manager.force_destroy(&self.device);
     }
 }
@@ -253,6 +215,8 @@ fn main() {
     let mut renderer = Renderer::new(&sdl.window).unwrap();
 
     'running: loop {
+        renderer.device.new_frame().unwrap();
+
         for event in sdl.event_pump.poll_iter() {
             match event {
                 Event::Quit { .. }

@@ -196,8 +196,54 @@ impl CommandList {
         Ok(())
     }
 
+    pub fn reset(&self, device: &Device) -> Result<()> {
+        unsafe {
+            device.raw().reset_command_buffer(
+                self.command_buffer,
+                vk::CommandBufferResetFlags::RELEASE_RESOURCES,
+            )?;
+        }
+
+        Ok(())
+    }
+
+    pub fn immediate_submit(&self, device: &Device, queue: vk::Queue) -> Result<()> {
+        let submit_info = vk::SubmitInfo::builder()
+            .command_buffers(&[self.command_buffer])
+            .build();
+
+        unsafe {
+            device
+                .raw()
+                .queue_submit(queue, &[submit_info], vk::Fence::null())?;
+            device.raw().queue_wait_idle(queue)?;
+        }
+
+        Ok(())
+    }
+
     pub fn buffer(&self) -> vk::CommandBuffer {
         self.command_buffer
+    }
+
+    pub fn set_image_memory_barrier(
+        &self,
+        device: &Device,
+        image: vk::Image,
+        aspect_mask: vk::ImageAspectFlags,
+        old_layout: vk::ImageLayout,
+        new_layout: vk::ImageLayout,
+        desc: ImageBarrierDescription,
+    ) {
+        set_image_memory_barrier(
+            device.raw(),
+            self.command_buffer,
+            image,
+            aspect_mask,
+            old_layout,
+            new_layout,
+            desc,
+        )
     }
 
     // TODO: This abstraction is too close to raw Vulkan,
@@ -400,6 +446,32 @@ impl CommandList {
             )
         }
     }
+
+    pub fn copy_buffer_to_image(&self, device: &Device, buffer: &Buffer, image: &Image) {
+        let buffer_copy_regions = vk::BufferImageCopy::builder()
+            .image_subresource(
+                vk::ImageSubresourceLayers::builder()
+                    .aspect_mask(image.desc.usage.into())
+                    .layer_count(1)
+                    .build(),
+            )
+            .image_extent(vk::Extent3D {
+                width: image.size.width(),
+                height: image.size.height(),
+                depth: 1,
+            })
+            .build();
+
+        unsafe {
+            device.raw().cmd_copy_buffer_to_image(
+                self.command_buffer,
+                buffer.raw,
+                image.raw,
+                vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+                &[buffer_copy_regions],
+            )
+        };
+    }
 }
 
 pub struct CommandQueue {
@@ -432,6 +504,12 @@ impl CommandQueue {
 
     pub fn get_command_list(&self, device: &Device) -> Result<CommandList> {
         let cmd_list = self.command_lists[device.current_frame_in_flight()];
+        cmd_list.begin(device)?;
+        Ok(cmd_list)
+    }
+
+    pub fn get_immediate_command_list(&self, device: &Device) -> Result<CommandList> {
+        let cmd_list = CommandList::new(device, self.command_pool)?;
         cmd_list.begin(device)?;
         Ok(cmd_list)
     }

@@ -145,7 +145,7 @@ impl Buffer {
         })
     }
 
-    pub fn clean(&mut self, device: &Device) {
+    pub fn clean(&self, device: &Device) {
         unsafe {
             device.raw().destroy_buffer(self.raw, None);
             self.memory.destroy(device.raw());

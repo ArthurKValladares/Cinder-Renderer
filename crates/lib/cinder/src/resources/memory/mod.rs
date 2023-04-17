@@ -52,7 +52,7 @@ impl Memory {
         );
     }
 
-    pub(crate) fn destroy(&mut self, device: &ash::Device) {
+    pub(crate) fn destroy(&self, device: &ash::Device) {
         unsafe {
             device.free_memory(self.raw, None);
         }

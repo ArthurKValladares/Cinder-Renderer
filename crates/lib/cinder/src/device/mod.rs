@@ -13,7 +13,7 @@ use crate::{
     profiling::QueryPool,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
-        buffer::{Buffer, BufferDescription},
+        buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Image, ImageDescription, ImageError},
         manager::ResourceManager,
         pipeline::{
@@ -433,6 +433,52 @@ impl Device {
 
     pub fn create_image(&self, size: Size2D<u32>, desc: ImageDescription) -> Result<Image> {
         Image::create(self, size, desc)
+    }
+
+    pub fn create_image_with_data(
+        &self,
+        size: Size2D<u32>,
+        bytes: &[u8],
+        cmd_queue: &CommandQueue,
+        desc: ImageDescription,
+    ) -> Result<Image> {
+        let image = Image::create(self, size, desc)?;
+
+        let image_buffer = self.create_buffer_with_data(
+            bytes,
+            BufferDescription {
+                usage: BufferUsage::TRANSFER_SRC,
+                ..Default::default()
+            },
+        )?;
+
+        let instant_command_list = cmd_queue.get_immediate_command_list(self)?;
+
+        instant_command_list.set_image_memory_barrier(
+            self,
+            image.raw,
+            vk::ImageAspectFlags::COLOR,
+            vk::ImageLayout::UNDEFINED,
+            vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+            Default::default(),
+        );
+        instant_command_list.copy_buffer_to_image(self, &image_buffer, &image);
+        instant_command_list.set_image_memory_barrier(
+            self,
+            image.raw,
+            vk::ImageAspectFlags::COLOR,
+            vk::ImageLayout::TRANSFER_DST_OPTIMAL,
+            vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
+            Default::default(),
+        );
+
+        instant_command_list.end(self)?;
+        instant_command_list.immediate_submit(self, self.present_queue)?;
+        instant_command_list.reset(self)?;
+
+        image_buffer.clean(self);
+
+        Ok(image)
     }
 
     pub fn create_shader(&self, bytes: &[u8], desc: ShaderDesc) -> Result<Shader> {
