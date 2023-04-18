@@ -249,10 +249,6 @@ impl GraphicsPipeline {
             pipeline_layout,
         )?;
 
-        if let Some(name) = desc.name {
-            device.set_name(vk::ObjectType::PIPELINE, pipeline, name)
-        }
-
         let bind_group = if common_data.bind_group_layouts().is_empty() {
             None
         } else {
@@ -268,14 +264,8 @@ impl GraphicsPipeline {
             Some(bind_group)
         };
 
-        let common = PipelineCommon {
-            pipeline_layout,
-            pipeline,
-            common_data,
-        };
-        if let Some(name) = desc.name {
-            common.set_name(device, name);
-        }
+        let common = PipelineCommon::new(device, pipeline_layout, pipeline, common_data, desc.name);
+
         Ok(GraphicsPipeline {
             common,
             bind_group,

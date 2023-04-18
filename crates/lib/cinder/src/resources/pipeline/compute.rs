@@ -53,16 +53,8 @@ impl ComputePipeline {
             }
         }
 
-        let common = PipelineCommon {
-            pipeline_layout,
-            pipeline,
-            common_data,
-        };
-
-        if let Some(name) = desc.name {
-            common.set_name(device, name);
-        }
-
-        Ok(Self { common })
+        Ok(Self {
+            common: PipelineCommon::new(device, pipeline_layout, pipeline, common_data, desc.name),
+        })
     }
 }

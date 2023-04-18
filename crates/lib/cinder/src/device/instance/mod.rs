@@ -28,17 +28,14 @@ impl From<Extension> for &'static CStr {
     }
 }
 
-fn extensions(required_extensions: &[Extension]) -> Vec<&'static CStr> {
+fn required_extensions() -> Vec<&'static CStr> {
     #[allow(unused_mut)]
     let mut extensions = vec![ash::extensions::ext::DebugUtils::name()];
-    for ext in required_extensions {
-        extensions.push((*ext).into());
-    }
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     {
-        extensions.push(KhrPortabilityEnumerationFn::name());
+        required_extensions.push(KhrPortabilityEnumerationFn::name());
         // Enabling this extension is a requirement when using `VK_KHR_portability_subset`
-        extensions.push(KhrGetPhysicalDeviceProperties2Fn::name());
+        required_extensions.push(KhrGetPhysicalDeviceProperties2Fn::name());
     }
     extensions
 }
@@ -51,7 +48,7 @@ pub struct Instance {
 }
 
 impl Instance {
-    pub fn new<W>(window: &W, required_extensions: &[Extension]) -> Result<Self>
+    pub fn new<W>(window: &W) -> Result<Self>
     where
         W: HasRawWindowHandle + HasRawDisplayHandle,
     {
@@ -63,15 +60,14 @@ impl Instance {
             .map(|raw_name| raw_name.as_ptr())
             .collect::<Vec<*const c_char>>();
 
-        let extensions = extensions(required_extensions);
         let extensions = {
-            let window_extensions =
-                ash_window::enumerate_required_extensions(window.raw_display_handle())?;
-            let mut extensions = extensions
+            let mut extensions = required_extensions()
                 .iter()
                 .map(|raw_name| raw_name.as_ptr())
                 .collect::<Vec<*const c_char>>();
-            extensions.extend(window_extensions.iter());
+            extensions.extend(
+                ash_window::enumerate_required_extensions(window.raw_display_handle())?.iter(),
+            );
             extensions
         };
 

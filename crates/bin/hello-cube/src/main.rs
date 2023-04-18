@@ -44,9 +44,9 @@ impl Renderer {
     pub fn new(window: &Window) -> Result<Self> {
         let mut resource_manager = ResourceManager::default();
         let (width, height) = window.drawable_size();
-        let device = Device::new(window, width, height, Default::default())?;
+        let device = Device::new(window, width, height)?;
         let command_queue = CommandQueue::new(&device)?;
-        let swapchain = Swapchain::new(&device, Default::default())?;
+        let swapchain = Swapchain::new(&device)?;
         let surface_rect = device.surface_rect();
         let depth_image = resource_manager.insert_image(device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
@@ -338,7 +338,9 @@ fn main() {
     let mut sdl = SdlContext::new(
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        WindowDescription { title: "ui" },
+        WindowDescription {
+            title: "hello-cube",
+        },
     )
     .unwrap();
 

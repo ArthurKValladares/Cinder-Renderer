@@ -1,5 +1,5 @@
 use crate::{
-    device::{Device, MAX_BINDLESS_RESOURCES},
+    device::{set_object_name, Device, Instance, MAX_BINDLESS_RESOURCES},
     resources::{buffer::BindBufferInfo, image::BindImageInfo, shader::ShaderStage},
 };
 use anyhow::Result;
@@ -27,7 +27,7 @@ impl From<BindGroupType> for vk::DescriptorType {
 pub struct BindGroupPool(pub(crate) vk::DescriptorPool);
 
 impl BindGroupPool {
-    pub fn new(device: &ash::Device) -> Result<Self> {
+    pub fn new(instance: &Instance, device: &ash::Device) -> Result<Self> {
         let pool_sizes = [
             vk::DescriptorPoolSize {
                 ty: vk::DescriptorType::COMBINED_IMAGE_SAMPLER,
@@ -50,6 +50,13 @@ impl BindGroupPool {
             .build();
 
         let pool = unsafe { device.create_descriptor_pool(&descriptor_pool_info, None)? };
+        set_object_name(
+            instance.debug(),
+            device.handle(),
+            vk::ObjectType::DESCRIPTOR_POOL,
+            pool,
+            "Descriptor Pool",
+        );
 
         Ok(Self(pool))
     }

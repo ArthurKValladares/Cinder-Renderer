@@ -69,7 +69,11 @@ impl Shader {
         let module = unsafe { device.raw().create_shader_module(&shader_info, None)? };
 
         if let Some(name) = desc.name {
-            device.set_name(vk::ObjectType::SHADER_MODULE, module, name);
+            device.set_name(
+                vk::ObjectType::SHADER_MODULE,
+                module,
+                &format!("{name} [Shader Module]"),
+            );
         }
 
         Ok(Shader {

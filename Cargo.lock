@@ -368,6 +368,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "util",
+ "zero-copy-assets",
 ]
 
 [[package]]

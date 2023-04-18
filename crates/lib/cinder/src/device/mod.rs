@@ -3,10 +3,8 @@ mod instance;
 mod properties;
 mod surface;
 
-use self::{
-    extensions::DeviceExtensions, instance::Instance, properties::DeviceProperties,
-    surface::Surface,
-};
+pub use self::instance::{debug::*, Instance};
+use self::{extensions::DeviceExtensions, properties::DeviceProperties, surface::Surface};
 pub use self::{instance::Extension, surface::SurfaceData};
 use crate::{
     command_queue::CommandQueue,
@@ -50,11 +48,6 @@ pub enum DeviceError {
     ResourceNotInCache,
 }
 
-#[derive(Debug, Default)]
-pub struct DeviceDescription<'a> {
-    pub required_extensions: &'a [Extension],
-}
-
 // TODO: this holds way too much stuff
 pub struct Device {
     p_device: vk::PhysicalDevice,
@@ -76,11 +69,11 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn new<W>(window: &W, width: u32, height: u32, desc: DeviceDescription) -> Result<Self>
+    pub fn new<W>(window: &W, width: u32, height: u32) -> Result<Self>
     where
         W: HasRawWindowHandle + HasRawDisplayHandle,
     {
-        let instance = Instance::new(window, desc.required_extensions)?;
+        let instance = Instance::new(window)?;
         let surface = Surface::new(window, &instance)?;
 
         let p_devices = unsafe { instance.raw().enumerate_physical_devices() }?;
@@ -180,6 +173,7 @@ impl Device {
                 .raw()
                 .create_device(p_device, &device_create_info, None)
         }?;
+        // TODO: this is currently crashing for me, look into it later
         //instance::debug::set_object_name(
         //    instance.debug(),
         //    device.handle(),
@@ -192,14 +186,14 @@ impl Device {
             device.handle(),
             vk::ObjectType::DEVICE,
             device.handle(),
-            "device",
+            "Device",
         );
         instance::debug::set_object_name(
             instance.debug(),
             device.handle(),
             vk::ObjectType::PHYSICAL_DEVICE,
             p_device,
-            "physical device",
+            "Physical Device",
         );
 
         // TODO: Review queue stuff
@@ -209,7 +203,7 @@ impl Device {
             device.handle(),
             vk::ObjectType::QUEUE,
             present_queue,
-            "present queue",
+            "Present Queue",
         );
 
         let ci = vk::PipelineCacheCreateInfo::builder().build();
@@ -219,16 +213,9 @@ impl Device {
             device.handle(),
             vk::ObjectType::PIPELINE_CACHE,
             pipeline_cache,
-            "pipeline cache",
+            "Pipeline Cache",
         );
-        let bind_group_pool = BindGroupPool::new(&device)?;
-        instance::debug::set_object_name(
-            instance.debug(),
-            device.handle(),
-            vk::ObjectType::DESCRIPTOR_POOL,
-            bind_group_pool.0,
-            "descriptor pool",
-        );
+        let bind_group_pool = BindGroupPool::new(&instance, &device)?;
 
         let surface_data = surface.get_data(p_device, Resolution { width, height }, false)?;
 
@@ -237,11 +224,28 @@ impl Device {
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
 
         let render_complete_semaphores = (0..MAX_FRAMES_IN_FLIGHT)
-            .map(|_| unsafe { device.create_semaphore(&semaphore_create_info, None) })
+            .map(|idx| {
+                let semaphore = unsafe { device.create_semaphore(&semaphore_create_info, None) }?;
+                instance::debug::set_object_name(
+                    instance.debug(),
+                    device.handle(),
+                    vk::ObjectType::SEMAPHORE,
+                    semaphore,
+                    &format!("Render Complete Semaphore {idx}"),
+                );
+                Ok(semaphore)
+            })
             .collect::<Result<Vec<_>, vk::Result>>()?;
 
         let image_acquired_semaphore =
             unsafe { device.create_semaphore(&semaphore_create_info, None) }?;
+        instance::debug::set_object_name(
+            instance.debug(),
+            device.handle(),
+            vk::ObjectType::SEMAPHORE,
+            image_acquired_semaphore,
+            "Image Acquired Semaphore",
+        );
 
         let fence_create_info = vk::FenceCreateInfo {
             flags: vk::FenceCreateFlags::SIGNALED,
@@ -249,7 +253,17 @@ impl Device {
         };
 
         let command_buffer_executed_fences = (0..MAX_FRAMES_IN_FLIGHT)
-            .map(|_| unsafe { device.create_fence(&fence_create_info, None) })
+            .map(|idx| {
+                let fence = unsafe { device.create_fence(&fence_create_info, None) }?;
+                instance::debug::set_object_name(
+                    instance.debug(),
+                    device.handle(),
+                    vk::ObjectType::FENCE,
+                    fence,
+                    &format!("Command Buffer Executed Fence {idx}"),
+                );
+                Ok(fence)
+            })
             .collect::<Result<Vec<_>, vk::Result>>()?;
 
         Ok(Self {
@@ -301,28 +315,6 @@ impl Device {
             object,
             name,
         )
-    }
-
-    pub fn begin_context_label(&self, context: &CommandQueue, name: &str, color: [f32; 4]) {
-        //instance::debug::cmd_begin_label(
-        //    self.instance.debug(),
-        //    context.command_buffer,
-        //    name,
-        //    color,
-        //);
-    }
-
-    pub fn end_context_label(&self, context: &CommandQueue) {
-        //instance::debug::cmd_end_label(self.instance.debug(), context.command_buffer);
-    }
-
-    pub fn insert_context_label(&self, context: &CommandQueue, name: &str, color: [f32; 4]) {
-        //instance::debug::cmd_insert_label(
-        //    self.instance.debug(),
-        //    context.command_buffer,
-        //    name,
-        //    color,
-        //);
     }
 
     pub fn begin_queue_label(&self, name: &str, color: [f32; 4]) {

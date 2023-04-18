@@ -126,7 +126,7 @@ impl Buffer {
 
         if let Some(name) = desc.name {
             memory.set_name(device, name);
-            device.set_name(vk::ObjectType::BUFFER, buffer, name)
+            device.set_name(vk::ObjectType::BUFFER, buffer, &format!("{name} [Buffer]"));
         }
 
         Ok(Buffer {

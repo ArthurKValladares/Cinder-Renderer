@@ -52,31 +52,53 @@ impl PipelineCommonData {
 }
 
 pub struct PipelineCommon {
-    pub pipeline_layout: vk::PipelineLayout,
-    pub pipeline: vk::Pipeline,
-    pub common_data: PipelineCommonData,
+    pipeline_layout: vk::PipelineLayout,
+    pipeline: vk::Pipeline,
+    common_data: PipelineCommonData,
 }
 
 impl PipelineCommon {
+    pub fn new(
+        device: &Device,
+        pipeline_layout: vk::PipelineLayout,
+        pipeline: vk::Pipeline,
+        common_data: PipelineCommonData,
+        name: Option<&str>,
+    ) -> Self {
+        let ret = Self {
+            pipeline_layout,
+            pipeline,
+            common_data,
+        };
+        if let Some(name) = name {
+            device.set_name(
+                vk::ObjectType::PIPELINE,
+                pipeline,
+                &format!("{name} [Pipeline]"),
+            );
+            device.set_name(
+                vk::ObjectType::PIPELINE_LAYOUT,
+                pipeline_layout,
+                &format!("{name} [Pipeline Layout]"),
+            );
+        }
+        ret
+    }
+
+    pub fn pipeline(&self) -> vk::Pipeline {
+        self.pipeline
+    }
+
+    pub fn pipeline_layout(&self) -> vk::PipelineLayout {
+        self.pipeline_layout
+    }
+
     pub fn get_push_constant(&self, shader_stage: ShaderStage, idx: u32) -> Option<&PushConstant> {
         self.common_data.push_constants.get(&(shader_stage, idx))
     }
 
     pub fn bind_group_layouts(&self) -> &[BindGroupLayout] {
         self.common_data.bind_group_layouts()
-    }
-
-    fn set_name(&self, device: &Device, name: &str) {
-        device.set_name(
-            vk::ObjectType::PIPELINE,
-            self.pipeline,
-            &format!("{name} [pipeline]"),
-        );
-        device.set_name(
-            vk::ObjectType::PIPELINE_LAYOUT,
-            self.pipeline_layout,
-            &format!("{name} [pipeline layout]"),
-        );
     }
 
     pub fn destroy(&mut self, device: &ash::Device) {
@@ -118,7 +140,7 @@ pub fn get_pipeline_layout(
             let count = layout_data.last().unwrap().count;
             let layout = BindGroupLayout::new(device, layout_data)?;
             if let Some(name) = name {
-                layout.set_name(device, &format!("{name} [descriptor set layout {i}]"));
+                layout.set_name(device, &format!("{name} [Descriptor Set Layout {i}]"));
             }
             bind_group_layouts.push(layout);
             counts.push(count);

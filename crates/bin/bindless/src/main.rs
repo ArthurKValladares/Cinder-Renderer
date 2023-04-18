@@ -111,7 +111,7 @@ impl Renderer {
     pub fn new(window: &Window) -> Result<Self> {
         let mut resource_manager = ResourceManager::default();
         let (width, height) = window.drawable_size();
-        let device = Device::new(window, width, height, Default::default())?;
+        let device = Device::new(window, width, height)?;
         let render_context = RenderContext::new(&device, Default::default())?;
         let upload_context = UploadContext::new(&device, Default::default())?;
         let view = View::new(&device, Default::default())?;

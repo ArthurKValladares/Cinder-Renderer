@@ -38,9 +38,9 @@ impl Renderer {
     pub fn new(window: &Window) -> Result<Self> {
         let mut resource_manager = ResourceManager::default();
         let (width, height) = window.drawable_size();
-        let device = Device::new(window, width, height, Default::default())?;
+        let device = Device::new(window, width, height)?;
         let command_queue = CommandQueue::new(&device)?;
-        let swapchain = Swapchain::new(&device, Default::default())?;
+        let swapchain = Swapchain::new(&device)?;
 
         let mut vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/triangle.vert.spv"),
@@ -166,7 +166,9 @@ fn main() {
     let mut sdl = SdlContext::new(
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        WindowDescription { title: "ui" },
+        WindowDescription {
+            title: "hello-triangle",
+        },
     )
     .unwrap();
 

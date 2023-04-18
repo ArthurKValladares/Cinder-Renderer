@@ -1,5 +1,7 @@
 use crate::{
-    device::{self, Device, MAX_FRAMES_IN_FLIGHT},
+    device::{
+        self, cmd_begin_label, cmd_end_label, cmd_insert_label, Device, MAX_FRAMES_IN_FLIGHT,
+    },
     resources::{
         buffer::Buffer,
         image::{Image, Layout},
@@ -160,7 +162,11 @@ pub struct CommandList {
 }
 
 impl CommandList {
-    fn new(device: &Device, command_pool: vk::CommandPool) -> Result<Self, vk::Result> {
+    fn new(
+        device: &Device,
+        command_pool: vk::CommandPool,
+        idx: Option<usize>,
+    ) -> Result<Self, vk::Result> {
         let command_buffer_allocate_info = vk::CommandBufferAllocateInfo {
             command_pool,
             level: vk::CommandBufferLevel::PRIMARY,
@@ -173,6 +179,16 @@ impl CommandList {
                 .raw()
                 .allocate_command_buffers(&command_buffer_allocate_info)?[0]
         };
+
+        device.set_name(
+            vk::ObjectType::COMMAND_BUFFER,
+            command_buffer,
+            &if let Some(idx) = idx {
+                format!("Command Buffer {idx}")
+            } else {
+                "Immediate Command Buffer".to_owned()
+            },
+        );
 
         Ok(Self { command_buffer })
     }
@@ -291,7 +307,7 @@ impl CommandList {
             device.raw().cmd_bind_pipeline(
                 self.command_buffer,
                 vk::PipelineBindPoint::GRAPHICS,
-                pipeline.common.pipeline,
+                pipeline.common.pipeline(),
             )
         }
     }
@@ -364,7 +380,7 @@ impl CommandList {
             device.raw().cmd_bind_descriptor_sets(
                 self.command_buffer,
                 vk::PipelineBindPoint::GRAPHICS,
-                pipeline.common.pipeline_layout,
+                pipeline.common.pipeline_layout(),
                 0,
                 &[pipeline.bind_group.as_ref().unwrap().0],
                 &[],
@@ -384,7 +400,7 @@ impl CommandList {
             unsafe {
                 device.raw().cmd_push_constants(
                     self.command_buffer,
-                    pipeline_common.pipeline_layout,
+                    pipeline_common.pipeline_layout(),
                     push_constant.stage.into(),
                     push_constant.offset,
                     data,
@@ -472,6 +488,18 @@ impl CommandList {
             )
         };
     }
+
+    pub fn begin_label(&self, device: &Device, name: &str, color: [f32; 4]) {
+        cmd_begin_label(device.instance().debug(), self.command_buffer, name, color);
+    }
+
+    pub fn end_label(&self, device: &Device) {
+        cmd_end_label(device.instance().debug(), self.command_buffer);
+    }
+
+    pub fn insert_label(&self, device: &Device, name: &str, color: [f32; 4]) {
+        cmd_insert_label(device.instance().debug(), self.command_buffer, name, color);
+    }
 }
 
 pub struct CommandQueue {
@@ -492,8 +520,10 @@ impl CommandQueue {
             )
         }?;
 
+        device.set_name(vk::ObjectType::COMMAND_POOL, command_pool, "Command Pool");
+
         let command_lists = (0..MAX_FRAMES_IN_FLIGHT)
-            .map(|_| CommandList::new(device, command_pool))
+            .map(|idx| CommandList::new(device, command_pool, Some(idx)))
             .collect::<Result<Vec<_>, vk::Result>>()?;
 
         Ok(Self {
@@ -509,7 +539,7 @@ impl CommandQueue {
     }
 
     pub fn get_immediate_command_list(&self, device: &Device) -> Result<CommandList> {
-        let cmd_list = CommandList::new(device, self.command_pool)?;
+        let cmd_list = CommandList::new(device, self.command_pool, None)?;
         cmd_list.begin(device)?;
         Ok(cmd_list)
     }

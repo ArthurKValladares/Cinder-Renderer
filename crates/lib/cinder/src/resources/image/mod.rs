@@ -256,11 +256,11 @@ impl Image {
 
         if let Some(name) = desc.name {
             memory.set_name(device, name);
-            device.set_name(vk::ObjectType::IMAGE, image, name);
+            device.set_name(vk::ObjectType::IMAGE, image, &format!("{name} [Image]"));
             device.set_name(
                 vk::ObjectType::IMAGE_VIEW,
                 view,
-                &format!("{name} [default view]"),
+                &format!("{name} [Image View]"),
             );
         }
 

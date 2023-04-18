@@ -45,6 +45,7 @@ fn create_swapchain_structures(
             vk::SwapchainKHR::null()
         });
     let swapchain = unsafe { swapchain_loader.create_swapchain(&swapchain_create_info, None) }?;
+    device.set_name(vk::ObjectType::SWAPCHAIN_KHR, swapchain, "Swapchain");
 
     if let Some(old_swapchain) = old_swapchain {
         unsafe {
@@ -53,9 +54,18 @@ fn create_swapchain_structures(
     }
 
     let present_images = unsafe { swapchain_loader.get_swapchain_images(swapchain) }?;
+    for (idx, image) in present_images.iter().enumerate() {
+        device.set_name(
+            vk::ObjectType::IMAGE,
+            *image,
+            &format!("Swapchain Image {idx}"),
+        );
+    }
+
     let present_image_views = present_images
         .iter()
-        .map(|&image| {
+        .enumerate()
+        .map(|(idx, image)| {
             let create_view_info = vk::ImageViewCreateInfo::builder()
                 .view_type(vk::ImageViewType::TYPE_2D)
                 .format(device.surface_data.surface_format.format)
@@ -72,8 +82,14 @@ fn create_swapchain_structures(
                     base_array_layer: 0,
                     layer_count: 1,
                 })
-                .image(image);
-            unsafe { device.raw().create_image_view(&create_view_info, None) }
+                .image(*image);
+            let image_view = unsafe { device.raw().create_image_view(&create_view_info, None) }?;
+            device.set_name(
+                vk::ObjectType::IMAGE_VIEW,
+                image_view,
+                &format!("Swapchain Image View {idx}"),
+            );
+            Ok(image_view)
         })
         .collect::<Result<Vec<vk::ImageView>, ash::vk::Result>>()?;
 
@@ -104,11 +120,10 @@ pub struct Swapchain {
     pub present_images: Vec<vk::Image>,
     pub present_image_views: Vec<vk::ImageView>,
     pub present_image_layouts: Vec<vk::ImageLayout>,
-    name: Option<&'static str>,
 }
 
 impl Swapchain {
-    pub fn new(device: &Device, name: Option<&'static str>) -> Result<Self> {
+    pub fn new(device: &Device) -> Result<Self> {
         let swapchain_loader =
             ash::extensions::khr::Swapchain::new(device.instance().raw(), device.raw());
 
@@ -121,7 +136,6 @@ impl Swapchain {
             present_images,
             present_image_views,
             present_image_layouts,
-            name,
         };
 
         Ok(ret)

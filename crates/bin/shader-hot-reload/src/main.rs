@@ -46,7 +46,7 @@ impl Renderer {
 
         let mut resource_manager = ResourceManager::default();
         let (width, height) = window.drawable_size();
-        let device = Device::new(window, width, height, Default::default())?;
+        let device = Device::new(window, width, height)?;
         let render_context = RenderContext::new(&device, Default::default())?;
         let upload_context = UploadContext::new(&device, Default::default())?;
 
@@ -271,7 +271,9 @@ fn main() {
     let mut sdl = SdlContext::new(
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        WindowDescription { title: "ui" },
+        WindowDescription {
+            title: "shader-hot-reload",
+        },
     )
     .unwrap();
 
