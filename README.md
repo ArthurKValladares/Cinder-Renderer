@@ -66,7 +66,7 @@ Debug names and labels.
 ### [Depth Image](./crates/bin/depth-image/src/main.rs)<br/>
 Render Depth image to the screen in a second pass.
 
-![depth-image](https://user-images.githubusercontent.com/23410311/216224384-9ff90165-07e7-4b62-84c4-da844bd1e86c.gif)
+![depth-image](https://user-images.githubusercontent.com/23410311/232945597-0e4ba4fe-5570-4ad1-93a6-8c7193114dd6.gif)
 
 ### [Bindless](./crates/bin/bindless/src/main.rs)<br/>
 Draw a complex scene using bindless textures and a uniform buffer for vertex data.
