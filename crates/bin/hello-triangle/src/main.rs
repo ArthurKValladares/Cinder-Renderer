@@ -152,9 +152,7 @@ impl HelloTriangle {
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
-        self.cinder.device.resize(width, height)?;
-        self.cinder.swapchain.resize(&self.cinder.device)?;
-        Ok(())
+        self.cinder.resize(width, height)
     }
 }
 
@@ -171,7 +169,7 @@ fn main() {
     let mut renderer = HelloTriangle::new(&sdl.window).unwrap();
 
     'running: loop {
-        renderer.cinder.device.new_frame().unwrap();
+        renderer.cinder.start_frame().unwrap();
 
         for event in sdl.event_pump.poll_iter() {
             match event {
@@ -193,10 +191,6 @@ fn main() {
         }
         renderer.draw().unwrap();
 
-        renderer
-            .cinder
-            .resource_manager
-            .consume(&renderer.cinder.device);
-        renderer.cinder.device.bump_frame();
+        renderer.cinder.end_frame();
     }
 }

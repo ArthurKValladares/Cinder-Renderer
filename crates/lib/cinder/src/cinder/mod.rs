@@ -5,12 +5,19 @@ use anyhow::Result;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use std::time::Instant;
 
+#[derive(Debug, PartialEq, Eq)]
+enum RunningFrame {
+    Yes,
+    No,
+}
+
 pub struct Cinder {
     pub device: Device,
     pub swapchain: Swapchain,
     pub command_queue: CommandQueue,
     pub resource_manager: ResourceManager,
     pub init_time: Instant,
+    frame_state: RunningFrame,
 }
 
 impl Cinder {
@@ -31,7 +38,36 @@ impl Cinder {
             command_queue,
             resource_manager,
             init_time,
+            frame_state: RunningFrame::No,
         })
+    }
+
+    pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
+        self.device.resize(width, height)?;
+        self.swapchain.resize(&self.device)?;
+        Ok(())
+    }
+
+    pub fn start_frame(&mut self) -> Result<()> {
+        debug_assert!(
+            self.frame_state == RunningFrame::No,
+            "Called `start_frame` twice before calling `end_frame`"
+        );
+        self.frame_state = RunningFrame::Yes;
+
+        self.device.new_frame()?;
+        Ok(())
+    }
+
+    pub fn end_frame(&mut self) {
+        debug_assert!(
+            self.frame_state == RunningFrame::Yes,
+            "Called `end_frame` without calling `start_frame`"
+        );
+        self.frame_state = RunningFrame::No;
+
+        self.resource_manager.consume(&self.device);
+        self.device.bump_frame();
     }
 }
 
