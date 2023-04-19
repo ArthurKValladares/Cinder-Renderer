@@ -48,43 +48,6 @@ pub struct Buffer {
     pub ptr: Option<MemoryMappablePointer>,
 }
 
-impl Buffer {
-    pub fn size_bytes(&self) -> u64 {
-        self.size_bytes
-    }
-
-    pub fn stride(&self) -> u32 {
-        todo!()
-    }
-
-    pub fn num_elements(&self) -> u32 {
-        todo!()
-    }
-
-    pub fn ptr(&self) -> Option<MemoryMappablePointer> {
-        self.ptr
-    }
-
-    pub fn end_ptr(&self) -> Option<MemoryMappablePointer> {
-        self.ptr.map(|ptr| ptr.add(self.size_bytes() as usize))
-    }
-
-    pub fn mem_copy<T: Copy>(&self, offset: u64, data: &[T]) -> Result<(), BufferError> {
-        self.ptr.map_or_else(
-            || Err(BufferError::NotMemoryMappable),
-            |ptr| {
-                ptr.add(offset as usize).mem_copy(data);
-                Ok(())
-            },
-        )
-    }
-
-    pub fn destroy(&mut self, device: &ash::Device) {
-        unsafe { device.destroy_buffer(self.raw, None) }
-        self.memory.destroy(device);
-    }
-}
-
 #[repr(transparent)]
 #[derive(Debug)]
 pub struct BindBufferInfo(pub vk::DescriptorBufferInfo);
@@ -145,10 +108,32 @@ impl Buffer {
         })
     }
 
-    pub fn clean(&self, device: &Device) {
+    pub fn size_bytes(&self) -> u64 {
+        self.size_bytes
+    }
+
+    pub fn ptr(&self) -> Option<MemoryMappablePointer> {
+        self.ptr
+    }
+
+    pub fn end_ptr(&self) -> Option<MemoryMappablePointer> {
+        self.ptr.map(|ptr| ptr.add(self.size_bytes() as usize))
+    }
+
+    pub fn mem_copy<T: Copy>(&self, offset: u64, data: &[T]) -> Result<(), BufferError> {
+        self.ptr.map_or_else(
+            || Err(BufferError::NotMemoryMappable),
+            |ptr| {
+                ptr.add(offset as usize).mem_copy(data);
+                Ok(())
+            },
+        )
+    }
+
+    pub fn destroy(&self, device: &Device) {
         unsafe {
             device.raw().destroy_buffer(self.raw, None);
-            self.memory.destroy(device.raw());
+            self.memory.destroy(device);
         }
     }
 }

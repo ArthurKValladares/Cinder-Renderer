@@ -1,3 +1,4 @@
+use crate::device::Device;
 use ash::vk;
 
 #[derive(Debug, Clone, Copy)]
@@ -57,9 +58,9 @@ pub struct Sampler {
 }
 
 impl Sampler {
-    pub fn destroy(&mut self, device: &ash::Device) {
+    pub fn destroy(&mut self, device: &Device) {
         unsafe {
-            device.destroy_sampler(self.raw, None);
+            device.raw().destroy_sampler(self.raw, None);
         }
     }
 }

@@ -65,19 +65,19 @@ pub struct ResourceManager {
 impl ResourceManager {
     pub fn force_destroy(&mut self, device: &Device) {
         for mut res in self.graphics_pipelines.drain() {
-            res.destroy(device.raw());
+            res.destroy(device);
         }
         for res in self.shaders.drain() {
-            res.destroy(device.raw());
+            res.destroy(device);
         }
         for mut res in self.images.drain() {
-            res.destroy(device.raw());
+            res.destroy(device);
         }
         for mut res in self.buffers.drain() {
-            res.destroy(device.raw());
+            res.destroy(device);
         }
         for mut res in self.samplers.drain() {
-            res.destroy(device.raw());
+            res.destroy(device);
         }
 
         for _ in 0..MAX_FRAMES_IN_FLIGHT {
@@ -89,14 +89,14 @@ impl ResourceManager {
         self.consume_index = (self.consume_index + 1) % MAX_FRAMES_IN_FLIGHT;
         for res in &mut self.to_consume[self.consume_index] {
             match res {
-                Resource::GraphicsPipeline(pipeline) => pipeline.destroy(device.raw()),
+                Resource::GraphicsPipeline(pipeline) => pipeline.destroy(device),
                 Resource::RawPipeline(pipeline) => unsafe {
                     device.raw().destroy_pipeline(*pipeline, None)
                 },
-                Resource::Shader(shader) => shader.destroy(device.raw()),
-                Resource::Image(image) => image.destroy(device.raw()),
-                Resource::Buffer(buffer) => buffer.destroy(device.raw()),
-                Resource::Sampler(sampler) => sampler.destroy(device.raw()),
+                Resource::Shader(shader) => shader.destroy(device),
+                Resource::Image(image) => image.destroy(device),
+                Resource::Buffer(buffer) => buffer.destroy(device),
+                Resource::Sampler(sampler) => sampler.destroy(device),
             }
         }
         self.to_consume[self.consume_index].clear();

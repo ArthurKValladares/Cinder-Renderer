@@ -291,7 +291,7 @@ impl GraphicsPipeline {
         Ok(old)
     }
 
-    pub fn destroy(&mut self, device: &ash::Device) {
+    pub fn destroy(&mut self, device: &Device) {
         self.common.destroy(device);
     }
 }

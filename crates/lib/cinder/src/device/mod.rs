@@ -465,7 +465,7 @@ impl Device {
         instant_command_list.immediate_submit(self, self.present_queue)?;
         instant_command_list.reset(self)?;
 
-        image_buffer.clean(self);
+        image_buffer.destroy(self);
 
         Ok(image)
     }
