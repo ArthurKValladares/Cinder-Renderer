@@ -114,6 +114,12 @@ pub struct SwapchainImage {
     pub(crate) is_suboptimal: bool,
 }
 
+impl SwapchainImage {
+    pub fn index(&self) -> u32 {
+        self.index
+    }
+}
+
 pub struct Swapchain {
     pub swapchain_loader: ash::extensions::khr::Swapchain,
     pub swapchain: vk::SwapchainKHR,
@@ -139,6 +145,10 @@ impl Swapchain {
         };
 
         Ok(ret)
+    }
+
+    pub fn num_images(&self) -> usize {
+        self.present_images.len()
     }
 
     pub fn acquire_image(

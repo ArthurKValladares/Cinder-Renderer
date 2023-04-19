@@ -42,6 +42,9 @@ pub struct Renderer {
 
 impl Renderer {
     pub fn new(window: &Window) -> Result<Self> {
+        //
+        // Create Base Resources
+        //
         let (width, height) = window.drawable_size();
         let device = Device::new(window, width, height)?;
         let command_queue = CommandQueue::new(&device)?;
@@ -55,6 +58,7 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
+
         let vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/cube.vert.spv"),
             Default::default(),

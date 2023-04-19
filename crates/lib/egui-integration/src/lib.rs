@@ -4,22 +4,19 @@ mod sdl;
 use anyhow::Result;
 use cinder::{
     command_queue::{
-        render_context::{
-            AttachmentLoadOp, Layout, RenderAttachment, RenderAttachmentDesc, RenderContext,
-        },
-        upload_context::UploadContext,
+        AttachmentLoadOp, CommandList, CommandQueue, RenderAttachment, RenderAttachmentDesc,
     },
     device::Device,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{vk::Fence, Buffer, BufferDescription, BufferUsage},
-        image::Image,
+        image::{Image, Layout},
         pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::{AddressMode, Sampler, SamplerDescription},
         ResourceManager,
     },
+    swapchain::{Swapchain, SwapchainImage},
     util::MemoryMappablePointer,
-    view::{Drawable, View},
     ResourceId,
 };
 use core::panic;
@@ -53,7 +50,7 @@ impl EguiIntegration {
     pub fn new(
         resource_manager: &mut ResourceManager,
         device: &Device,
-        view: &View,
+        swapchain: &Swapchain,
     ) -> Result<Self> {
         let egui_context = egui::Context::default();
         let mut egui_sdl = EguiSdl::new();
@@ -90,7 +87,7 @@ impl EguiIntegration {
         )?);
 
         let (vertex_buffers, index_buffers) = {
-            let len = view.drawables_len();
+            let len = swapchain.num_images();
             let mut vertex_buffers = Vec::with_capacity(len);
             let mut index_buffers = Vec::with_capacity(len);
             for _ in 0..len {
@@ -140,11 +137,11 @@ impl EguiIntegration {
         resource_manager: &mut ResourceManager,
         device: &Device,
         window: &Window,
-        drawable: Drawable,
-        upload_context: &UploadContext,
-        upload_fence: Fence,
-        render_context: &mut RenderContext,
+        // TODO: Having to pass both here is kinda bad
+        command_queue: &CommandQueue,
+        command_list: &CommandList,
         render_area: Rect2D<i32, u32>,
+        swapchain_image: SwapchainImage,
         f: impl FnOnce(&egui::Context),
     ) -> Result<()> {
         let raw_input = self.egui_sdl.take_egui_input(window);
@@ -163,20 +160,14 @@ impl EguiIntegration {
             .handle_platform_output(window, &self.egui_context, platform_output);
 
         // TODO? Make this a separate step
-        self.set_textures(
-            resource_manager,
-            device,
-            upload_context,
-            upload_fence,
-            &textures_delta,
-        )?;
+        self.set_textures(resource_manager, device, command_queue, &textures_delta)?;
 
         self.paint(
             resource_manager,
             device,
-            drawable,
-            render_context,
+            command_list,
             render_area,
+            swapchain_image,
             self.egui_context.pixels_per_point(),
             &clipped_primitives,
         )?;
@@ -191,19 +182,26 @@ impl EguiIntegration {
         &mut self,
         resource_manager: &ResourceManager,
         device: &Device,
-        drawable: Drawable,
-        render_context: &mut RenderContext,
+        command_list: &CommandList,
         render_area: Rect2D<i32, u32>,
+        swapchain_image: SwapchainImage,
         pixels_per_point: f32,
         clipped_primitives: &[ClippedPrimitive],
     ) -> Result<()> {
-        let present_index = drawable.index();
+        let present_index = swapchain_image.index();
         let vertex_buffer = resource_manager
-            .get_buffer(self.vertex_buffers[present_index as usize])
+            .buffers
+            .get(self.vertex_buffers[present_index as usize])
             .unwrap();
         let index_buffer = resource_manager
-            .get_buffer(self.index_buffers[present_index as usize])
+            .buffers
+            .get(self.index_buffers[present_index as usize])
             .unwrap();
+        let pipeline = resource_manager
+            .graphics_pipelines
+            .get(self.pipeline)
+            .unwrap();
+
         let mut vertex_buffer_ptr = vertex_buffer.ptr().unwrap();
         let mut index_buffer_ptr = index_buffer.ptr().unwrap();
 
@@ -211,11 +209,11 @@ impl EguiIntegration {
         let mut index_base = 0;
 
         let size = render_area.size();
-        render_context.begin_rendering(
+        command_list.begin_rendering(
             device,
             render_area,
             &[RenderAttachment::color(
-                drawable,
+                swapchain_image,
                 RenderAttachmentDesc {
                     load_op: AttachmentLoadOp::Load,
                     ..Default::default()
@@ -223,83 +221,76 @@ impl EguiIntegration {
             )],
             None,
         );
+        command_list.bind_graphics_pipeline(device, pipeline);
+        command_list.bind_vertex_buffer(device, vertex_buffer);
+        command_list.bind_index_buffer(device, index_buffer);
+        command_list.bind_viewport(
+            device,
+            Rect2D::from_width_height(size.width(), size.height()),
+            false,
+        );
+        command_list.set_vertex_bytes(
+            device,
+            pipeline,
+            &[
+                size.width() as f32 / pixels_per_point,
+                size.height() as f32 / pixels_per_point,
+            ],
+            0,
+        )?;
+        for egui::ClippedPrimitive {
+            clip_rect,
+            primitive,
+        } in clipped_primitives
         {
-            let pipeline = resource_manager
-                .get_graphics_pipeline(self.pipeline)
-                .unwrap();
-            render_context.bind_graphics_pipeline(device, pipeline);
-            render_context.bind_vertex_buffer(device, vertex_buffer);
-            render_context.bind_index_buffer(device, index_buffer);
-            render_context.bind_viewport(
-                device,
-                Rect2D::from_width_height(size.width(), size.height()),
-                false,
-            );
-
-            render_context.set_vertex_bytes(
-                device,
-                pipeline,
-                &[
-                    size.width() as f32 / pixels_per_point,
-                    size.height() as f32 / pixels_per_point,
-                ],
-                0,
-            )?;
-
-            for egui::ClippedPrimitive {
-                clip_rect,
-                primitive,
-            } in clipped_primitives
             {
-                {
-                    let min = {
-                        let min = clip_rect.min;
+                let min = {
+                    let min = clip_rect.min;
 
-                        egui::Pos2 {
-                            x: f32::clamp(min.x * pixels_per_point, 0.0, size.width() as f32),
-                            y: f32::clamp(min.y * pixels_per_point, 0.0, size.height() as f32),
-                        }
-                    };
-                    let max = {
-                        let max = clip_rect.max;
-                        egui::Pos2 {
-                            x: f32::clamp(max.x * pixels_per_point, min.x, size.width() as f32),
-                            y: f32::clamp(max.y * pixels_per_point, min.y, size.height() as f32),
-                        }
-                    };
-                    render_context.bind_scissor(
-                        device,
-                        Rect2D::from_offset_and_size(
-                            Point2D::new(min.x.round() as i32, min.y.round() as i32),
-                            Size2D::new(
-                                (max.x.round() - min.x) as u32,
-                                (max.y.round() - min.y) as u32,
-                            ),
+                    egui::Pos2 {
+                        x: f32::clamp(min.x * pixels_per_point, 0.0, size.width() as f32),
+                        y: f32::clamp(min.y * pixels_per_point, 0.0, size.height() as f32),
+                    }
+                };
+                let max = {
+                    let max = clip_rect.max;
+                    egui::Pos2 {
+                        x: f32::clamp(max.x * pixels_per_point, min.x, size.width() as f32),
+                        y: f32::clamp(max.y * pixels_per_point, min.y, size.height() as f32),
+                    }
+                };
+                command_list.bind_scissor(
+                    device,
+                    Rect2D::from_offset_and_size(
+                        Point2D::new(min.x.round() as i32, min.y.round() as i32),
+                        Size2D::new(
+                            (max.x.round() - min.x) as u32,
+                            (max.y.round() - min.y) as u32,
                         ),
-                    );
-                }
+                    ),
+                );
+            }
 
-                match primitive {
-                    Primitive::Mesh(mesh) => {
-                        self.paint_mesh(
-                            resource_manager,
-                            device,
-                            render_context,
-                            present_index,
-                            mesh,
-                            &mut vertex_buffer_ptr,
-                            &mut vertex_base,
-                            &mut index_buffer_ptr,
-                            &mut index_base,
-                        )?;
-                    }
-                    Primitive::Callback(_) => {
-                        println!("Egui callback primitives not supported");
-                    }
+            match primitive {
+                Primitive::Mesh(mesh) => {
+                    self.paint_mesh(
+                        resource_manager,
+                        device,
+                        command_list,
+                        present_index,
+                        mesh,
+                        &mut vertex_buffer_ptr,
+                        &mut vertex_base,
+                        &mut index_buffer_ptr,
+                        &mut index_base,
+                    )?;
+                }
+                Primitive::Callback(_) => {
+                    println!("Egui callback primitives not supported");
                 }
             }
         }
-        render_context.end_rendering(device);
+        command_list.end_rendering(device);
 
         Ok(())
     }
@@ -308,7 +299,7 @@ impl EguiIntegration {
         &mut self,
         resource_manager: &ResourceManager,
         device: &Device,
-        render_context: &RenderContext,
+        command_list: &CommandList,
         present_index: u32,
         mesh: &Mesh,
         vertex_buffer_ptr: &mut MemoryMappablePointer,
@@ -329,10 +320,12 @@ impl EguiIntegration {
         let index_buffer_ptr_next = index_buffer_ptr.add(index_copy_size);
 
         let vertex_buffer = resource_manager
-            .get_buffer(self.vertex_buffers[present_index as usize])
+            .buffers
+            .get(self.vertex_buffers[present_index as usize])
             .unwrap();
         let index_buffer = resource_manager
-            .get_buffer(self.index_buffers[present_index as usize])
+            .buffers
+            .get(self.index_buffers[present_index as usize])
             .unwrap();
         if vertex_buffer_ptr_next >= vertex_buffer.end_ptr().unwrap()
             || index_buffer_ptr_next >= index_buffer.end_ptr().unwrap()
@@ -347,20 +340,21 @@ impl EguiIntegration {
         *index_buffer_ptr = index_buffer_ptr_next;
 
         let pipeline = resource_manager
-            .get_graphics_pipeline(self.pipeline)
+            .graphics_pipelines
+            .get(self.pipeline)
             .unwrap();
-        render_context.bind_descriptor_sets(device, pipeline);
+        command_list.bind_descriptor_sets(device, pipeline);
 
         let index = match mesh.texture_id {
             TextureId::Managed(index) => index as usize,
             TextureId::User(_) => unimplemented!(),
         };
 
-        render_context
+        command_list
             .set_fragment_bytes(device, pipeline, &index, 0)
             .unwrap();
 
-        render_context.draw_offset(device, indices.len() as u32, *index_base, *vertex_base);
+        command_list.draw_offset(device, indices.len() as u32, *index_base, *vertex_base);
 
         *vertex_base += vertices.len() as i32;
         *index_base += indices.len() as u32;
@@ -372,27 +366,17 @@ impl EguiIntegration {
         &mut self,
         resource_manager: &mut ResourceManager,
         device: &Device,
-        upload_context: &UploadContext,
+        command_queue: &CommandQueue,
         id: &TextureId,
         size: Size2D<u32>,
         data: &[egui::Color32],
     ) -> Result<()> {
-        let image_handle =
-            resource_manager.insert_image(device.create_image(size, Default::default())?);
-        let image_staging_buffer = device.create_buffer(
-            size_of_slice(data),
-            BufferDescription {
-                usage: BufferUsage::TRANSFER_SRC,
-                ..Default::default()
-            },
+        let image = device.create_image_with_data(
+            size,
+            util::typed_to_bytes(data),
+            command_queue,
+            Default::default(),
         )?;
-
-        image_staging_buffer.mem_copy(0, data)?;
-
-        let image = resource_manager.get_image(image_handle).unwrap();
-        upload_context.image_barrier_start(device, image);
-        upload_context.copy_buffer_to_image(device, &image_staging_buffer, image);
-        upload_context.image_barrier_end(device, image);
 
         let index = match id {
             TextureId::Managed(index) => *index,
@@ -400,9 +384,10 @@ impl EguiIntegration {
         };
 
         let pipeline = resource_manager
-            .get_graphics_pipeline(self.pipeline)
+            .graphics_pipelines
+            .get(self.pipeline)
             .unwrap();
-        let sampler = resource_manager.get_sampler(self.sampler).unwrap();
+        let sampler = resource_manager.samplers.get(self.sampler).unwrap();
         device.write_bind_group(
             pipeline,
             &[BindGroupBindInfo {
@@ -415,8 +400,8 @@ impl EguiIntegration {
             }],
         )?;
 
+        let image_handle = resource_manager.insert_image(image);
         self.image_map.insert(*id, image_handle);
-        resource_manager.delete_buffer_raw(image_staging_buffer, device.current_frame_in_flight());
 
         Ok(())
     }
@@ -425,7 +410,7 @@ impl EguiIntegration {
         &mut self,
         resource_manager: &mut ResourceManager,
         device: &Device,
-        upload_context: &UploadContext,
+        command_queue: &CommandQueue,
         id: &TextureId,
         delta: &ImageDelta,
     ) -> Result<()> {
@@ -433,7 +418,7 @@ impl EguiIntegration {
             ImageData::Color(color_data) => self.set_image_helper(
                 resource_manager,
                 device,
-                upload_context,
+                command_queue,
                 id,
                 Size2D::new(color_data.size[0] as u32, color_data.size[1] as u32),
                 &color_data.pixels,
@@ -444,7 +429,7 @@ impl EguiIntegration {
                 self.set_image_helper(
                     resource_manager,
                     device,
-                    upload_context,
+                    command_queue,
                     id,
                     Size2D::new(font_data.width() as u32, font_data.height() as u32),
                     &data,
@@ -457,15 +442,12 @@ impl EguiIntegration {
         &mut self,
         resource_manager: &mut ResourceManager,
         device: &Device,
-        context: &UploadContext,
-        fence: Fence,
+        command_queue: &CommandQueue,
         textures_delta: &TexturesDelta,
     ) -> Result<()> {
-        context.begin(device, fence)?;
         for (id, delta) in &textures_delta.set {
-            self.set_image(resource_manager, device, context, id, delta)?;
+            self.set_image(resource_manager, device, command_queue, id, delta)?;
         }
-        context.end(device, fence, device.present_queue(), &[], &[], &[])?;
         Ok(())
     }
 
