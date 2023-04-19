@@ -9,7 +9,7 @@ use cinder::{
     device::Device,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
-        buffer::{vk::Fence, Buffer, BufferDescription, BufferUsage},
+        buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Image, Layout},
         pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::{AddressMode, Sampler, SamplerDescription},
@@ -29,7 +29,7 @@ use math::{point::Point2D, rect::Rect2D, size::Size2D};
 use sdl::{EguiSdl, EventResponse};
 use sdl2::{event::Event, video::Window};
 use std::collections::HashMap;
-use util::size_of_slice;
+
 
 pub(crate) const DEFAULT_PPP: f32 = 3.0;
 
@@ -58,11 +58,11 @@ impl EguiIntegration {
         egui_context.set_pixels_per_point(DEFAULT_PPP);
         egui_sdl.set_pixels_per_point(DEFAULT_PPP);
 
-        let mut vertex_shader = device.create_shader(
+        let vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/egui.vert.spv"),
             Default::default(),
         )?;
-        let mut fragment_shader = device.create_shader(
+        let fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/egui.frag.spv"),
             Default::default(),
         )?;

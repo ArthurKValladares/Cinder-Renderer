@@ -109,7 +109,7 @@ impl Renderer {
             },
         )?;
 
-        let mut ubo_buffer = device.create_buffer(
+        let ubo_buffer = device.create_buffer(
             std::mem::size_of::<MeshUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,

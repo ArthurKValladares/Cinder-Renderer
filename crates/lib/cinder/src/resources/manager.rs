@@ -67,7 +67,7 @@ impl ResourceManager {
         for mut res in self.graphics_pipelines.drain() {
             res.destroy(device.raw());
         }
-        for mut res in self.shaders.drain() {
+        for res in self.shaders.drain() {
             res.destroy(device.raw());
         }
         for mut res in self.images.drain() {

@@ -3,7 +3,6 @@ use super::{
     sampler::Sampler,
 };
 use crate::{
-    command_queue::CommandQueue,
     device::Device,
     util::{find_memory_type_index, MemoryMappablePointer},
 };
