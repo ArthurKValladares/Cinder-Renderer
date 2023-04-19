@@ -471,20 +471,6 @@ impl Device {
         Ok(image)
     }
 
-    pub fn create_depth_image(
-        &self,
-        size: Size2D<u32>,
-        cmd_queue: &CommandQueue,
-        desc: ImageDescription,
-    ) -> Result<Image> {
-        debug_assert!(desc.usage.is_depth());
-
-        let image = Image::create(self, size, desc)?;
-        cmd_queue.transition_depth_image(self, &image)?;
-
-        Ok(image)
-    }
-
     pub fn create_shader(&self, bytes: &[u8], desc: ShaderDesc) -> Result<Shader> {
         Shader::create(self, bytes, desc)
     }

@@ -271,7 +271,6 @@ impl Renderer {
                 },
             )),
         );
-
         cmd_list.bind_graphics_pipeline(&self.device, pipeline);
         cmd_list.bind_viewport(&self.device, surface_rect, true);
         cmd_list.bind_scissor(&self.device, surface_rect);

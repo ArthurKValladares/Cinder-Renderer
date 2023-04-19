@@ -544,14 +544,21 @@ impl CommandQueue {
         Ok(cmd_list)
     }
 
-    pub fn transition_depth_image(&self, device: &Device, image: &Image) -> Result<()> {
+    pub fn transition_image(
+        &self,
+        device: &Device,
+        image: &Image,
+        aspect_mask: vk::ImageAspectFlags,
+        old_layout: vk::ImageLayout,
+        new_layout: vk::ImageLayout,
+    ) -> Result<()> {
         let instant_command_list = self.get_immediate_command_list(device)?;
         instant_command_list.set_image_memory_barrier(
             device,
             image.raw,
-            vk::ImageAspectFlags::DEPTH,
-            vk::ImageLayout::UNDEFINED,
-            vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+            aspect_mask,
+            old_layout,
+            new_layout,
             Default::default(),
         );
         instant_command_list.end(device)?;

@@ -7,7 +7,7 @@ use cinder::{
     device::Device,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
-        buffer::{Buffer, BufferDescription, BufferUsage},
+        buffer::{vk, Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
@@ -58,14 +58,21 @@ impl Renderer {
         let command_queue: CommandQueue = CommandQueue::new(&device)?;
         let swapchain = Swapchain::new(&device)?;
         let surface_rect = device.surface_rect();
-        let depth_image = device.create_depth_image(
+        let depth_image = device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
-            &command_queue,
             ImageDescription {
                 format: Format::D32_SFloat,
                 usage: ImageUsage::DepthSampled,
                 ..Default::default()
             },
+        )?;
+        command_queue.transition_image(
+            &device,
+            &depth_image,
+            // TODO: get rid of `vk`
+            vk::ImageAspectFlags::DEPTH,
+            vk::ImageLayout::UNDEFINED,
+            vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
         )?;
         let mesh_vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/depth_mesh.vert.spv"),
@@ -457,8 +464,14 @@ impl Renderer {
             .get_mut(self.depth_image_handle)
             .unwrap();
         depth_image.resize(&self.device, Size2D::new(width, height))?;
-        self.command_queue
-            .transition_depth_image(&self.device, depth_image)?;
+        self.command_queue.transition_image(
+            &self.device,
+            depth_image,
+            // TODO: get rid of `vk`
+            vk::ImageAspectFlags::DEPTH,
+            vk::ImageLayout::UNDEFINED,
+            vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+        )?;
 
         let pipeline = self
             .resource_manager
