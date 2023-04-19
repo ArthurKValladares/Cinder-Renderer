@@ -149,10 +149,10 @@ fn main() {
     )
     .unwrap();
 
-    let mut renderer = HelloTriangle::new(&sdl.window).unwrap();
+    let mut hello_triangle = HelloTriangle::new(&sdl.window).unwrap();
 
     'running: loop {
-        renderer.cinder.start_frame().unwrap();
+        hello_triangle.cinder.start_frame().unwrap();
 
         for event in sdl.event_pump.poll_iter() {
             match event {
@@ -167,13 +167,13 @@ fn main() {
                     win_event: sdl2::event::WindowEvent::SizeChanged(width, height),
                     ..
                 } => {
-                    renderer.resize(width as u32, height as u32).unwrap();
+                    hello_triangle.resize(width as u32, height as u32).unwrap();
                 }
                 _ => {}
             }
         }
-        renderer.draw().unwrap();
+        hello_triangle.draw().unwrap();
 
-        renderer.cinder.end_frame();
+        hello_triangle.cinder.end_frame();
     }
 }
