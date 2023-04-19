@@ -21,7 +21,6 @@ use crate::{
         sampler::{Sampler, SamplerDescription},
         shader::{Shader, ShaderDesc},
     },
-    Resolution,
 };
 use anyhow::Result;
 #[cfg(any(target_os = "macos", target_os = "ios"))]
@@ -69,7 +68,7 @@ pub struct Device {
 }
 
 impl Device {
-    pub fn new<W>(window: &W, width: u32, height: u32) -> Result<Self>
+    pub fn new<W>(window: &W, window_width: u32, window_height: u32) -> Result<Self>
     where
         W: HasRawWindowHandle + HasRawDisplayHandle,
     {
@@ -217,7 +216,7 @@ impl Device {
         );
         let bind_group_pool = BindGroupPool::new(&instance, &device)?;
 
-        let surface_data = surface.get_data(p_device, Resolution { width, height }, false)?;
+        let surface_data = surface.get_data(p_device, window_width, window_height, false)?;
 
         let extensions = DeviceExtensions::new(&instance, &device);
 
@@ -607,9 +606,7 @@ impl Device {
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
         self.wait_idle()?;
-        self.surface_data =
-            self.surface
-                .get_data(self.p_device, Resolution { width, height }, false)?;
+        self.surface_data = self.surface.get_data(self.p_device, width, height, false)?;
         Ok(())
     }
 

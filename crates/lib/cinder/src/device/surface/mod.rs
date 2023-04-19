@@ -34,7 +34,8 @@ impl Surface {
     pub fn get_data(
         &self,
         p_device: vk::PhysicalDevice,
-        backbuffer_resolution: impl Into<Size2D<u32>>,
+        window_width: u32,
+        window_height: u32,
         vsync: bool,
     ) -> Result<SurfaceData> {
         let surface_formats = unsafe {
@@ -68,11 +69,10 @@ impl Surface {
             desired_image_count
         };
 
-        let backbuffer_resolution = backbuffer_resolution.into();
         let surface_resolution = match surface_capabilities.current_extent.width {
             std::u32::MAX => vk::Extent2D {
-                width: backbuffer_resolution.width(),
-                height: backbuffer_resolution.height(),
+                width: window_width,
+                height: window_height,
             },
             _ => surface_capabilities.current_extent,
         };

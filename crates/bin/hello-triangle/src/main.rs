@@ -1,18 +1,14 @@
 use anyhow::Result;
 use cinder::{
-    command_queue::{CommandQueue, RenderAttachment},
-    device::Device,
+    command_queue::RenderAttachment,
     resources::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         pipeline::graphics::GraphicsPipeline,
-        ResourceManager,
     },
-    swapchain::Swapchain,
-    ResourceId,
+    Cinder, ResourceId,
 };
 use math::{mat::Mat4, vec::Vec3};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
-use std::time::Instant;
 use util::{SdlContext, WindowDescription};
 
 pub const WINDOW_WIDTH: u32 = 1280;
@@ -23,145 +19,142 @@ include!(concat!(
     "/gen/triangle_shader_structs.rs"
 ));
 
-pub struct Renderer {
-    resource_manager: ResourceManager,
-    device: Device,
-    swapchain: Swapchain,
-    command_queue: CommandQueue,
+pub struct HelloTriangle {
+    cinder: Cinder,
     render_pipeline: ResourceId<GraphicsPipeline>,
     vertex_buffer_handle: ResourceId<Buffer>,
     index_buffer_handle: ResourceId<Buffer>,
-    init_time: Instant,
 }
 
-impl Renderer {
+impl HelloTriangle {
     pub fn new(window: &Window) -> Result<Self> {
-        let mut resource_manager = ResourceManager::default();
         let (width, height) = window.drawable_size();
-        let device = Device::new(window, width, height)?;
-        let command_queue = CommandQueue::new(&device)?;
-        let swapchain = Swapchain::new(&device)?;
+        let mut cinder = Cinder::new(window, width, height)?;
 
-        let vertex_shader = device.create_shader(
+        let vertex_shader = cinder.device.create_shader(
             include_bytes!("../shaders/spv/triangle.vert.spv"),
             Default::default(),
         )?;
-        let fragment_shader = device.create_shader(
+        let fragment_shader = cinder.device.create_shader(
             include_bytes!("../shaders/spv/triangle.frag.spv"),
             Default::default(),
         )?;
-        let render_pipeline =
-            resource_manager.insert_graphics_pipeline(device.create_graphics_pipeline(
+        let render_pipeline = cinder.resource_manager.insert_graphics_pipeline(
+            cinder.device.create_graphics_pipeline(
                 &vertex_shader,
                 &fragment_shader,
                 Default::default(),
-            )?);
+            )?,
+        );
 
-        let vertex_buffer = resource_manager.insert_buffer(device.create_buffer_with_data(
-            &[
-                TriangleVertex {
-                    i_pos: [0.0, 0.5],
-                    i_color: [1.0, 0.0, 0.0, 1.0],
-                },
-                TriangleVertex {
-                    i_pos: [-0.5, -0.5],
-                    i_color: [0.0, 1.0, 0.0, 1.0],
-                },
-                TriangleVertex {
-                    i_pos: [0.5, -0.5],
-                    i_color: [0.0, 0.0, 1.0, 1.0],
-                },
-            ],
-            BufferDescription {
-                usage: BufferUsage::VERTEX,
-                ..Default::default()
-            },
-        )?);
-        let index_buffer = resource_manager.insert_buffer(device.create_buffer_with_data(
-            &[0, 1, 2],
-            BufferDescription {
-                usage: BufferUsage::INDEX,
-                ..Default::default()
-            },
-        )?);
+        let vertex_buffer =
+            cinder
+                .resource_manager
+                .insert_buffer(cinder.device.create_buffer_with_data(
+                    &[
+                        TriangleVertex {
+                            i_pos: [0.0, 0.5],
+                            i_color: [1.0, 0.0, 0.0, 1.0],
+                        },
+                        TriangleVertex {
+                            i_pos: [-0.5, -0.5],
+                            i_color: [0.0, 1.0, 0.0, 1.0],
+                        },
+                        TriangleVertex {
+                            i_pos: [0.5, -0.5],
+                            i_color: [0.0, 0.0, 1.0, 1.0],
+                        },
+                    ],
+                    BufferDescription {
+                        usage: BufferUsage::VERTEX,
+                        ..Default::default()
+                    },
+                )?);
+        let index_buffer =
+            cinder
+                .resource_manager
+                .insert_buffer(cinder.device.create_buffer_with_data(
+                    &[0, 1, 2],
+                    BufferDescription {
+                        usage: BufferUsage::INDEX,
+                        ..Default::default()
+                    },
+                )?);
 
-        vertex_shader.destroy(device.raw());
-        fragment_shader.destroy(device.raw());
+        vertex_shader.destroy(cinder.device.raw());
+        fragment_shader.destroy(cinder.device.raw());
 
-        let init_time = Instant::now();
         Ok(Self {
-            resource_manager,
-            device,
-            swapchain,
-            command_queue,
+            cinder,
             render_pipeline,
             vertex_buffer_handle: vertex_buffer,
             index_buffer_handle: index_buffer,
-            init_time,
         })
     }
 
     pub fn draw(&mut self) -> Result<bool> {
-        let surface_rect = self.device.surface_rect();
+        let surface_rect = self.cinder.device.surface_rect();
         let index_buffer = self
+            .cinder
             .resource_manager
             .buffers
             .get(self.index_buffer_handle)
             .unwrap();
         let vertex_buffer = self
+            .cinder
             .resource_manager
             .buffers
             .get(self.vertex_buffer_handle)
             .unwrap();
         let pipeline = self
+            .cinder
             .resource_manager
             .graphics_pipelines
             .get(self.render_pipeline)
             .unwrap();
 
-        let cmd_list = self.command_queue.get_command_list(&self.device)?;
-        let swapchain_image = self.swapchain.acquire_image(&self.device, &cmd_list)?;
+        let cmd_list = self
+            .cinder
+            .command_queue
+            .get_command_list(&self.cinder.device)?;
+        let swapchain_image = self
+            .cinder
+            .swapchain
+            .acquire_image(&self.cinder.device, &cmd_list)?;
 
         cmd_list.begin_rendering(
-            &self.device,
+            &self.cinder.device,
             surface_rect,
             &[RenderAttachment::color(swapchain_image, Default::default())],
             None,
         );
-        cmd_list.bind_graphics_pipeline(&self.device, pipeline);
-        cmd_list.bind_viewport(&self.device, surface_rect, true);
-        cmd_list.bind_scissor(&self.device, surface_rect);
-        cmd_list.bind_index_buffer(&self.device, index_buffer);
-        cmd_list.bind_vertex_buffer(&self.device, vertex_buffer);
+        cmd_list.bind_graphics_pipeline(&self.cinder.device, pipeline);
+        cmd_list.bind_viewport(&self.cinder.device, surface_rect, true);
+        cmd_list.bind_scissor(&self.cinder.device, surface_rect);
+        cmd_list.bind_index_buffer(&self.cinder.device, index_buffer);
+        cmd_list.bind_vertex_buffer(&self.cinder.device, vertex_buffer);
         cmd_list.set_vertex_bytes(
-            &self.device,
+            &self.cinder.device,
             pipeline,
             &Mat4::rotate(
-                (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI),
+                (self.cinder.init_time.elapsed().as_secs_f32() / 5.0)
+                    * (2.0 * std::f32::consts::PI),
                 Vec3::new(0.0, 0.0, 1.0),
             ),
             0,
         )?;
-        cmd_list.draw_offset(&self.device, 3, 0, 0);
-        cmd_list.end_rendering(&self.device);
+        cmd_list.draw_offset(&self.cinder.device, 3, 0, 0);
+        cmd_list.end_rendering(&self.cinder.device);
 
-        self.swapchain
-            .present(&self.device, cmd_list, swapchain_image)
+        self.cinder
+            .swapchain
+            .present(&self.cinder.device, cmd_list, swapchain_image)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
-        self.device.resize(width, height)?;
-        self.swapchain.resize(&self.device)?;
+        self.cinder.device.resize(width, height)?;
+        self.cinder.swapchain.resize(&self.cinder.device)?;
         Ok(())
-    }
-}
-
-impl Drop for Renderer {
-    fn drop(&mut self) {
-        self.device.wait_idle().ok();
-        self.command_queue.destroy(&self.device);
-        self.swapchain.destroy(&self.device);
-        self.resource_manager.force_destroy(&self.device);
     }
 }
 
@@ -175,10 +168,10 @@ fn main() {
     )
     .unwrap();
 
-    let mut renderer = Renderer::new(&sdl.window).unwrap();
+    let mut renderer = HelloTriangle::new(&sdl.window).unwrap();
 
     'running: loop {
-        renderer.device.new_frame().unwrap();
+        renderer.cinder.device.new_frame().unwrap();
 
         for event in sdl.event_pump.poll_iter() {
             match event {
@@ -200,7 +193,10 @@ fn main() {
         }
         renderer.draw().unwrap();
 
-        renderer.resource_manager.consume(&renderer.device);
-        renderer.device.bump_frame();
+        renderer
+            .cinder
+            .resource_manager
+            .consume(&renderer.cinder.device);
+        renderer.cinder.device.bump_frame();
     }
 }
