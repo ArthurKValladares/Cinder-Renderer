@@ -42,11 +42,11 @@ impl Renderer {
         let command_queue = CommandQueue::new(&device)?;
         let swapchain = Swapchain::new(&device)?;
 
-        let mut vertex_shader = device.create_shader(
+        let vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/triangle.vert.spv"),
             Default::default(),
         )?;
-        let mut fragment_shader = device.create_shader(
+        let fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/triangle.frag.spv"),
             Default::default(),
         )?;
@@ -56,8 +56,6 @@ impl Renderer {
                 &fragment_shader,
                 Default::default(),
             )?);
-        vertex_shader.destroy(device.raw());
-        fragment_shader.destroy(device.raw());
 
         let vertex_buffer = resource_manager.insert_buffer(device.create_buffer_with_data(
             &[
@@ -87,8 +85,10 @@ impl Renderer {
             },
         )?);
 
-        let init_time = Instant::now();
+        vertex_shader.destroy(device.raw());
+        fragment_shader.destroy(device.raw());
 
+        let init_time = Instant::now();
         Ok(Self {
             resource_manager,
             device,
@@ -105,15 +105,18 @@ impl Renderer {
         let surface_rect = self.device.surface_rect();
         let index_buffer = self
             .resource_manager
-            .get_buffer(self.index_buffer_handle)
+            .buffers
+            .get(self.index_buffer_handle)
             .unwrap();
         let vertex_buffer = self
             .resource_manager
-            .get_buffer(self.vertex_buffer_handle)
+            .buffers
+            .get(self.vertex_buffer_handle)
             .unwrap();
         let pipeline = self
             .resource_manager
-            .get_graphics_pipeline(self.render_pipeline)
+            .graphics_pipelines
+            .get(self.render_pipeline)
             .unwrap();
 
         let cmd_list = self.command_queue.get_command_list(&self.device)?;

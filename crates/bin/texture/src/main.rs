@@ -155,15 +155,18 @@ impl Renderer {
         let surface_rect = self.device.surface_rect();
         let index_buffer = self
             .resource_manager
-            .get_buffer(self.index_buffer_handle)
+            .buffers
+            .get(self.index_buffer_handle)
             .unwrap();
         let vertex_buffer = self
             .resource_manager
-            .get_buffer(self.vertex_buffer_handle)
+            .buffers
+            .get(self.vertex_buffer_handle)
             .unwrap();
         let pipeline = self
             .resource_manager
-            .get_graphics_pipeline(self.render_pipeline_handle)
+            .graphics_pipelines
+            .get(self.render_pipeline_handle)
             .unwrap();
 
         let cmd_list = self.command_queue.get_command_list(&self.device)?;

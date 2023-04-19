@@ -544,6 +544,23 @@ impl CommandQueue {
         Ok(cmd_list)
     }
 
+    pub fn transition_depth_image(&self, device: &Device, image: &Image) -> Result<()> {
+        let instant_command_list = self.get_immediate_command_list(device)?;
+        instant_command_list.set_image_memory_barrier(
+            device,
+            image.raw,
+            vk::ImageAspectFlags::DEPTH,
+            vk::ImageLayout::UNDEFINED,
+            vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+            Default::default(),
+        );
+        instant_command_list.end(device)?;
+        instant_command_list.immediate_submit(device, device.present_queue())?;
+        instant_command_list.reset(device)?;
+
+        Ok(())
+    }
+
     pub fn destroy(&self, device: &Device) {
         unsafe {
             device.raw().destroy_command_pool(self.command_pool, None);

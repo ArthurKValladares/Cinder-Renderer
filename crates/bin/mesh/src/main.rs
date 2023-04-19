@@ -218,7 +218,8 @@ impl Renderer {
         let scale = (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
         let ubo_buffer = self
             .resource_manager
-            .get_buffer_mut(self.ubo_buffer_handle)
+            .buffers
+            .get_mut(self.ubo_buffer_handle)
             .unwrap();
         ubo_buffer.mem_copy(
             util::offset_of!(MeshUniformBufferObject, model) as u64,
@@ -234,19 +235,23 @@ impl Renderer {
         let surface_rect = self.device.surface_rect();
         let depth_image = self
             .resource_manager
-            .get_image(self.depth_image_handle)
+            .images
+            .get(self.depth_image_handle)
             .unwrap();
         let pipeline = self
             .resource_manager
-            .get_graphics_pipeline(self.render_pipeline_handle)
+            .graphics_pipelines
+            .get(self.render_pipeline_handle)
             .unwrap();
         let index_buffer = self
             .resource_manager
-            .get_buffer(self.index_buffer_handle)
+            .buffers
+            .get(self.index_buffer_handle)
             .unwrap();
         let vertex_buffer = self
             .resource_manager
-            .get_buffer(self.vertex_buffer_handle)
+            .buffers
+            .get(self.vertex_buffer_handle)
             .unwrap();
 
         let cmd_list = self.command_queue.get_command_list(&self.device)?;
@@ -286,7 +291,8 @@ impl Renderer {
         self.swapchain.resize(&self.device)?;
         let depth_image = self
             .resource_manager
-            .get_image_mut(self.depth_image_handle)
+            .images
+            .get_mut(self.depth_image_handle)
             .unwrap();
         depth_image.resize(&self.device, Size2D::new(width, height))?;
         Ok(())

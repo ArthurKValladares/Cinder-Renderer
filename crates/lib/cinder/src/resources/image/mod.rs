@@ -3,6 +3,7 @@ use super::{
     sampler::Sampler,
 };
 use crate::{
+    command_queue::CommandQueue,
     device::Device,
     util::{find_memory_type_index, MemoryMappablePointer},
 };
@@ -139,6 +140,12 @@ pub enum ImageUsage {
 impl Default for ImageUsage {
     fn default() -> Self {
         Self::Texture
+    }
+}
+
+impl ImageUsage {
+    pub fn is_depth(&self) -> bool {
+        matches!(self, ImageUsage::Depth | ImageUsage::DepthSampled)
     }
 }
 

@@ -28,55 +28,84 @@ include!(concat!(
 ));
 
 pub struct Renderer {
-    resource_manager: ResourceManager,
     device: Device,
     swapchain: Swapchain,
-    depth_image: ResourceId<Image>,
-    render_pipeline: ResourceId<GraphicsPipeline>,
     command_queue: CommandQueue,
+    init_time: Instant,
+    resource_manager: ResourceManager,
+    depth_image_handle: ResourceId<Image>,
+    pipeline_handle: ResourceId<GraphicsPipeline>,
     vertex_buffer_handle: ResourceId<Buffer>,
     index_buffer_handle: ResourceId<Buffer>,
     ubo_buffer_handle: ResourceId<Buffer>,
-    init_time: Instant,
 }
 
 impl Renderer {
     pub fn new(window: &Window) -> Result<Self> {
-        let mut resource_manager = ResourceManager::default();
         let (width, height) = window.drawable_size();
         let device = Device::new(window, width, height)?;
         let command_queue = CommandQueue::new(&device)?;
         let swapchain = Swapchain::new(&device)?;
         let surface_rect = device.surface_rect();
-        let depth_image = resource_manager.insert_image(device.create_image(
+        let depth_image = device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFloat,
                 usage: ImageUsage::Depth,
                 ..Default::default()
             },
-        )?);
-
-        let mut vertex_shader = device.create_shader(
+        )?;
+        let vertex_shader = device.create_shader(
             include_bytes!("../shaders/spv/cube.vert.spv"),
             Default::default(),
         )?;
-        let mut fragment_shader = device.create_shader(
+        let fragment_shader = device.create_shader(
             include_bytes!("../shaders/spv/cube.frag.spv"),
             Default::default(),
         )?;
-        let render_pipeline =
-            resource_manager.insert_graphics_pipeline(device.create_graphics_pipeline(
-                &vertex_shader,
-                &fragment_shader,
-                GraphicsPipelineDescription {
-                    depth_format: Some(Format::D32_SFloat),
-                    ..Default::default()
-                },
-            )?);
-        vertex_shader.destroy(device.raw());
-        fragment_shader.destroy(device.raw());
+        let pipeline = device.create_graphics_pipeline(
+            &vertex_shader,
+            &fragment_shader,
+            GraphicsPipelineDescription {
+                depth_format: Some(Format::D32_SFloat),
+                ..Default::default()
+            },
+        )?;
+        let ubo_buffer = device.create_buffer(
+            std::mem::size_of::<CubeUniformBufferObject>() as u64,
+            BufferDescription {
+                usage: BufferUsage::UNIFORM,
+                ..Default::default()
+            },
+        )?;
+        ubo_buffer.mem_copy(
+            util::offset_of!(CubeUniformBufferObject, view) as u64,
+            &[
+                camera::look_to(
+                    Vec3::new(2.0, 0.0, 0.0),
+                    Vec3::new(-1.0, 0.0, 0.0),
+                    Vec3::new(0.0, 1.0, 0.0),
+                ),
+                camera::new_infinite_perspective_proj(
+                    surface_rect.width() as f32 / surface_rect.height() as f32,
+                    30.0,
+                    0.01,
+                ),
+            ],
+        )?;
+        device.write_bind_group(
+            &pipeline,
+            &[BindGroupBindInfo {
+                dst_binding: 0,
+                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+            }],
+        )?;
 
+        //
+        // Add resources to ResourceManager
+        //
+        let mut resource_manager = ResourceManager::default();
+        let ubo_buffer_handle = resource_manager.insert_buffer(ubo_buffer);
         let vertex_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
             &[
                 // Plane at z: -0.5
@@ -201,51 +230,23 @@ impl Renderer {
                 ..Default::default()
             },
         )?);
+        let depth_image_handle = resource_manager.insert_image(depth_image);
+        let pipeline_handle = resource_manager.insert_graphics_pipeline(pipeline);
 
-        let ubo_buffer_handle = resource_manager.insert_buffer(device.create_buffer(
-            std::mem::size_of::<CubeUniformBufferObject>() as u64,
-            BufferDescription {
-                usage: BufferUsage::UNIFORM,
-                ..Default::default()
-            },
-        )?);
-        let ubo_buffer = resource_manager.get_buffer(ubo_buffer_handle).unwrap();
-        ubo_buffer.mem_copy(
-            util::offset_of!(CubeUniformBufferObject, view) as u64,
-            &[
-                camera::look_to(
-                    Vec3::new(2.0, 0.0, 0.0),
-                    Vec3::new(-1.0, 0.0, 0.0),
-                    Vec3::new(0.0, 1.0, 0.0),
-                ),
-                camera::new_infinite_perspective_proj(
-                    surface_rect.width() as f32 / surface_rect.height() as f32,
-                    30.0,
-                    0.01,
-                ),
-            ],
-        )?;
-
-        let pipeline = resource_manager
-            .get_graphics_pipeline(render_pipeline)
-            .unwrap();
-        device.write_bind_group(
-            pipeline,
-            &[BindGroupBindInfo {
-                dst_binding: 0,
-                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-            }],
-        )?;
+        //
+        // Cleanup
+        //
+        vertex_shader.destroy(device.raw());
+        fragment_shader.destroy(device.raw());
 
         let init_time = Instant::now();
-
         Ok(Self {
             resource_manager,
             device,
             swapchain,
-            depth_image,
             command_queue,
-            render_pipeline,
+            depth_image_handle,
+            pipeline_handle,
             vertex_buffer_handle,
             index_buffer_handle,
             ubo_buffer_handle,
@@ -257,7 +258,8 @@ impl Renderer {
         let scale = (self.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
         let ubo_buffer = self
             .resource_manager
-            .get_buffer_mut(self.ubo_buffer_handle)
+            .buffers
+            .get_mut(self.ubo_buffer_handle)
             .unwrap();
         ubo_buffer.mem_copy(
             util::offset_of!(CubeUniformBufferObject, model) as u64,
@@ -268,18 +270,25 @@ impl Renderer {
 
     pub fn draw(&mut self) -> Result<bool> {
         let surface_rect = self.device.surface_rect();
-        let depth_image = self.resource_manager.get_image(self.depth_image).unwrap();
+        let depth_image = self
+            .resource_manager
+            .images
+            .get(self.depth_image_handle)
+            .unwrap();
         let pipeline = self
             .resource_manager
-            .get_graphics_pipeline(self.render_pipeline)
+            .graphics_pipelines
+            .get(self.pipeline_handle)
             .unwrap();
         let index_buffer = self
             .resource_manager
-            .get_buffer(self.index_buffer_handle)
+            .buffers
+            .get(self.index_buffer_handle)
             .unwrap();
         let vertex_buffer = self
             .resource_manager
-            .get_buffer(self.vertex_buffer_handle)
+            .buffers
+            .get(self.vertex_buffer_handle)
             .unwrap();
 
         let cmd_list = self.command_queue.get_command_list(&self.device)?;
@@ -318,7 +327,8 @@ impl Renderer {
         self.swapchain.resize(&self.device)?;
         let depth_image = self
             .resource_manager
-            .get_image_mut(self.depth_image)
+            .images
+            .get_mut(self.depth_image_handle)
             .unwrap();
         depth_image.resize(&self.device, Size2D::new(width, height))?;
         Ok(())

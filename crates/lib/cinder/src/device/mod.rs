@@ -445,7 +445,6 @@ impl Device {
         )?;
 
         let instant_command_list = cmd_queue.get_immediate_command_list(self)?;
-
         instant_command_list.set_image_memory_barrier(
             self,
             image.raw,
@@ -463,12 +462,25 @@ impl Device {
             vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
             Default::default(),
         );
-
         instant_command_list.end(self)?;
         instant_command_list.immediate_submit(self, self.present_queue)?;
         instant_command_list.reset(self)?;
 
         image_buffer.clean(self);
+
+        Ok(image)
+    }
+
+    pub fn create_depth_image(
+        &self,
+        size: Size2D<u32>,
+        cmd_queue: &CommandQueue,
+        desc: ImageDescription,
+    ) -> Result<Image> {
+        debug_assert!(desc.usage.is_depth());
+
+        let image = Image::create(self, size, desc)?;
+        cmd_queue.transition_depth_image(self, &image)?;
 
         Ok(image)
     }
@@ -484,7 +496,8 @@ impl Device {
         bytes: &[u8],
     ) -> Result<(), DeviceError> {
         let new = manager
-            .get_shader(id)
+            .shaders
+            .get(id)
             .map(|old| Shader::create(self, bytes, old.desc).unwrap());
 
         if let Some(new) = new {

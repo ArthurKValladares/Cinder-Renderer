@@ -51,25 +51,13 @@ macro_rules! delete {
     };
 }
 
-macro_rules! getter {
-    ($fn_name:ident, $fn_name_mut:ident, $field:ident, $t:ty) => {
-        pub fn $fn_name(&self, id: ResourceId<$t>) -> Option<&$t> {
-            self.$field.get(id)
-        }
-
-        pub fn $fn_name_mut(&mut self, id: ResourceId<$t>) -> Option<&mut $t> {
-            self.$field.get_mut(id)
-        }
-    };
-}
-
 #[derive(Default)]
 pub struct ResourceManager {
-    graphics_pipelines: ResourcePool<GraphicsPipeline>,
-    shaders: ResourcePool<Shader>,
-    images: ResourcePool<Image>,
-    buffers: ResourcePool<Buffer>,
-    samplers: ResourcePool<Sampler>,
+    pub graphics_pipelines: ResourcePool<GraphicsPipeline>,
+    pub shaders: ResourcePool<Shader>,
+    pub images: ResourcePool<Image>,
+    pub buffers: ResourcePool<Buffer>,
+    pub samplers: ResourcePool<Sampler>,
     to_consume: [DeleteQueue; MAX_FRAMES_IN_FLIGHT],
     consume_index: usize,
 }
@@ -181,16 +169,4 @@ impl ResourceManager {
         Sampler,
         Sampler
     );
-
-    // Getters
-    getter!(
-        get_graphics_pipeline,
-        get_graphics_pipeline_mut,
-        graphics_pipelines,
-        GraphicsPipeline
-    );
-    getter!(get_shader, get_shader_mut, shaders, Shader);
-    getter!(get_image, get_image_mut, images, Image);
-    getter!(get_buffer, get_buffer_mut, buffers, Buffer);
-    getter!(get_sampler, get_sampler_mut, samplers, Sampler);
 }
