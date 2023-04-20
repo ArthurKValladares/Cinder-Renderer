@@ -30,7 +30,6 @@ use sdl::{EguiSdl, EventResponse};
 use sdl2::{event::Event, video::Window};
 use std::collections::HashMap;
 
-
 pub(crate) const DEFAULT_PPP: f32 = 3.0;
 
 const VERTEX_BUFFER_SIZE: u64 = 1024 * 1024 * 4;
@@ -75,16 +74,14 @@ impl EguiIntegration {
                 ..Default::default()
             },
         )?);
-        vertex_shader.destroy(device.raw());
-        fragment_shader.destroy(device.raw());
+        vertex_shader.destroy(device);
+        fragment_shader.destroy(device);
 
-        let sampler = resource_manager.insert_sampler(device.create_sampler(
-            device,
-            SamplerDescription {
+        let sampler =
+            resource_manager.insert_sampler(device.create_sampler(SamplerDescription {
                 address_mode: AddressMode::ClampToEdge,
                 ..Default::default()
-            },
-        )?);
+            })?);
 
         let (vertex_buffers, index_buffers) = {
             let len = swapchain.num_images();
