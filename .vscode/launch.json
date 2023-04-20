@@ -5,7 +5,11 @@
             "name": "(Windows) Launch",
             "type": "cppvsdbg",
             "request": "launch",
+<<<<<<< HEAD
             "program": "${workspaceRoot}/target/release/hello-triangle.exe",
+=======
+            "program": "${workspaceRoot}/target/debug/debug.exe",
+>>>>>>> 1564fee (Synchronization 2.0 (#4))
             "args": [],
             "stopAtEntry": false,
             "cwd": "${workspaceFolder}",
