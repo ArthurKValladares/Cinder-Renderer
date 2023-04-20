@@ -73,7 +73,7 @@ impl ResourceManager {
         for mut res in self.images.drain() {
             res.destroy(device);
         }
-        for mut res in self.buffers.drain() {
+        for res in self.buffers.drain() {
             res.destroy(device);
         }
         for mut res in self.samplers.drain() {

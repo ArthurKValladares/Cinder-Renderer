@@ -1,18 +1,15 @@
 use anyhow::Result;
 use cinder::{
     command_queue::{
-        AttachmentStoreOp, ClearValue, CommandQueue, RenderAttachment, RenderAttachmentDesc,
+        AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc,
     },
-    device::Device,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
-        ResourceManager,
     },
-    swapchain::Swapchain,
-    Cinder, ResourceId,
+    Cinder,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use rayon::iter::*;
