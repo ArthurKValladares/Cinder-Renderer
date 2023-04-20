@@ -2,8 +2,7 @@ use std::path::PathBuf;
 
 use anyhow::Result;
 use cinder::{
-    command_queue::{CommandQueue, RenderAttachment},
-    device::Device,
+    command_queue::RenderAttachment,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
@@ -11,10 +10,8 @@ use cinder::{
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::SamplerDescription,
         shader::ShaderDesc,
-        ResourceManager,
     },
-    swapchain::Swapchain,
-    ResourceId,
+    Cinder,
 };
 use math::size::Size2D;
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
@@ -29,13 +26,10 @@ include!(concat!(
 ));
 
 pub struct Renderer {
-    device: Device,
-    swapchain: Swapchain,
-    command_queue: CommandQueue,
-    resource_manager: ResourceManager,
-    render_pipeline_handle: ResourceId<GraphicsPipeline>,
-    vertex_buffer_handle: ResourceId<Buffer>,
-    index_buffer_handle: ResourceId<Buffer>,
+    cinder: Cinder,
+    pipeline: GraphicsPipeline,
+    vertex_buffer: Buffer,
+    index_buffer: Buffer,
 }
 
 impl Renderer {
@@ -44,26 +38,24 @@ impl Renderer {
         // Create Base Resources
         //
         let (width, height) = window.drawable_size();
-        let device = Device::new(window, width, height)?;
-        let command_queue = CommandQueue::new(&device)?;
-        let swapchain = Swapchain::new(&device)?;
+        let mut cinder = Cinder::new(window, width, height)?;
 
         //
         // Create App Resources
         //
-        let vertex_shader = device.create_shader(
+        let vertex_shader = cinder.device.create_shader(
             include_bytes!("../shaders/spv/debug.vert.spv"),
             ShaderDesc {
                 name: Some("Debug Vertex Shader"),
             },
         )?;
-        let fragment_shader = device.create_shader(
+        let fragment_shader = cinder.device.create_shader(
             include_bytes!("../shaders/spv/debug.frag.spv"),
             ShaderDesc {
                 name: Some("Debug Fragment Shader"),
             },
         )?;
-        let render_pipeline = device.create_graphics_pipeline(
+        let pipeline = cinder.device.create_graphics_pipeline(
             &vertex_shader,
             &fragment_shader,
             GraphicsPipelineDescription {
@@ -71,13 +63,10 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
-        let sampler = device.create_sampler(
-            &device,
-            SamplerDescription {
-                name: Some("Debug Sampler"),
-                ..Default::default()
-            },
-        )?;
+        let sampler = cinder.device.create_sampler(SamplerDescription {
+            name: Some("Debug Sampler"),
+            ..Default::default()
+        })?;
         let image_data = zero_copy_assets::try_decoded_file::<zero_copy_assets::ImageData>(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("assets")
@@ -88,17 +77,17 @@ impl Renderer {
                 .join("rust.adi"),
         )
         .unwrap();
-        let texture = device.create_image_with_data(
+        let texture = cinder.device.create_image_with_data(
             Size2D::new(image_data.width, image_data.height),
             &image_data.bytes,
-            &command_queue,
+            &cinder.command_queue,
             ImageDescription {
                 name: Some("Debug Image"),
                 ..Default::default()
             },
         )?;
-        device.write_bind_group(
-            &render_pipeline,
+        cinder.device.write_bind_group(
+            &pipeline,
             &[BindGroupBindInfo {
                 dst_binding: 0,
                 data: BindGroupWriteData::SampledImage(texture.bind_info(
@@ -108,21 +97,7 @@ impl Renderer {
                 )),
             }],
         )?;
-
-        //
-        // Add resources to ResourceManager
-        //
-        let mut resource_manager = ResourceManager::default();
-        let render_pipeline_handle = resource_manager.insert_graphics_pipeline(render_pipeline);
-        let index_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
-            &[0, 1, 2, 2, 3, 0],
-            BufferDescription {
-                name: Some("Index Buffer"),
-                usage: BufferUsage::INDEX,
-                ..Default::default()
-            },
-        )?);
-        let vertex_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
+        let vertex_buffer = cinder.device.create_buffer_with_data(
             &[
                 // Top-left
                 DebugVertex {
@@ -150,88 +125,87 @@ impl Renderer {
                 usage: BufferUsage::VERTEX,
                 ..Default::default()
             },
-        )?);
-        resource_manager.insert_sampler(sampler);
-        resource_manager.insert_image(texture);
+        )?;
+        let index_buffer = cinder.device.create_buffer_with_data(
+            &[0, 1, 2, 2, 3, 0],
+            BufferDescription {
+                name: Some("Index Buffer"),
+                usage: BufferUsage::INDEX,
+                ..Default::default()
+            },
+        )?;
+        //
+        // Add resources to ResourceManager
+        //
+        cinder.resource_manager.insert_sampler(sampler);
+        cinder.resource_manager.insert_image(texture);
 
         //
         // Cleanup
         //
-        vertex_shader.destroy(device.raw());
-        fragment_shader.destroy(device.raw());
+        vertex_shader.destroy(&cinder.device);
+        fragment_shader.destroy(&cinder.device);
 
         Ok(Self {
-            resource_manager,
-            device,
-            swapchain,
-            command_queue,
-            render_pipeline_handle,
-            vertex_buffer_handle,
-            index_buffer_handle,
+            cinder,
+            pipeline,
+            vertex_buffer,
+            index_buffer,
         })
     }
 
     pub fn draw(&mut self) -> Result<bool> {
-        let surface_rect = self.device.surface_rect();
-        let index_buffer = self
-            .resource_manager
-            .buffers
-            .get(self.index_buffer_handle)
-            .unwrap();
-        let vertex_buffer = self
-            .resource_manager
-            .buffers
-            .get(self.vertex_buffer_handle)
-            .unwrap();
-        let pipeline = self
-            .resource_manager
-            .graphics_pipelines
-            .get(self.render_pipeline_handle)
-            .unwrap();
+        let surface_rect = self.cinder.device.surface_rect();
 
-        self.device
+        self.cinder
+            .device
             .begin_queue_label("Frame Begin", [0.0, 0.0, 1.0, 1.0]);
-        let cmd_list = self.command_queue.get_command_list(&self.device)?;
-        let swapchain_image = self.swapchain.acquire_image(&self.device, &cmd_list)?;
+        let cmd_list = self
+            .cinder
+            .command_queue
+            .get_command_list(&self.cinder.device)?;
+        let swapchain_image = self
+            .cinder
+            .swapchain
+            .acquire_image(&self.cinder.device, &cmd_list)?;
 
-        cmd_list.begin_label(&self.device, "Begin Rendering", [1.0, 0.0, 0.0, 1.0]);
+        cmd_list.begin_label(&self.cinder.device, "Begin Rendering", [1.0, 0.0, 0.0, 1.0]);
         cmd_list.begin_rendering(
-            &self.device,
+            &self.cinder.device,
             surface_rect,
             &[RenderAttachment::color(swapchain_image, Default::default())],
             None,
         );
-        cmd_list.bind_graphics_pipeline(&self.device, pipeline);
-        cmd_list.bind_viewport(&self.device, surface_rect, true);
-        cmd_list.bind_scissor(&self.device, surface_rect);
-        cmd_list.bind_index_buffer(&self.device, index_buffer);
-        cmd_list.bind_vertex_buffer(&self.device, vertex_buffer);
-        cmd_list.bind_descriptor_sets(&self.device, pipeline);
-        cmd_list.insert_label(&self.device, "Draw Offset", [0.0, 1.0, 0.0, 1.0]);
-        cmd_list.draw_offset(&self.device, 6, 0, 0);
-        cmd_list.end_rendering(&self.device);
-        cmd_list.end_label(&self.device);
+        cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.pipeline);
+        cmd_list.bind_viewport(&self.cinder.device, surface_rect, true);
+        cmd_list.bind_scissor(&self.cinder.device, surface_rect);
+        cmd_list.bind_index_buffer(&self.cinder.device, &self.index_buffer);
+        cmd_list.bind_vertex_buffer(&self.cinder.device, &self.vertex_buffer);
+        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline);
+        cmd_list.insert_label(&self.cinder.device, "Draw Offset", [0.0, 1.0, 0.0, 1.0]);
+        cmd_list.draw_offset(&self.cinder.device, 6, 0, 0);
+        cmd_list.end_rendering(&self.cinder.device);
+        cmd_list.end_label(&self.cinder.device);
 
         let ret = self
+            .cinder
             .swapchain
-            .present(&self.device, cmd_list, swapchain_image);
-        self.device.end_queue_label();
+            .present(&self.cinder.device, cmd_list, swapchain_image);
+        self.cinder.device.end_queue_label();
         ret
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
-        self.device.resize(width, height)?;
-        self.swapchain.resize(&self.device)?;
-        Ok(())
+        self.cinder.resize(width, height)
     }
 }
 
 impl Drop for Renderer {
     fn drop(&mut self) {
-        self.device.wait_idle().ok();
-        self.command_queue.destroy(&self.device);
-        self.swapchain.destroy(&self.device);
-        self.resource_manager.force_destroy(&self.device);
+        self.cinder.device.wait_idle().ok();
+        self.index_buffer.destroy(&self.cinder.device);
+        self.vertex_buffer.destroy(&self.cinder.device);
+        self.pipeline.destroy(&self.cinder.device);
     }
 }
 
@@ -246,7 +220,7 @@ fn main() {
     let mut renderer = Renderer::new(&sdl.window).unwrap();
 
     'running: loop {
-        renderer.device.new_frame().unwrap();
+        renderer.cinder.start_frame().unwrap();
 
         for event in sdl.event_pump.poll_iter() {
             match event {
@@ -268,7 +242,6 @@ fn main() {
         }
         renderer.draw().unwrap();
 
-        renderer.resource_manager.consume(&renderer.device);
-        renderer.device.bump_frame();
+        renderer.cinder.end_frame();
     }
 }

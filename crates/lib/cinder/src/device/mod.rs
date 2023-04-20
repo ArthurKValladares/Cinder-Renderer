@@ -526,7 +526,7 @@ impl Device {
         ComputePipeline::create(self, shader, desc)
     }
 
-    pub fn create_sampler(&self, device: &Device, desc: SamplerDescription) -> Result<Sampler> {
+    pub fn create_sampler(&self, desc: SamplerDescription) -> Result<Sampler> {
         let sampler_info = vk::SamplerCreateInfo {
             mag_filter: desc.filter.into(),
             min_filter: desc.filter.into(),
@@ -543,7 +543,7 @@ impl Device {
         let sampler = unsafe { self.raw().create_sampler(&sampler_info, None) }?;
 
         if let Some(name) = desc.name {
-            device.set_name(vk::ObjectType::SAMPLER, sampler, name);
+            self.set_name(vk::ObjectType::SAMPLER, sampler, name);
         }
 
         Ok(Sampler { raw: sampler })

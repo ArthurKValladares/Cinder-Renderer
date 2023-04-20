@@ -12,7 +12,7 @@ use cinder::{
         ResourceManager,
     },
     swapchain::Swapchain,
-    ResourceId,
+    Cinder, ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use rayon::iter::*;
@@ -93,24 +93,26 @@ pub struct MeshDraw {
 }
 
 pub struct Renderer {
-    resource_manager: ResourceManager,
-    device: Device,
-    swapchain: Swapchain,
-    command_queue: CommandQueue,
+    cinder: Cinder,
     mesh_draws: Vec<MeshDraw>,
-    depth_image_handle: ResourceId<Image>,
-    pipeline_handle: ResourceId<GraphicsPipeline>,
-    index_buffer_handle: ResourceId<Buffer>,
+    depth_image: Image,
+    pipeline: GraphicsPipeline,
+    index_buffer: Buffer,
 }
 
 impl Renderer {
     pub fn new(window: &Window) -> Result<Self> {
+        //
+        // Create Base Resources
+        //
         let (width, height) = window.drawable_size();
-        let device = Device::new(window, width, height)?;
-        let command_queue = CommandQueue::new(&device)?;
-        let swapchain = Swapchain::new(&device)?;
-        let surface_rect = device.surface_rect();
-        let depth_image = device.create_image(
+        let mut cinder = Cinder::new(window, width, height)?;
+
+        //
+        // Create App Resources
+        //
+        let surface_rect = cinder.device.surface_rect();
+        let depth_image = cinder.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFloat,
@@ -118,15 +120,15 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
-        let vertex_shader = device.create_shader(
+        let vertex_shader = cinder.device.create_shader(
             include_bytes!("../shaders/spv/bindless.vert.spv"),
             Default::default(),
         )?;
-        let fragment_shader = device.create_shader(
+        let fragment_shader = cinder.device.create_shader(
             include_bytes!("../shaders/spv/bindless.frag.spv"),
             Default::default(),
         )?;
-        let pipeline = device.create_graphics_pipeline(
+        let pipeline = cinder.device.create_graphics_pipeline(
             &vertex_shader,
             &fragment_shader,
             GraphicsPipelineDescription {
@@ -171,7 +173,7 @@ impl Renderer {
             (vertices, indices, mesh_draws)
         };
 
-        let ubo_buffer = device.create_buffer(
+        let ubo_buffer = cinder.device.create_buffer(
             std::mem::size_of::<BindlessUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
@@ -194,14 +196,21 @@ impl Renderer {
                 ),
             ],
         )?;
-        let vertex_buffer = device.create_buffer_with_data(
+        let index_buffer = cinder.device.create_buffer_with_data(
+            &indices,
+            BufferDescription {
+                usage: BufferUsage::INDEX,
+                ..Default::default()
+            },
+        )?;
+        let vertex_buffer = cinder.device.create_buffer_with_data(
             &vertices,
             BufferDescription {
                 usage: BufferUsage::STORAGE | BufferUsage::TRANSFER_DST,
                 ..Default::default()
             },
         )?;
-        device.write_bind_group(
+        cinder.device.write_bind_group(
             &pipeline,
             &[
                 BindGroupBindInfo {
@@ -223,20 +232,22 @@ impl Renderer {
             .map(|(idx, material)| (idx, material.diffuse.as_ref().unwrap()))
             .collect::<Vec<_>>();
 
-        let sampler = device.create_sampler(&device, Default::default())?;
+        let sampler = cinder.device.create_sampler(Default::default())?;
         let images = image_data
             .into_iter()
             .map(|(idx, image_data)| {
-                let texture = device
+                let texture = cinder
+                    .device
                     .create_image_with_data(
                         Size2D::new(image_data.width, image_data.height),
                         &image_data.bytes,
-                        &command_queue,
+                        &cinder.command_queue,
                         Default::default(),
                     )
                     .unwrap();
 
-                device
+                cinder
+                    .device
                     .write_bind_group(
                         &pipeline,
                         &[BindGroupBindInfo {
@@ -257,68 +268,46 @@ impl Renderer {
         //
         // Add resources to ResourceManager
         //
-        let mut resource_manager = ResourceManager::default();
-        let index_buffer_handle = resource_manager.insert_buffer(device.create_buffer_with_data(
-            &indices,
-            BufferDescription {
-                usage: BufferUsage::INDEX,
-                ..Default::default()
-            },
-        )?);
-        let depth_image_handle = resource_manager.insert_image(depth_image);
-        let pipeline_handle = resource_manager.insert_graphics_pipeline(pipeline);
         for image in images {
-            resource_manager.insert_image(image);
+            cinder.resource_manager.insert_image(image);
         }
-        resource_manager.insert_buffer(vertex_buffer);
-        resource_manager.insert_buffer(ubo_buffer);
-        resource_manager.insert_sampler(sampler);
+        cinder.resource_manager.insert_buffer(vertex_buffer);
+        cinder.resource_manager.insert_buffer(ubo_buffer);
+        cinder.resource_manager.insert_sampler(sampler);
 
         //
         // Cleanup
         //
-        vertex_shader.destroy(device.raw());
-        fragment_shader.destroy(device.raw());
+        vertex_shader.destroy(&cinder.device);
+        fragment_shader.destroy(&cinder.device);
 
         Ok(Self {
-            resource_manager,
-            device,
-            swapchain,
-            depth_image_handle,
-            command_queue,
-            pipeline_handle,
-            index_buffer_handle,
+            cinder,
             mesh_draws,
+            depth_image,
+            pipeline,
+            index_buffer,
         })
     }
 
     pub fn draw(&mut self) -> Result<bool> {
-        let surface_rect = self.device.surface_rect();
-        let depth_image = self
-            .resource_manager
-            .images
-            .get(self.depth_image_handle)
-            .unwrap();
-        let pipeline = self
-            .resource_manager
-            .graphics_pipelines
-            .get(self.pipeline_handle)
-            .unwrap();
-        let index_buffer = self
-            .resource_manager
-            .buffers
-            .get(self.index_buffer_handle)
-            .unwrap();
+        let surface_rect = self.cinder.device.surface_rect();
 
-        let cmd_list = self.command_queue.get_command_list(&self.device)?;
-        let swapchain_image = self.swapchain.acquire_image(&self.device, &cmd_list)?;
+        let cmd_list = self
+            .cinder
+            .command_queue
+            .get_command_list(&self.cinder.device)?;
+        let swapchain_image = self
+            .cinder
+            .swapchain
+            .acquire_image(&self.cinder.device, &cmd_list)?;
 
         cmd_list.begin_rendering(
-            &self.device,
+            &self.cinder.device,
             surface_rect,
             &[RenderAttachment::color(swapchain_image, Default::default())],
             Some(RenderAttachment::depth(
-                depth_image,
+                &self.depth_image,
                 RenderAttachmentDesc {
                     store_op: AttachmentStoreOp::DontCare,
                     layout: Layout::DepthAttachment,
@@ -328,46 +317,47 @@ impl Renderer {
             )),
         );
 
-        cmd_list.bind_graphics_pipeline(&self.device, pipeline);
-        cmd_list.bind_viewport(&self.device, surface_rect, true);
-        cmd_list.bind_scissor(&self.device, surface_rect);
-        cmd_list.bind_index_buffer(&self.device, index_buffer);
+        cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.pipeline);
+        cmd_list.bind_viewport(&self.cinder.device, surface_rect, true);
+        cmd_list.bind_scissor(&self.cinder.device, surface_rect);
+        cmd_list.bind_index_buffer(&self.cinder.device, &self.index_buffer);
         // TODO: re-think API later when using more than one se
-        cmd_list.bind_descriptor_sets(&self.device, pipeline);
+        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline);
         for mesh_draw in &self.mesh_draws {
-            cmd_list.set_fragment_bytes(&self.device, pipeline, &[mesh_draw.image_index], 0)?;
+            cmd_list.set_fragment_bytes(
+                &self.cinder.device,
+                &self.pipeline,
+                &[mesh_draw.image_index],
+                0,
+            )?;
             cmd_list.draw_offset(
-                &self.device,
+                &self.cinder.device,
                 mesh_draw.num_indices,
                 mesh_draw.index_buffer_offset,
                 mesh_draw.vertex_buffer_offset,
             );
         }
-        cmd_list.end_rendering(&self.device);
+        cmd_list.end_rendering(&self.cinder.device);
 
-        self.swapchain
-            .present(&self.device, cmd_list, swapchain_image)
+        self.cinder
+            .swapchain
+            .present(&self.cinder.device, cmd_list, swapchain_image)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
-        self.device.resize(width, height)?;
-        self.swapchain.resize(&self.device)?;
-        let depth_image = self
-            .resource_manager
-            .images
-            .get_mut(self.depth_image_handle)
-            .unwrap();
-        depth_image.resize(&self.device, Size2D::new(width, height))?;
+        self.cinder.resize(width, height)?;
+        self.depth_image
+            .resize(&self.cinder.device, Size2D::new(width, height))?;
         Ok(())
     }
 }
 
 impl Drop for Renderer {
     fn drop(&mut self) {
-        self.device.wait_idle().ok();
-        self.command_queue.destroy(&self.device);
-        self.swapchain.destroy(&self.device);
-        self.resource_manager.force_destroy(&self.device);
+        self.cinder.device.wait_idle().ok();
+        self.depth_image.destroy(&self.cinder.device);
+        self.pipeline.destroy(&self.cinder.device);
+        self.index_buffer.destroy(&self.cinder.device);
     }
 }
 
@@ -382,7 +372,7 @@ fn main() {
     let mut renderer = Renderer::new(&sdl.window).unwrap();
 
     'running: loop {
-        renderer.device.new_frame().unwrap();
+        renderer.cinder.start_frame().unwrap();
 
         for event in sdl.event_pump.poll_iter() {
             match event {
@@ -404,7 +394,6 @@ fn main() {
         }
         renderer.draw().unwrap();
 
-        renderer.resource_manager.consume(&renderer.device);
-        renderer.device.bump_frame();
+        renderer.cinder.end_frame();
     }
 }

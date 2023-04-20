@@ -1,5 +1,6 @@
 use crate::{
-    command_queue::CommandQueue, device::Device, resources::ResourceManager, swapchain::Swapchain,
+    command_queue::CommandQueue, device::Device, resources::ResourceManager,
+    shader_hot_reloader::HotReloaderState, swapchain::Swapchain,
 };
 use anyhow::Result;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
@@ -16,6 +17,7 @@ pub struct Cinder {
     pub swapchain: Swapchain,
     pub command_queue: CommandQueue,
     pub resource_manager: ResourceManager,
+    pub shader_hot_reloader: HotReloaderState,
     pub init_time: Instant,
     frame_state: RunningFrame,
 }
@@ -29,6 +31,7 @@ impl Cinder {
         let command_queue = CommandQueue::new(&device)?;
         let swapchain = Swapchain::new(&device)?;
         let resource_manager = ResourceManager::default();
+        let shader_hot_reloader = HotReloaderState::new()?;
 
         let init_time = Instant::now();
 
@@ -37,9 +40,16 @@ impl Cinder {
             swapchain,
             command_queue,
             resource_manager,
+            shader_hot_reloader,
             init_time,
             frame_state: RunningFrame::No,
         })
+    }
+
+    pub fn init(&mut self) {
+        take_mut::take(&mut self.shader_hot_reloader, |hot_reloader| {
+            hot_reloader.run()
+        });
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {

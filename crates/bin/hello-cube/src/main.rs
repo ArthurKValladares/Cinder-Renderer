@@ -38,6 +38,9 @@ impl HelloCube {
         let (width, height) = window.drawable_size();
         let cinder = Cinder::new(window, width, height)?;
 
+        //
+        // Create App Resources
+        //
         let surface_rect = cinder.device.surface_rect();
         let depth_image = cinder.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),

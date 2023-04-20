@@ -1,8 +1,8 @@
-use anyhow::Result;
-use cinder::{
+use crate::{
     resources::{pipeline::graphics::GraphicsPipeline, shader::Shader},
     ResourceId,
 };
+use anyhow::Result;
 use notify_debouncer_mini::{
     new_debouncer,
     notify::{self, RecommendedWatcher, RecursiveMode},
@@ -15,6 +15,7 @@ use std::{
     sync::{mpsc::Receiver, Arc, Mutex, MutexGuard},
     time::Duration,
 };
+use thiserror::Error;
 
 #[derive(Debug)]
 pub struct UpdateData {
@@ -80,7 +81,7 @@ impl ShaderHotReloaderRunner {
         absolute_fragment_path: impl AsRef<Path>,
         fragment_handle: ResourceId<Shader>,
         pipeline_handle: ResourceId<GraphicsPipeline>,
-    ) -> Result<()> {
+    ) -> Result<(), notify::Error> {
         let pipeline_shader_set = PipelineShaderIdSet {
             pipeline_handle,
             vertex_handle,
@@ -181,5 +182,89 @@ impl ShaderHotReloader {
 
     pub fn get_pipeline(&self, handle: ResourceId<Shader>) -> Option<&PipelineShaderIdSet> {
         self.program_map.get(&handle)
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum ShaderHotReloadError {
+    #[error(transparent)]
+    NotifyError(#[from] notify::Error),
+    #[error("ShaderHotReloader is in the `Running` state when it should be in `Init` state")]
+    ShouldBeInit,
+    #[error("ShaderHotReloader is in the `Init` state when it should be in `Running` state")]
+    ShouldBeRunning,
+}
+
+pub enum HotReloaderState {
+    Init(ShaderHotReloaderRunner),
+    Running(ShaderHotReloader),
+}
+
+impl HotReloaderState {
+    pub fn new() -> Result<Self> {
+        Ok(Self::Init(ShaderHotReloaderRunner::new()?))
+    }
+
+    pub fn is_init(&self) -> bool {
+        match self {
+            HotReloaderState::Init(_) => true,
+            HotReloaderState::Running(_) => false,
+        }
+    }
+
+    pub fn run(self) -> Self {
+        assert!(self.is_init());
+        let runner = match self {
+            HotReloaderState::Init(runner) => runner,
+            HotReloaderState::Running(_) => unreachable!(),
+        };
+        Self::Running(runner.run())
+    }
+
+    pub fn set_graphics(
+        &mut self,
+        absolute_vertex_path: impl AsRef<Path>,
+        vertex_handle: ResourceId<Shader>,
+        absolute_fragment_path: impl AsRef<Path>,
+        fragment_handle: ResourceId<Shader>,
+        pipeline_handle: ResourceId<GraphicsPipeline>,
+    ) -> Result<(), ShaderHotReloadError> {
+        match self {
+            HotReloaderState::Init(runner) => {
+                runner.set_graphics(
+                    absolute_vertex_path,
+                    vertex_handle,
+                    absolute_fragment_path,
+                    fragment_handle,
+                    pipeline_handle,
+                )?;
+                Ok(())
+            }
+            HotReloaderState::Running(_) => Err(ShaderHotReloadError::ShouldBeInit),
+        }
+    }
+
+    pub fn drain(&mut self) -> Result<impl Iterator<Item = UpdateData>, ShaderHotReloadError> {
+        match self {
+            HotReloaderState::Init(_) => {
+                println!("Calling `drain` on a shader hot-reloader that has not been run");
+                Err(ShaderHotReloadError::ShouldBeRunning)
+            }
+            HotReloaderState::Running(reloader) => {
+                let mut lock: MutexGuard<UpdateList> =
+                    reloader.to_be_updated.lock().expect("Mutex lock poisoned");
+                Ok(lock.into_iter())
+            }
+        }
+    }
+
+    pub fn get_pipeline(&self, handle: ResourceId<Shader>) -> Option<&PipelineShaderIdSet> {
+        match self {
+            HotReloaderState::Init(_) => {
+                println!("Calling `get_pipeline` on a shader hot-reloader that has not been run");
+                None
+            }
+            HotReloaderState::Running(reloader) => reloader.program_map.get(&handle),
+        }
     }
 }
