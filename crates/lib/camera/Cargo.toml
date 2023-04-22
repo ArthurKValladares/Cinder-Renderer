@@ -6,3 +6,5 @@ edition = "2021"
 
 [dependencies]
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
+sdl2 = { git = "https://github.com/Rust-SDL2/rust-sdl2", features = ["bundled", "raw-window-handle"] }
+input = { path = "../input" }

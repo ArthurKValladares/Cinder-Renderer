@@ -7,9 +7,18 @@ use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use std::time::Instant;
 
 #[derive(Debug, PartialEq, Eq)]
-enum RunningFrame {
-    Yes,
-    No,
+enum FrameState {
+    Running(Instant),
+    NotRunning,
+}
+
+impl FrameState {
+    pub fn is_running(&self) -> bool {
+        match self {
+            FrameState::Running(_) => true,
+            FrameState::NotRunning => false,
+        }
+    }
 }
 
 pub struct Cinder {
@@ -19,7 +28,8 @@ pub struct Cinder {
     pub resource_manager: ResourceManager,
     pub shader_hot_reloader: HotReloaderState,
     pub init_time: Instant,
-    frame_state: RunningFrame,
+    frame_state: FrameState,
+    last_dt: Option<u128>,
 }
 
 impl Cinder {
@@ -42,7 +52,8 @@ impl Cinder {
             resource_manager,
             shader_hot_reloader,
             init_time,
-            frame_state: RunningFrame::No,
+            frame_state: FrameState::NotRunning,
+            last_dt: None,
         })
     }
 
@@ -50,6 +61,10 @@ impl Cinder {
         take_mut::take(&mut self.shader_hot_reloader, |hot_reloader| {
             hot_reloader.run()
         });
+    }
+
+    pub fn last_dt(&self) -> Option<u128> {
+        self.last_dt
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
@@ -60,21 +75,27 @@ impl Cinder {
 
     pub fn start_frame(&mut self) -> Result<()> {
         debug_assert!(
-            self.frame_state == RunningFrame::No,
+            self.frame_state == FrameState::NotRunning,
             "Called `start_frame` twice before calling `end_frame`"
         );
-        self.frame_state = RunningFrame::Yes;
+        self.frame_state = FrameState::Running(Instant::now());
 
         self.device.new_frame()?;
         Ok(())
     }
 
     pub fn end_frame(&mut self) {
-        debug_assert!(
-            self.frame_state == RunningFrame::Yes,
+        assert!(
+            self.frame_state.is_running(),
             "Called `end_frame` without calling `start_frame`"
         );
-        self.frame_state = RunningFrame::No;
+        match self.frame_state {
+            FrameState::Running(frame_start) => {
+                self.last_dt = Some(frame_start.elapsed().as_millis())
+            }
+            FrameState::NotRunning => unreachable!(),
+        }
+        self.frame_state = FrameState::NotRunning;
 
         self.resource_manager.consume(&self.device);
         self.device.bump_frame();

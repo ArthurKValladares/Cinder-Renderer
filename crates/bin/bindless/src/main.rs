@@ -1,5 +1,5 @@
 use anyhow::Result;
-use camera::Camera;
+use camera::{input::KeyboardState, Camera, CameraDescription};
 use cinder::{
     command_queue::{AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc},
     resources::{
@@ -91,10 +91,12 @@ pub struct MeshDraw {
 pub struct Renderer {
     cinder: Cinder,
     camera: Camera,
+    keyboard_state: KeyboardState,
     mesh_draws: Vec<MeshDraw>,
     depth_image: Image,
     pipeline: GraphicsPipeline,
     index_buffer: Buffer,
+    ubo_buffer: Buffer,
 }
 
 impl Renderer {
@@ -172,7 +174,10 @@ impl Renderer {
         let camera = Camera::new(
             Vec3::new(0.0, -50.0, 0.0),
             Vec3::new(1.0, 0.0, 0.0),
-            Default::default(),
+            CameraDescription {
+                movement_per_sec: 50.0,
+                ..Default::default()
+            },
         );
         let ubo_buffer = cinder.device.create_buffer(
             std::mem::size_of::<BindlessUniformBufferObject>() as u64,
@@ -265,7 +270,6 @@ impl Renderer {
             cinder.resource_manager.insert_image(image);
         }
         cinder.resource_manager.insert_buffer(vertex_buffer);
-        cinder.resource_manager.insert_buffer(ubo_buffer);
         cinder.resource_manager.insert_sampler(sampler);
 
         //
@@ -277,10 +281,12 @@ impl Renderer {
         Ok(Self {
             cinder,
             camera,
+            keyboard_state: Default::default(),
             mesh_draws,
             depth_image,
             pipeline,
             index_buffer,
+            ubo_buffer,
         })
     }
 
@@ -344,6 +350,19 @@ impl Renderer {
             .resize(&self.cinder.device, Size2D::new(width, height))?;
         Ok(())
     }
+
+    pub fn update(&mut self) -> Result<()> {
+        let surface_rect = self.cinder.device.surface_rect();
+        self.ubo_buffer.mem_copy(
+            util::offset_of!(BindlessUniformBufferObject, view) as u64,
+            &[
+                self.camera.view(),
+                self.camera
+                    .projection(surface_rect.width() as f32, surface_rect.height() as f32),
+            ],
+        )?;
+        Ok(())
+    }
 }
 
 impl Drop for Renderer {
@@ -352,6 +371,7 @@ impl Drop for Renderer {
         self.depth_image.destroy(&self.cinder.device);
         self.pipeline.destroy(&self.cinder.device);
         self.index_buffer.destroy(&self.cinder.device);
+        self.ubo_buffer.destroy(&self.cinder.device);
     }
 }
 
@@ -369,6 +389,7 @@ fn main() {
         renderer.cinder.start_frame().unwrap();
 
         for event in sdl.event_pump.poll_iter() {
+            renderer.keyboard_state.on_event(&event);
             match event {
                 Event::Quit { .. }
                 | Event::KeyDown {
@@ -386,6 +407,10 @@ fn main() {
                 _ => {}
             }
         }
+        renderer
+            .camera
+            .update(&renderer.keyboard_state, renderer.cinder.last_dt());
+        renderer.update().unwrap();
         renderer.draw().unwrap();
 
         renderer.cinder.end_frame();

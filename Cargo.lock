@@ -174,7 +174,9 @@ checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 name = "camera"
 version = "0.1.0"
 dependencies = [
+ "input",
  "math",
+ "sdl2",
 ]
 
 [[package]]
@@ -683,6 +685,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "input"
+version = "0.1.0"
+dependencies = [
+ "sdl2",
+]
+
+[[package]]
 name = "itoa"
 version = "1.0.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -785,7 +794,7 @@ dependencies = [
 [[package]]
 name = "math"
 version = "0.1.0"
-source = "git+https://github.com/ArthurKValladares/Yet-Another-Math-Lib#7769184488cb67446d8ce2b584617522092f54f3"
+source = "git+https://github.com/ArthurKValladares/Yet-Another-Math-Lib#f04e75220a557ae8cc9fae80a9d5285c909e2723"
 dependencies = [
  "num",
  "serde",
