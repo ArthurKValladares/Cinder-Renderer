@@ -1,8 +1,7 @@
 use anyhow::Result;
+use camera::Camera;
 use cinder::{
-    command_queue::{
-        AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc,
-    },
+    command_queue::{AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc},
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
@@ -91,6 +90,7 @@ pub struct MeshDraw {
 
 pub struct Renderer {
     cinder: Cinder,
+    camera: Camera,
     mesh_draws: Vec<MeshDraw>,
     depth_image: Image,
     pipeline: GraphicsPipeline,
@@ -169,7 +169,11 @@ impl Renderer {
             }
             (vertices, indices, mesh_draws)
         };
-
+        let camera = Camera::new(
+            Vec3::new(0.0, -50.0, 0.0),
+            Vec3::new(1.0, 0.0, 0.0),
+            Default::default(),
+        );
         let ubo_buffer = cinder.device.create_buffer(
             std::mem::size_of::<BindlessUniformBufferObject>() as u64,
             BufferDescription {
@@ -181,16 +185,8 @@ impl Renderer {
             util::offset_of!(BindlessUniformBufferObject, model) as u64,
             &[
                 Mat4::identity(),
-                camera::look_to(
-                    Vec3::new(0.0, -50.0, 0.0),
-                    Vec3::new(1.0, 0.0, 0.0),
-                    Vec3::new(0.0, 1.0, 0.0),
-                ),
-                camera::new_infinite_perspective_proj(
-                    surface_rect.width() as f32 / surface_rect.height() as f32,
-                    30.0,
-                    0.01,
-                ),
+                camera.view(),
+                camera.projection(surface_rect.width() as f32, surface_rect.height() as f32),
             ],
         )?;
         let index_buffer = cinder.device.create_buffer_with_data(
@@ -280,6 +276,7 @@ impl Renderer {
 
         Ok(Self {
             cinder,
+            camera,
             mesh_draws,
             depth_image,
             pipeline,
