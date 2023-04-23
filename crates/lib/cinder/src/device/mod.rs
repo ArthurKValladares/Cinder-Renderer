@@ -60,9 +60,9 @@ pub struct Device {
     pub(crate) bind_group_pool: BindGroupPool,
     pub(crate) surface_data: SurfaceData,
     extensions: DeviceExtensions,
-    render_complete_semaphores: Vec<vk::Semaphore>,
+    render_complete_semaphores: [vk::Semaphore; MAX_FRAMES_IN_FLIGHT],
     image_acquired_semaphore: vk::Semaphore,
-    command_buffer_executed_fences: Vec<vk::Fence>,
+    command_buffer_executed_fences: [vk::Fence; MAX_FRAMES_IN_FLIGHT],
     // TODO: once again, just keeping this here for now
     pub frame_index: usize,
 }
@@ -222,8 +222,9 @@ impl Device {
 
         let semaphore_create_info = vk::SemaphoreCreateInfo::default();
 
-        let render_complete_semaphores = (0..MAX_FRAMES_IN_FLIGHT)
-            .map(|idx| {
+        let render_complete_semaphores = {
+            let mut semaphores = [vk::Semaphore::null(); MAX_FRAMES_IN_FLIGHT];
+            for idx in 0..MAX_FRAMES_IN_FLIGHT {
                 let semaphore = unsafe { device.create_semaphore(&semaphore_create_info, None) }?;
                 instance::debug::set_object_name(
                     instance.debug(),
@@ -232,9 +233,10 @@ impl Device {
                     semaphore,
                     &format!("Render Complete Semaphore {idx}"),
                 );
-                Ok(semaphore)
-            })
-            .collect::<Result<Vec<_>, vk::Result>>()?;
+                semaphores[idx] = semaphore;
+            }
+            semaphores
+        };
 
         let image_acquired_semaphore =
             unsafe { device.create_semaphore(&semaphore_create_info, None) }?;
@@ -251,8 +253,9 @@ impl Device {
             ..Default::default()
         };
 
-        let command_buffer_executed_fences = (0..MAX_FRAMES_IN_FLIGHT)
-            .map(|idx| {
+        let command_buffer_executed_fences = {
+            let mut fences = [vk::Fence::null(); MAX_FRAMES_IN_FLIGHT];
+            for idx in 0..MAX_FRAMES_IN_FLIGHT {
                 let fence = unsafe { device.create_fence(&fence_create_info, None) }?;
                 instance::debug::set_object_name(
                     instance.debug(),
@@ -261,9 +264,10 @@ impl Device {
                     fence,
                     &format!("Command Buffer Executed Fence {idx}"),
                 );
-                Ok(fence)
-            })
-            .collect::<Result<Vec<_>, vk::Result>>()?;
+                fences[idx] = fence;
+            }
+            fences
+        };
 
         Ok(Self {
             instance,

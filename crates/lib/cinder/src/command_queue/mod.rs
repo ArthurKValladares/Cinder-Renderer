@@ -155,7 +155,7 @@ impl Default for ImageBarrierDescription {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy)]
 pub struct CommandList {
     command_buffer: vk::CommandBuffer,
 }
@@ -503,7 +503,7 @@ impl CommandList {
 
 pub struct CommandQueue {
     command_pool: vk::CommandPool,
-    command_lists: Vec<CommandList>,
+    command_lists: [CommandList; MAX_FRAMES_IN_FLIGHT],
 }
 
 impl CommandQueue {
@@ -521,9 +521,13 @@ impl CommandQueue {
 
         device.set_name(vk::ObjectType::COMMAND_POOL, command_pool, "Command Pool");
 
-        let command_lists = (0..MAX_FRAMES_IN_FLIGHT)
-            .map(|idx| CommandList::new(device, command_pool, Some(idx)))
-            .collect::<Result<Vec<_>, vk::Result>>()?;
+        let command_lists = {
+            let mut lists = [CommandList::default(); MAX_FRAMES_IN_FLIGHT];
+            for idx in 0..MAX_FRAMES_IN_FLIGHT {
+                lists[idx] = CommandList::new(device, command_pool, Some(idx))?;
+            }
+            lists
+        };
 
         Ok(Self {
             command_pool,
