@@ -188,13 +188,17 @@ impl Swapchain {
         cmd_list.end(device)?;
 
         let render_complete_fence = device.command_buffer_executed_fence();
-        let render_complete_semaphore = device.render_complete_semaphore();
+        let render_complete_semaphore = [device.render_complete_semaphore()];
+
+        let command_buffers = [cmd_list.buffer()];
+        let wait_semaphores = [device.image_acquired_semaphore()];
+        let wait_dst_stage_mask = [vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT];
 
         let submit_info = vk::SubmitInfo::builder()
-            .command_buffers(&[cmd_list.buffer()])
-            .wait_semaphores(&[device.image_acquired_semaphore()])
-            .wait_dst_stage_mask(&[vk::PipelineStageFlags::COLOR_ATTACHMENT_OUTPUT])
-            .signal_semaphores(&[render_complete_semaphore])
+            .command_buffers(&command_buffers)
+            .wait_semaphores(&wait_semaphores)
+            .wait_dst_stage_mask(&wait_dst_stage_mask)
+            .signal_semaphores(&render_complete_semaphore)
             .build();
 
         unsafe {
@@ -206,7 +210,7 @@ impl Swapchain {
         }?;
 
         let present_info = vk::PresentInfoKHR::builder()
-            .wait_semaphores(&[render_complete_semaphore])
+            .wait_semaphores(&render_complete_semaphore)
             .swapchains(&[self.swapchain])
             .image_indices(&[image.index])
             .build();

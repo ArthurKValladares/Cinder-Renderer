@@ -99,11 +99,9 @@ pub fn bindless_bind_group_flags() -> vk::DescriptorBindingFlags {
         | vk::DescriptorBindingFlags::UPDATE_AFTER_BIND
 }
 
-#[repr(C)]
+#[repr(transparent)]
 #[derive(Debug)]
-pub struct BindGroupLayout {
-    pub layout: vk::DescriptorSetLayout,
-}
+pub struct BindGroupLayout(vk::DescriptorSetLayout);
 
 impl BindGroupLayout {
     pub fn new(device: &Device, layout_data: &[BindGroupLayoutData]) -> Result<Self> {
@@ -139,15 +137,15 @@ impl BindGroupLayout {
                 .create_descriptor_set_layout(&layout_info, None)
         }?;
 
-        Ok(Self { layout })
+        Ok(Self(layout))
     }
 
     pub(crate) fn set_name(&self, device: &Device, name: &str) {
-        device.set_name(vk::ObjectType::DESCRIPTOR_SET_LAYOUT, self.layout, name);
+        device.set_name(vk::ObjectType::DESCRIPTOR_SET_LAYOUT, self.0, name);
     }
 
     pub fn destroy(&mut self, device: &ash::Device) {
-        unsafe { device.destroy_descriptor_set_layout(self.layout, None) }
+        unsafe { device.destroy_descriptor_set_layout(self.0, None) }
     }
 }
 
@@ -165,6 +163,7 @@ pub struct BindGroupBindInfo {
     pub data: BindGroupWriteData,
 }
 
+#[repr(transparent)]
 pub struct BindGroup(pub vk::DescriptorSet);
 
 impl BindGroup {
@@ -177,10 +176,7 @@ impl BindGroup {
             .descriptor_counts(descriptor_counts)
             .build();
 
-        let set_layouts = layouts
-            .iter()
-            .map(|layout| layout.layout)
-            .collect::<Vec<_>>();
+        let set_layouts = layouts.iter().map(|layout| layout.0).collect::<Vec<_>>();
 
         let desc_alloc_info = vk::DescriptorSetAllocateInfo::builder()
             .descriptor_pool(device.bind_group_pool.0)

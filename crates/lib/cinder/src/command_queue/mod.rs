@@ -1,7 +1,5 @@
 use crate::{
-    device::{
-        cmd_begin_label, cmd_end_label, cmd_insert_label, Device, MAX_FRAMES_IN_FLIGHT,
-    },
+    device::{cmd_begin_label, cmd_end_label, cmd_insert_label, Device, MAX_FRAMES_IN_FLIGHT},
     resources::{
         buffer::Buffer,
         image::{Image, Layout},
@@ -110,6 +108,7 @@ pub struct RenderAttachmentDesc {
     pub clear_value: ClearValue,
 }
 
+#[repr(transparent)]
 pub struct RenderAttachment(vk::RenderingAttachmentInfo);
 
 impl RenderAttachment {

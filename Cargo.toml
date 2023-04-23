@@ -17,3 +17,6 @@ opt-level = 3
 
 [profile.dev.package.rkyv]
 opt-level = 3
+
+[profile.release]
+debug = true
