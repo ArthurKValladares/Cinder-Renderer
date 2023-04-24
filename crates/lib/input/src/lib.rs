@@ -92,7 +92,6 @@ impl MouseState {
             Event::MouseMotion {
                 x, y, xrel, yrel, ..
             } => {
-                println!("MouseMotion");
                 self.position = Point2D::new(*x, *y);
                 self.delta = Point2D::new(*xrel, *yrel);
             }
