@@ -87,13 +87,15 @@ impl MouseState {
         self.delta
     }
 
+    pub fn reset_delta(&mut self) {
+        self.delta = Point2D::new(0, 0);
+    }
+
     pub fn on_event(&mut self, event: &Event) {
         match event {
-            Event::MouseMotion {
-                x, y, xrel, yrel, ..
-            } => {
+            Event::MouseMotion { x, y, .. } => {
+                self.delta = Point2D::new(x - self.position.x(), y - self.position.y());
                 self.position = Point2D::new(*x, *y);
-                self.delta = Point2D::new(*xrel, *yrel);
             }
             _ => {}
         }

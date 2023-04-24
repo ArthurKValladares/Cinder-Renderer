@@ -179,7 +179,7 @@ impl Renderer {
             Vec3::new(0.0, -50.0, 0.0),
             Vec3::new(1.0, 0.0, 0.0),
             CameraDescription {
-                movement_per_sec: 50.0,
+                movement_per_sec: 200.0,
                 ..Default::default()
             },
         );
@@ -386,7 +386,7 @@ fn main() {
         WINDOW_HEIGHT,
         WindowDescription {
             title: "bindless",
-            relative_mouse: false,
+            capture_mouse: true,
         },
     )
     .unwrap();
@@ -395,6 +395,7 @@ fn main() {
     'running: loop {
         renderer.cinder.start_frame().unwrap();
 
+        renderer.mouse_state.reset_delta();
         for event in sdl.event_pump.poll_iter() {
             renderer.keyboard_state.on_event(&event);
             renderer.mouse_state.on_event(&event);
@@ -415,9 +416,15 @@ fn main() {
                 _ => {}
             }
         }
-        renderer
-            .camera
-            .update(&renderer.keyboard_state, renderer.cinder.last_dt());
+
+        let (screen_width, screen_height) = sdl.window.size();
+        renderer.camera.update(
+            &renderer.keyboard_state,
+            &renderer.mouse_state,
+            screen_width,
+            screen_height,
+            renderer.cinder.last_dt(),
+        );
         renderer.update().unwrap();
         renderer.draw().unwrap();
 

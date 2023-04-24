@@ -1,5 +1,5 @@
-use input::KeyboardState;
-use math::{mat::Mat4, vec::Vec3};
+use input::{KeyboardState, MouseState};
+use math::{mat::Mat4, quat::Quat, vec::Vec3};
 use sdl2::keyboard::Keycode;
 
 pub use input;
@@ -35,6 +35,8 @@ pub struct CameraDescription {
     pub z_near: f32,
     pub world_up: Vec3,
     pub movement_per_sec: f32,
+    // Amount we will rotate the camera by if we move the curse of screens's woth in the respective dimension
+    pub rotation_speed: f32,
 }
 
 impl Default for CameraDescription {
@@ -44,6 +46,7 @@ impl Default for CameraDescription {
             z_near: 0.01,
             world_up: Vec3::new(0.0, 1.0, 0.0),
             movement_per_sec: 1.0,
+            rotation_speed: 180.0_f32.to_radians(),
         }
     }
 }
@@ -53,9 +56,12 @@ pub struct Camera {
     position: Vec3,
     front: Vec3,
     world_up: Vec3,
+    yaw: f32,
+    pitch: f32,
     y_fov: f32,
     z_near: f32,
     movement_per_sec: f32,
+    rotation_speed: f32,
 }
 
 impl Camera {
@@ -72,9 +78,12 @@ impl Camera {
             position,
             front: front.normalized(),
             world_up: desc.world_up,
+            yaw: 0.0,
+            pitch: 0.0,
             y_fov: desc.y_fov,
             z_near: desc.z_near,
             movement_per_sec: desc.movement_per_sec,
+            rotation_speed: desc.rotation_speed,
         }
     }
 
@@ -86,8 +95,26 @@ impl Camera {
         look_to(self.position, self.front, self.world_up)
     }
 
-    pub fn update(&mut self, keyboard_state: &KeyboardState, last_dt: Option<u128>) {
+    pub fn update(
+        &mut self,
+        keyboard_state: &KeyboardState,
+        mouse_state: &MouseState,
+        screen_width: u32,
+        screen_height: u32,
+        last_dt: Option<u128>,
+    ) {
         if let Some(dt) = last_dt {
+            let mouse_delta = mouse_state.delta();
+
+            self.yaw += mouse_delta.x() as f32 / screen_width as f32 * self.rotation_speed;
+            self.pitch += mouse_delta.y() as f32 / screen_height as f32 * self.rotation_speed;
+            self.pitch = self.pitch.clamp(-89.9, 89.9);
+            self.front = Vec3::new(
+                self.yaw.cos() * self.pitch.cos(),
+                self.pitch.sin(),
+                self.yaw.sin() * self.pitch.cos(),
+            );
+
             let right = self.front.cross(&self.world_up).normalized();
             let up = self.front.cross(&right).normalized();
 

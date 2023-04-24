@@ -1,17 +1,17 @@
 use anyhow::Result;
-use sdl2::{mouse::MouseState, video::Window, EventPump, Sdl};
+use sdl2::{video::Window, EventPump, Sdl};
 
 #[derive(Debug)]
 pub struct WindowDescription<'a> {
     pub title: &'a str,
-    pub relative_mouse: bool,
+    pub capture_mouse: bool,
 }
 
 impl<'a> Default for WindowDescription<'a> {
     fn default() -> Self {
         Self {
             title: "sdl-window",
-            relative_mouse: false,
+            capture_mouse: false,
         }
     }
 }
@@ -40,8 +40,7 @@ impl SdlContext {
 
         sdl.mouse()
             .warp_mouse_in_window(&window, width as i32 / 2, height as i32 / 2);
-        sdl.mouse()
-            .set_relative_mouse_mode(window_description.relative_mouse);
+        sdl.mouse().capture(window_description.capture_mouse);
 
         Ok(Self {
             sdl,
