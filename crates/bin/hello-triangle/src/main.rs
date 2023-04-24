@@ -145,6 +145,7 @@ fn main() {
         WINDOW_HEIGHT,
         WindowDescription {
             title: "hello-triangle",
+            ..Default::default()
         },
     )
     .unwrap();

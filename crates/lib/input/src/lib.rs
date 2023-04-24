@@ -1,3 +1,4 @@
+use math::point::Point2D;
 use sdl2::{event::Event, keyboard::Keycode};
 use std::collections::{HashMap, HashSet};
 
@@ -52,6 +53,48 @@ impl KeyboardState {
             } => {
                 self.keys_down.remove(keycode);
                 self.just_released.insert(*keycode);
+            }
+            _ => {}
+        }
+    }
+}
+
+#[derive(Debug)]
+pub struct MouseState {
+    position: Point2D<i32>,
+    delta: Point2D<i32>,
+}
+
+impl Default for MouseState {
+    fn default() -> Self {
+        Self {
+            position: Point2D::zero(),
+            delta: Point2D::zero(),
+        }
+    }
+}
+
+impl MouseState {
+    pub fn set_position(&mut self, x: i32, y: i32) {
+        self.position = Point2D::new(x, y);
+    }
+
+    pub fn position(&self) -> Point2D<i32> {
+        self.position
+    }
+
+    pub fn delta(&self) -> Point2D<i32> {
+        self.delta
+    }
+
+    pub fn on_event(&mut self, event: &Event) {
+        match event {
+            Event::MouseMotion {
+                x, y, xrel, yrel, ..
+            } => {
+                println!("MouseMotion");
+                self.position = Point2D::new(*x, *y);
+                self.delta = Point2D::new(*xrel, *yrel);
             }
             _ => {}
         }

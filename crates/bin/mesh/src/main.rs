@@ -271,7 +271,10 @@ fn main() {
     let mut sdl = SdlContext::new(
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        WindowDescription { title: "mesh" },
+        WindowDescription {
+            title: "mesh",
+            ..Default::default()
+        },
     )
     .unwrap();
 

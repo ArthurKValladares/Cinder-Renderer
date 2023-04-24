@@ -1,5 +1,8 @@
 use anyhow::Result;
-use camera::{input::KeyboardState, Camera, CameraDescription};
+use camera::{
+    input::{KeyboardState, MouseState},
+    Camera, CameraDescription,
+};
 use cinder::{
     command_queue::{AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc},
     resources::{
@@ -92,6 +95,7 @@ pub struct Renderer {
     cinder: Cinder,
     camera: Camera,
     keyboard_state: KeyboardState,
+    mouse_state: MouseState,
     mesh_draws: Vec<MeshDraw>,
     depth_image: Image,
     pipeline: GraphicsPipeline,
@@ -282,6 +286,7 @@ impl Renderer {
             cinder,
             camera,
             keyboard_state: Default::default(),
+            mouse_state: Default::default(),
             mesh_draws,
             depth_image,
             pipeline,
@@ -379,10 +384,12 @@ fn main() {
     let mut sdl = SdlContext::new(
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        WindowDescription { title: "bindless" },
+        WindowDescription {
+            title: "bindless",
+            relative_mouse: false,
+        },
     )
     .unwrap();
-
     let mut renderer = Renderer::new(&sdl.window).unwrap();
 
     'running: loop {
@@ -390,6 +397,7 @@ fn main() {
 
         for event in sdl.event_pump.poll_iter() {
             renderer.keyboard_state.on_event(&event);
+            renderer.mouse_state.on_event(&event);
             match event {
                 Event::Quit { .. }
                 | Event::KeyDown {

@@ -311,6 +311,7 @@ fn main() {
         WINDOW_HEIGHT,
         WindowDescription {
             title: "hello-cube",
+            ..Default::default()
         },
     )
     .unwrap();

@@ -242,6 +242,7 @@ fn main() {
         WINDOW_HEIGHT,
         WindowDescription {
             title: "shader-hot-reload",
+            ..Default::default()
         },
     )
     .unwrap();

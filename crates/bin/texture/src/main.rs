@@ -188,7 +188,10 @@ fn main() {
     let mut sdl = SdlContext::new(
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        WindowDescription { title: "texture" },
+        WindowDescription {
+            title: "texture",
+            ..Default::default()
+        },
     )
     .unwrap();
 

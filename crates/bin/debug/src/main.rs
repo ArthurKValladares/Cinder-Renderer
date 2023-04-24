@@ -213,7 +213,10 @@ fn main() {
     let mut sdl = SdlContext::new(
         WINDOW_WIDTH,
         WINDOW_HEIGHT,
-        WindowDescription { title: "debug" },
+        WindowDescription {
+            title: "debug",
+            ..Default::default()
+        },
     )
     .unwrap();
 

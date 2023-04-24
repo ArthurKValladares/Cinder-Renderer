@@ -439,6 +439,7 @@ fn main() {
         WINDOW_HEIGHT,
         WindowDescription {
             title: "depth-image",
+            ..Default::default()
         },
     )
     .unwrap();
