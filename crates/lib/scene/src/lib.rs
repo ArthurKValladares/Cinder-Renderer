@@ -97,7 +97,7 @@ where
         path: impl AsRef<Path>,
     ) -> std::result::Result<Self, zero_copy_assets::ZeroCopyError> {
         let path = path.as_ref();
-        // TODO: Errors here are not always truthful, need to add more options
+
         let file = path
             .file_name()
             .ok_or_else(|| ZeroCopyError::InvalidUtf8(path.to_owned()))?;

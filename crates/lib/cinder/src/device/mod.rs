@@ -47,7 +47,6 @@ pub enum DeviceError {
     ResourceNotInCache,
 }
 
-// TODO: this holds way too much stuff
 pub struct Device {
     p_device: vk::PhysicalDevice,
     properties: DeviceProperties,
@@ -63,8 +62,7 @@ pub struct Device {
     render_complete_semaphores: [vk::Semaphore; MAX_FRAMES_IN_FLIGHT],
     image_acquired_semaphore: vk::Semaphore,
     command_buffer_executed_fences: [vk::Fence; MAX_FRAMES_IN_FLIGHT],
-    // TODO: once again, just keeping this here for now
-    pub frame_index: usize,
+    frame_index: usize,
 }
 
 impl Device {
@@ -630,7 +628,6 @@ impl Device {
         self.frame_index % MAX_FRAMES_IN_FLIGHT
     }
 
-    // TODO: Review where and when to do this
     pub fn bump_frame(&mut self) {
         self.frame_index += 1;
     }
