@@ -1400,6 +1400,24 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f27f6278552951f1f2b8cf9da965d10969b2efdea95a6ec47987ab46edfe263a"
 
 [[package]]
+name = "simple-light"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "camera",
+ "cinder",
+ "home",
+ "image",
+ "math",
+ "rust-shader-tools",
+ "sdl2",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "util",
+]
+
+[[package]]
 name = "smallvec"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
