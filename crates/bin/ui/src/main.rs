@@ -275,7 +275,6 @@ impl Renderer {
 
     pub fn draw(&mut self, window: &Window) -> Result<bool> {
         let surface_rect = self.cinder.device.surface_rect();
-<<<<<<< HEAD
 
         let cmd_list = self
             .cinder
@@ -286,18 +285,6 @@ impl Renderer {
             .swapchain
             .acquire_image(&self.cinder.device, &cmd_list)?;
 
-=======
-
-        let cmd_list = self
-            .cinder
-            .command_queue
-            .get_command_list(&self.cinder.device)?;
-        let swapchain_image = self
-            .cinder
-            .swapchain
-            .acquire_image(&self.cinder.device, &cmd_list)?;
-
->>>>>>> 1564fee (Synchronization 2.0 (#4))
         cmd_list.begin_rendering(
             &self.cinder.device,
             surface_rect,

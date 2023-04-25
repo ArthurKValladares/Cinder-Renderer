@@ -242,10 +242,7 @@ fn main() {
         WINDOW_HEIGHT,
         WindowDescription {
             title: "shader-hot-reload",
-<<<<<<< HEAD
             ..Default::default()
-=======
->>>>>>> 1564fee (Synchronization 2.0 (#4))
         },
     )
     .unwrap();
