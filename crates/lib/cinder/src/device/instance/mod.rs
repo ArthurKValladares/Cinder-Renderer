@@ -33,9 +33,9 @@ fn required_extensions() -> Vec<&'static CStr> {
     let mut extensions = vec![ash::extensions::ext::DebugUtils::name()];
     #[cfg(any(target_os = "macos", target_os = "ios"))]
     {
-        required_extensions.push(KhrPortabilityEnumerationFn::name());
+        extensions.push(KhrPortabilityEnumerationFn::name());
         // Enabling this extension is a requirement when using `VK_KHR_portability_subset`
-        required_extensions.push(KhrGetPhysicalDeviceProperties2Fn::name());
+        extensions.push(KhrGetPhysicalDeviceProperties2Fn::name());
     }
     extensions
 }
