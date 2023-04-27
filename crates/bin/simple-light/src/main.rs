@@ -77,7 +77,7 @@ impl HelloCube {
             },
         )?;
 
-        let eye = Vec3::new(4.0, -2.0, 0.0);
+        let eye = Vec3::new(6.0, 2.0, 0.0);
         let front = (Vec3::zero() - eye).normalized();
         ubo_buffer.mem_copy(
             util::offset_of!(LightUniformBufferObject, view) as u64,
@@ -157,19 +157,19 @@ impl HelloCube {
         let plane_vertex_buffer = cinder.device.create_buffer_with_data(
             &[
                 LightVertex {
-                    i_pos: [-5.0, 1.0, 5.0],
+                    i_pos: [-5.0, -1.0, 5.0],
                     i_normal: [1.0, 1.0, 1.0],
                 },
                 LightVertex {
-                    i_pos: [5.0, 1.0, 5.0],
+                    i_pos: [5.0, -1.0, 5.0],
                     i_normal: [1.0, 1.0, 1.0],
                 },
                 LightVertex {
-                    i_pos: [-5.0, 1.0, -5.0],
+                    i_pos: [-5.0, -1.0, -5.0],
                     i_normal: [1.0, 1.0, 1.0],
                 },
                 LightVertex {
-                    i_pos: [5.0, 1.0, -5.0],
+                    i_pos: [5.0, -1.0, -5.0],
                     i_normal: [1.0, 1.0, 1.0],
                 },
             ],
@@ -239,7 +239,7 @@ impl HelloCube {
             )),
         );
         cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.pipeline);
-        cmd_list.bind_viewport(&self.cinder.device, surface_rect, true);
+        cmd_list.bind_viewport(&self.cinder.device, surface_rect, false);
         cmd_list.bind_scissor(&self.cinder.device, surface_rect);
         // TODO: re-think API later when using more than one set
         cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline);

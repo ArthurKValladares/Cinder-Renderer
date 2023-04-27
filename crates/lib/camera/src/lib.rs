@@ -37,6 +37,7 @@ pub struct CameraDescription {
     pub movement_per_sec: f32,
     // Amount we will rotate the camera by if we move the curse of screens's woth in the respective dimension
     pub rotation_speed: f32,
+    pub flipped_y: bool,
 }
 
 impl Default for CameraDescription {
@@ -47,6 +48,7 @@ impl Default for CameraDescription {
             world_up: Vec3::new(0.0, 1.0, 0.0),
             movement_per_sec: 1.0,
             rotation_speed: 180.0_f32.to_radians(),
+            flipped_y: false,
         }
     }
 }
@@ -62,6 +64,7 @@ pub struct Camera {
     z_near: f32,
     movement_per_sec: f32,
     rotation_speed: f32,
+    flipped_y: bool,
 }
 
 impl Camera {
@@ -84,6 +87,7 @@ impl Camera {
             z_near: desc.z_near,
             movement_per_sec: desc.movement_per_sec,
             rotation_speed: desc.rotation_speed,
+            flipped_y: desc.flipped_y,
         }
     }
 
@@ -107,7 +111,13 @@ impl Camera {
             let mouse_delta = mouse_state.delta();
 
             self.yaw += mouse_delta.x() as f32 / screen_width as f32 * self.rotation_speed;
-            self.pitch += mouse_delta.y() as f32 / screen_height as f32 * self.rotation_speed;
+            let scaled_y_delta =
+                mouse_delta.y() as f32 / screen_height as f32 * self.rotation_speed;
+            self.pitch += if self.flipped_y {
+                scaled_y_delta
+            } else {
+                -scaled_y_delta
+            };
             self.pitch = self.pitch.clamp(-89.9, 89.9);
             self.front = Vec3::new(
                 self.yaw.cos() * self.pitch.cos(),
