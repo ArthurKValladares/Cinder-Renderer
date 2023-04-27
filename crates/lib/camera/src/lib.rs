@@ -1,5 +1,5 @@
 use input::{KeyboardState, MouseState};
-use math::{mat::Mat4, quat::Quat, vec::Vec3};
+use math::{mat::Mat4, vec::Vec3};
 use sdl2::keyboard::Keycode;
 
 pub use input;

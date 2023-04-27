@@ -2,7 +2,7 @@ use anyhow::Result;
 use cinder::{
     command_queue::{AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc},
     resources::{
-        bind_group::{BindGroupBindInfo, BindGroupWriteData},
+        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
@@ -25,11 +25,16 @@ pub struct HelloCube {
     cinder: Cinder,
     depth_image: Image,
     pipeline: GraphicsPipeline,
+    camera_bind_group: BindGroup,
+    cube_bind_group: BindGroup,
+    plane_bind_group: BindGroup,
     cube_vertex_buffer: Buffer,
     cube_index_buffer: Buffer,
     plane_vertex_buffer: Buffer,
     plane_index_buffer: Buffer,
-    ubo_buffer: Buffer,
+    camera_ubo_buffer: Buffer,
+    cube_ubo_buffer: Buffer,
+    plane_ubo_buffer: Buffer,
 }
 
 impl HelloCube {
@@ -69,18 +74,19 @@ impl HelloCube {
                 ..Default::default()
             },
         )?;
-        let ubo_buffer = cinder.device.create_buffer(
-            std::mem::size_of::<LightUniformBufferObject>() as u64,
+        let camera_bind_group =
+            BindGroup::new(&cinder.device, pipeline.bind_group_data(0).unwrap())?;
+        let camera_ubo_buffer = cinder.device.create_buffer(
+            std::mem::size_of::<LightCameraUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
                 ..Default::default()
             },
         )?;
-
         let eye = Vec3::new(6.0, 2.0, 0.0);
         let front = (Vec3::zero() - eye).normalized();
-        ubo_buffer.mem_copy(
-            util::offset_of!(LightUniformBufferObject, view) as u64,
+        camera_ubo_buffer.mem_copy(
+            0,
             &[
                 camera::look_to(eye, front, Vec3::new(0.0, 1.0, 0.0)),
                 camera::new_infinite_perspective_proj(
@@ -93,8 +99,46 @@ impl HelloCube {
         cinder.device.write_bind_group(
             &pipeline,
             &[BindGroupBindInfo {
+                group: camera_bind_group,
                 dst_binding: 0,
-                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+                data: BindGroupWriteData::Uniform(camera_ubo_buffer.bind_info()),
+            }],
+        )?;
+
+        let cube_bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(0).unwrap())?;
+        let cube_ubo_buffer = cinder.device.create_buffer(
+            std::mem::size_of::<LightModelUniformBufferObject>() as u64,
+            BufferDescription {
+                usage: BufferUsage::UNIFORM,
+                ..Default::default()
+            },
+        )?;
+        cube_ubo_buffer.mem_copy(0, &[Mat4::identity()])?;
+        cinder.device.write_bind_group(
+            &pipeline,
+            &[BindGroupBindInfo {
+                group: cube_bind_group,
+                dst_binding: 0,
+                data: BindGroupWriteData::Uniform(cube_ubo_buffer.bind_info()),
+            }],
+        )?;
+
+        let plane_bind_group =
+            BindGroup::new(&cinder.device, pipeline.bind_group_data(0).unwrap())?;
+        let plane_ubo_buffer = cinder.device.create_buffer(
+            std::mem::size_of::<LightModelUniformBufferObject>() as u64,
+            BufferDescription {
+                usage: BufferUsage::UNIFORM,
+                ..Default::default()
+            },
+        )?;
+        plane_ubo_buffer.mem_copy(0, &[Mat4::identity()])?;
+        cinder.device.write_bind_group(
+            &pipeline,
+            &[BindGroupBindInfo {
+                group: plane_bind_group,
+                dst_binding: 0,
+                data: BindGroupWriteData::Uniform(plane_ubo_buffer.bind_info()),
             }],
         )?;
 
@@ -197,7 +241,12 @@ impl HelloCube {
             cube_index_buffer,
             plane_vertex_buffer,
             plane_index_buffer,
-            ubo_buffer,
+            camera_ubo_buffer,
+            cube_ubo_buffer,
+            plane_ubo_buffer,
+            camera_bind_group,
+            cube_bind_group,
+            plane_bind_group,
         })
     }
 
@@ -205,10 +254,8 @@ impl HelloCube {
         // TODO: Will hook this up soon, need to do it per-mesh
         let scale =
             (self.cinder.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
-        self.ubo_buffer.mem_copy(
-            util::offset_of!(LightUniformBufferObject, model) as u64,
-            &[Mat4::rotate(scale, Vec3::new(0.0, 1.0, 0.0))],
-        )?;
+        self.cube_ubo_buffer
+            .mem_copy(0, &[Mat4::rotate(scale, Vec3::new(0.0, 1.0, 0.0))])?;
         Ok(())
     }
 
@@ -241,15 +288,32 @@ impl HelloCube {
         cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.pipeline);
         cmd_list.bind_viewport(&self.cinder.device, surface_rect, false);
         cmd_list.bind_scissor(&self.cinder.device, surface_rect);
-        // TODO: re-think API later when using more than one set
-        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline);
+        // TODO: review how we get first_set, get it from shader, forced or no?
+        cmd_list.bind_descriptor_sets(
+            &self.cinder.device,
+            &self.pipeline,
+            0,
+            &[self.camera_bind_group],
+        );
 
         // Draw Cube
+        cmd_list.bind_descriptor_sets(
+            &self.cinder.device,
+            &self.pipeline,
+            1,
+            &[self.cube_bind_group],
+        );
         cmd_list.bind_index_buffer(&self.cinder.device, &self.cube_index_buffer);
         cmd_list.bind_vertex_buffer(&self.cinder.device, &self.cube_vertex_buffer);
         cmd_list.draw_offset(&self.cinder.device, 36, 0, 0);
 
         // Draw Plane
+        cmd_list.bind_descriptor_sets(
+            &self.cinder.device,
+            &self.pipeline,
+            1,
+            &[self.plane_bind_group],
+        );
         cmd_list.bind_index_buffer(&self.cinder.device, &self.plane_index_buffer);
         cmd_list.bind_vertex_buffer(&self.cinder.device, &self.plane_vertex_buffer);
         cmd_list.draw_offset(&self.cinder.device, 6, 0, 0);
@@ -276,7 +340,9 @@ impl Drop for HelloCube {
         self.cube_vertex_buffer.destroy(&self.cinder.device);
         self.plane_index_buffer.destroy(&self.cinder.device);
         self.plane_vertex_buffer.destroy(&self.cinder.device);
-        self.ubo_buffer.destroy(&self.cinder.device);
+        self.camera_ubo_buffer.destroy(&self.cinder.device);
+        self.cube_ubo_buffer.destroy(&self.cinder.device);
+        self.plane_ubo_buffer.destroy(&self.cinder.device);
         self.pipeline.destroy(&self.cinder.device);
         self.depth_image.destroy(&self.cinder.device);
     }

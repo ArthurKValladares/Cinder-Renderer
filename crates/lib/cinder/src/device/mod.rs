@@ -571,7 +571,7 @@ impl Device {
             .iter()
             .map(|info| {
                 let mut write = vk::WriteDescriptorSet::builder()
-                    .dst_set(pipeline.bind_group.as_ref().unwrap().0)
+                    .dst_set(info.group.0)
                     .dst_binding(info.dst_binding);
                 write = match &info.data {
                     BindGroupWriteData::Uniform(buffer_info) => write

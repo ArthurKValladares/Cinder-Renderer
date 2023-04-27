@@ -1,6 +1,7 @@
 use crate::{
     device::{cmd_begin_label, cmd_end_label, cmd_insert_label, Device, MAX_FRAMES_IN_FLIGHT},
     resources::{
+        bind_group::BindGroup,
         buffer::Buffer,
         image::{Image, Layout},
         pipeline::{graphics::GraphicsPipeline, PipelineCommon, PipelineError},
@@ -374,14 +375,22 @@ impl CommandList {
         }
     }
 
-    pub fn bind_descriptor_sets(&self, device: &Device, pipeline: &GraphicsPipeline) {
+    pub fn bind_descriptor_sets(
+        &self,
+        device: &Device,
+        pipeline: &GraphicsPipeline,
+        first_set: u32,
+        bind_groups: &[BindGroup],
+    ) {
+        let descriptor_sets =
+            unsafe { std::mem::transmute::<&[BindGroup], &[vk::DescriptorSet]>(bind_groups) };
         unsafe {
             device.raw().cmd_bind_descriptor_sets(
                 self.command_buffer,
                 vk::PipelineBindPoint::GRAPHICS,
                 pipeline.common.pipeline_layout(),
-                0,
-                &[pipeline.bind_group.as_ref().unwrap().0],
+                first_set,
+                descriptor_sets,
                 &[],
             )
         }
