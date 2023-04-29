@@ -1,6 +1,6 @@
 use super::{get_pipeline_layout, BindGroupData, PipelineCommon};
 use crate::device::Device;
-use crate::resources::bind_group::BindGroup;
+
 use crate::resources::{
     image::{reflect_format_to_vk, Format},
     shader::Shader,

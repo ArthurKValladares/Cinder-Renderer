@@ -10,7 +10,7 @@ use cinder::{
     Cinder,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
-use sdl2::{event::Event, keyboard::Keycode, sys::SDL_HapticLeftRight, video::Window};
+use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
 
 pub const WINDOW_WIDTH: u32 = 1280;

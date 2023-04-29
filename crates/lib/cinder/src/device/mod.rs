@@ -564,7 +564,7 @@ impl Device {
 
     pub fn write_bind_group(
         &self,
-        pipeline: &GraphicsPipeline,
+        _pipeline: &GraphicsPipeline,
         infos: &[BindGroupBindInfo],
     ) -> Result<(), DeviceError> {
         let writes = infos
