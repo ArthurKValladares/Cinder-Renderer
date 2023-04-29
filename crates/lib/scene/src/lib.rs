@@ -46,7 +46,8 @@ where
                         if material.diffuse_texture.is_empty() {
                             Ok(None)
                         } else {
-                            let image_path = path.join(&material.diffuse_texture);
+                            let material_path = material.diffuse_texture.replace("\\", &format!("{}", std::path::MAIN_SEPARATOR));
+                            let image_path = path.join(material_path);
                             let image_stem = image_path.file_stem().unwrap();
                             let image = try_decoded_file::<ImageData>(
                                 &image_path,
