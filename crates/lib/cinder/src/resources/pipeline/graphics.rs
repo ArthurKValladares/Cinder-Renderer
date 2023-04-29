@@ -1,4 +1,4 @@
-use super::{get_pipeline_layout, PipelineCommon};
+use super::{get_pipeline_layout, BindGroupData, PipelineCommon};
 use crate::device::Device;
 use crate::resources::bind_group::BindGroup;
 use crate::resources::{
@@ -90,7 +90,6 @@ impl Default for GraphicsPipelineDescription {
 
 pub struct GraphicsPipeline {
     pub common: PipelineCommon,
-    pub bind_group: Option<BindGroup>,
     pub desc: GraphicsPipelineDescription,
 }
 
@@ -229,6 +228,10 @@ impl GraphicsPipeline {
         Ok(pipeline)
     }
 
+    pub fn bind_group_data(&self, idx: usize) -> Option<&BindGroupData> {
+        self.common.bind_group_data(idx)
+    }
+
     pub(crate) fn create(
         device: &Device,
         vertex_shader: &Shader,
@@ -249,28 +252,9 @@ impl GraphicsPipeline {
             pipeline_layout,
         )?;
 
-        let bind_group = if common_data.bind_group_layouts().is_empty() {
-            None
-        } else {
-            let bind_group_layouts = common_data.bind_group_layouts();
-            let descriptor_counts = common_data.descriptor_counts();
-
-            let bind_group = BindGroup::new(device, bind_group_layouts, descriptor_counts)?;
-
-            if let Some(name) = desc.name {
-                bind_group.set_name(device, name);
-            }
-
-            Some(bind_group)
-        };
-
         let common = PipelineCommon::new(device, pipeline_layout, pipeline, common_data, desc.name);
 
-        Ok(GraphicsPipeline {
-            common,
-            bind_group,
-            desc,
-        })
+        Ok(GraphicsPipeline { common, desc })
     }
 
     pub fn recreate(

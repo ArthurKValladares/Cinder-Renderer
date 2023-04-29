@@ -32,7 +32,7 @@ impl Vertex for BindlessVertex {
     fn from_obj_mesh_index(mesh: &ObjMesh, i: usize) -> Self {
         let pos = [
             mesh.positions[i * 3],
-            -mesh.positions[i * 3 + 1],
+            mesh.positions[i * 3 + 1],
             mesh.positions[i * 3 + 2],
             1.0,
         ];
@@ -176,7 +176,7 @@ impl Renderer {
             (vertices, indices, mesh_draws)
         };
         let camera = Camera::new(
-            Vec3::new(0.0, -50.0, 0.0),
+            Vec3::new(0.0, 50.0, 0.0),
             Vec3::new(1.0, 0.0, 0.0),
             CameraDescription {
                 movement_per_sec: 200.0,
@@ -323,7 +323,7 @@ impl Renderer {
         );
 
         cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.pipeline);
-        cmd_list.bind_viewport(&self.cinder.device, surface_rect, true);
+        cmd_list.bind_viewport(&self.cinder.device, surface_rect, false);
         cmd_list.bind_scissor(&self.cinder.device, surface_rect);
         cmd_list.bind_index_buffer(&self.cinder.device, &self.index_buffer);
         // TODO: re-think API later when using more than one se
