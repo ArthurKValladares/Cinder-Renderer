@@ -35,7 +35,7 @@ impl MeshData {
         vertex_buffer_data: &[LightVertex],
         index_buffer_data: &[u32],
     ) -> Result<Self> {
-        let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(0).unwrap())?;
+        let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(1).unwrap())?;
         let ubo_buffer = cinder.device.create_buffer(
             std::mem::size_of::<LightModelUniformBufferObject>() as u64,
             BufferDescription {

@@ -6,7 +6,7 @@ use camera::{
 use cinder::{
     command_queue::{AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc},
     resources::{
-        bind_group::{BindGroupBindInfo, BindGroupWriteData},
+        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
@@ -99,6 +99,7 @@ pub struct Renderer {
     mesh_draws: Vec<MeshDraw>,
     depth_image: Image,
     pipeline: GraphicsPipeline,
+    bind_group: BindGroup,
     index_buffer: Buffer,
     ubo_buffer: Buffer,
 }
@@ -139,6 +140,7 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
+        let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(0).unwrap())?;
 
         let init_time = std::time::Instant::now();
         let scene = zero_copy_assets::try_decoded_file::<Scene<BindlessVertex>>(
@@ -216,10 +218,12 @@ impl Renderer {
             &pipeline,
             &[
                 BindGroupBindInfo {
+                    group: bind_group,
                     dst_binding: 0,
                     data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
                 },
                 BindGroupBindInfo {
+                    group: bind_group,
                     dst_binding: 1,
                     data: BindGroupWriteData::Storage(vertex_buffer.bind_info()),
                 },
@@ -253,6 +257,7 @@ impl Renderer {
                     .write_bind_group(
                         &pipeline,
                         &[BindGroupBindInfo {
+                            group: bind_group,
                             dst_binding: 2,
                             data: BindGroupWriteData::SampledImage(texture.bind_info(
                                 &sampler,
@@ -290,6 +295,7 @@ impl Renderer {
             mesh_draws,
             depth_image,
             pipeline,
+            bind_group,
             index_buffer,
             ubo_buffer,
         })
@@ -326,8 +332,7 @@ impl Renderer {
         cmd_list.bind_viewport(&self.cinder.device, surface_rect, false);
         cmd_list.bind_scissor(&self.cinder.device, surface_rect);
         cmd_list.bind_index_buffer(&self.cinder.device, &self.index_buffer);
-        // TODO: re-think API later when using more than one se
-        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline);
+        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline, 0, &[self.bind_group]);
         for mesh_draw in &self.mesh_draws {
             cmd_list.set_fragment_bytes(
                 &self.cinder.device,

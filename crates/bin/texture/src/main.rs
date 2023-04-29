@@ -5,7 +5,7 @@ use cinder::{
     cinder::Cinder,
     command_queue::RenderAttachment,
     resources::{
-        bind_group::{BindGroupBindInfo, BindGroupWriteData},
+        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::Layout,
         pipeline::graphics::GraphicsPipeline,
@@ -26,6 +26,7 @@ include!(concat!(
 pub struct Renderer {
     cinder: Cinder,
     pipeline: GraphicsPipeline,
+    bind_group: BindGroup,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
 }
@@ -54,6 +55,7 @@ impl Renderer {
             &fragment_shader,
             Default::default(),
         )?;
+        let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(0).unwrap())?;
         let sampler = cinder.device.create_sampler(Default::default())?;
         let image_data = zero_copy_assets::try_decoded_file::<zero_copy_assets::ImageData>(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -74,6 +76,7 @@ impl Renderer {
         cinder.device.write_bind_group(
             &pipeline,
             &[BindGroupBindInfo {
+                group: bind_group,
                 dst_binding: 0,
                 data: BindGroupWriteData::SampledImage(texture.bind_info(
                     &sampler,
@@ -135,6 +138,7 @@ impl Renderer {
             pipeline,
             vertex_buffer,
             index_buffer,
+            bind_group,
         })
     }
 
@@ -161,7 +165,7 @@ impl Renderer {
         cmd_list.bind_scissor(&self.cinder.device, surface_rect);
         cmd_list.bind_index_buffer(&self.cinder.device, &self.index_buffer);
         cmd_list.bind_vertex_buffer(&self.cinder.device, &self.vertex_buffer);
-        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline);
+        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline, 0, &[self.bind_group]);
         cmd_list.draw_offset(&self.cinder.device, 6, 0, 0);
         cmd_list.end_rendering(&self.cinder.device);
 

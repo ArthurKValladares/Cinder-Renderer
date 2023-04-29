@@ -8,7 +8,7 @@ use cinder::{
     },
     device::Device,
     resources::{
-        bind_group::{BindGroupBindInfo, BindGroupWriteData},
+        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Image, Layout},
         pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
@@ -39,6 +39,7 @@ pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_sdl: EguiSdl,
     pipeline: ResourceId<GraphicsPipeline>,
+    bind_group: BindGroup,
     sampler: ResourceId<Sampler>,
     image_map: HashMap<TextureId, ResourceId<Image>>,
     vertex_buffers: Vec<ResourceId<Buffer>>,
@@ -65,7 +66,7 @@ impl EguiIntegration {
             include_bytes!("../shaders/spv/egui.frag.spv"),
             Default::default(),
         )?;
-        let pipeline = resource_manager.insert_graphics_pipeline(device.create_graphics_pipeline(
+        let pipeline = device.create_graphics_pipeline(
             &vertex_shader,
             &fragment_shader,
             GraphicsPipelineDescription {
@@ -73,7 +74,9 @@ impl EguiIntegration {
                 surface_format: device.surface_data().format(),
                 ..Default::default()
             },
-        )?);
+        )?;
+        let bind_group = BindGroup::new(device, pipeline.bind_group_data(0).unwrap())?;
+        let pipeline = resource_manager.insert_graphics_pipeline(pipeline);
         vertex_shader.destroy(device);
         fragment_shader.destroy(device);
 
@@ -114,6 +117,7 @@ impl EguiIntegration {
             egui_sdl,
             sampler,
             pipeline,
+            bind_group,
             image_map: Default::default(),
             vertex_buffers,
             index_buffers,
@@ -340,7 +344,7 @@ impl EguiIntegration {
             .graphics_pipelines
             .get(self.pipeline)
             .unwrap();
-        command_list.bind_descriptor_sets(device, pipeline);
+        command_list.bind_descriptor_sets(device, pipeline, 0, &[self.bind_group]);
 
         let index = match mesh.texture_id {
             TextureId::Managed(index) => index as usize,
@@ -388,6 +392,7 @@ impl EguiIntegration {
         device.write_bind_group(
             pipeline,
             &[BindGroupBindInfo {
+                group: self.bind_group,
                 dst_binding: 0,
                 data: BindGroupWriteData::SampledImage(image.bind_info(
                     sampler,

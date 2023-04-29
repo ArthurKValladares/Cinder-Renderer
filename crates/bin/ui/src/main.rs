@@ -2,7 +2,7 @@ use anyhow::Result;
 use cinder::{
     command_queue::{AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc},
     resources::{
-        bind_group::{BindGroupBindInfo, BindGroupWriteData},
+        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
@@ -43,6 +43,7 @@ pub struct Renderer {
     model_data: ModelData,
     depth_image: Image,
     pipeline: GraphicsPipeline,
+    bind_group: BindGroup,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     ubo_buffer: Buffer,
@@ -84,7 +85,7 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
-
+        let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(0).unwrap())?;
         let ubo_buffer = cinder.device.create_buffer(
             std::mem::size_of::<UiUniformBufferObject>() as u64,
             BufferDescription {
@@ -110,6 +111,7 @@ impl Renderer {
         cinder.device.write_bind_group(
             &pipeline,
             &[BindGroupBindInfo {
+                group: bind_group,
                 dst_binding: 0,
                 data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
             }],
@@ -254,6 +256,7 @@ impl Renderer {
             cinder,
             depth_image,
             pipeline,
+            bind_group,
             vertex_buffer,
             index_buffer,
             ubo_buffer,
@@ -304,7 +307,7 @@ impl Renderer {
         cmd_list.bind_scissor(&self.cinder.device, surface_rect);
         cmd_list.bind_index_buffer(&self.cinder.device, &self.index_buffer);
         cmd_list.bind_vertex_buffer(&self.cinder.device, &self.vertex_buffer);
-        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline);
+        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline, 0, &[self.bind_group]);
         cmd_list.draw_offset(&self.cinder.device, 36, 0, 0);
         cmd_list.end_rendering(&self.cinder.device);
 
