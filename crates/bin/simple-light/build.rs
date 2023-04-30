@@ -22,4 +22,17 @@ fn main() {
         PathBuf::from("gen").join("light_shader_structs.rs"),
         false,
     );
+
+    shader_compiler
+        .compile_and_write_shader("shaders/lit_mesh.vert", ShaderStage::Vertex)
+        .expect("Could not compile shader");
+    shader_compiler
+        .compile_and_write_shader("shaders/lit_mesh.frag", ShaderStage::Fragment)
+        .expect("Could not compile shader");
+    rust_shader_tools::write_shader_structs(
+        &std::fs::read("./shaders/spv/lit_mesh.vert.spv").unwrap(),
+        "LitMesh",
+        PathBuf::from("gen").join("lit_mesh_shader_structs.rs"),
+        false,
+    );
 }
