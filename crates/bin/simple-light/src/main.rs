@@ -363,7 +363,7 @@ impl HelloCube {
                 swapchain_image,
                 RenderAttachmentDesc {
                     clear_value: ClearValue::Color {
-                        color: [0.8, 0.8, 0.8, 1.0],
+                        color: [0.9, 0.9, 0.9, 1.0],
                     },
                     ..Default::default()
                 },
@@ -400,6 +400,12 @@ impl HelloCube {
         );
         cmd_list.bind_index_buffer(&self.cinder.device, &self.cube_mesh_data.index_buffer);
         cmd_list.bind_vertex_buffer(&self.cinder.device, &self.cube_mesh_data.vertex_buffer);
+        cmd_list.set_vertex_bytes(
+            &self.cinder.device,
+            &self.light_pipeline,
+            &[Vec3::new(161.0 / 255.0, 29.0 / 255.0, 194.0 / 255.0)],
+            0,
+        )?;
         cmd_list.draw_offset(&self.cinder.device, 36, 0, 0);
 
         // Draw Plane
@@ -411,6 +417,12 @@ impl HelloCube {
         );
         cmd_list.bind_index_buffer(&self.cinder.device, &self.plane_mesh_data.index_buffer);
         cmd_list.bind_vertex_buffer(&self.cinder.device, &self.plane_mesh_data.vertex_buffer);
+        cmd_list.set_vertex_bytes(
+            &self.cinder.device,
+            &self.light_pipeline,
+            &[Vec3::new(201.0 / 255.0, 114.0 / 255.0, 38.0 / 255.0)],
+            0,
+        )?;
         cmd_list.draw_offset(&self.cinder.device, 6, 0, 0);
 
         // Draw Light
