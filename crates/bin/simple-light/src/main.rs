@@ -359,7 +359,15 @@ impl HelloCube {
         cmd_list.begin_rendering(
             &self.cinder.device,
             surface_rect,
-            &[RenderAttachment::color(swapchain_image, Default::default())],
+            &[RenderAttachment::color(
+                swapchain_image,
+                RenderAttachmentDesc {
+                    clear_value: ClearValue::Color {
+                        color: [0.8, 0.8, 0.8, 1.0],
+                    },
+                    ..Default::default()
+                },
+            )],
             Some(RenderAttachment::depth(
                 &self.depth_image,
                 RenderAttachmentDesc {
