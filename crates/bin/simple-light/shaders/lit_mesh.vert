@@ -16,6 +16,7 @@ layout(set = 1, binding = 0 ) uniform ModelUniformBufferObject {
 
 layout( push_constant ) uniform constants
 {
+    vec4 light_pos;
     vec3 color;
 } PushConstants;
 

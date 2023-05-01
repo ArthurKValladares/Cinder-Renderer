@@ -9,7 +9,11 @@ use cinder::{
     },
     Cinder,
 };
-use math::{mat::Mat4, size::Size2D, vec::Vec3};
+use math::{
+    mat::Mat4,
+    size::Size2D,
+    vec::{Vec3, Vec4},
+};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
 
@@ -98,6 +102,7 @@ pub struct HelloCube {
     cube_mesh_data: MeshData,
     plane_mesh_data: MeshData,
     light_mesh_data: MeshData,
+    light_pos: Vec4,
 }
 
 impl HelloCube {
@@ -324,6 +329,7 @@ impl HelloCube {
             cube_mesh_data,
             plane_mesh_data,
             light_mesh_data,
+            light_pos: Vec4::default(),
         })
     }
 
@@ -335,12 +341,12 @@ impl HelloCube {
             .ubo_buffer
             .mem_copy(0, &[Mat4::rotate(scale, Vec3::new(0.0, 1.0, 0.0))])?;
 
-        // TODO: need to rotate it down a bit so it actually points towards the box
-        self.light_mesh_data.ubo_buffer.mem_copy(
-            0,
-            &[Mat4::rotate(scale / 2.0, Vec3::new(0.0, 1.0, 0.0))
-                * Mat4::translate(Vec3::new(-5.0, (scale * 2.0).sin() * 0.5, 0.0))],
-        )?;
+        let transform = Mat4::rotate(scale / 2.0, Vec3::new(0.0, 1.0, 0.0))
+            * Mat4::translate(Vec3::new(-5.0, (scale * 2.0).sin() * 0.5, 0.0));
+        self.light_pos = transform * self.light_pos;
+
+        // TODO: need to rotate transform down a bit so it actually points towards the box
+        self.light_mesh_data.ubo_buffer.mem_copy(0, &[transform])?;
         Ok(())
     }
 
@@ -402,8 +408,11 @@ impl HelloCube {
         cmd_list.bind_vertex_buffer(&self.cinder.device, &self.cube_mesh_data.vertex_buffer);
         cmd_list.set_vertex_bytes(
             &self.cinder.device,
-            &self.light_pipeline,
-            &[Vec3::new(161.0 / 255.0, 29.0 / 255.0, 194.0 / 255.0)],
+            &self.mesh_pipeline,
+            &[LitMeshConstants {
+                light_pos: self.light_pos.into(),
+                color: [161.0 / 255.0, 29.0 / 255.0, 194.0 / 255.0],
+            }],
             0,
         )?;
         cmd_list.draw_offset(&self.cinder.device, 36, 0, 0);
@@ -419,8 +428,11 @@ impl HelloCube {
         cmd_list.bind_vertex_buffer(&self.cinder.device, &self.plane_mesh_data.vertex_buffer);
         cmd_list.set_vertex_bytes(
             &self.cinder.device,
-            &self.light_pipeline,
-            &[Vec3::new(201.0 / 255.0, 114.0 / 255.0, 38.0 / 255.0)],
+            &self.mesh_pipeline,
+            &[LitMeshConstants {
+                light_pos: self.light_pos.into(),
+                color: [201.0 / 255.0, 114.0 / 255.0, 38.0 / 255.0],
+            }],
             0,
         )?;
         cmd_list.draw_offset(&self.cinder.device, 6, 0, 0);
