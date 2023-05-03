@@ -795,7 +795,7 @@ dependencies = [
 [[package]]
 name = "math"
 version = "0.1.0"
-source = "git+https://github.com/ArthurKValladares/Yet-Another-Math-Lib#76d49b113b1a339ef39356afbaff62d14e0a1da8"
+source = "git+https://github.com/ArthurKValladares/Yet-Another-Math-Lib#5294c5d38f6265f2eb5854ed309b98e6ef8e0a8a"
 dependencies = [
  "num",
  "serde",

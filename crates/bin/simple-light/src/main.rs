@@ -11,6 +11,7 @@ use cinder::{
 };
 use math::{
     mat::Mat4,
+    point::Point2D,
     size::Size2D,
     vec::{Vec3, Vec4},
 };
@@ -91,7 +92,22 @@ impl MeshData {
     }
 }
 
+fn rotate_point(p: Point2D<f32>, pivot: Point2D<f32>, angle: f32) -> Point2D<f32> {
+    let s = angle.sin();
+    let c = angle.cos();
+
+    // translate point to origin
+    let p = p - pivot;
+
+    // rotate point
+    let x_new = p.x() * c - p.y() * s;
+    let y_new = p.x() * s + p.y() * c;
+
+    Point2D::new(x_new + pivot.x(), y_new + pivot.y())
+}
+
 pub struct LightData {
+    start_position: Vec4,
     position: Vec4,
     look_at: Vec4,
     vertex_buffer: Buffer,
@@ -102,6 +118,7 @@ pub struct LightData {
 impl LightData {
     pub fn new(cinder: &Cinder, position: Vec4, look_at: Vec4) -> Result<Self> {
         Ok(Self {
+            start_position: position,
             position,
             look_at,
             vertex_buffer: cinder.device.create_buffer_with_data(
@@ -163,8 +180,10 @@ impl LightData {
         })
     }
 
-    pub fn update(&mut self, scale: f32) -> Result<()> {
-        self.position = Vec4::new(scale.sin() * 2.0, 0.0, 0.0, 1.0);
+    pub fn update(&mut self, angle: f32) -> Result<()> {
+        let p = Point2D::new(self.start_position.x(), self.start_position.z());
+        let rotated_p = rotate_point(p, Point2D::zero(), angle);
+        self.position = Vec4::new(rotated_p.x(), self.start_position.y(), rotated_p.y(), 1.0);
         self.light_data_buffer.mem_copy(0, &[self.position])?;
 
         Ok(())
@@ -340,7 +359,7 @@ impl HelloCube {
             },
         )?;
 
-        let light_data = LightData::new(&cinder, Vec4::new(0.0, 0.0, 0.0, 1.0), Vec4::zero())?;
+        let light_data = LightData::new(&cinder, Vec4::new(5.0, 0.0, 0.0, 1.0), Vec4::zero())?;
 
         cinder.device.write_bind_group(
             &mesh_pipeline,
@@ -393,14 +412,14 @@ impl HelloCube {
     }
 
     pub fn update(&mut self) -> Result<()> {
-        let scale =
-            (self.cinder.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
+        let elapsed = self.cinder.init_time.elapsed().as_secs_f32();
+        let scale = (elapsed / 5.0) * (2.0 * std::f32::consts::PI);
 
         self.cube_mesh_data
             .ubo_buffer
             .mem_copy(0, &[Mat4::rotate(scale, Vec3::new(0.0, 1.0, 0.0))])?;
 
-        self.light_data.update(scale)?;
+        self.light_data.update(elapsed)?;
 
         Ok(())
     }
