@@ -22,6 +22,10 @@ layout( push_constant ) uniform constants
 	vec3 color;
 } PushConstants;
 
+float angle_vectors(vec3 a, vec3 b) {
+    return acos(dot(a, b));
+}
+
 mat4 translate_matrix(vec3 pos) {
     return mat4(
         1.0, 0.0, 0.0, 0.0,
@@ -29,13 +33,6 @@ mat4 translate_matrix(vec3 pos) {
         0.0, 0.0, 1.0, 0.0,
         pos.x, pos.y, pos.z, 1.0
     );
-}
-
-float angle_vectors(vec3 a, vec3 b) {
-    vec3 a_n = normalize(a);
-    vec3 b_n = normalize(b);
-
-    return acos(dot(a_n, b_n));
 }
 
 mat4 rotation_matrix(vec3 axis, float angle)
@@ -54,11 +51,10 @@ mat4 rotation_matrix(vec3 axis, float angle)
 void main() {
     o_color = vec4(PushConstants.color, 1.0);
 
-    // TODO: A bit more work on properly rotating the light
     vec3 camera_dir = normalize(l_ubo.position.xyz - l_ubo.look_at.xyz);
-    vec3 camera_dir_no_y = normalize(vec3(camera_dir.x, 0.0, camera_dir.z));
-    float angle = angle_vectors(DEFAULT_CAMERA_DIR, camera_dir_no_y);
-    mat4 rotation_m = rotation_matrix(vec3(0.0, 1.0, 0.0), angle);
+    float rotation_angle = angle_vectors(DEFAULT_CAMERA_DIR, camera_dir);
+    vec3 rotation_axis = normalize(cross(DEFAULT_CAMERA_DIR, camera_dir));
+    mat4 rotation_m = rotation_matrix(rotation_axis, rotation_angle);
 
     mat4 translate_m = translate_matrix(l_ubo.position.xyz);
 

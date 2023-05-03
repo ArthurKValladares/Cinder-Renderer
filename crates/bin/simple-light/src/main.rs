@@ -359,7 +359,7 @@ impl HelloCube {
             },
         )?;
 
-        let light_data = LightData::new(&cinder, Vec4::new(5.0, 0.0, 0.0, 1.0), Vec4::zero())?;
+        let light_data = LightData::new(&cinder, Vec4::new(5.0, 2.0, 0.0, 1.0), Vec4::zero())?;
 
         cinder.device.write_bind_group(
             &mesh_pipeline,
