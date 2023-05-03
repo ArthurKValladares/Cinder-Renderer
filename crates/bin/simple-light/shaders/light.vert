@@ -40,12 +40,20 @@ mat4 rotation_matrix(vec3 axis, float angle)
     axis = normalize(axis);
     float s = sin(angle);
     float c = cos(angle);
-    float oc = 1.0 - c;
+    float d = 1.0 - c;
     
-    return mat4(oc * axis.x * axis.x + c,           oc * axis.x * axis.y - axis.z * s,  oc * axis.z * axis.x + axis.y * s,  0.0,
-                oc * axis.x * axis.y + axis.z * s,  oc * axis.y * axis.y + c,           oc * axis.y * axis.z - axis.x * s,  0.0,
-                oc * axis.z * axis.x - axis.y * s,  oc * axis.y * axis.z + axis.x * s,  oc * axis.z * axis.z + c,           0.0,
-                0.0,                                0.0,                                0.0,                                1.0);
+    float x = axis.x * d;
+    float y = axis.y * d;
+    float z = axis.z * d;
+
+    float axay = x * axis.y;
+    float axaz = x * axis.z;
+    float ayaz = y * axis.z;
+
+    return mat4(c + x * axis.x,    axay + s * axis.z, axaz - s * axis.y, 0.0,
+                axay - s * axis.z, c + y * axis.y,    ayaz + s * axis.x, 0.0,
+                axaz + s * axis.y, ayaz - s * axis.x, c + z * axis.z,    0.0,
+                0.0,               0.0,               0.0,               1.0);
 }
 
 void main() {
