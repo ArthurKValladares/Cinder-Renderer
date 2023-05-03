@@ -54,7 +54,7 @@ impl MeshData {
         )?;
         ubo_buffer.mem_copy(0, &[Mat4::identity()])?;
         cinder.device.write_bind_group(
-            &pipeline,
+            pipeline,
             &[BindGroupBindInfo {
                 group: bind_group,
                 dst_binding: 0,
@@ -91,6 +91,92 @@ impl MeshData {
     }
 }
 
+pub struct LightData {
+    position: Vec4,
+    look_at: Vec4,
+    vertex_buffer: Buffer,
+    index_buffer: Buffer,
+    light_data_buffer: Buffer,
+}
+
+impl LightData {
+    pub fn new(cinder: &Cinder, position: Vec4, look_at: Vec4) -> Result<Self> {
+        Ok(Self {
+            position,
+            look_at,
+            vertex_buffer: cinder.device.create_buffer_with_data(
+                &[
+                    LightVertex {
+                        i_pos: [-0.4, 0.2, -0.2],
+                    },
+                    LightVertex {
+                        i_pos: [0.4, 0.2, -0.2],
+                    },
+                    LightVertex {
+                        i_pos: [-0.4, -0.2, -0.2],
+                    },
+                    LightVertex {
+                        i_pos: [0.4, -0.2, -0.2],
+                    },
+                    LightVertex {
+                        i_pos: [-0.4, 0.2, 0.2],
+                    },
+                    LightVertex {
+                        i_pos: [0.4, 0.2, 0.2],
+                    },
+                    LightVertex {
+                        i_pos: [-0.4, -0.2, 0.2],
+                    },
+                    LightVertex {
+                        i_pos: [0.4, -0.2, 0.2],
+                    },
+                ],
+                BufferDescription {
+                    usage: BufferUsage::VERTEX,
+                    ..Default::default()
+                },
+            )?,
+            index_buffer: cinder.device.create_buffer_with_data(
+                &[
+                    0, 1, 2, 2, 1, 3, // First plane
+                    5, 4, 7, 7, 4, 6, // Second plane
+                    3, 7, 2, 2, 7, 6, // Third Plane
+                    0, 4, 1, 1, 4, 5, // Fourth Plane
+                    1, 5, 3, 3, 5, 7, // Fifth Plane
+                    4, 0, 6, 6, 0, 2, // Sixth Plane
+                ],
+                BufferDescription {
+                    usage: BufferUsage::INDEX,
+                    ..Default::default()
+                },
+            )?,
+            light_data_buffer: cinder.device.create_buffer_with_data(
+                &[LightGlobalLightData {
+                    position: position.into(),
+                    look_at: look_at.into(),
+                }],
+                BufferDescription {
+                    usage: BufferUsage::UNIFORM,
+                    ..Default::default()
+                },
+            )?,
+        })
+    }
+
+    pub fn update(&mut self, scale: f32) -> Result<()> {
+        self.position = Vec4::new(scale.sin() * 2.0, 0.0, 0.0, 1.0);
+        self.light_data_buffer.mem_copy(0, &[self.position])?;
+
+        Ok(())
+    }
+
+    pub fn cleanup(&self, cinder: &Cinder) {
+        self.vertex_buffer.destroy(&cinder.device);
+        self.index_buffer.destroy(&cinder.device);
+        self.light_data_buffer.destroy(&cinder.device);
+    }
+}
+
 pub struct HelloCube {
     cinder: Cinder,
     depth_image: Image,
@@ -98,11 +184,10 @@ pub struct HelloCube {
     light_pipeline: GraphicsPipeline,
     camera_mesh_bind_group: BindGroup,
     camera_light_bind_group: BindGroup,
-    camera_ubo_buffer: Buffer,
     cube_mesh_data: MeshData,
     plane_mesh_data: MeshData,
-    light_mesh_data: MeshData,
-    light_pos: Vec4,
+    light_data: LightData,
+    camera_ubo_buffer: Buffer,
 }
 
 impl HelloCube {
@@ -160,47 +245,6 @@ impl HelloCube {
             },
         )?;
 
-        let camera_mesh_bind_group =
-            BindGroup::new(&cinder.device, mesh_pipeline.bind_group_data(0).unwrap())?;
-        let camera_light_bind_group =
-            BindGroup::new(&cinder.device, light_pipeline.bind_group_data(0).unwrap())?;
-        let camera_ubo_buffer = cinder.device.create_buffer(
-            std::mem::size_of::<LitMeshCameraUniformBufferObject>() as u64,
-            BufferDescription {
-                usage: BufferUsage::UNIFORM,
-                ..Default::default()
-            },
-        )?;
-        let eye = Vec3::new(6.0, 4.0, 0.0);
-        let front = (Vec3::zero() - eye).normalized();
-        camera_ubo_buffer.mem_copy(
-            0,
-            &[
-                camera::look_to(eye, front, Vec3::new(0.0, 1.0, 0.0)),
-                camera::new_infinite_perspective_proj(
-                    surface_rect.width() as f32 / surface_rect.height() as f32,
-                    30.0,
-                    0.01,
-                ),
-            ],
-        )?;
-        cinder.device.write_bind_group(
-            &mesh_pipeline,
-            &[BindGroupBindInfo {
-                group: camera_mesh_bind_group,
-                dst_binding: 0,
-                data: BindGroupWriteData::Uniform(camera_ubo_buffer.bind_info()),
-            }],
-        )?;
-        cinder.device.write_bind_group(
-            &mesh_pipeline,
-            &[BindGroupBindInfo {
-                group: camera_light_bind_group,
-                dst_binding: 0,
-                data: BindGroupWriteData::Uniform(camera_ubo_buffer.bind_info()),
-            }],
-        )?;
-
         let cube_mesh_data = MeshData::new(
             &cinder,
             &mesh_pipeline,
@@ -250,45 +294,6 @@ impl HelloCube {
             ],
         )?;
 
-        let light_mesh_data = MeshData::new(
-            &cinder,
-            &light_pipeline,
-            &[
-                LightVertex {
-                    i_pos: [-0.4, 0.2, -0.2],
-                },
-                LightVertex {
-                    i_pos: [0.4, 0.2, -0.2],
-                },
-                LightVertex {
-                    i_pos: [-0.4, -0.2, -0.2],
-                },
-                LightVertex {
-                    i_pos: [0.4, -0.2, -0.2],
-                },
-                LightVertex {
-                    i_pos: [-0.4, 0.2, 0.2],
-                },
-                LightVertex {
-                    i_pos: [0.4, 0.2, 0.2],
-                },
-                LightVertex {
-                    i_pos: [-0.4, -0.2, 0.2],
-                },
-                LightVertex {
-                    i_pos: [0.4, -0.2, 0.2],
-                },
-            ],
-            &[
-                0, 1, 2, 2, 1, 3, // First plane
-                5, 4, 7, 7, 4, 6, // Second plane
-                3, 7, 2, 2, 7, 6, // Third Plane
-                0, 4, 1, 1, 4, 5, // Fourth Plane
-                1, 5, 3, 3, 5, 7, // Fifth Plane
-                4, 0, 6, 6, 0, 2, // Sixth Plane
-            ],
-        )?;
-
         let plane_mesh_data = MeshData::new(
             &cinder,
             &mesh_pipeline,
@@ -313,6 +318,61 @@ impl HelloCube {
             &[0, 1, 2, 2, 1, 3],
         )?;
 
+        let camera_mesh_bind_group =
+            BindGroup::new(&cinder.device, mesh_pipeline.bind_group_data(0).unwrap())?;
+        let camera_light_bind_group =
+            BindGroup::new(&cinder.device, light_pipeline.bind_group_data(0).unwrap())?;
+        let eye = Vec3::new(6.0, 4.0, 0.0);
+        let front = (Vec3::zero() - eye).normalized();
+        let camera_ubo_buffer = cinder.device.create_buffer_with_data(
+            &[LitMeshCameraUniformBufferObject {
+                view: camera::look_to(eye, front, Vec3::new(0.0, 1.0, 0.0)).into(),
+                proj: camera::new_infinite_perspective_proj(
+                    surface_rect.width() as f32 / surface_rect.height() as f32,
+                    30.0,
+                    0.01,
+                )
+                .into(),
+            }],
+            BufferDescription {
+                usage: BufferUsage::UNIFORM,
+                ..Default::default()
+            },
+        )?;
+
+        let light_data = LightData::new(&cinder, Vec4::new(0.0, 0.0, 0.0, 1.0), Vec4::zero())?;
+
+        cinder.device.write_bind_group(
+            &mesh_pipeline,
+            &[
+                BindGroupBindInfo {
+                    group: camera_mesh_bind_group,
+                    dst_binding: 0,
+                    data: BindGroupWriteData::Uniform(camera_ubo_buffer.bind_info()),
+                },
+                BindGroupBindInfo {
+                    group: camera_mesh_bind_group,
+                    dst_binding: 1,
+                    data: BindGroupWriteData::Uniform(light_data.light_data_buffer.bind_info()),
+                },
+            ],
+        )?;
+        cinder.device.write_bind_group(
+            &mesh_pipeline,
+            &[
+                BindGroupBindInfo {
+                    group: camera_light_bind_group,
+                    dst_binding: 0,
+                    data: BindGroupWriteData::Uniform(camera_ubo_buffer.bind_info()),
+                },
+                BindGroupBindInfo {
+                    group: camera_light_bind_group,
+                    dst_binding: 1,
+                    data: BindGroupWriteData::Uniform(light_data.light_data_buffer.bind_info()),
+                },
+            ],
+        )?;
+
         mesh_vertex_shader.destroy(&cinder.device);
         mesh_fragment_shader.destroy(&cinder.device);
         light_vertex_shader.destroy(&cinder.device);
@@ -328,8 +388,7 @@ impl HelloCube {
             camera_light_bind_group,
             cube_mesh_data,
             plane_mesh_data,
-            light_mesh_data,
-            light_pos: Vec4::default(),
+            light_data,
         })
     }
 
@@ -341,12 +400,8 @@ impl HelloCube {
             .ubo_buffer
             .mem_copy(0, &[Mat4::rotate(scale, Vec3::new(0.0, 1.0, 0.0))])?;
 
-        let transform = Mat4::rotate(scale / 2.0, Vec3::new(0.0, 1.0, 0.0))
-            * Mat4::translate(Vec3::new(-5.0, (scale * 2.0).sin() * 0.5, 0.0));
-        self.light_pos = transform * self.light_pos;
+        self.light_data.update(scale)?;
 
-        // TODO: need to rotate transform down a bit so it actually points towards the box
-        self.light_mesh_data.ubo_buffer.mem_copy(0, &[transform])?;
         Ok(())
     }
 
@@ -410,7 +465,6 @@ impl HelloCube {
             &self.cinder.device,
             &self.mesh_pipeline,
             &[LitMeshConstants {
-                light_pos: self.light_pos.into(),
                 color: [161.0 / 255.0, 29.0 / 255.0, 194.0 / 255.0],
             }],
             0,
@@ -430,7 +484,6 @@ impl HelloCube {
             &self.cinder.device,
             &self.mesh_pipeline,
             &[LitMeshConstants {
-                light_pos: self.light_pos.into(),
                 color: [201.0 / 255.0, 114.0 / 255.0, 38.0 / 255.0],
             }],
             0,
@@ -445,14 +498,8 @@ impl HelloCube {
             0,
             &[self.camera_light_bind_group],
         );
-        cmd_list.bind_descriptor_sets(
-            &self.cinder.device,
-            &self.light_pipeline,
-            1,
-            &[self.light_mesh_data.bind_group],
-        );
-        cmd_list.bind_index_buffer(&self.cinder.device, &self.light_mesh_data.index_buffer);
-        cmd_list.bind_vertex_buffer(&self.cinder.device, &self.light_mesh_data.vertex_buffer);
+        cmd_list.bind_index_buffer(&self.cinder.device, &self.light_data.index_buffer);
+        cmd_list.bind_vertex_buffer(&self.cinder.device, &self.light_data.vertex_buffer);
         let scale =
             (self.cinder.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
         cmd_list.set_vertex_bytes(
@@ -491,7 +538,7 @@ impl Drop for HelloCube {
         self.depth_image.destroy(&self.cinder.device);
         self.cube_mesh_data.cleanup(&self.cinder);
         self.plane_mesh_data.cleanup(&self.cinder);
-        self.light_mesh_data.cleanup(&self.cinder);
+        self.light_data.cleanup(&self.cinder);
     }
 }
 
