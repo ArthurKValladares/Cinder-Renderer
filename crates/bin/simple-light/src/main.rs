@@ -5,6 +5,7 @@ use cinder::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
+        memory::MemoryType,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
     },
     Cinder,
@@ -169,6 +170,7 @@ impl LightData {
 pub struct HelloCube {
     cinder: Cinder,
     depth_image: Image,
+    shadow_map_image: Image,
     mesh_pipeline: GraphicsPipeline,
     light_pipeline: GraphicsPipeline,
     camera_mesh_bind_group: BindGroup,
@@ -196,6 +198,17 @@ impl HelloCube {
             ImageDescription {
                 format: Format::D32_SFloat,
                 usage: ImageUsage::Depth,
+                ..Default::default()
+            },
+        )?;
+        let shadow_map_image = cinder.device.create_image(
+            Size2D::new(
+                (surface_rect.width() as f32 / 2.0) as u32,
+                (surface_rect.height() as f32 / 2.0) as u32,
+            ),
+            ImageDescription {
+                format: Format::D32_SFloat,
+                usage: ImageUsage::DepthSampled,
                 ..Default::default()
             },
         )?;
@@ -370,6 +383,7 @@ impl HelloCube {
         Ok(Self {
             cinder,
             depth_image,
+            shadow_map_image,
             mesh_pipeline,
             light_pipeline,
             camera_ubo_buffer,
@@ -529,6 +543,10 @@ impl HelloCube {
         self.cinder.resize(width, height)?;
         self.depth_image
             .resize(&self.cinder.device, Size2D::new(width, height))?;
+        self.shadow_map_image.resize(
+            &self.cinder.device,
+            Size2D::new((width as f32 / 2.0) as u32, (height as f32 / 2.0) as u32),
+        )?;
         Ok(())
     }
 }
@@ -540,6 +558,7 @@ impl Drop for HelloCube {
         self.mesh_pipeline.destroy(&self.cinder.device);
         self.light_pipeline.destroy(&self.cinder.device);
         self.depth_image.destroy(&self.cinder.device);
+        self.shadow_map_image.destroy(&self.cinder.device);
         self.cube_mesh_data.cleanup(&self.cinder);
         self.plane_mesh_data.cleanup(&self.cinder);
         self.light_data.cleanup(&self.cinder);
