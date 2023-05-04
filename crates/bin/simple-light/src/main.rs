@@ -117,7 +117,7 @@ pub struct LightData {
 
 impl LightData {
     pub fn new(cinder: &Cinder, position: Vec4, look_at: Vec4) -> Result<Self> {
-        let cylinder_mesh = geometry::SurfaceMesh::cylinder::<30>(0.5, 0.2);
+        let cylinder_mesh = geometry::SurfaceMesh::cylinder::<30>(0.3, 0.1);
 
         Ok(Self {
             start_position: position,
