@@ -5,17 +5,11 @@ use cinder::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
-        memory::MemoryType,
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
     },
     Cinder,
 };
-use math::{
-    mat::Mat4,
-    point::Point2D,
-    size::Size2D,
-    vec::{Vec3, Vec4},
-};
+use math::{mat::Mat4, point::Point2D, size::Size2D, vec::Vec3};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
 
@@ -108,17 +102,30 @@ fn rotate_point(p: Point2D<f32>, pivot: Point2D<f32>, angle: f32) -> Point2D<f32
 }
 
 pub struct LightData {
-    start_position: Vec4,
-    position: Vec4,
-    look_at: Vec4,
+    start_position: Vec3,
+    position: Vec3,
+    look_at: Vec3,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     light_data_buffer: Buffer,
+    ubo_buffer: Buffer,
 }
 
 impl LightData {
-    pub fn new(cinder: &Cinder, position: Vec4, look_at: Vec4) -> Result<Self> {
+    pub fn new(cinder: &Cinder, position: Vec3, look_at: Vec3, aspect_ratio: f32) -> Result<Self> {
         let cylinder_mesh = geometry::SurfaceMesh::cylinder::<30>(0.3, 0.1);
+
+        let ubo_buffer = cinder.device.create_buffer_with_data(
+            &[LitMeshCameraUniformBufferObject {
+                view: camera::look_to(position, position - look_at, Vec3::new(0.0, 1.0, 0.0))
+                    .into(),
+                proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 0.01).into(),
+            }],
+            BufferDescription {
+                usage: BufferUsage::UNIFORM,
+                ..Default::default()
+            },
+        )?;
 
         Ok(Self {
             start_position: position,
@@ -148,15 +155,17 @@ impl LightData {
                     ..Default::default()
                 },
             )?,
+            ubo_buffer,
         })
     }
 
     pub fn update(&mut self, angle: f32) -> Result<()> {
         let p = Point2D::new(self.start_position.x(), self.start_position.z());
         let rotated_p = rotate_point(p, Point2D::zero(), angle);
-        self.position = Vec4::new(rotated_p.x(), self.start_position.y(), rotated_p.y(), 1.0);
+        self.position = Vec3::new(rotated_p.x(), self.start_position.y(), rotated_p.y());
         self.light_data_buffer.mem_copy(0, &[self.position])?;
 
+        // TODO: Update UBO buffer
         Ok(())
     }
 
@@ -164,6 +173,7 @@ impl LightData {
         self.vertex_buffer.destroy(&cinder.device);
         self.index_buffer.destroy(&cinder.device);
         self.light_data_buffer.destroy(&cinder.device);
+        self.ubo_buffer.destroy(&cinder.device);
     }
 }
 
@@ -326,15 +336,11 @@ impl HelloCube {
             BindGroup::new(&cinder.device, light_pipeline.bind_group_data(0).unwrap())?;
         let eye = Vec3::new(6.0, 4.0, 0.0);
         let front = (Vec3::zero() - eye).normalized();
+        let aspect_ratio = surface_rect.width() as f32 / surface_rect.height() as f32;
         let camera_ubo_buffer = cinder.device.create_buffer_with_data(
             &[LitMeshCameraUniformBufferObject {
                 view: camera::look_to(eye, front, Vec3::new(0.0, 1.0, 0.0)).into(),
-                proj: camera::new_infinite_perspective_proj(
-                    surface_rect.width() as f32 / surface_rect.height() as f32,
-                    30.0,
-                    0.01,
-                )
-                .into(),
+                proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 0.01).into(),
             }],
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
@@ -342,7 +348,12 @@ impl HelloCube {
             },
         )?;
 
-        let light_data = LightData::new(&cinder, Vec4::new(5.0, 2.0, 0.0, 1.0), Vec4::zero())?;
+        let light_data = LightData::new(
+            &cinder,
+            Vec3::new(4.0, 2.0, 0.0),
+            Vec3::zero(),
+            aspect_ratio,
+        )?;
 
         cinder.device.write_bind_group(
             &mesh_pipeline,
