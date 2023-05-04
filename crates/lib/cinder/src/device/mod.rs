@@ -419,7 +419,8 @@ impl Device {
         desc: BufferDescription,
     ) -> Result<Buffer> {
         let size = size_of_slice(data);
-        let buffer = Buffer::create(self, size, desc)?;
+        let mut buffer = Buffer::create(self, size, desc)?;
+        buffer.num_elements = Some(data.len() as u32);
         buffer.mem_copy(0, data)?;
         Ok(buffer)
     }

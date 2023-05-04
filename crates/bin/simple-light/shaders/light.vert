@@ -1,7 +1,7 @@
 
 #version 460
 
-const vec3 DEFAULT_CAMERA_DIR = vec3(1.0, 0.0, 0.0);
+const vec3 DEFAULT_CAMERA_DIR = vec3(0.0, 1.0, 0.0);
 
 layout(location = 0) in vec3 i_pos;
 

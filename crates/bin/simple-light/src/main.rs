@@ -117,51 +117,21 @@ pub struct LightData {
 
 impl LightData {
     pub fn new(cinder: &Cinder, position: Vec4, look_at: Vec4) -> Result<Self> {
+        let cylinder_mesh = geometry::SurfaceMesh::cylinder::<30>(0.5, 0.2);
+
         Ok(Self {
             start_position: position,
             position,
             look_at,
             vertex_buffer: cinder.device.create_buffer_with_data(
-                &[
-                    LightVertex {
-                        i_pos: [-0.4, 0.2, -0.2],
-                    },
-                    LightVertex {
-                        i_pos: [0.4, 0.2, -0.2],
-                    },
-                    LightVertex {
-                        i_pos: [-0.4, -0.2, -0.2],
-                    },
-                    LightVertex {
-                        i_pos: [0.4, -0.2, -0.2],
-                    },
-                    LightVertex {
-                        i_pos: [-0.4, 0.2, 0.2],
-                    },
-                    LightVertex {
-                        i_pos: [0.4, 0.2, 0.2],
-                    },
-                    LightVertex {
-                        i_pos: [-0.4, -0.2, 0.2],
-                    },
-                    LightVertex {
-                        i_pos: [0.4, -0.2, 0.2],
-                    },
-                ],
+                &cylinder_mesh.vertices,
                 BufferDescription {
                     usage: BufferUsage::VERTEX,
                     ..Default::default()
                 },
             )?,
             index_buffer: cinder.device.create_buffer_with_data(
-                &[
-                    0, 1, 2, 2, 1, 3, // First plane
-                    5, 4, 7, 7, 4, 6, // Second plane
-                    3, 7, 2, 2, 7, 6, // Third Plane
-                    0, 4, 1, 1, 4, 5, // Fourth Plane
-                    1, 5, 3, 3, 5, 7, // Fifth Plane
-                    4, 0, 6, 6, 0, 2, // Sixth Plane
-                ],
+                &cylinder_mesh.indices,
                 BufferDescription {
                     usage: BufferUsage::INDEX,
                     ..Default::default()
@@ -488,7 +458,12 @@ impl HelloCube {
             }],
             0,
         )?;
-        cmd_list.draw_offset(&self.cinder.device, 36, 0, 0);
+        cmd_list.draw_offset(
+            &self.cinder.device,
+            self.cube_mesh_data.index_buffer.num_elements().unwrap(),
+            0,
+            0,
+        );
 
         // Draw Plane
         cmd_list.bind_descriptor_sets(
@@ -507,7 +482,12 @@ impl HelloCube {
             }],
             0,
         )?;
-        cmd_list.draw_offset(&self.cinder.device, 6, 0, 0);
+        cmd_list.draw_offset(
+            &self.cinder.device,
+            self.plane_mesh_data.index_buffer.num_elements().unwrap(),
+            0,
+            0,
+        );
 
         // Draw Light
         cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.light_pipeline);
@@ -531,7 +511,12 @@ impl HelloCube {
             ),
             0,
         )?;
-        cmd_list.draw_offset(&self.cinder.device, 36, 0, 0);
+        cmd_list.draw_offset(
+            &self.cinder.device,
+            self.light_data.index_buffer.num_elements().unwrap(),
+            0,
+            0,
+        );
 
         cmd_list.end_rendering(&self.cinder.device);
 

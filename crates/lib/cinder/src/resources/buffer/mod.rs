@@ -45,6 +45,7 @@ pub struct Buffer {
     pub raw: vk::Buffer,
     pub memory: Memory,
     pub size_bytes: u64,
+    pub num_elements: Option<u32>,
     pub ptr: Option<MemoryMappablePointer>,
 }
 
@@ -96,6 +97,7 @@ impl Buffer {
             raw: buffer,
             memory,
             size_bytes: size,
+            num_elements: None,
             ptr,
         })
     }
@@ -110,6 +112,10 @@ impl Buffer {
 
     pub fn size_bytes(&self) -> u64 {
         self.size_bytes
+    }
+
+    pub fn num_elements(&self) -> Option<u32> {
+        self.num_elements
     }
 
     pub fn ptr(&self) -> Option<MemoryMappablePointer> {
