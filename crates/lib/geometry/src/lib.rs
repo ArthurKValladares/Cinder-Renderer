@@ -35,15 +35,14 @@ impl SurfaceMesh {
 
             //Bottom triangle
             indices[i * 3] = i as u32;
-            indices[i * 3 + 1] = i as u32 + 1;
+            indices[i * 3 + 1] = (i as u32 + 1) % N as u32;
             indices[i * 3 + 2] = N as u32;
 
             // Top Triangle
-            indices[N * 3 + i * 3] = to + i as u32 + 1;
+            indices[N * 3 + i * 3] = to + (i as u32 + 1) % N as u32;
             indices[N * 3 + i * 3 + 1] = to + i as u32;
             indices[N * 3 + i * 3 + 2] = to + N as u32;
         }
-        // TODO: close circles, add walls
 
         Self { vertices, indices }
     }
