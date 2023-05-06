@@ -3,10 +3,10 @@
 layout(location = 0) in vec3 i_pos;
 layout(location = 1) in vec3 i_normal;
 
-layout (location = 0) out vec4 o_color;
-
-// TODO: Put this in a DescriptorSet later
-float AMBIENT_LIGHT_STRENGTH = 0.2;
+layout (location = 0) out vec3 o_color;
+layout(location = 1) out vec3 o_normal;
+layout(location = 2) out vec3 o_light_pos;
+layout(location = 3) out vec3 o_light_dir;
 
 layout(set = 0, binding = 0) uniform CameraUniformBufferObject {
     mat4 view;
@@ -28,9 +28,11 @@ layout( push_constant ) uniform constants
 } PushConstants;
 
 void main() {
-    vec3 ambient_color = AMBIENT_LIGHT_STRENGTH * PushConstants.color;
-
-    o_color = vec4(ambient_color, 1.0);
+    // TODO: transform normal
+    o_color = PushConstants.color;
+    o_normal = i_normal;
+    o_light_pos = l_ubo.position;
+    o_light_dir = normalize(l_ubo.position - l_ubo.look_at);
 
     gl_Position = c_ubo.proj * c_ubo.view * m_ubo.model * vec4(i_pos, 1.0);
 }
