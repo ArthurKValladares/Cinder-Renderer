@@ -261,48 +261,116 @@ impl HelloCube {
             &cinder,
             &mesh_pipeline,
             &[
-                // Plane at z: -0.5
-                LitMeshVertex {
-                    i_pos: [-0.5, 0.5, -0.5],
-                    i_normal: [0.5, 0.5, 0.5],
-                },
-                LitMeshVertex {
-                    i_pos: [0.5, 0.5, -0.5],
-                    i_normal: [0.5, 0.5, 0.5],
-                },
+                // Plane 1
                 LitMeshVertex {
                     i_pos: [-0.5, -0.5, -0.5],
-                    i_normal: [0.5, 0.5, 0.5],
+                    i_normal: [0.0, 0.0, -1.0],
                 },
                 LitMeshVertex {
                     i_pos: [0.5, -0.5, -0.5],
-                    i_normal: [0.5, 0.5, 0.5],
-                },
-                // Plane at z: 0.5
-                LitMeshVertex {
-                    i_pos: [-0.5, 0.5, 0.5],
-                    i_normal: [0.5, 0.5, 0.5],
+                    i_normal: [0.0, 0.0, -1.0],
                 },
                 LitMeshVertex {
-                    i_pos: [0.5, 0.5, 0.5],
-                    i_normal: [0.5, 0.5, 0.5],
+                    i_pos: [-0.5,  0.5, -0.5],
+                    i_normal: [0.0, 0.0, -1.0],
                 },
                 LitMeshVertex {
-                    i_pos: [-0.5, -0.5, 0.5],
-                    i_normal: [0.5, 0.5, 0.5],
+                    i_pos: [0.5,  0.5, -0.5],
+                    i_normal: [0.0, 0.0, -1.0],
+                },
+                // Plane 2
+                LitMeshVertex {
+                    i_pos: [-0.5, -0.5,  0.5],
+                    i_normal: [0.0, 0.0, 1.0],
                 },
                 LitMeshVertex {
-                    i_pos: [0.5, -0.5, 0.5],
-                    i_normal: [0.5, 0.5, 0.5],
+                    i_pos: [0.5, -0.5,  0.5],
+                    i_normal: [0.0, 0.0, 1.0],
+                },
+                LitMeshVertex {
+                    i_pos: [-0.5,  0.5,  0.5],
+                    i_normal: [0.0, 0.0, 1.0],
+                },
+                LitMeshVertex {
+                    i_pos: [0.5,  0.5,  0.5],
+                    i_normal: [0.0, 0.0, 1.0],
+                },
+                // Plane 3
+                LitMeshVertex {
+                    i_pos: [-0.5,  0.5,  0.5],
+                    i_normal: [-1.0, 0.0, 0.0],
+                },
+                LitMeshVertex {
+                    i_pos: [-0.5,  0.5, -0.5],
+                    i_normal: [-1.0, 0.0, 0.0],
+                },
+                LitMeshVertex {
+                    i_pos: [-0.5, -0.5,  0.5],
+                    i_normal: [-1.0, 0.0, 0.0],
+                },
+                LitMeshVertex {
+                    i_pos: [-0.5, -0.5, -0.5],
+                    i_normal: [-1.0, 0.0, 0.0],
+                },
+                // Plane 4
+                LitMeshVertex {
+                    i_pos: [0.5,  0.5,  0.5],
+                    i_normal: [1.0, 0.0, 0.0],
+                },
+                LitMeshVertex {
+                    i_pos: [0.5,  0.5, -0.5],
+                    i_normal: [1.0, 0.0, 0.0],
+                },
+                LitMeshVertex {
+                    i_pos: [0.5, -0.5,  0.5],
+                    i_normal: [1.0, 0.0, 0.0],
+                },
+                LitMeshVertex {
+                    i_pos: [0.5, -0.5, -0.5],
+                    i_normal: [1.0, 0.0, 0.0],
+                },
+                // Plane 5
+                LitMeshVertex {
+                    i_pos: [-0.5, -0.5, -0.5],
+                    i_normal: [0.0, -1.0, 0.0],
+                },
+                LitMeshVertex {
+                    i_pos: [0.5, -0.5, -0.5],
+                    i_normal: [0.0, -1.0, 0.0],
+                },
+                LitMeshVertex {
+                    i_pos: [-0.5, -0.5,  0.5],
+                    i_normal: [0.0, -1.0, 0.0],
+                },
+                LitMeshVertex {
+                    i_pos: [0.5, -0.5,  0.5],
+                    i_normal: [0.0, -1.0, 0.0],
+                },
+                // Plane 6
+                LitMeshVertex {
+                    i_pos: [-0.5,  0.5, -0.5],
+                    i_normal: [0.0, 1.0, 0.0],
+                },
+                LitMeshVertex {
+                    i_pos: [0.5,  0.5, -0.5],
+                    i_normal: [0.0, 1.0, 0.0],
+                },
+                LitMeshVertex {
+                    i_pos: [-0.5,  0.5,  0.5],
+                    i_normal: [0.0, 1.0, 0.0],
+                },
+                LitMeshVertex {
+                    i_pos: [0.5,  0.5,  0.5],
+                    i_normal: [0.0, 1.0, 0.0],
                 },
             ],
             &[
                 0, 1, 2, 2, 1, 3, // First plane
                 5, 4, 7, 7, 4, 6, // Second plane
-                3, 7, 2, 2, 7, 6, // Third Plane
-                0, 4, 1, 1, 4, 5, // Fourth Plane
-                1, 5, 3, 3, 5, 7, // Fifth Plane
-                4, 0, 6, 6, 0, 2, // Sixth Plane
+                9, 8, 11, 11, 8, 10, // Third Plane
+                13, 12, 15, 15, 12, 14, // Fourth Plane
+                17, 16, 19, 19, 16, 18, // Fifth Plane
+                21, 20, 23, 23, 20, 22, // Sixth Plane
             ],
         )?;
 
@@ -312,19 +380,19 @@ impl HelloCube {
             &[
                 LitMeshVertex {
                     i_pos: [-5.0, -1.0, 5.0],
-                    i_normal: [1.0, 1.0, 0.0],
+                    i_normal: [0.0, 1.0, 0.0],
                 },
                 LitMeshVertex {
                     i_pos: [5.0, -1.0, 5.0],
-                    i_normal: [1.0, 1.0, 0.0],
+                    i_normal: [0.0, 1.0, 0.0],
                 },
                 LitMeshVertex {
                     i_pos: [-5.0, -1.0, -5.0],
-                    i_normal: [1.0, 1.0, 0.0],
+                    i_normal: [0.0, 1.0, 0.0],
                 },
                 LitMeshVertex {
                     i_pos: [5.0, -1.0, -5.0],
-                    i_normal: [1.0, 1.0, 0.0],
+                    i_normal: [0.0, 1.0, 0.0],
                 },
             ],
             &[0, 1, 2, 2, 1, 3],
