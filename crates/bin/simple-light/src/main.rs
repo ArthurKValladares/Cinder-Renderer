@@ -438,7 +438,7 @@ impl HelloCube {
                 swapchain_image,
                 RenderAttachmentDesc {
                     clear_value: ClearValue::Color {
-                        color: [0.9, 0.9, 0.9, 1.0],
+                        color: [0.4, 0.4, 0.4, 1.0],
                     },
                     ..Default::default()
                 },
