@@ -30,7 +30,7 @@ layout( push_constant ) uniform constants
 void main() {
     // TODO: transform normal
     o_color = PushConstants.color;
-    o_normal = i_normal;
+    o_normal = mat3(transpose(inverse(m_ubo.model))) * i_normal;
     o_light_pos = l_ubo.position;
     o_light_dir = normalize(l_ubo.position - l_ubo.look_at);
 
