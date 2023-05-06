@@ -112,7 +112,7 @@ pub struct LightData {
 }
 
 impl LightData {
-    pub fn new(cinder: &Cinder, position: Vec3, look_at: Vec3, aspect_ratio: f32) -> Result<Self> {
+    pub fn new(cinder: &Cinder, position: Vec3, look_at: Vec3, look_from: Vec3, aspect_ratio: f32) -> Result<Self> {
         let cylinder_mesh = geometry::SurfaceMesh::cylinder::<30>(0.3, 0.1);
 
         let ubo_buffer = cinder.device.create_buffer_with_data(
@@ -189,6 +189,7 @@ pub struct HelloCube {
     plane_mesh_data: MeshData,
     light_data: LightData,
     camera_ubo_buffer: Buffer,
+    eye: Vec3,
 }
 
 impl HelloCube {
@@ -420,6 +421,7 @@ impl HelloCube {
             &cinder,
             Vec3::new(4.0, 2.0, 0.0),
             Vec3::zero(),
+            eye,
             aspect_ratio,
         )?;
 
@@ -471,6 +473,7 @@ impl HelloCube {
             cube_mesh_data,
             plane_mesh_data,
             light_data,
+            eye,
         })
     }
 
@@ -548,6 +551,7 @@ impl HelloCube {
             &self.mesh_pipeline,
             &[LitMeshConstants {
                 color: [161.0 / 255.0, 29.0 / 255.0, 194.0 / 255.0],
+                view_from: self.eye.into(),
             }],
             0,
         )?;
@@ -570,7 +574,7 @@ impl HelloCube {
         cmd_list.set_vertex_bytes(
             &self.cinder.device,
             &self.mesh_pipeline,
-            &[LitMeshConstants {
+            &[LightConstants {
                 color: [201.0 / 255.0, 114.0 / 255.0, 38.0 / 255.0],
             }],
             0,
