@@ -10,27 +10,41 @@ layout (location = 1) in vec3 i_color;
 layout (location = 2) in vec3 i_normal;
 layout (location = 3) in vec3 i_light_pos;
 layout (location = 4) in vec3 i_view_from;
+layout (location = 5) in vec4 i_light_data;
+layout (location = 6) in vec3 i_light_look_at;
 
 layout (location = 0) out vec4 uFragColor;
 
 void main() {
     vec3 light_color = vec3(1.0);
-    vec3 norm = normalize(i_normal);
+    vec3 light_dir = normalize(i_light_pos - i_light_look_at);
+
+    float cutoff = i_light_data.x;
+    float constant = i_light_data.y;
+    float linear = i_light_data.z;
+    float quadratic = i_light_data.w;
 
     // Ambient
-    vec3 ambient = AMBIENT_LIGHT_STRENGTH * light_color;
-
+    vec3 ambient = (AMBIENT_LIGHT_STRENGTH * light_color) * i_color;
+    
     // Diffuse
-    vec3 light_dir = normalize(i_light_pos - i_pos);
-    float diff = max(dot(norm, light_dir), 0.0);
-    vec3 diffuse = diff * light_color;
+    vec3 norm = normalize(i_normal);
+    vec3 ray_dir = normalize(i_light_pos - i_pos);
+    float diff = max(dot(norm, ray_dir), 0.0);
+    vec3 diffuse = (diff * light_color) * i_color;
 
-    // Specular
-    vec3 view_dir = normalize(i_view_from - i_pos);
-    vec3 reflect_dir = reflect(-light_dir, norm);
-    float spec = pow(max(dot(view_dir, reflect_dir), 0.0), 32);
-    vec3 specular = SPECULAR_LIGHT_STRENGTH * spec * light_color; 
+    // spotlight
+    float theta = dot(ray_dir, -light_dir);
+    float outer_cutoff = cutoff * 1.2;
+    float epsilon = (cutoff - outer_cutoff);
+    float intensity = clamp((theta - outer_cutoff) / epsilon, 0.0, 1.0);
+    diffuse  *= intensity;
 
-    vec3 result = (ambient + diffuse + specular) * i_color;
+    // attenuation
+    float distance = length(i_light_pos - i_pos);
+    float attenuation = 1.0 / (constant + linear * distance + quadratic * (distance * distance));   
+    diffuse *= attenuation;
+
+    vec3 result = ambient + diffuse;
     uFragColor = vec4(result, 1.0);
 }

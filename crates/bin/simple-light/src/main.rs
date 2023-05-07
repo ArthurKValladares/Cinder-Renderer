@@ -146,9 +146,13 @@ impl LightData {
                 },
             )?,
             light_data_buffer: cinder.device.create_buffer_with_data(
-                &[LightGlobalLightData {
+                &[LitMeshGlobalLightData {
                     position: position.into(),
                     look_at: look_at.into(),
+                    cutoff: 12.5_f32.to_radians().cos(),
+                    constant: 1.0,
+                    linear: 0.35,
+                    quadratic: 0.44,
                 }],
                 BufferDescription {
                     usage: BufferUsage::UNIFORM,
