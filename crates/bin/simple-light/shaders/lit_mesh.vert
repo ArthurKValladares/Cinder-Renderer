@@ -25,17 +25,16 @@ layout(set = 1, binding = 0 ) uniform ModelUniformBufferObject {
 
 layout( push_constant ) uniform constants
 {
-    vec3 color;
-    // TODO: this should be in a buffer
-    vec3 view_from;
+    vec4 color;
+    vec4 view_from;
 } PushConstants;
 
 void main() {
     o_pos = vec3(m_ubo.model * vec4(i_pos, 1.0));
-    o_color = PushConstants.color;
+    o_color = vec3(PushConstants.color);
     o_normal = mat3(transpose(inverse(m_ubo.model))) * i_normal;
     o_light_pos = l_ubo.position;
-    o_view_from = PushConstants.view_from;
+    o_view_from = vec3(PushConstants.view_from);
 
     gl_Position = c_ubo.proj * c_ubo.view * m_ubo.model * vec4(i_pos, 1.0);
 }

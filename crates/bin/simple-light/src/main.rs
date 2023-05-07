@@ -403,7 +403,7 @@ impl HelloCube {
             BindGroup::new(&cinder.device, mesh_pipeline.bind_group_data(0).unwrap())?;
         let camera_light_bind_group =
             BindGroup::new(&cinder.device, light_pipeline.bind_group_data(0).unwrap())?;
-        let eye = Vec3::new(6.0, 4.0, 0.0);
+        let eye = Vec3::new(5.0, 5.0, 0.0);
         let front = (Vec3::zero() - eye).normalized();
         let aspect_ratio = surface_rect.width() as f32 / surface_rect.height() as f32;
         let camera_ubo_buffer = cinder.device.create_buffer_with_data(
@@ -550,8 +550,8 @@ impl HelloCube {
             &self.cinder.device,
             &self.mesh_pipeline,
             &[LitMeshConstants {
-                color: [161.0 / 255.0, 29.0 / 255.0, 194.0 / 255.0],
-                view_from: self.eye.into(),
+                color: [161.0 / 255.0, 29.0 / 255.0, 194.0 / 255.0, 0.0],
+                view_from: [self.eye.x(), self.eye.y(), self.eye.z(), 0.0],
             }],
             0,
         )?;
@@ -574,8 +574,9 @@ impl HelloCube {
         cmd_list.set_vertex_bytes(
             &self.cinder.device,
             &self.mesh_pipeline,
-            &[LightConstants {
-                color: [201.0 / 255.0, 114.0 / 255.0, 38.0 / 255.0],
+            &[LitMeshConstants {
+                color: [201.0 / 255.0, 114.0 / 255.0, 38.0 / 255.0, 0.0],
+                view_from: [self.eye.x(), self.eye.y(), self.eye.z(), 0.0],
             }],
             0,
         )?;

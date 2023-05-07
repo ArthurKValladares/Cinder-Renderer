@@ -15,12 +15,12 @@ layout (location = 0) out vec4 uFragColor;
 
 void main() {
     vec3 light_color = vec3(1.0);
+    vec3 norm = normalize(i_normal);
 
     // Ambient
     vec3 ambient = AMBIENT_LIGHT_STRENGTH * light_color;
 
     // Diffuse
-    vec3 norm = normalize(i_normal);
     vec3 light_dir = normalize(i_light_pos - i_pos);
     float diff = max(dot(norm, light_dir), 0.0);
     vec3 diffuse = diff * light_color;
