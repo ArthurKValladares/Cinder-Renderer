@@ -112,7 +112,13 @@ pub struct LightData {
 }
 
 impl LightData {
-    pub fn new(cinder: &Cinder, position: Vec3, look_at: Vec3, look_from: Vec3, aspect_ratio: f32) -> Result<Self> {
+    pub fn new(
+        cinder: &Cinder,
+        position: Vec3,
+        look_at: Vec3,
+        look_from: Vec3,
+        aspect_ratio: f32,
+    ) -> Result<Self> {
         let cylinder_mesh = geometry::SurfaceMesh::cylinder::<30>(0.3, 0.1);
 
         let ubo_buffer = cinder.device.create_buffer_with_data(
@@ -149,10 +155,6 @@ impl LightData {
                 &[LitMeshGlobalLightData {
                     position: position.into(),
                     look_at: look_at.into(),
-                    cutoff: 12.5_f32.to_radians().cos(),
-                    constant: 1.0,
-                    linear: 0.35,
-                    quadratic: 0.44,
                 }],
                 BufferDescription {
                     usage: BufferUsage::UNIFORM,
@@ -276,41 +278,41 @@ impl HelloCube {
                     i_normal: [0.0, 0.0, -1.0],
                 },
                 LitMeshVertex {
-                    i_pos: [-0.5,  0.5, -0.5],
+                    i_pos: [-0.5, 0.5, -0.5],
                     i_normal: [0.0, 0.0, -1.0],
                 },
                 LitMeshVertex {
-                    i_pos: [0.5,  0.5, -0.5],
+                    i_pos: [0.5, 0.5, -0.5],
                     i_normal: [0.0, 0.0, -1.0],
                 },
                 // Plane 2
                 LitMeshVertex {
-                    i_pos: [-0.5, -0.5,  0.5],
+                    i_pos: [-0.5, -0.5, 0.5],
                     i_normal: [0.0, 0.0, 1.0],
                 },
                 LitMeshVertex {
-                    i_pos: [0.5, -0.5,  0.5],
+                    i_pos: [0.5, -0.5, 0.5],
                     i_normal: [0.0, 0.0, 1.0],
                 },
                 LitMeshVertex {
-                    i_pos: [-0.5,  0.5,  0.5],
+                    i_pos: [-0.5, 0.5, 0.5],
                     i_normal: [0.0, 0.0, 1.0],
                 },
                 LitMeshVertex {
-                    i_pos: [0.5,  0.5,  0.5],
+                    i_pos: [0.5, 0.5, 0.5],
                     i_normal: [0.0, 0.0, 1.0],
                 },
                 // Plane 3
                 LitMeshVertex {
-                    i_pos: [-0.5,  0.5,  0.5],
+                    i_pos: [-0.5, 0.5, 0.5],
                     i_normal: [-1.0, 0.0, 0.0],
                 },
                 LitMeshVertex {
-                    i_pos: [-0.5,  0.5, -0.5],
+                    i_pos: [-0.5, 0.5, -0.5],
                     i_normal: [-1.0, 0.0, 0.0],
                 },
                 LitMeshVertex {
-                    i_pos: [-0.5, -0.5,  0.5],
+                    i_pos: [-0.5, -0.5, 0.5],
                     i_normal: [-1.0, 0.0, 0.0],
                 },
                 LitMeshVertex {
@@ -319,15 +321,15 @@ impl HelloCube {
                 },
                 // Plane 4
                 LitMeshVertex {
-                    i_pos: [0.5,  0.5,  0.5],
+                    i_pos: [0.5, 0.5, 0.5],
                     i_normal: [1.0, 0.0, 0.0],
                 },
                 LitMeshVertex {
-                    i_pos: [0.5,  0.5, -0.5],
+                    i_pos: [0.5, 0.5, -0.5],
                     i_normal: [1.0, 0.0, 0.0],
                 },
                 LitMeshVertex {
-                    i_pos: [0.5, -0.5,  0.5],
+                    i_pos: [0.5, -0.5, 0.5],
                     i_normal: [1.0, 0.0, 0.0],
                 },
                 LitMeshVertex {
@@ -344,28 +346,28 @@ impl HelloCube {
                     i_normal: [0.0, -1.0, 0.0],
                 },
                 LitMeshVertex {
-                    i_pos: [-0.5, -0.5,  0.5],
+                    i_pos: [-0.5, -0.5, 0.5],
                     i_normal: [0.0, -1.0, 0.0],
                 },
                 LitMeshVertex {
-                    i_pos: [0.5, -0.5,  0.5],
+                    i_pos: [0.5, -0.5, 0.5],
                     i_normal: [0.0, -1.0, 0.0],
                 },
                 // Plane 6
                 LitMeshVertex {
-                    i_pos: [-0.5,  0.5, -0.5],
+                    i_pos: [-0.5, 0.5, -0.5],
                     i_normal: [0.0, 1.0, 0.0],
                 },
                 LitMeshVertex {
-                    i_pos: [0.5,  0.5, -0.5],
+                    i_pos: [0.5, 0.5, -0.5],
                     i_normal: [0.0, 1.0, 0.0],
                 },
                 LitMeshVertex {
-                    i_pos: [-0.5,  0.5,  0.5],
+                    i_pos: [-0.5, 0.5, 0.5],
                     i_normal: [0.0, 1.0, 0.0],
                 },
                 LitMeshVertex {
-                    i_pos: [0.5,  0.5,  0.5],
+                    i_pos: [0.5, 0.5, 0.5],
                     i_normal: [0.0, 1.0, 0.0],
                 },
             ],

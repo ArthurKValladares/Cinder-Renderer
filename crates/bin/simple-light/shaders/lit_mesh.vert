@@ -8,8 +8,7 @@ layout (location = 1) out vec3 o_color;
 layout (location = 2) out vec3 o_normal;
 layout (location = 3) out vec3 o_light_pos;
 layout (location = 4) out vec3 o_view_from;
-layout (location = 5) out vec4 o_light_data;
-layout (location = 6) out vec3 o_light_look_at;
+layout (location = 5) out vec3 o_light_look_at;
 
 layout(set = 0, binding = 0) uniform CameraUniformBufferObject {
     mat4 view;
@@ -19,10 +18,6 @@ layout(set = 0, binding = 0) uniform CameraUniformBufferObject {
 layout(set = 0, binding = 1) uniform GlobalLightData {
     vec3 position;
     vec3 look_at;
-    float cutoff;
-    float constant;
-    float linear;
-    float quadratic;
 } l_ubo;
 
 layout(set = 1, binding = 0 ) uniform ModelUniformBufferObject {
@@ -43,7 +38,6 @@ void main() {
     o_light_pos = l_ubo.position;
     o_view_from = vec3(PushConstants.view_from);
     o_light_look_at = l_ubo.look_at;
-    o_light_data = vec4(l_ubo.cutoff, l_ubo.constant, l_ubo.linear, l_ubo.quadratic);
 
     gl_Position = c_ubo.proj * c_ubo.view * m_ubo.model * vec4(i_pos, 1.0);
 }
