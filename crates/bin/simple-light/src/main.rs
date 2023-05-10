@@ -527,6 +527,23 @@ impl HelloCube {
             .swapchain
             .acquire_image(&self.cinder.device, &cmd_list)?;
 
+        // Pass from light perspective
+        cmd_list.begin_rendering(
+            &self.cinder.device,
+            self.shadow_map_image.size.into(),
+            &[],
+            Some(RenderAttachment::depth(
+                &self.shadow_map_image,
+                RenderAttachmentDesc {
+                    layout: Layout::DepthAttachment,
+                    clear_value: ClearValue::default_depth(),
+                    ..Default::default()
+                },
+            )),
+        );
+        cmd_list.end_rendering(&self.cinder.device);
+
+        // Main Pass
         cmd_list.begin_rendering(
             &self.cinder.device,
             surface_rect,
