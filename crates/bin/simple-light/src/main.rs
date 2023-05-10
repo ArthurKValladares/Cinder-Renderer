@@ -123,8 +123,12 @@ impl LightData {
 
         let ubo_buffer = cinder.device.create_buffer_with_data(
             &[LitMeshCameraUniformBufferObject {
-                view: camera::look_to(position, position - look_at, Vec3::new(0.0, 1.0, 0.0))
-                    .into(),
+                view: camera::look_to(
+                    position,
+                    (position - look_at).normalized(),
+                    Vec3::new(0.0, 1.0, 0.0),
+                )
+                .into(),
                 proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 0.01).into(),
             }],
             BufferDescription {
@@ -165,13 +169,25 @@ impl LightData {
         })
     }
 
-    pub fn update(&mut self, angle: f32) -> Result<()> {
+    pub fn update(&mut self, angle: f32, aspect_ratio: f32) -> Result<()> {
         let p = Point2D::new(self.start_position.x(), self.start_position.z());
         let rotated_p = rotate_point(p, Point2D::zero(), angle);
         self.position = Vec3::new(rotated_p.x(), self.start_position.y(), rotated_p.y());
         self.light_data_buffer.mem_copy(0, &[self.position])?;
 
-        // TODO: Update UBO buffer
+        self.ubo_buffer.mem_copy(
+            0,
+            &[LitMeshCameraUniformBufferObject {
+                view: camera::look_to(
+                    self.position,
+                    (self.position - self.look_at).normalized(),
+                    Vec3::new(0.0, 1.0, 0.0),
+                )
+                .into(),
+                proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 0.01).into(),
+            }],
+        )?;
+
         Ok(())
     }
 
@@ -491,7 +507,10 @@ impl HelloCube {
             .ubo_buffer
             .mem_copy(0, &[Mat4::rotate(scale, Vec3::new(0.0, 1.0, 0.0))])?;
 
-        self.light_data.update(elapsed)?;
+        // TODO: Aspect ratio function in Cinder
+        let surface_rect = self.cinder.device.surface_rect();
+        let aspect_ratio = surface_rect.width() as f32 / surface_rect.height() as f32;
+        self.light_data.update(elapsed, aspect_ratio)?;
 
         Ok(())
     }
