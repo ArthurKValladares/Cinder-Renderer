@@ -9,6 +9,7 @@ layout (location = 2) out vec3 o_normal;
 layout (location = 3) out vec3 o_light_pos;
 layout (location = 4) out vec3 o_view_from;
 layout (location = 5) out vec3 o_light_look_at;
+layout (location = 6) out vec3 o_light_color;
 
 layout(set = 0, binding = 0) uniform CameraUniformBufferObject {
     mat4 view;
@@ -29,6 +30,7 @@ layout( push_constant ) uniform constants
     vec4 color;
     // TODO: Move this to a ubo
     vec4 view_from;
+    vec3 light_color;
 } PushConstants;
 
 void main() {
@@ -38,6 +40,7 @@ void main() {
     o_light_pos = l_ubo.position;
     o_view_from = vec3(PushConstants.view_from);
     o_light_look_at = l_ubo.look_at;
+    o_light_color = PushConstants.light_color.rgb;
 
     gl_Position = c_ubo.proj * c_ubo.view * m_ubo.model * vec4(i_pos, 1.0);
 }

@@ -543,6 +543,13 @@ impl HelloCube {
         );
         cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.mesh_pipeline);
 
+        let scale =
+            (self.cinder.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
+        let light_color = [
+            (scale.sin() + 1.0) / 2.0,
+            (scale.cos() + 1.0) / 2.0,
+            ((scale * 1.5).cos() + 1.0) / 2.0,
+        ];
         // Draw Cube
         cmd_list.bind_descriptor_sets(
             &self.cinder.device,
@@ -558,6 +565,7 @@ impl HelloCube {
             &[LitMeshConstants {
                 color: [161.0 / 255.0, 29.0 / 255.0, 194.0 / 255.0, 0.0],
                 view_from: [self.eye.x(), self.eye.y(), self.eye.z(), 0.0],
+                light_color,
             }],
             0,
         )?;
@@ -583,6 +591,7 @@ impl HelloCube {
             &[LitMeshConstants {
                 color: [201.0 / 255.0, 114.0 / 255.0, 38.0 / 255.0, 0.0],
                 view_from: [self.eye.x(), self.eye.y(), self.eye.z(), 0.0],
+                light_color,
             }],
             0,
         )?;
@@ -603,18 +612,7 @@ impl HelloCube {
         );
         cmd_list.bind_index_buffer(&self.cinder.device, &self.light_data.index_buffer);
         cmd_list.bind_vertex_buffer(&self.cinder.device, &self.light_data.vertex_buffer);
-        let scale =
-            (self.cinder.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
-        cmd_list.set_vertex_bytes(
-            &self.cinder.device,
-            &self.light_pipeline,
-            &Vec3::new(
-                (scale.sin() + 1.0) / 2.0,
-                (scale.cos() + 1.0) / 2.0,
-                ((scale * 1.5).cos() + 1.0) / 2.0,
-            ),
-            0,
-        )?;
+        cmd_list.set_vertex_bytes(&self.cinder.device, &self.light_pipeline, &light_color, 0)?;
         cmd_list.draw_offset(
             &self.cinder.device,
             self.light_data.index_buffer.num_elements().unwrap(),

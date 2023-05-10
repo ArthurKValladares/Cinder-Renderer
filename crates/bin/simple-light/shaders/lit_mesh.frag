@@ -11,11 +11,11 @@ layout (location = 2) in vec3 i_normal;
 layout (location = 3) in vec3 i_light_pos;
 layout (location = 4) in vec3 i_view_from;
 layout (location = 5) in vec3 i_light_look_at;
+layout (location = 6) in vec3 i_light_color;
 
 layout (location = 0) out vec4 uFragColor;
 
 void main() {
-    vec3 light_color = vec3(1.0);
     vec3 light_dir = normalize(i_light_pos - i_light_look_at);
     vec3 ray_dir = normalize(i_light_pos - i_pos);
 
@@ -26,7 +26,7 @@ void main() {
     float quadratic = 0.017;
 
     // Ambient
-    vec3 ambient = (AMBIENT_LIGHT_STRENGTH * light_color) * i_color;
+    vec3 ambient = (AMBIENT_LIGHT_STRENGTH * vec3(1.0)) * i_color;
     
     // spotlight
     float theta = acos(dot(ray_dir, light_dir));
@@ -38,7 +38,7 @@ void main() {
         float diff_cutoff = 0.05;
         if (diff > diff_cutoff) {
             // Diffuse
-            vec3 diffuse = diff * light_color * i_color;
+            vec3 diffuse = diff * i_light_color * i_color;
 
             // Intensity
             float inner_cutoff = cutoff * 0.75;
