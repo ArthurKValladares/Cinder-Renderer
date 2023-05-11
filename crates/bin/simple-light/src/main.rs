@@ -30,7 +30,9 @@ include!(concat!(
 ));
 
 struct MeshData {
+    // TODO: The BindGroup stuff here is insanely messy, will fix very soon
     bind_group: BindGroup,
+    shadow_bind_group: BindGroup,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     ubo_buffer: Buffer,
@@ -40,10 +42,13 @@ impl MeshData {
     pub fn new<T: Copy>(
         cinder: &Cinder,
         pipeline: &GraphicsPipeline,
+        shadow_pipeline: &GraphicsPipeline,
         vertex_buffer_data: &[T],
         index_buffer_data: &[u32],
     ) -> Result<Self> {
         let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(1).unwrap())?;
+        let shadow_bind_group =
+            BindGroup::new(&cinder.device, shadow_pipeline.bind_group_data(1).unwrap())?;
         let ubo_buffer = cinder.device.create_buffer(
             std::mem::size_of::<LitMeshModelUniformBufferObject>() as u64,
             BufferDescription {
@@ -56,6 +61,14 @@ impl MeshData {
             pipeline,
             &[BindGroupBindInfo {
                 group: bind_group,
+                dst_binding: 0,
+                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+            }],
+        )?;
+        cinder.device.write_bind_group(
+            shadow_pipeline,
+            &[BindGroupBindInfo {
+                group: shadow_bind_group,
                 dst_binding: 0,
                 data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
             }],
@@ -77,6 +90,7 @@ impl MeshData {
 
         Ok(Self {
             bind_group,
+            shadow_bind_group,
             vertex_buffer,
             index_buffer,
             ubo_buffer,
@@ -211,6 +225,7 @@ pub struct HelloCube {
     shadow_map_pipeline: GraphicsPipeline,
     camera_mesh_bind_group: BindGroup,
     camera_light_bind_group: BindGroup,
+    shadow_map_bind_group: BindGroup,
     cube_mesh_data: MeshData,
     plane_mesh_data: MeshData,
     light_data: LightData,
@@ -280,6 +295,7 @@ impl HelloCube {
             Some(&mesh_fragment_shader),
             GraphicsPipelineDescription {
                 depth_format: Some(Format::D32_SFloat),
+                backface_culling: false,
                 ..Default::default()
             },
         )?;
@@ -292,14 +308,20 @@ impl HelloCube {
             &shadow_map_vertex_shader,
             None,
             GraphicsPipelineDescription {
+                color_format: None,
                 depth_format: Some(Format::D32_SFloat),
                 ..Default::default()
             },
+        )?;
+        let shadow_map_bind_group = BindGroup::new(
+            &cinder.device,
+            shadow_map_pipeline.bind_group_data(0).unwrap(),
         )?;
 
         let cube_mesh_data = MeshData::new(
             &cinder,
             &mesh_pipeline,
+            &shadow_map_pipeline,
             &[
                 // Plane 1
                 LitMeshVertex {
@@ -417,6 +439,7 @@ impl HelloCube {
         let plane_mesh_data = MeshData::new(
             &cinder,
             &mesh_pipeline,
+            &shadow_map_pipeline,
             &[
                 LitMeshVertex {
                     i_pos: [-5.0, -1.0, 5.0],
@@ -494,6 +517,14 @@ impl HelloCube {
                 },
             ],
         )?;
+        cinder.device.write_bind_group(
+            &shadow_map_pipeline,
+            &[BindGroupBindInfo {
+                group: shadow_map_bind_group,
+                dst_binding: 0,
+                data: BindGroupWriteData::Uniform(light_data.ubo_buffer.bind_info()),
+            }],
+        )?;
 
         mesh_vertex_shader.destroy(&cinder.device);
         mesh_fragment_shader.destroy(&cinder.device);
@@ -511,6 +542,7 @@ impl HelloCube {
             camera_ubo_buffer,
             camera_mesh_bind_group,
             camera_light_bind_group,
+            shadow_map_bind_group,
             cube_mesh_data,
             plane_mesh_data,
             light_data,
@@ -564,13 +596,20 @@ impl HelloCube {
             )),
         );
         {
-            /*
+            cmd_list.bind_descriptor_sets(
+                &self.cinder.device,
+                &self.shadow_map_pipeline,
+                0,
+                &[self.shadow_map_bind_group],
+            );
+            cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.shadow_map_pipeline);
+
             // Draw Cube
             cmd_list.bind_descriptor_sets(
                 &self.cinder.device,
-                &self.mesh_pipeline,
+                &self.shadow_map_pipeline,
                 1,
-                &[self.cube_mesh_data.bind_group],
+                &[self.cube_mesh_data.shadow_bind_group],
             );
             cmd_list.bind_index_buffer(&self.cinder.device, &self.cube_mesh_data.index_buffer);
             cmd_list.bind_vertex_buffer(&self.cinder.device, &self.cube_mesh_data.vertex_buffer);
@@ -584,9 +623,9 @@ impl HelloCube {
             // Draw Plane
             cmd_list.bind_descriptor_sets(
                 &self.cinder.device,
-                &self.mesh_pipeline,
+                &self.shadow_map_pipeline,
                 1,
-                &[self.plane_mesh_data.bind_group],
+                &[self.plane_mesh_data.shadow_bind_group],
             );
             cmd_list.bind_index_buffer(&self.cinder.device, &self.plane_mesh_data.index_buffer);
             cmd_list.bind_vertex_buffer(&self.cinder.device, &self.plane_mesh_data.vertex_buffer);
@@ -596,7 +635,6 @@ impl HelloCube {
                 0,
                 0,
             );
-            */
         }
         cmd_list.end_rendering(&self.cinder.device);
 

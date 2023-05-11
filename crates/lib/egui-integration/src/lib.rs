@@ -71,7 +71,7 @@ impl EguiIntegration {
             &fragment_shader,
             GraphicsPipelineDescription {
                 blending: ColorBlendState::pma(),
-                surface_format: device.surface_data().format(),
+                color_format: device.surface_data().format(),
                 ..Default::default()
             },
         )?;

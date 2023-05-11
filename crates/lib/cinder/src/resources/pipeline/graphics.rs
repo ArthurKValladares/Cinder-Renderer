@@ -71,7 +71,7 @@ impl ColorBlendState {
 pub struct GraphicsPipelineDescription {
     pub name: Option<&'static str>, // TODO: Probably should have a lifetime
     pub blending: ColorBlendState,
-    pub surface_format: Format,
+    pub color_format: Option<Format>,
     pub depth_format: Option<Format>,
     pub backface_culling: bool,
 }
@@ -81,9 +81,9 @@ impl Default for GraphicsPipelineDescription {
         Self {
             name: None,
             blending: Default::default(),
-            surface_format: Format::B8G8R8A8_Unorm,
-            depth_format: Default::default(),
-            backface_culling: Default::default(),
+            color_format: Some(Format::B8G8R8A8_Unorm),
+            depth_format: None,
+            backface_culling: true,
         }
     }
 }
@@ -190,16 +190,23 @@ impl GraphicsPipeline {
             },
         ];
 
-        let surface_format = desc.surface_format.into();
-        let pipeline_rendering_ci = vk::PipelineRenderingCreateInfo::builder()
-            .color_attachment_formats(std::slice::from_ref(&surface_format));
-        let mut pipeline_rendering_ci = if let Some(depth_format) = desc.depth_format {
-            pipeline_rendering_ci
-                .depth_attachment_format(depth_format.into())
-                .build()
+        // TODO: I repeat this pattern in a few places, abstract it
+        let color_attachment_formats = if let Some(color_format) = desc.color_format {
+            [color_format.into()]
         } else {
-            pipeline_rendering_ci.build()
+            [Default::default()]
         };
+        let mut pipeline_rendering_ci = {
+            let mut builder = vk::PipelineRenderingCreateInfo::builder();
+            if desc.color_format.is_some() {
+                builder = builder.color_attachment_formats(&color_attachment_formats);
+            }
+            if let Some(depth_format) = desc.depth_format {
+                builder = builder.depth_attachment_format(depth_format.into());
+            }
+            builder.build()
+        };
+
         let graphic_pipeline_infos = vk::GraphicsPipelineCreateInfo::builder()
             .push_next(&mut pipeline_rendering_ci)
             .stages(if fragment_shader.is_some() {
