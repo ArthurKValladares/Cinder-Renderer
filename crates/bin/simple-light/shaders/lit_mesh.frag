@@ -19,42 +19,17 @@ void main() {
     vec3 light_dir = normalize(i_light_pos - i_light_look_at);
     vec3 ray_dir = normalize(i_light_pos - i_pos);
 
-    // Pretty hacky lighting calculations, just to show shadow maps working
-    float cutoff = 0.35;
-    float constant = 1.0;
-    float linear = 0.07;
-    float quadratic = 0.017;
-
     // Ambient
     vec3 ambient = (AMBIENT_LIGHT_STRENGTH * vec3(1.0)) * i_color;
     
-    // spotlight
+    // Spotlight
     float theta = acos(dot(ray_dir, light_dir));
-    if (theta < cutoff) {
-        vec3 norm = normalize(i_normal);
-        vec3 light_dir = normalize(i_light_pos - i_pos);
+    float cutoff = 0.35;
+    if (theta < cutoff) {    
+        // Diffuse
+        vec3 diffuse = max(dot(normalize(i_normal), light_dir), 0.0) * i_light_color * i_color;
 
-        float diff = max(dot(norm, light_dir), 0.0);
-        float diff_cutoff = 0.05;
-        if (diff > diff_cutoff) {
-            // Diffuse
-            vec3 diffuse = diff * i_light_color * i_color;
-
-            // Intensity
-            float inner_cutoff = cutoff * 0.75;
-            float epsilon = cutoff - inner_cutoff;
-            float intensity = clamp((cutoff - theta) / epsilon, 0.0, 1.0);
-            diffuse *= intensity;
-
-            // Attenuation
-            float distance = length(i_light_pos - i_pos);
-            float attenuation = 1.0 / (constant + linear * distance + quadratic * (distance * distance));   
-            diffuse *= attenuation;
-
-            uFragColor = vec4(diffuse + ambient, 1.0);
-        } else {
-            uFragColor = vec4(ambient, 1.0);    
-        }
+        uFragColor = vec4(diffuse + ambient, 1.0);
     } else {
         uFragColor = vec4(ambient, 1.0);
     }
