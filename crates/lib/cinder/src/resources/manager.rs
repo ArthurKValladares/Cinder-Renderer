@@ -118,20 +118,24 @@ impl ResourceManager {
         device: &Device,
         pipeline_handle: ResourceId<GraphicsPipeline>,
         vertex_handle: ResourceId<Shader>,
-        fragment_handle: ResourceId<Shader>,
+        fragment_handle: Option<ResourceId<Shader>>,
     ) -> Result<(), ResourceManagerError> {
         if let Some(old) = self.graphics_pipelines.get_mut(pipeline_handle) {
             let vertex_shader = self
                 .shaders
                 .get(vertex_handle)
                 .ok_or(ResourceManagerError::ResourceNotInCache)?;
-            let fragment_shader = self
-                .shaders
-                .get(fragment_handle)
-                .ok_or(ResourceManagerError::ResourceNotInCache)?;
-            let old_raw_pipeline = old
-                .recreate(vertex_shader, fragment_shader, device)
-                .map_err(ResourceManagerError::FallbackError)?;
+            let old_raw_pipeline = if let Some(fragment_handle) = fragment_handle {
+                let fragment_shader = self
+                    .shaders
+                    .get(fragment_handle)
+                    .ok_or(ResourceManagerError::ResourceNotInCache)?;
+                old.recreate(vertex_shader, Some(fragment_shader), device)
+            } else {
+                old.recreate(vertex_shader, None, device)
+            }
+            .map_err(ResourceManagerError::FallbackError)?;
+
             self.to_consume[device.current_frame_in_flight()]
                 .push(Resource::RawPipeline(old_raw_pipeline));
             Ok(())

@@ -35,4 +35,14 @@ fn main() {
         PathBuf::from("gen").join("lit_mesh_shader_structs.rs"),
         false,
     );
+
+    shader_compiler
+        .compile_and_write_shader("shaders/shadow_map.vert", ShaderStage::Vertex)
+        .expect("Could not compile shader");
+    rust_shader_tools::write_shader_structs(
+        &std::fs::read("./shaders/spv/shadow_map.vert.spv").unwrap(),
+        "ShadowMap",
+        PathBuf::from("gen").join("shadow_map_shader_structs.rs"),
+        false,
+    );
 }

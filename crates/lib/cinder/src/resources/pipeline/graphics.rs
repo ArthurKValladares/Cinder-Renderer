@@ -97,7 +97,7 @@ impl GraphicsPipeline {
     fn create_raw_pipeline(
         device: &Device,
         vertex_shader: &Shader,
-        fragment_shader: &Shader,
+        fragment_shader: Option<&Shader>,
         desc: &GraphicsPipelineDescription,
         pipeline_layout: vk::PipelineLayout,
     ) -> Result<vk::Pipeline> {
@@ -178,11 +178,15 @@ impl GraphicsPipeline {
                 stage: vk::ShaderStageFlags::VERTEX,
                 ..Default::default()
             },
-            vk::PipelineShaderStageCreateInfo {
-                module: fragment_shader.module,
-                p_name: shader_entry_name.as_ptr(),
-                stage: vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
+            if let Some(fragment_shader) = fragment_shader {
+                vk::PipelineShaderStageCreateInfo {
+                    module: fragment_shader.module,
+                    p_name: shader_entry_name.as_ptr(),
+                    stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                }
+            } else {
+                Default::default()
             },
         ];
 
@@ -198,7 +202,11 @@ impl GraphicsPipeline {
         };
         let graphic_pipeline_infos = vk::GraphicsPipelineCreateInfo::builder()
             .push_next(&mut pipeline_rendering_ci)
-            .stages(&shader_stage_create_infos)
+            .stages(if fragment_shader.is_some() {
+                &shader_stage_create_infos
+            } else {
+                &shader_stage_create_infos[..1]
+            })
             .vertex_input_state(&vertex_input_state_info)
             .input_assembly_state(&vertex_input_assembly_state_info)
             .viewport_state(&viewport_state_info)
@@ -235,14 +243,30 @@ impl GraphicsPipeline {
     pub(crate) fn create(
         device: &Device,
         vertex_shader: &Shader,
-        fragment_shader: &Shader,
+        fragment_shader: Option<&Shader>,
         desc: GraphicsPipelineDescription,
     ) -> Result<Self> {
         //
         // Pipeline stuff, pretty temp
         //
-        let (pipeline_layout, common_data) =
-            get_pipeline_layout(device, &[vertex_shader, fragment_shader], desc.name)?;
+        let default_shader = Shader::default();
+        let shaders = [
+            vertex_shader,
+            if let Some(fragment_shader) = fragment_shader {
+                fragment_shader
+            } else {
+                &default_shader
+            },
+        ];
+        let (pipeline_layout, common_data) = get_pipeline_layout(
+            device,
+            if fragment_shader.is_some() {
+                &shaders
+            } else {
+                &shaders[0..1]
+            },
+            desc.name,
+        )?;
 
         let pipeline = Self::create_raw_pipeline(
             device,
@@ -260,7 +284,7 @@ impl GraphicsPipeline {
     pub fn recreate(
         &mut self,
         vertex_shader: &Shader,
-        fragment_shader: &Shader,
+        fragment_shader: Option<&Shader>,
         device: &Device,
     ) -> Result<vk::Pipeline> {
         let new_pipeline = Self::create_raw_pipeline(

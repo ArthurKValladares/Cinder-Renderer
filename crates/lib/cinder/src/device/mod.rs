@@ -499,7 +499,7 @@ impl Device {
     pub fn create_graphics_pipeline(
         &self,
         vertex_shader: &Shader,
-        fragment_shader: &Shader,
+        fragment_shader: Option<&Shader>,
         desc: GraphicsPipelineDescription,
     ) -> Result<GraphicsPipeline> {
         GraphicsPipeline::create(self, vertex_shader, fragment_shader, desc)
@@ -510,7 +510,7 @@ impl Device {
         manager: &mut ResourceManager,
         pipeline_handle: ResourceId<GraphicsPipeline>,
         vertex_handle: ResourceId<Shader>,
-        fragment_handle: ResourceId<Shader>,
+        fragment_handle: Option<ResourceId<Shader>>,
     ) -> Result<()> {
         manager.recreate_graphics_pipeline(
             self,

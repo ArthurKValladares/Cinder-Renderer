@@ -54,6 +54,7 @@ pub struct ShaderDesc {
     pub name: Option<&'static str>,
 }
 
+#[derive(Default)]
 pub struct Shader {
     pub(crate) module: vk::ShaderModule,
     pub reflect_data: ShaderData,

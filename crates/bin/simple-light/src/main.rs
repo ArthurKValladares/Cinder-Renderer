@@ -20,10 +20,13 @@ include!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/gen/light_shader_structs.rs"
 ));
-
 include!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/gen/lit_mesh_shader_structs.rs"
+));
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/gen/shadow_map_shader_structs.rs"
 ));
 
 struct MeshData {
@@ -205,6 +208,7 @@ pub struct HelloCube {
     shadow_map_image: Image,
     mesh_pipeline: GraphicsPipeline,
     light_pipeline: GraphicsPipeline,
+    shadow_map_pipeline: GraphicsPipeline,
     camera_mesh_bind_group: BindGroup,
     camera_light_bind_group: BindGroup,
     cube_mesh_data: MeshData,
@@ -256,7 +260,7 @@ impl HelloCube {
         )?;
         let light_pipeline = cinder.device.create_graphics_pipeline(
             &light_vertex_shader,
-            &light_fragment_shader,
+            Some(&light_fragment_shader),
             GraphicsPipelineDescription {
                 depth_format: Some(Format::D32_SFloat),
                 ..Default::default()
@@ -273,7 +277,20 @@ impl HelloCube {
         )?;
         let mesh_pipeline = cinder.device.create_graphics_pipeline(
             &mesh_vertex_shader,
-            &mesh_fragment_shader,
+            Some(&mesh_fragment_shader),
+            GraphicsPipelineDescription {
+                depth_format: Some(Format::D32_SFloat),
+                ..Default::default()
+            },
+        )?;
+
+        let shadow_map_vertex_shader = cinder.device.create_shader(
+            include_bytes!("../shaders/spv/shadow_map.vert.spv"),
+            Default::default(),
+        )?;
+        let shadow_map_pipeline = cinder.device.create_graphics_pipeline(
+            &shadow_map_vertex_shader,
+            None,
             GraphicsPipelineDescription {
                 depth_format: Some(Format::D32_SFloat),
                 ..Default::default()
@@ -482,6 +499,7 @@ impl HelloCube {
         mesh_fragment_shader.destroy(&cinder.device);
         light_vertex_shader.destroy(&cinder.device);
         light_fragment_shader.destroy(&cinder.device);
+        shadow_map_vertex_shader.destroy(&cinder.device);
 
         Ok(Self {
             cinder,
@@ -489,6 +507,7 @@ impl HelloCube {
             shadow_map_image,
             mesh_pipeline,
             light_pipeline,
+            shadow_map_pipeline,
             camera_ubo_buffer,
             camera_mesh_bind_group,
             camera_light_bind_group,
@@ -527,6 +546,9 @@ impl HelloCube {
             .swapchain
             .acquire_image(&self.cinder.device, &cmd_list)?;
 
+        cmd_list.bind_viewport(&self.cinder.device, surface_rect, false);
+        cmd_list.bind_scissor(&self.cinder.device, surface_rect);
+
         // Pass from light perspective
         cmd_list.begin_rendering(
             &self.cinder.device,
@@ -541,6 +563,41 @@ impl HelloCube {
                 },
             )),
         );
+        {
+            /*
+            // Draw Cube
+            cmd_list.bind_descriptor_sets(
+                &self.cinder.device,
+                &self.mesh_pipeline,
+                1,
+                &[self.cube_mesh_data.bind_group],
+            );
+            cmd_list.bind_index_buffer(&self.cinder.device, &self.cube_mesh_data.index_buffer);
+            cmd_list.bind_vertex_buffer(&self.cinder.device, &self.cube_mesh_data.vertex_buffer);
+            cmd_list.draw_offset(
+                &self.cinder.device,
+                self.cube_mesh_data.index_buffer.num_elements().unwrap(),
+                0,
+                0,
+            );
+
+            // Draw Plane
+            cmd_list.bind_descriptor_sets(
+                &self.cinder.device,
+                &self.mesh_pipeline,
+                1,
+                &[self.plane_mesh_data.bind_group],
+            );
+            cmd_list.bind_index_buffer(&self.cinder.device, &self.plane_mesh_data.index_buffer);
+            cmd_list.bind_vertex_buffer(&self.cinder.device, &self.plane_mesh_data.vertex_buffer);
+            cmd_list.draw_offset(
+                &self.cinder.device,
+                self.plane_mesh_data.index_buffer.num_elements().unwrap(),
+                0,
+                0,
+            );
+            */
+        }
         cmd_list.end_rendering(&self.cinder.device);
 
         // Main Pass
@@ -566,96 +623,98 @@ impl HelloCube {
                 },
             )),
         );
+        {
+            // Bind Mesh Data
+            cmd_list.bind_descriptor_sets(
+                &self.cinder.device,
+                &self.mesh_pipeline,
+                0,
+                &[self.camera_mesh_bind_group],
+            );
+            cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.mesh_pipeline);
 
-        cmd_list.bind_viewport(&self.cinder.device, surface_rect, false);
-        cmd_list.bind_scissor(&self.cinder.device, surface_rect);
+            let scale = (self.cinder.init_time.elapsed().as_secs_f32() / 5.0)
+                * (2.0 * std::f32::consts::PI);
+            let light_color = [
+                (scale.sin() + 1.0) / 2.0,
+                (scale.cos() + 1.0) / 2.0,
+                ((scale * 1.5).cos() + 1.0) / 2.0,
+            ];
+            // Draw Cube
+            cmd_list.bind_descriptor_sets(
+                &self.cinder.device,
+                &self.mesh_pipeline,
+                1,
+                &[self.cube_mesh_data.bind_group],
+            );
+            cmd_list.bind_index_buffer(&self.cinder.device, &self.cube_mesh_data.index_buffer);
+            cmd_list.bind_vertex_buffer(&self.cinder.device, &self.cube_mesh_data.vertex_buffer);
+            cmd_list.set_vertex_bytes(
+                &self.cinder.device,
+                &self.mesh_pipeline,
+                &[LitMeshConstants {
+                    color: [161.0 / 255.0, 29.0 / 255.0, 194.0 / 255.0, 0.0],
+                    view_from: [self.eye.x(), self.eye.y(), self.eye.z(), 0.0],
+                    light_color,
+                }],
+                0,
+            )?;
+            cmd_list.draw_offset(
+                &self.cinder.device,
+                self.cube_mesh_data.index_buffer.num_elements().unwrap(),
+                0,
+                0,
+            );
 
-        // Bind Mesh Data
-        cmd_list.bind_descriptor_sets(
-            &self.cinder.device,
-            &self.mesh_pipeline,
-            0,
-            &[self.camera_mesh_bind_group],
-        );
-        cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.mesh_pipeline);
+            // Draw Plane
+            cmd_list.bind_descriptor_sets(
+                &self.cinder.device,
+                &self.mesh_pipeline,
+                1,
+                &[self.plane_mesh_data.bind_group],
+            );
+            cmd_list.bind_index_buffer(&self.cinder.device, &self.plane_mesh_data.index_buffer);
+            cmd_list.bind_vertex_buffer(&self.cinder.device, &self.plane_mesh_data.vertex_buffer);
+            cmd_list.set_vertex_bytes(
+                &self.cinder.device,
+                &self.mesh_pipeline,
+                &[LitMeshConstants {
+                    color: [201.0 / 255.0, 114.0 / 255.0, 38.0 / 255.0, 0.0],
+                    view_from: [self.eye.x(), self.eye.y(), self.eye.z(), 0.0],
+                    light_color,
+                }],
+                0,
+            )?;
+            cmd_list.draw_offset(
+                &self.cinder.device,
+                self.plane_mesh_data.index_buffer.num_elements().unwrap(),
+                0,
+                0,
+            );
 
-        let scale =
-            (self.cinder.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
-        let light_color = [
-            (scale.sin() + 1.0) / 2.0,
-            (scale.cos() + 1.0) / 2.0,
-            ((scale * 1.5).cos() + 1.0) / 2.0,
-        ];
-        // Draw Cube
-        cmd_list.bind_descriptor_sets(
-            &self.cinder.device,
-            &self.mesh_pipeline,
-            1,
-            &[self.cube_mesh_data.bind_group],
-        );
-        cmd_list.bind_index_buffer(&self.cinder.device, &self.cube_mesh_data.index_buffer);
-        cmd_list.bind_vertex_buffer(&self.cinder.device, &self.cube_mesh_data.vertex_buffer);
-        cmd_list.set_vertex_bytes(
-            &self.cinder.device,
-            &self.mesh_pipeline,
-            &[LitMeshConstants {
-                color: [161.0 / 255.0, 29.0 / 255.0, 194.0 / 255.0, 0.0],
-                view_from: [self.eye.x(), self.eye.y(), self.eye.z(), 0.0],
-                light_color,
-            }],
-            0,
-        )?;
-        cmd_list.draw_offset(
-            &self.cinder.device,
-            self.cube_mesh_data.index_buffer.num_elements().unwrap(),
-            0,
-            0,
-        );
-
-        // Draw Plane
-        cmd_list.bind_descriptor_sets(
-            &self.cinder.device,
-            &self.mesh_pipeline,
-            1,
-            &[self.plane_mesh_data.bind_group],
-        );
-        cmd_list.bind_index_buffer(&self.cinder.device, &self.plane_mesh_data.index_buffer);
-        cmd_list.bind_vertex_buffer(&self.cinder.device, &self.plane_mesh_data.vertex_buffer);
-        cmd_list.set_vertex_bytes(
-            &self.cinder.device,
-            &self.mesh_pipeline,
-            &[LitMeshConstants {
-                color: [201.0 / 255.0, 114.0 / 255.0, 38.0 / 255.0, 0.0],
-                view_from: [self.eye.x(), self.eye.y(), self.eye.z(), 0.0],
-                light_color,
-            }],
-            0,
-        )?;
-        cmd_list.draw_offset(
-            &self.cinder.device,
-            self.plane_mesh_data.index_buffer.num_elements().unwrap(),
-            0,
-            0,
-        );
-
-        // Draw Light
-        cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.light_pipeline);
-        cmd_list.bind_descriptor_sets(
-            &self.cinder.device,
-            &self.light_pipeline,
-            0,
-            &[self.camera_light_bind_group],
-        );
-        cmd_list.bind_index_buffer(&self.cinder.device, &self.light_data.index_buffer);
-        cmd_list.bind_vertex_buffer(&self.cinder.device, &self.light_data.vertex_buffer);
-        cmd_list.set_vertex_bytes(&self.cinder.device, &self.light_pipeline, &light_color, 0)?;
-        cmd_list.draw_offset(
-            &self.cinder.device,
-            self.light_data.index_buffer.num_elements().unwrap(),
-            0,
-            0,
-        );
-
+            // Draw Light
+            cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.light_pipeline);
+            cmd_list.bind_descriptor_sets(
+                &self.cinder.device,
+                &self.light_pipeline,
+                0,
+                &[self.camera_light_bind_group],
+            );
+            cmd_list.bind_index_buffer(&self.cinder.device, &self.light_data.index_buffer);
+            cmd_list.bind_vertex_buffer(&self.cinder.device, &self.light_data.vertex_buffer);
+            cmd_list.set_vertex_bytes(
+                &self.cinder.device,
+                &self.light_pipeline,
+                &light_color,
+                0,
+            )?;
+            cmd_list.draw_offset(
+                &self.cinder.device,
+                self.light_data.index_buffer.num_elements().unwrap(),
+                0,
+                0,
+            );
+        }
         cmd_list.end_rendering(&self.cinder.device);
 
         self.cinder
@@ -681,6 +740,7 @@ impl Drop for HelloCube {
         self.camera_ubo_buffer.destroy(&self.cinder.device);
         self.mesh_pipeline.destroy(&self.cinder.device);
         self.light_pipeline.destroy(&self.cinder.device);
+        self.shadow_map_pipeline.destroy(&self.cinder.device);
         self.depth_image.destroy(&self.cinder.device);
         self.shadow_map_image.destroy(&self.cinder.device);
         self.cube_mesh_data.cleanup(&self.cinder);
