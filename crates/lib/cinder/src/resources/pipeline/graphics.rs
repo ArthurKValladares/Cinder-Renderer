@@ -306,7 +306,7 @@ impl GraphicsPipeline {
         Ok(old)
     }
 
-    pub fn destroy(&mut self, device: &Device) {
+    pub fn destroy(&self, device: &Device) {
         self.common.destroy(device);
     }
 }

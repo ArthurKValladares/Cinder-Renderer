@@ -6,6 +6,7 @@ use cinder::{
         buffer::{vk, Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
+        sampler::Sampler,
     },
     Cinder,
 };
@@ -28,6 +29,85 @@ include!(concat!(
     env!("CARGO_MANIFEST_DIR"),
     "/gen/shadow_map_shader_structs.rs"
 ));
+include!(concat!(
+    env!("CARGO_MANIFEST_DIR"),
+    "/gen/shadow_map_quad_shader_structs.rs"
+));
+
+struct QuadData {
+    pipeline: GraphicsPipeline,
+    index_buffer: Buffer,
+    vertex_buffer: Buffer,
+    sampler: Sampler,
+}
+
+impl QuadData {
+    pub fn new(cinder: &Cinder) -> Result<Self> {
+        let vertex_shader = cinder.device.create_shader(
+            include_bytes!("../shaders/spv/shadow_map_quad.vert.spv"),
+            Default::default(),
+        )?;
+        let fragment_shader = cinder.device.create_shader(
+            include_bytes!("../shaders/spv/shadow_map_quad.frag.spv"),
+            Default::default(),
+        )?;
+        let pipeline = cinder.device.create_graphics_pipeline(
+            &vertex_shader,
+            Some(&fragment_shader),
+            Default::default(),
+        )?;
+
+        let vertex_buffer = cinder.device.create_buffer_with_data(
+            &[
+                ShadowMapQuadVertex {
+                    i_pos: [-1.0, -1.0],
+                    i_uv: [0.0, 1.0],
+                },
+                ShadowMapQuadVertex {
+                    i_pos: [-0.25, -1.0],
+                    i_uv: [1.0, 1.0],
+                },
+                ShadowMapQuadVertex {
+                    i_pos: [-0.25, -0.25],
+                    i_uv: [1.0, 0.0],
+                },
+                ShadowMapQuadVertex {
+                    i_pos: [-1.0, -0.25],
+                    i_uv: [0.0, 0.0],
+                },
+            ],
+            BufferDescription {
+                usage: BufferUsage::VERTEX,
+                ..Default::default()
+            },
+        )?;
+        let index_buffer = cinder.device.create_buffer_with_data(
+            &[0, 1, 2, 2, 3, 0],
+            BufferDescription {
+                usage: BufferUsage::INDEX,
+                ..Default::default()
+            },
+        )?;
+        let sampler = cinder.device.create_sampler(Default::default())?;
+
+        vertex_shader.destroy(&cinder.device);
+        fragment_shader.destroy(&cinder.device);
+
+        Ok(Self {
+            pipeline,
+            index_buffer,
+            vertex_buffer,
+            sampler,
+        })
+    }
+
+    pub fn cleanup(&self, cinder: &Cinder) {
+        self.index_buffer.destroy(&cinder.device);
+        self.vertex_buffer.destroy(&cinder.device);
+        self.pipeline.destroy(&cinder.device);
+        self.sampler.destroy(&cinder.device);
+    }
+}
 
 struct MeshData {
     // TODO: The BindGroup stuff here is insanely messy, will fix very soon
@@ -223,6 +303,7 @@ pub struct HelloCube {
     mesh_pipeline: GraphicsPipeline,
     light_pipeline: GraphicsPipeline,
     shadow_map_pipeline: GraphicsPipeline,
+    quad_data: QuadData,
     camera_mesh_bind_group: BindGroup,
     camera_light_bind_group: BindGroup,
     shadow_map_bind_group: BindGroup,
@@ -325,6 +406,8 @@ impl HelloCube {
             &cinder.device,
             shadow_map_pipeline.bind_group_data(0).unwrap(),
         )?;
+
+        let quad_data = QuadData::new(&cinder)?;
 
         let cube_mesh_data = MeshData::new(
             &cinder,
@@ -547,6 +630,7 @@ impl HelloCube {
             mesh_pipeline,
             light_pipeline,
             shadow_map_pipeline,
+            quad_data,
             camera_ubo_buffer,
             camera_mesh_bind_group,
             camera_light_bind_group,
@@ -800,6 +884,7 @@ impl Drop for HelloCube {
         self.cube_mesh_data.cleanup(&self.cinder);
         self.plane_mesh_data.cleanup(&self.cinder);
         self.light_data.cleanup(&self.cinder);
+        self.quad_data.cleanup(&self.cinder);
     }
 }
 

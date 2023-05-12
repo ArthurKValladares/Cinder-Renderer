@@ -58,7 +58,7 @@ pub struct Sampler {
 }
 
 impl Sampler {
-    pub fn destroy(&mut self, device: &Device) {
+    pub fn destroy(&self, device: &Device) {
         unsafe {
             device.raw().destroy_sampler(self.raw, None);
         }

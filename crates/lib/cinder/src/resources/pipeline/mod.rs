@@ -120,7 +120,7 @@ impl PipelineCommon {
         self.common_data.push_constants.get(&(shader_stage, idx))
     }
 
-    pub fn destroy(&mut self, device: &Device) {
+    pub fn destroy(&self, device: &Device) {
         self.common_data.destroy(device.raw());
         unsafe {
             device.raw().destroy_pipeline(self.pipeline, None);
