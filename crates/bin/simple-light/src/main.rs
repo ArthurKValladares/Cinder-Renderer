@@ -3,7 +3,7 @@ use cinder::{
     command_queue::{AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc},
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
-        buffer::{Buffer, BufferDescription, BufferUsage},
+        buffer::{vk, Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
     },
@@ -263,6 +263,14 @@ impl HelloCube {
                 usage: ImageUsage::DepthSampled,
                 ..Default::default()
             },
+        )?;
+        cinder.command_queue.transition_image(
+            &cinder.device,
+            &shadow_map_image,
+            // TODO: get rid of `vk`
+            vk::ImageAspectFlags::DEPTH,
+            vk::ImageLayout::UNDEFINED,
+            vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
         )?;
 
         let light_vertex_shader = cinder.device.create_shader(
@@ -767,6 +775,14 @@ impl HelloCube {
         self.shadow_map_image.resize(
             &self.cinder.device,
             Size2D::new((width as f32 / 2.0) as u32, (height as f32 / 2.0) as u32),
+        )?;
+        self.cinder.command_queue.transition_image(
+            &self.cinder.device,
+            &self.shadow_map_image,
+            // TODO: get rid of `vk`
+            vk::ImageAspectFlags::DEPTH,
+            vk::ImageLayout::UNDEFINED,
+            vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
         )?;
         Ok(())
     }
