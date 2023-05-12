@@ -45,4 +45,17 @@ fn main() {
         PathBuf::from("gen").join("shadow_map_shader_structs.rs"),
         false,
     );
+
+    shader_compiler
+        .compile_and_write_shader("shaders/shadow_map_quad.vert", ShaderStage::Vertex)
+        .expect("Could not compile shader");
+    shader_compiler
+        .compile_and_write_shader("shaders/shadow_map_quad.frag", ShaderStage::Fragment)
+        .expect("Could not compile shader");
+    rust_shader_tools::write_shader_structs(
+        &std::fs::read("./shaders/spv/shadow_map_quad.vert.spv").unwrap(),
+        "ShadowMapQuad",
+        PathBuf::from("gen").join("shadow_map_quad_shader_structs.rs"),
+        false,
+    );
 }
