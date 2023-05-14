@@ -91,7 +91,7 @@ impl Renderer {
         )?;
         let pipeline = cinder.device.create_graphics_pipeline(
             &vertex_shader,
-            &fragment_shader,
+            Some(&fragment_shader),
             GraphicsPipelineDescription {
                 depth_format: Some(Format::D32_SFloat),
                 ..Default::default()

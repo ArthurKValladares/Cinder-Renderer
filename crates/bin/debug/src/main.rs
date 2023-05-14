@@ -58,7 +58,7 @@ impl Renderer {
         )?;
         let pipeline = cinder.device.create_graphics_pipeline(
             &vertex_shader,
-            &fragment_shader,
+            Some(&fragment_shader),
             GraphicsPipelineDescription {
                 name: Some("Debug Graphics Pipeline"),
                 ..Default::default()

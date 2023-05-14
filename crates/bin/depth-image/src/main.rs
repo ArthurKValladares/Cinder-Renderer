@@ -81,7 +81,7 @@ impl Renderer {
         )?;
         let mesh_pipeline = cinder.device.create_graphics_pipeline(
             &mesh_vertex_shader,
-            &mesh_fragment_shader,
+            Some(&mesh_fragment_shader),
             GraphicsPipelineDescription {
                 depth_format: Some(Format::D32_SFloat),
                 ..Default::default()
@@ -100,7 +100,7 @@ impl Renderer {
         )?;
         let texture_pipeline = cinder.device.create_graphics_pipeline(
             &texture_vertex_shader,
-            &texture_fragment_shader,
+            Some(&texture_fragment_shader),
             Default::default(),
         )?;
         let texture_bind_group =

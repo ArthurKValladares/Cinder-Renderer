@@ -52,7 +52,7 @@ impl Renderer {
         )?;
         let pipeline = cinder.device.create_graphics_pipeline(
             &vertex_shader,
-            &fragment_shader,
+            Some(&fragment_shader),
             Default::default(),
         )?;
         let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(0).unwrap())?;

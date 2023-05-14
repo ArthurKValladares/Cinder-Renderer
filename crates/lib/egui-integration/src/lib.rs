@@ -68,10 +68,10 @@ impl EguiIntegration {
         )?;
         let pipeline = device.create_graphics_pipeline(
             &vertex_shader,
-            &fragment_shader,
+            Some(&fragment_shader),
             GraphicsPipelineDescription {
                 blending: ColorBlendState::pma(),
-                color_format: device.surface_data().format(),
+                color_format: Some(device.surface_data().format()),
                 ..Default::default()
             },
         )?;

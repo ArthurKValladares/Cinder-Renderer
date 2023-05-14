@@ -62,11 +62,7 @@ impl Renderer {
                 .shaders
                 .get(vertex_shader_handle)
                 .unwrap(),
-            cinder
-                .resource_manager
-                .shaders
-                .get(fragment_shader_handle)
-                .unwrap(),
+            cinder.resource_manager.shaders.get(fragment_shader_handle),
             Default::default(),
         )?;
         let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(0).unwrap())?;
@@ -223,7 +219,7 @@ impl Renderer {
                     &mut self.cinder.resource_manager,
                     pipeline_shader_set.pipeline_handle,
                     pipeline_shader_set.vertex_handle,
-                    pipeline_shader_set.fragment_handle,
+                    Some(pipeline_shader_set.fragment_handle),
                 )?;
             }
         }
