@@ -64,7 +64,7 @@ pub struct ResourceManager {
 
 impl ResourceManager {
     pub fn force_destroy(&mut self, device: &Device) {
-        for mut res in self.graphics_pipelines.drain() {
+        for res in self.graphics_pipelines.drain() {
             res.destroy(device);
         }
         for res in self.shaders.drain() {
@@ -76,7 +76,7 @@ impl ResourceManager {
         for res in self.buffers.drain() {
             res.destroy(device);
         }
-        for mut res in self.samplers.drain() {
+        for res in self.samplers.drain() {
             res.destroy(device);
         }
 

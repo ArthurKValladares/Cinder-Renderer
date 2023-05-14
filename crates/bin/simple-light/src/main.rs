@@ -213,7 +213,7 @@ impl LightData {
         cinder: &Cinder,
         position: Vec3,
         look_at: Vec3,
-        look_from: Vec3,
+        _look_from: Vec3,
         aspect_ratio: f32,
     ) -> Result<Self> {
         let cylinder_mesh = geometry::SurfaceMesh::cylinder::<30>(0.3, 0.1);
