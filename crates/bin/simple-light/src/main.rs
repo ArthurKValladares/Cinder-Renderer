@@ -414,6 +414,18 @@ impl HelloCube {
         )?;
 
         let quad_data = QuadData::new(&cinder)?;
+        cinder.device.write_bind_group(
+            &quad_data.pipeline,
+            &[BindGroupBindInfo {
+                group: quad_data.bind_group,
+                dst_binding: 0,
+                data: BindGroupWriteData::SampledImage(shadow_map_image.bind_info(
+                    &quad_data.sampler,
+                    Layout::DepthStencilReadOnly,
+                    None,
+                )),
+            }],
+        )?;
 
         let cube_mesh_data = MeshData::new(
             &cinder,
@@ -905,6 +917,18 @@ impl HelloCube {
             vk::ImageAspectFlags::DEPTH,
             vk::ImageLayout::UNDEFINED,
             vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+        )?;
+        self.cinder.device.write_bind_group(
+            &self.quad_data.pipeline,
+            &[BindGroupBindInfo {
+                group: self.quad_data.bind_group,
+                dst_binding: 0,
+                data: BindGroupWriteData::SampledImage(self.shadow_map_image.bind_info(
+                    &self.quad_data.sampler,
+                    Layout::DepthStencilReadOnly,
+                    None,
+                )),
+            }],
         )?;
         Ok(())
     }
