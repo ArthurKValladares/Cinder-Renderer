@@ -1,6 +1,8 @@
 use anyhow::Result;
 use cinder::{
-    command_queue::{AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc},
+    command_queue::{
+        AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc,
+    },
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{vk, Buffer, BufferDescription, BufferUsage},
@@ -845,6 +847,22 @@ impl HelloCube {
                 0,
             );
         }
+        cmd_list.end_rendering(&self.cinder.device);
+
+        // Depth image render pass
+        cmd_list.begin_rendering(
+            &self.cinder.device,
+            surface_rect,
+            &[RenderAttachment::color(
+                swapchain_image,
+                RenderAttachmentDesc {
+                    load_op: AttachmentLoadOp::Load,
+                    ..Default::default()
+                },
+            )],
+            None,
+        );
+        {}
         cmd_list.end_rendering(&self.cinder.device);
 
         self.cinder
