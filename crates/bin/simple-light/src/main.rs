@@ -870,7 +870,7 @@ impl HelloCube {
             cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.quad_data.pipeline);
             cmd_list.bind_descriptor_sets(
                 &self.cinder.device,
-                &self.light_pipeline,
+                &self.quad_data.pipeline,
                 0,
                 &[self.quad_data.bind_group],
             );
