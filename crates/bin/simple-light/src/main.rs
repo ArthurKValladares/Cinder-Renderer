@@ -40,6 +40,7 @@ struct QuadData {
     pipeline: GraphicsPipeline,
     index_buffer: Buffer,
     vertex_buffer: Buffer,
+    bind_group: BindGroup,
     sampler: Sampler,
 }
 
@@ -92,6 +93,8 @@ impl QuadData {
         )?;
         let sampler = cinder.device.create_sampler(Default::default())?;
 
+        let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(0).unwrap())?;
+
         vertex_shader.destroy(&cinder.device);
         fragment_shader.destroy(&cinder.device);
 
@@ -99,6 +102,7 @@ impl QuadData {
             pipeline,
             index_buffer,
             vertex_buffer,
+            bind_group,
             sampler,
         })
     }
@@ -862,7 +866,23 @@ impl HelloCube {
             )],
             None,
         );
-        {}
+        {
+            cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.quad_data.pipeline);
+            cmd_list.bind_descriptor_sets(
+                &self.cinder.device,
+                &self.light_pipeline,
+                0,
+                &[self.quad_data.bind_group],
+            );
+            cmd_list.bind_index_buffer(&self.cinder.device, &self.quad_data.index_buffer);
+            cmd_list.bind_vertex_buffer(&self.cinder.device, &self.quad_data.vertex_buffer);
+            cmd_list.draw_offset(
+                &self.cinder.device,
+                self.quad_data.index_buffer.num_elements().unwrap(),
+                0,
+                0,
+            );
+        }
         cmd_list.end_rendering(&self.cinder.device);
 
         self.cinder
