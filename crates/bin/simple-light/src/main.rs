@@ -699,6 +699,7 @@ impl HelloCube {
             Some(RenderAttachment::depth(
                 &self.shadow_map_image,
                 RenderAttachmentDesc {
+                    store_op: AttachmentStoreOp::Store,
                     layout: Layout::DepthAttachment,
                     clear_value: ClearValue::default_depth(),
                     ..Default::default()
