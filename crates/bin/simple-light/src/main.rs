@@ -64,19 +64,19 @@ impl QuadData {
             &[
                 ShadowMapQuadVertex {
                     i_pos: [-1.0, -1.0],
-                    i_uv: [0.0, 1.0],
+                    i_uv: [0.0, 0.0],
                 },
                 ShadowMapQuadVertex {
                     i_pos: [-0.25, -1.0],
-                    i_uv: [1.0, 1.0],
-                },
-                ShadowMapQuadVertex {
-                    i_pos: [-0.25, -0.25],
                     i_uv: [1.0, 0.0],
                 },
                 ShadowMapQuadVertex {
+                    i_pos: [-0.25, -0.25],
+                    i_uv: [1.0, 1.0],
+                },
+                ShadowMapQuadVertex {
                     i_pos: [-1.0, -0.25],
-                    i_uv: [0.0, 0.0],
+                    i_uv: [0.0, 1.0],
                 },
             ],
             BufferDescription {
@@ -127,7 +127,6 @@ impl MeshData {
     pub fn new<T: Copy>(
         cinder: &Cinder,
         pipeline: &GraphicsPipeline,
-        shadow_pipeline: &GraphicsPipeline,
         vertex_buffer_data: &[T],
         index_buffer_data: &[u32],
     ) -> Result<Self> {
@@ -331,10 +330,7 @@ impl HelloCube {
             },
         )?;
         let shadow_map_image = cinder.device.create_image(
-            Size2D::new(
-                (surface_rect.width() as f32 / 2.0) as u32,
-                (surface_rect.height() as f32 / 2.0) as u32,
-            ),
+            Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFloat,
                 usage: ImageUsage::DepthSampled,
@@ -395,6 +391,7 @@ impl HelloCube {
             GraphicsPipelineDescription {
                 color_format: None,
                 depth_format: Some(Format::D32_SFloat),
+                backface_culling: false,
                 ..Default::default()
             },
         )?;
@@ -420,7 +417,6 @@ impl HelloCube {
         let cube_mesh_data = MeshData::new(
             &cinder,
             &mesh_pipeline,
-            &shadow_map_pipeline,
             &[
                 // Plane 1
                 LitMeshVertex {
@@ -538,7 +534,6 @@ impl HelloCube {
         let plane_mesh_data = MeshData::new(
             &cinder,
             &mesh_pipeline,
-            &shadow_map_pipeline,
             &[
                 LitMeshVertex {
                     i_pos: [-5.0, -1.0, 5.0],
@@ -564,6 +559,7 @@ impl HelloCube {
             BindGroup::new(&cinder.device, mesh_pipeline.bind_group_data(0).unwrap())?;
         let camera_light_bind_group =
             BindGroup::new(&cinder.device, light_pipeline.bind_group_data(0).unwrap())?;
+
         let eye = Vec3::new(4.0, 4.0, 0.0);
         let front = (Vec3::zero() - eye).normalized();
         let aspect_ratio = surface_rect.width() as f32 / surface_rect.height() as f32;
@@ -621,7 +617,7 @@ impl HelloCube {
             &[BindGroupBindInfo {
                 group: shadow_map_bind_group,
                 dst_binding: 0,
-                data: BindGroupWriteData::Uniform(light_data.ubo_buffer.bind_info()),
+                data: BindGroupWriteData::Uniform(camera_ubo_buffer.bind_info()), // TODO: Revert
             }],
         )?;
 
@@ -900,10 +896,8 @@ impl HelloCube {
         self.cinder.resize(width, height)?;
         self.depth_image
             .resize(&self.cinder.device, Size2D::new(width, height))?;
-        self.shadow_map_image.resize(
-            &self.cinder.device,
-            Size2D::new((width as f32 / 2.0) as u32, (height as f32 / 2.0) as u32),
-        )?;
+        self.shadow_map_image
+            .resize(&self.cinder.device, Size2D::new(width, height))?;
         self.cinder.command_queue.transition_image(
             &self.cinder.device,
             &self.shadow_map_image,
