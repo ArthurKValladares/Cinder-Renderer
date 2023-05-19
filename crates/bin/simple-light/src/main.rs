@@ -318,6 +318,7 @@ pub struct HelloCube {
     light_data: LightData,
     camera_ubo_buffer: Buffer,
     eye: Vec3,
+    show_shadow_map_image: bool,
 }
 
 impl HelloCube {
@@ -574,7 +575,7 @@ impl HelloCube {
             BindGroup::new(&cinder.device, mesh_pipeline.bind_group_data(0).unwrap())?;
         let camera_light_bind_group =
             BindGroup::new(&cinder.device, light_pipeline.bind_group_data(0).unwrap())?;
-        let eye = Vec3::new(5.0, 5.0, 0.0);
+        let eye = Vec3::new(4.0, 4.0, 0.0);
         let front = (Vec3::zero() - eye).normalized();
         let aspect_ratio = surface_rect.width() as f32 / surface_rect.height() as f32;
         let camera_ubo_buffer = cinder.device.create_buffer_with_data(
@@ -657,6 +658,7 @@ impl HelloCube {
             plane_mesh_data,
             light_data,
             eye,
+            show_shadow_map_image: true,
         })
     }
 
@@ -866,37 +868,39 @@ impl HelloCube {
         }
         cmd_list.end_rendering(&self.cinder.device);
 
-        // Depth image render pass
-        cmd_list.begin_rendering(
-            &self.cinder.device,
-            surface_rect,
-            &[RenderAttachment::color(
-                swapchain_image,
-                RenderAttachmentDesc {
-                    load_op: AttachmentLoadOp::Load,
-                    ..Default::default()
-                },
-            )],
-            None,
-        );
-        {
-            cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.quad_data.pipeline);
-            cmd_list.bind_descriptor_sets(
+        if self.show_shadow_map_image {
+            // Depth image render pass
+            cmd_list.begin_rendering(
                 &self.cinder.device,
-                &self.quad_data.pipeline,
-                0,
-                &[self.quad_data.bind_group],
+                surface_rect,
+                &[RenderAttachment::color(
+                    swapchain_image,
+                    RenderAttachmentDesc {
+                        load_op: AttachmentLoadOp::Load,
+                        ..Default::default()
+                    },
+                )],
+                None,
             );
-            cmd_list.bind_index_buffer(&self.cinder.device, &self.quad_data.index_buffer);
-            cmd_list.bind_vertex_buffer(&self.cinder.device, &self.quad_data.vertex_buffer);
-            cmd_list.draw_offset(
-                &self.cinder.device,
-                self.quad_data.index_buffer.num_elements().unwrap(),
-                0,
-                0,
-            );
+            {
+                cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.quad_data.pipeline);
+                cmd_list.bind_descriptor_sets(
+                    &self.cinder.device,
+                    &self.quad_data.pipeline,
+                    0,
+                    &[self.quad_data.bind_group],
+                );
+                cmd_list.bind_index_buffer(&self.cinder.device, &self.quad_data.index_buffer);
+                cmd_list.bind_vertex_buffer(&self.cinder.device, &self.quad_data.vertex_buffer);
+                cmd_list.draw_offset(
+                    &self.cinder.device,
+                    self.quad_data.index_buffer.num_elements().unwrap(),
+                    0,
+                    0,
+                );
+            }
+            cmd_list.end_rendering(&self.cinder.device);
         }
-        cmd_list.end_rendering(&self.cinder.device);
 
         self.cinder
             .swapchain
@@ -975,6 +979,12 @@ fn main() {
                     ..
                 } => {
                     break 'running;
+                }
+                Event::KeyDown {
+                    keycode: Some(Keycode::S),
+                    ..
+                } => {
+                    renderer.show_shadow_map_image = !renderer.show_shadow_map_image;
                 }
                 Event::Window {
                     win_event: sdl2::event::WindowEvent::SizeChanged(width, height),
