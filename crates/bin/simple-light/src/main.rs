@@ -213,10 +213,10 @@ impl LightData {
         let cylinder_mesh = geometry::SurfaceMesh::cylinder::<30>(0.3, 0.1);
 
         let ubo_buffer = cinder.device.create_buffer_with_data(
-            &[LitMeshCameraUniformBufferObject {
+            &[ShadowMapCameraUniformBufferObject {
                 view: camera::look_to(
                     position,
-                    (position - look_at).normalized(),
+                    (look_at - position).normalized(),
                     Vec3::new(0.0, 1.0, 0.0),
                 )
                 .into(),
@@ -271,7 +271,7 @@ impl LightData {
             &[LitMeshCameraUniformBufferObject {
                 view: camera::look_to(
                     self.position,
-                    (self.position - self.look_at).normalized(),
+                    (self.look_at - self.position).normalized(),
                     Vec3::new(0.0, 1.0, 0.0),
                 )
                 .into(),
@@ -617,7 +617,7 @@ impl HelloCube {
             &[BindGroupBindInfo {
                 group: shadow_map_bind_group,
                 dst_binding: 0,
-                data: BindGroupWriteData::Uniform(camera_ubo_buffer.bind_info()), // TODO: Revert
+                data: BindGroupWriteData::Uniform(light_data.ubo_buffer.bind_info()),
             }],
         )?;
 
