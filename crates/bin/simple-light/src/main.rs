@@ -118,7 +118,6 @@ impl QuadData {
 struct MeshData {
     // TODO: The BindGroup stuff here is insanely messy, will fix very soon
     bind_group: BindGroup,
-    shadow_bind_group: BindGroup,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     ubo_buffer: Buffer,
@@ -133,8 +132,6 @@ impl MeshData {
         index_buffer_data: &[u32],
     ) -> Result<Self> {
         let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(1).unwrap())?;
-        let shadow_bind_group =
-            BindGroup::new(&cinder.device, shadow_pipeline.bind_group_data(1).unwrap())?;
         let ubo_buffer = cinder.device.create_buffer(
             std::mem::size_of::<LitMeshModelUniformBufferObject>() as u64,
             BufferDescription {
@@ -151,14 +148,7 @@ impl MeshData {
                 data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
             }],
         )?;
-        cinder.device.write_bind_group(
-            shadow_pipeline,
-            &[BindGroupBindInfo {
-                group: shadow_bind_group,
-                dst_binding: 0,
-                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-            }],
-        )?;
+
         let vertex_buffer = cinder.device.create_buffer_with_data(
             vertex_buffer_data,
             BufferDescription {
@@ -176,7 +166,6 @@ impl MeshData {
 
         Ok(Self {
             bind_group,
-            shadow_bind_group,
             vertex_buffer,
             index_buffer,
             ubo_buffer,
@@ -722,7 +711,7 @@ impl HelloCube {
                 &self.cinder.device,
                 &self.shadow_map_pipeline,
                 1,
-                &[self.cube_mesh_data.shadow_bind_group],
+                &[self.cube_mesh_data.bind_group],
             );
             cmd_list.bind_index_buffer(&self.cinder.device, &self.cube_mesh_data.index_buffer);
             cmd_list.bind_vertex_buffer(&self.cinder.device, &self.cube_mesh_data.vertex_buffer);
@@ -738,7 +727,7 @@ impl HelloCube {
                 &self.cinder.device,
                 &self.shadow_map_pipeline,
                 1,
-                &[self.plane_mesh_data.shadow_bind_group],
+                &[self.plane_mesh_data.bind_group],
             );
             cmd_list.bind_index_buffer(&self.cinder.device, &self.plane_mesh_data.index_buffer);
             cmd_list.bind_vertex_buffer(&self.cinder.device, &self.plane_mesh_data.vertex_buffer);
