@@ -15,7 +15,7 @@ use ash::vk;
 use std::collections::{BTreeMap, HashMap};
 use thiserror::Error;
 
-use super::bind_group::BindGroupSet;
+use super::bind_group::{BindGroupData, BindGroupMap, BindGroupSet};
 
 // TODO: Can refactor a bunch of pipeline stuff
 #[derive(Debug, Error)]
@@ -26,31 +26,6 @@ pub enum PipelineError {
     InvalidPipelineHandle,
     #[error("no bound pipeline")]
     NoBoundPipeline,
-}
-
-#[derive(Debug)]
-pub struct BindGroupData {
-    pub count: u32,
-    pub layout: BindGroupLayout,
-}
-
-impl BindGroupData {
-    pub fn destroy(&self, device: &ash::Device) {
-        self.layout.destroy(device);
-    }
-}
-
-#[derive(Debug, Default)]
-pub struct BindGroupMap {
-    map: BTreeMap<usize, BindGroupData>,
-}
-
-impl BindGroupMap {
-    pub fn destroy(&self, device: &ash::Device) {
-        for (_, layout) in &self.map {
-            layout.destroy(device);
-        }
-    }
 }
 
 #[derive(Debug, Default)]

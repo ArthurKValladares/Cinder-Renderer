@@ -4,8 +4,7 @@ use crate::{
 };
 use anyhow::Result;
 use ash::vk;
-
-use super::pipeline::BindGroupData;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Copy, Clone)]
 pub enum BindGroupType {
@@ -191,5 +190,30 @@ impl BindGroup {
 
     pub(crate) fn set_name(&self, device: &Device, name: &str) {
         device.set_name(vk::ObjectType::DESCRIPTOR_SET, self.0, name);
+    }
+}
+
+#[derive(Debug)]
+pub struct BindGroupData {
+    pub count: u32,
+    pub layout: BindGroupLayout,
+}
+
+impl BindGroupData {
+    pub fn destroy(&self, device: &ash::Device) {
+        self.layout.destroy(device);
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct BindGroupMap {
+    pub map: BTreeMap<usize, BindGroupData>,
+}
+
+impl BindGroupMap {
+    pub fn destroy(&self, device: &ash::Device) {
+        for layout in self.map.values() {
+            layout.destroy(device);
+        }
     }
 }
