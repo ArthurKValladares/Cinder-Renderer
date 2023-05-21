@@ -4,7 +4,7 @@ use cinder::{
         AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc,
     },
     resources::{
-        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
+        bind_group::{BindGroup, BindGroupBindInfo, BindGroupData, BindGroupWriteData},
         buffer::{vk, Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
@@ -36,30 +36,19 @@ include!(concat!(
     "/gen/shadow_map_quad_shader_structs.rs"
 ));
 
-struct QuadData {
-    pipeline: GraphicsPipeline,
+struct TexturedQuadData {
     index_buffer: Buffer,
     vertex_buffer: Buffer,
-    bind_group: BindGroup,
-    sampler: Sampler,
 }
 
-impl QuadData {
-    pub fn new(cinder: &Cinder) -> Result<Self> {
-        let vertex_shader = cinder.device.create_shader(
-            include_bytes!("../shaders/spv/shadow_map_quad.vert.spv"),
-            Default::default(),
-        )?;
-        let fragment_shader = cinder.device.create_shader(
-            include_bytes!("../shaders/spv/shadow_map_quad.frag.spv"),
-            Default::default(),
-        )?;
-        let pipeline = cinder.device.create_graphics_pipeline(
-            &vertex_shader,
-            Some(&fragment_shader),
-            Default::default(),
-        )?;
-
+impl TexturedQuadData {
+    pub fn new(
+        cinder: &Cinder,
+        pipeline: &GraphicsPipeline,
+        bind_group: BindGroup,
+        image: &Image,
+        sampler: &Sampler,
+    ) -> Result<Self> {
         let vertex_buffer = cinder.device.create_buffer_with_data(
             &[
                 ShadowMapQuadVertex {
@@ -91,36 +80,34 @@ impl QuadData {
                 ..Default::default()
             },
         )?;
-        let sampler = cinder.device.create_sampler(Default::default())?;
 
-        let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(0).unwrap())?;
-
-        vertex_shader.destroy(&cinder.device);
-        fragment_shader.destroy(&cinder.device);
+        cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::SampledImage(image.bind_info(
+                sampler,
+                Layout::DepthStencilReadOnly,
+                None,
+            )),
+        }])?;
 
         Ok(Self {
-            pipeline,
             index_buffer,
             vertex_buffer,
-            bind_group,
-            sampler,
         })
     }
 
     pub fn cleanup(&self, cinder: &Cinder) {
         self.index_buffer.destroy(&cinder.device);
         self.vertex_buffer.destroy(&cinder.device);
-        self.pipeline.destroy(&cinder.device);
-        self.sampler.destroy(&cinder.device);
     }
 }
 
 struct MeshData {
-    // TODO: The BindGroup stuff here is insanely messy, will fix very soon
-    bind_group: BindGroup,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
-    ubo_buffer: Buffer,
+    model_bind_group: BindGroup,
+    model_transform_buffer: Buffer,
 }
 
 impl MeshData {
@@ -130,24 +117,6 @@ impl MeshData {
         vertex_buffer_data: &[T],
         index_buffer_data: &[u32],
     ) -> Result<Self> {
-        let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(1).unwrap())?;
-        let ubo_buffer = cinder.device.create_buffer(
-            std::mem::size_of::<LitMeshModelUniformBufferObject>() as u64,
-            BufferDescription {
-                usage: BufferUsage::UNIFORM,
-                ..Default::default()
-            },
-        )?;
-        ubo_buffer.mem_copy(0, &[Mat4::identity()])?;
-        cinder.device.write_bind_group(
-            pipeline,
-            &[BindGroupBindInfo {
-                group: bind_group,
-                dst_binding: 0,
-                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-            }],
-        )?;
-
         let vertex_buffer = cinder.device.create_buffer_with_data(
             vertex_buffer_data,
             BufferDescription {
@@ -163,18 +132,35 @@ impl MeshData {
             },
         )?;
 
+        let model_bind_group =
+            BindGroup::new(&cinder.device, &pipeline.bind_group_data(1).unwrap())?;
+
+        let model_transform_buffer = cinder.device.create_buffer(
+            std::mem::size_of::<LitMeshModelUniformBufferObject>() as u64,
+            BufferDescription {
+                usage: BufferUsage::UNIFORM,
+                ..Default::default()
+            },
+        )?;
+        model_transform_buffer.mem_copy(0, &[Mat4::identity()])?;
+        cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: model_bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::Uniform(model_transform_buffer.bind_info()),
+        }])?;
+
         Ok(Self {
-            bind_group,
             vertex_buffer,
             index_buffer,
-            ubo_buffer,
+            model_bind_group,
+            model_transform_buffer,
         })
     }
 
     pub fn cleanup(&self, cinder: &Cinder) {
         self.index_buffer.destroy(&cinder.device);
         self.vertex_buffer.destroy(&cinder.device);
-        self.ubo_buffer.destroy(&cinder.device);
+        self.model_transform_buffer.destroy(&cinder.device);
     }
 }
 
@@ -196,34 +182,44 @@ pub struct LightData {
     start_position: Vec3,
     position: Vec3,
     look_at: Vec3,
+    data_buffer: Buffer,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
-    light_data_buffer: Buffer,
-    ubo_buffer: Buffer,
 }
 
 impl LightData {
-    pub fn new(
-        cinder: &Cinder,
-        position: Vec3,
-        look_at: Vec3,
-        _look_from: Vec3,
-        aspect_ratio: f32,
-    ) -> Result<Self> {
+    fn new(cinder: &Cinder, camera: &CameraData, position: Vec3, look_at: Vec3) -> Result<Self> {
         let cylinder_mesh = geometry::SurfaceMesh::cylinder::<30>(0.3, 0.1);
 
-        let ubo_buffer = cinder.device.create_buffer_with_data(
-            &[ShadowMapCameraUniformBufferObject {
-                view: camera::look_to(
-                    position,
-                    (look_at - position).normalized(),
-                    Vec3::new(0.0, 1.0, 0.0),
-                )
-                .into(),
-                proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 0.01).into(),
+        let data_buffer = cinder.device.create_buffer_with_data(
+            &[LitMeshGlobalLightData {
+                position: position.into(),
+                look_at: look_at.into(),
             }],
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
+                ..Default::default()
+            },
+        )?;
+
+        cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: camera.bind_group,
+            dst_binding: 1,
+            data: BindGroupWriteData::Uniform(data_buffer.bind_info()),
+        }])?;
+
+        let vertex_buffer = cinder.device.create_buffer_with_data(
+            &cylinder_mesh.vertices,
+            BufferDescription {
+                usage: BufferUsage::VERTEX,
+                ..Default::default()
+            },
+        )?;
+
+        let index_buffer = cinder.device.create_buffer_with_data(
+            &cylinder_mesh.indices,
+            BufferDescription {
+                usage: BufferUsage::INDEX,
                 ..Default::default()
             },
         )?;
@@ -232,31 +228,9 @@ impl LightData {
             start_position: position,
             position,
             look_at,
-            vertex_buffer: cinder.device.create_buffer_with_data(
-                &cylinder_mesh.vertices,
-                BufferDescription {
-                    usage: BufferUsage::VERTEX,
-                    ..Default::default()
-                },
-            )?,
-            index_buffer: cinder.device.create_buffer_with_data(
-                &cylinder_mesh.indices,
-                BufferDescription {
-                    usage: BufferUsage::INDEX,
-                    ..Default::default()
-                },
-            )?,
-            light_data_buffer: cinder.device.create_buffer_with_data(
-                &[LitMeshGlobalLightData {
-                    position: position.into(),
-                    look_at: look_at.into(),
-                }],
-                BufferDescription {
-                    usage: BufferUsage::UNIFORM,
-                    ..Default::default()
-                },
-            )?,
-            ubo_buffer,
+            data_buffer,
+            vertex_buffer,
+            index_buffer,
         })
     }
 
@@ -264,9 +238,9 @@ impl LightData {
         let p = Point2D::new(self.start_position.x(), self.start_position.z());
         let rotated_p = rotate_point(p, Point2D::zero(), angle);
         self.position = Vec3::new(rotated_p.x(), self.start_position.y(), rotated_p.y());
-        self.light_data_buffer.mem_copy(0, &[self.position])?;
+        self.data_buffer.mem_copy(0, &[self.position])?;
 
-        self.ubo_buffer.mem_copy(
+        self.data_buffer.mem_copy(
             0,
             &[LitMeshCameraUniformBufferObject {
                 view: camera::look_to(
@@ -285,27 +259,68 @@ impl LightData {
     pub fn cleanup(&self, cinder: &Cinder) {
         self.vertex_buffer.destroy(&cinder.device);
         self.index_buffer.destroy(&cinder.device);
-        self.light_data_buffer.destroy(&cinder.device);
-        self.ubo_buffer.destroy(&cinder.device);
+        self.data_buffer.destroy(&cinder.device);
     }
+}
+
+struct CameraData {
+    bind_group: BindGroup,
+    transforms_buffer: Buffer,
+}
+
+impl CameraData {
+    pub fn new(
+        cinder: &Cinder,
+        bind_group_data: &BindGroupData,
+        pos: Vec3,
+        front: Vec3,
+        aspect_ratio: f32,
+    ) -> Result<Self> {
+        let bind_group = BindGroup::new(&cinder.device, bind_group_data)?;
+        let transforms_buffer = cinder.device.create_buffer_with_data(
+            &[LitMeshCameraUniformBufferObject {
+                view: camera::look_to(pos, front, Vec3::new(0.0, 1.0, 0.0)).into(),
+                proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 0.01).into(),
+            }],
+            BufferDescription {
+                usage: BufferUsage::UNIFORM,
+                ..Default::default()
+            },
+        )?;
+        cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::Uniform(transforms_buffer.bind_info()),
+        }])?;
+
+        Ok(Self {
+            bind_group,
+            transforms_buffer,
+        })
+    }
+}
+
+struct Pipelines {
+    lit_mesh: GraphicsPipeline,
+    light_caster: GraphicsPipeline,
+    shadow_map_depth: GraphicsPipeline,
+    shadow_map_quad: GraphicsPipeline,
 }
 
 pub struct HelloCube {
     cinder: Cinder,
+    pipelines: Pipelines,
+    sampler: Sampler,
     depth_image: Image,
     shadow_map_image: Image,
-    mesh_pipeline: GraphicsPipeline,
-    light_pipeline: GraphicsPipeline,
-    shadow_map_pipeline: GraphicsPipeline,
-    quad_data: QuadData,
-    camera_mesh_bind_group: BindGroup,
-    camera_light_bind_group: BindGroup,
-    shadow_map_bind_group: BindGroup,
+    eye_pos: Vec3,
+    eye_camera: CameraData,
+    light_data: LightData,
+    light_camera: CameraData,
+    texture_bind_group: BindGroup,
+    quad_data: TexturedQuadData,
     cube_mesh_data: MeshData,
     plane_mesh_data: MeshData,
-    light_data: LightData,
-    camera_ubo_buffer: Buffer,
-    eye: Vec3,
     show_shadow_map_image: bool,
 }
 
@@ -318,9 +333,125 @@ impl HelloCube {
         let cinder = Cinder::new(window, width, height)?;
 
         //
-        // Create App Resources
+        // Create Shaders and Pipelines
+        //
+        let light_vs = cinder.device.create_shader(
+            include_bytes!("../shaders/spv/light.vert.spv"),
+            Default::default(),
+        )?;
+        let light_fs = cinder.device.create_shader(
+            include_bytes!("../shaders/spv/light.frag.spv"),
+            Default::default(),
+        )?;
+
+        let lit_mesh_vs = cinder.device.create_shader(
+            include_bytes!("../shaders/spv/lit_mesh.vert.spv"),
+            Default::default(),
+        )?;
+        let lit_mesh_fs = cinder.device.create_shader(
+            include_bytes!("../shaders/spv/lit_mesh.frag.spv"),
+            Default::default(),
+        )?;
+
+        let shadow_map_vs = cinder.device.create_shader(
+            include_bytes!("../shaders/spv/shadow_map.vert.spv"),
+            Default::default(),
+        )?;
+
+        let shadow_map_quad_vs = cinder.device.create_shader(
+            include_bytes!("../shaders/spv/shadow_map_quad.vert.spv"),
+            Default::default(),
+        )?;
+        let shadow_map_quad_fs = cinder.device.create_shader(
+            include_bytes!("../shaders/spv/shadow_map_quad.frag.spv"),
+            Default::default(),
+        )?;
+
+        let lit_mesh_pipeline = cinder.device.create_graphics_pipeline(
+            &lit_mesh_vs,
+            Some(&lit_mesh_fs),
+            GraphicsPipelineDescription {
+                depth_format: Some(Format::D32_SFloat),
+                backface_culling: false,
+                ..Default::default()
+            },
+        )?;
+
+        let light_caster_pipeline = cinder.device.create_graphics_pipeline(
+            &light_vs,
+            Some(&light_fs),
+            GraphicsPipelineDescription {
+                depth_format: Some(Format::D32_SFloat),
+                ..Default::default()
+            },
+        )?;
+
+        let shadow_map_depth_pipeline = cinder.device.create_graphics_pipeline(
+            &shadow_map_vs,
+            None,
+            GraphicsPipelineDescription {
+                color_format: None,
+                depth_format: Some(Format::D32_SFloat),
+                backface_culling: false,
+                ..Default::default()
+            },
+        )?;
+
+        let shadow_map_quad_pipeline = cinder.device.create_graphics_pipeline(
+            &shadow_map_quad_vs,
+            Some(&shadow_map_quad_fs),
+            Default::default(),
+        )?;
+
+        let pipelines = Pipelines {
+            lit_mesh: lit_mesh_pipeline,
+            light_caster: light_caster_pipeline,
+            shadow_map_depth: shadow_map_depth_pipeline,
+            shadow_map_quad: shadow_map_quad_pipeline,
+        };
+
+        //
+        // Create Cameras
         //
         let surface_rect = cinder.device.surface_rect();
+        let aspect_ratio = cinder.device.surface_aspect_ratio();
+
+        let camera_bind_group_data = pipelines.lit_mesh.bind_group_data(0).unwrap();
+
+        let eye_pos = Vec3::new(4.0, 4.0, 0.0);
+        let eye_front = (Vec3::zero() - eye_pos).normalized();
+        let eye_camera = CameraData::new(
+            &cinder,
+            camera_bind_group_data,
+            eye_pos,
+            eye_front,
+            aspect_ratio,
+        )?;
+
+        let light_pos = Vec3::new(4.0, 2.0, 0.0);
+        let light_look_at = Vec3::zero();
+        let light_front = (light_look_at - light_pos).normalized();
+        let light_camera = CameraData::new(
+            &cinder,
+            camera_bind_group_data,
+            light_pos,
+            light_front,
+            aspect_ratio,
+        )?;
+        let light_data = LightData::new(&cinder, &light_camera, light_pos, light_look_at)?;
+        //
+        // Create Bind Groups
+        //
+        let texture_bind_group = BindGroup::new(
+            &cinder.device,
+            pipelines.shadow_map_quad.bind_group_data(0).unwrap(),
+        )?;
+
+        //
+        // Create Images
+        //
+        let sampler = cinder.device.create_sampler(Default::default())?;
+
         let depth_image = cinder.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
@@ -346,77 +477,21 @@ impl HelloCube {
             vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
         )?;
 
-        let light_vertex_shader = cinder.device.create_shader(
-            include_bytes!("../shaders/spv/light.vert.spv"),
-            Default::default(),
-        )?;
-        let light_fragment_shader = cinder.device.create_shader(
-            include_bytes!("../shaders/spv/light.frag.spv"),
-            Default::default(),
-        )?;
-        let light_pipeline = cinder.device.create_graphics_pipeline(
-            &light_vertex_shader,
-            Some(&light_fragment_shader),
-            GraphicsPipelineDescription {
-                depth_format: Some(Format::D32_SFloat),
-                ..Default::default()
-            },
-        )?;
+        //
+        // Create Meshes
+        //
 
-        let mesh_vertex_shader = cinder.device.create_shader(
-            include_bytes!("../shaders/spv/lit_mesh.vert.spv"),
-            Default::default(),
-        )?;
-        let mesh_fragment_shader = cinder.device.create_shader(
-            include_bytes!("../shaders/spv/lit_mesh.frag.spv"),
-            Default::default(),
-        )?;
-        let mesh_pipeline = cinder.device.create_graphics_pipeline(
-            &mesh_vertex_shader,
-            Some(&mesh_fragment_shader),
-            GraphicsPipelineDescription {
-                depth_format: Some(Format::D32_SFloat),
-                backface_culling: false,
-                ..Default::default()
-            },
-        )?;
-
-        let shadow_map_vertex_shader = cinder.device.create_shader(
-            include_bytes!("../shaders/spv/shadow_map.vert.spv"),
-            Default::default(),
-        )?;
-        let shadow_map_pipeline = cinder.device.create_graphics_pipeline(
-            &shadow_map_vertex_shader,
-            None,
-            GraphicsPipelineDescription {
-                color_format: None,
-                depth_format: Some(Format::D32_SFloat),
-                backface_culling: false,
-                ..Default::default()
-            },
-        )?;
-        let shadow_map_bind_group = BindGroup::new(
-            &cinder.device,
-            shadow_map_pipeline.bind_group_data(0).unwrap(),
-        )?;
-
-        let quad_data = QuadData::new(&cinder)?;
-        cinder.device.write_bind_group(
-            &quad_data.pipeline,
-            &[BindGroupBindInfo {
-                group: quad_data.bind_group,
-                dst_binding: 0,
-                data: BindGroupWriteData::SampledImage(shadow_map_image.bind_info(
-                    &quad_data.sampler,
-                    Layout::DepthStencilReadOnly,
-                    None,
-                )),
-            }],
+        let quad_data = TexturedQuadData::new(
+            &cinder,
+            &pipelines.shadow_map_quad,
+            texture_bind_group,
+            &shadow_map_image,
+            &sampler,
         )?;
 
         let cube_mesh_data = MeshData::new(
             &cinder,
-            &mesh_pipeline,
+            &pipelines.lit_mesh,
             &[
                 // Plane 1
                 LitMeshVertex {
@@ -533,7 +608,7 @@ impl HelloCube {
 
         let plane_mesh_data = MeshData::new(
             &cinder,
-            &mesh_pipeline,
+            &pipelines.lit_mesh,
             &[
                 LitMeshVertex {
                     i_pos: [-5.0, -1.0, 5.0],
@@ -555,95 +630,33 @@ impl HelloCube {
             &[0, 1, 2, 2, 1, 3],
         )?;
 
-        let camera_mesh_bind_group =
-            BindGroup::new(&cinder.device, mesh_pipeline.bind_group_data(0).unwrap())?;
-        let camera_light_bind_group =
-            BindGroup::new(&cinder.device, light_pipeline.bind_group_data(0).unwrap())?;
+        //
+        // Cleanup
+        //
 
-        let eye = Vec3::new(4.0, 4.0, 0.0);
-        let front = (Vec3::zero() - eye).normalized();
-        let aspect_ratio = surface_rect.width() as f32 / surface_rect.height() as f32;
-        let camera_ubo_buffer = cinder.device.create_buffer_with_data(
-            &[LitMeshCameraUniformBufferObject {
-                view: camera::look_to(eye, front, Vec3::new(0.0, 1.0, 0.0)).into(),
-                proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 0.01).into(),
-            }],
-            BufferDescription {
-                usage: BufferUsage::UNIFORM,
-                ..Default::default()
-            },
-        )?;
-
-        let light_data = LightData::new(
-            &cinder,
-            Vec3::new(4.0, 2.0, 0.0),
-            Vec3::zero(),
-            eye,
-            aspect_ratio,
-        )?;
-
-        cinder.device.write_bind_group(
-            &mesh_pipeline,
-            &[
-                BindGroupBindInfo {
-                    group: camera_mesh_bind_group,
-                    dst_binding: 0,
-                    data: BindGroupWriteData::Uniform(camera_ubo_buffer.bind_info()),
-                },
-                BindGroupBindInfo {
-                    group: camera_mesh_bind_group,
-                    dst_binding: 1,
-                    data: BindGroupWriteData::Uniform(light_data.light_data_buffer.bind_info()),
-                },
-            ],
-        )?;
-        cinder.device.write_bind_group(
-            &mesh_pipeline,
-            &[
-                BindGroupBindInfo {
-                    group: camera_light_bind_group,
-                    dst_binding: 0,
-                    data: BindGroupWriteData::Uniform(camera_ubo_buffer.bind_info()),
-                },
-                BindGroupBindInfo {
-                    group: camera_light_bind_group,
-                    dst_binding: 1,
-                    data: BindGroupWriteData::Uniform(light_data.light_data_buffer.bind_info()),
-                },
-            ],
-        )?;
-        cinder.device.write_bind_group(
-            &shadow_map_pipeline,
-            &[BindGroupBindInfo {
-                group: shadow_map_bind_group,
-                dst_binding: 0,
-                data: BindGroupWriteData::Uniform(light_data.ubo_buffer.bind_info()),
-            }],
-        )?;
-
-        mesh_vertex_shader.destroy(&cinder.device);
-        mesh_fragment_shader.destroy(&cinder.device);
-        light_vertex_shader.destroy(&cinder.device);
-        light_fragment_shader.destroy(&cinder.device);
-        shadow_map_vertex_shader.destroy(&cinder.device);
+        lit_mesh_vs.destroy(&cinder.device);
+        lit_mesh_fs.destroy(&cinder.device);
+        light_vs.destroy(&cinder.device);
+        light_fs.destroy(&cinder.device);
+        shadow_map_vs.destroy(&cinder.device);
+        shadow_map_quad_vs.destroy(&cinder.device);
+        shadow_map_quad_fs.destroy(&cinder.device);
 
         Ok(Self {
             cinder,
+            pipelines,
+            sampler,
             depth_image,
             shadow_map_image,
-            mesh_pipeline,
-            light_pipeline,
-            shadow_map_pipeline,
+            eye_pos,
+            eye_camera,
+            light_data,
+            light_camera,
+            texture_bind_group,
             quad_data,
-            camera_ubo_buffer,
-            camera_mesh_bind_group,
-            camera_light_bind_group,
-            shadow_map_bind_group,
             cube_mesh_data,
             plane_mesh_data,
-            light_data,
-            eye,
-            show_shadow_map_image: true,
+            show_shadow_map_image: false,
         })
     }
 
@@ -652,13 +665,11 @@ impl HelloCube {
         let scale = (elapsed / 5.0) * (2.0 * std::f32::consts::PI);
 
         self.cube_mesh_data
-            .ubo_buffer
+            .model_transform_buffer
             .mem_copy(0, &[Mat4::rotate(scale, Vec3::new(0.0, 1.0, 0.0))])?;
 
-        // TODO: Aspect ratio function in Cinder
-        let surface_rect = self.cinder.device.surface_rect();
-        let aspect_ratio = surface_rect.width() as f32 / surface_rect.height() as f32;
-        self.light_data.update(elapsed, aspect_ratio)?;
+        self.light_data
+            .update(elapsed, self.cinder.device.surface_aspect_ratio())?;
 
         Ok(())
     }
@@ -696,18 +707,18 @@ impl HelloCube {
         {
             cmd_list.bind_descriptor_sets(
                 &self.cinder.device,
-                &self.shadow_map_pipeline,
+                &self.pipelines.shadow_map_depth,
                 0,
-                &[self.shadow_map_bind_group],
+                &[self.light_camera.bind_group],
             );
-            cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.shadow_map_pipeline);
+            cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.pipelines.shadow_map_depth);
 
             // Draw Cube
             cmd_list.bind_descriptor_sets(
                 &self.cinder.device,
-                &self.shadow_map_pipeline,
+                &self.pipelines.shadow_map_depth,
                 1,
-                &[self.cube_mesh_data.bind_group],
+                &[self.cube_mesh_data.model_bind_group],
             );
             cmd_list.bind_index_buffer(&self.cinder.device, &self.cube_mesh_data.index_buffer);
             cmd_list.bind_vertex_buffer(&self.cinder.device, &self.cube_mesh_data.vertex_buffer);
@@ -721,9 +732,9 @@ impl HelloCube {
             // Draw Plane
             cmd_list.bind_descriptor_sets(
                 &self.cinder.device,
-                &self.shadow_map_pipeline,
+                &self.pipelines.shadow_map_depth,
                 1,
-                &[self.plane_mesh_data.bind_group],
+                &[self.plane_mesh_data.model_bind_group],
             );
             cmd_list.bind_index_buffer(&self.cinder.device, &self.plane_mesh_data.index_buffer);
             cmd_list.bind_vertex_buffer(&self.cinder.device, &self.plane_mesh_data.vertex_buffer);
@@ -763,11 +774,11 @@ impl HelloCube {
             // Bind Mesh Data
             cmd_list.bind_descriptor_sets(
                 &self.cinder.device,
-                &self.mesh_pipeline,
+                &self.pipelines.lit_mesh,
                 0,
-                &[self.camera_mesh_bind_group],
+                &[self.eye_camera.bind_group],
             );
-            cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.mesh_pipeline);
+            cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.pipelines.lit_mesh);
 
             let scale = (self.cinder.init_time.elapsed().as_secs_f32() / 5.0)
                 * (2.0 * std::f32::consts::PI);
@@ -776,21 +787,22 @@ impl HelloCube {
                 (scale.cos() + 1.0) / 2.0,
                 ((scale * 1.5).cos() + 1.0) / 2.0,
             ];
+
             // Draw Cube
             cmd_list.bind_descriptor_sets(
                 &self.cinder.device,
-                &self.mesh_pipeline,
+                &self.pipelines.lit_mesh,
                 1,
-                &[self.cube_mesh_data.bind_group],
+                &[self.cube_mesh_data.model_bind_group],
             );
             cmd_list.bind_index_buffer(&self.cinder.device, &self.cube_mesh_data.index_buffer);
             cmd_list.bind_vertex_buffer(&self.cinder.device, &self.cube_mesh_data.vertex_buffer);
             cmd_list.set_vertex_bytes(
                 &self.cinder.device,
-                &self.mesh_pipeline,
+                &self.pipelines.lit_mesh,
                 &[LitMeshConstants {
                     color: [161.0 / 255.0, 29.0 / 255.0, 194.0 / 255.0, 0.0],
-                    view_from: [self.eye.x(), self.eye.y(), self.eye.z(), 0.0],
+                    view_from: [self.eye_pos.x(), self.eye_pos.y(), self.eye_pos.z(), 0.0],
                     light_color,
                 }],
                 0,
@@ -805,18 +817,18 @@ impl HelloCube {
             // Draw Plane
             cmd_list.bind_descriptor_sets(
                 &self.cinder.device,
-                &self.mesh_pipeline,
+                &self.pipelines.lit_mesh,
                 1,
-                &[self.plane_mesh_data.bind_group],
+                &[self.plane_mesh_data.model_bind_group],
             );
             cmd_list.bind_index_buffer(&self.cinder.device, &self.plane_mesh_data.index_buffer);
             cmd_list.bind_vertex_buffer(&self.cinder.device, &self.plane_mesh_data.vertex_buffer);
             cmd_list.set_vertex_bytes(
                 &self.cinder.device,
-                &self.mesh_pipeline,
+                &self.pipelines.lit_mesh,
                 &[LitMeshConstants {
                     color: [201.0 / 255.0, 114.0 / 255.0, 38.0 / 255.0, 0.0],
-                    view_from: [self.eye.x(), self.eye.y(), self.eye.z(), 0.0],
+                    view_from: [self.eye_pos.x(), self.eye_pos.y(), self.eye_pos.z(), 0.0],
                     light_color,
                 }],
                 0,
@@ -829,18 +841,12 @@ impl HelloCube {
             );
 
             // Draw Light
-            cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.light_pipeline);
-            cmd_list.bind_descriptor_sets(
-                &self.cinder.device,
-                &self.light_pipeline,
-                0,
-                &[self.camera_light_bind_group],
-            );
+            cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.pipelines.light_caster);
             cmd_list.bind_index_buffer(&self.cinder.device, &self.light_data.index_buffer);
             cmd_list.bind_vertex_buffer(&self.cinder.device, &self.light_data.vertex_buffer);
             cmd_list.set_vertex_bytes(
                 &self.cinder.device,
-                &self.light_pipeline,
+                &self.pipelines.light_caster,
                 &light_color,
                 0,
             )?;
@@ -868,12 +874,13 @@ impl HelloCube {
                 None,
             );
             {
-                cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.quad_data.pipeline);
+                cmd_list
+                    .bind_graphics_pipeline(&self.cinder.device, &self.pipelines.shadow_map_quad);
                 cmd_list.bind_descriptor_sets(
                     &self.cinder.device,
-                    &self.quad_data.pipeline,
+                    &self.pipelines.shadow_map_quad,
                     0,
-                    &[self.quad_data.bind_group],
+                    &[self.texture_bind_group],
                 );
                 cmd_list.bind_index_buffer(&self.cinder.device, &self.quad_data.index_buffer);
                 cmd_list.bind_vertex_buffer(&self.cinder.device, &self.quad_data.vertex_buffer);
@@ -906,18 +913,15 @@ impl HelloCube {
             vk::ImageLayout::UNDEFINED,
             vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
         )?;
-        self.cinder.device.write_bind_group(
-            &self.quad_data.pipeline,
-            &[BindGroupBindInfo {
-                group: self.quad_data.bind_group,
-                dst_binding: 0,
-                data: BindGroupWriteData::SampledImage(self.shadow_map_image.bind_info(
-                    &self.quad_data.sampler,
-                    Layout::DepthStencilReadOnly,
-                    None,
-                )),
-            }],
-        )?;
+        self.cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: self.texture_bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::SampledImage(self.shadow_map_image.bind_info(
+                &self.sampler,
+                Layout::DepthStencilReadOnly,
+                None,
+            )),
+        }])?;
         Ok(())
     }
 }
@@ -925,10 +929,6 @@ impl HelloCube {
 impl Drop for HelloCube {
     fn drop(&mut self) {
         self.cinder.device.wait_idle().ok();
-        self.camera_ubo_buffer.destroy(&self.cinder.device);
-        self.mesh_pipeline.destroy(&self.cinder.device);
-        self.light_pipeline.destroy(&self.cinder.device);
-        self.shadow_map_pipeline.destroy(&self.cinder.device);
         self.depth_image.destroy(&self.cinder.device);
         self.shadow_map_image.destroy(&self.cinder.device);
         self.cube_mesh_data.cleanup(&self.cinder);

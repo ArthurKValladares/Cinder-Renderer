@@ -563,11 +563,12 @@ impl Device {
         )
     }
 
-    pub fn write_bind_group(
-        &self,
-        _pipeline: &GraphicsPipeline,
-        infos: &[BindGroupBindInfo],
-    ) -> Result<(), DeviceError> {
+    pub fn surface_aspect_ratio(&self) -> f32 {
+        self.surface_data.surface_resolution.width as f32
+            / self.surface_data.surface_resolution.height as f32
+    }
+
+    pub fn write_bind_group(&self, infos: &[BindGroupBindInfo]) -> Result<(), DeviceError> {
         let writes = infos
             .iter()
             .map(|info| {

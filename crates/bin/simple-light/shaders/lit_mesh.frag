@@ -2,7 +2,6 @@
 
 // TODO: Put this in a DescriptorSet later
 float AMBIENT_LIGHT_STRENGTH = 0.15;
-float SPECULAR_LIGHT_STRENGTH = 0.5;
 
 // TODO: light color
 layout (location = 0) in vec3 i_pos;
