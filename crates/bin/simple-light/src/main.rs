@@ -301,6 +301,10 @@ impl CameraData {
             transforms_buffer,
         })
     }
+
+    pub fn cleanup(&self, cinder: &Cinder) {
+        self.transforms_buffer.destroy(&cinder.device);
+    }
 }
 
 struct Pipelines {
@@ -310,6 +314,14 @@ struct Pipelines {
     shadow_map_quad: GraphicsPipeline,
 }
 
+impl Pipelines {
+    pub fn cleanup(&self, cinder: &Cinder) {
+        self.lit_mesh.destroy(&cinder.device);
+        self.light_caster.destroy(&cinder.device);
+        self.shadow_map_depth.destroy(&cinder.device);
+        self.shadow_map_quad.destroy(&cinder.device);
+    }
+}
 pub struct HelloCube {
     cinder: Cinder,
     pipelines: Pipelines,
@@ -945,6 +957,10 @@ impl Drop for HelloCube {
         self.plane_mesh_data.cleanup(&self.cinder);
         self.light_data.cleanup(&self.cinder);
         self.quad_data.cleanup(&self.cinder);
+        self.eye_camera.cleanup(&self.cinder);
+        self.light_camera.cleanup(&self.cinder);
+        self.sampler.destroy(&self.cinder.device);
+        self.pipelines.cleanup(&self.cinder);
     }
 }
 
