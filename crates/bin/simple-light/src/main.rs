@@ -416,13 +416,11 @@ impl HelloCube {
         let surface_rect = cinder.device.surface_rect();
         let aspect_ratio = cinder.device.surface_aspect_ratio();
 
-        let camera_bind_group_data = pipelines.lit_mesh.bind_group_data(0).unwrap();
-
         let eye_pos = Vec3::new(4.0, 4.0, 0.0);
         let eye_front = (Vec3::zero() - eye_pos).normalized();
         let eye_camera = CameraData::new(
             &cinder,
-            camera_bind_group_data,
+            pipelines.lit_mesh.bind_group_data(0).unwrap(),
             eye_pos,
             eye_front,
             aspect_ratio,
@@ -433,7 +431,7 @@ impl HelloCube {
         let light_front = (light_look_at - light_pos).normalized();
         let light_camera = CameraData::new(
             &cinder,
-            camera_bind_group_data,
+            pipelines.shadow_map_depth.bind_group_data(0).unwrap(),
             light_pos,
             light_front,
             aspect_ratio,
