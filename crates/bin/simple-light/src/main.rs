@@ -133,7 +133,7 @@ impl MeshData {
         )?;
 
         let model_bind_group =
-            BindGroup::new(&cinder.device, &pipeline.bind_group_data(1).unwrap())?;
+            BindGroup::new(&cinder.device, pipeline.bind_group_data(1).unwrap())?;
 
         let model_transform_buffer = cinder.device.create_buffer(
             std::mem::size_of::<LitMeshModelUniformBufferObject>() as u64,
@@ -202,12 +202,6 @@ impl LightData {
             },
         )?;
 
-        cinder.device.write_bind_group(&[BindGroupBindInfo {
-            group: camera.bind_group,
-            dst_binding: 1,
-            data: BindGroupWriteData::Uniform(data_buffer.bind_info()),
-        }])?;
-
         let vertex_buffer = cinder.device.create_buffer_with_data(
             &cylinder_mesh.vertices,
             BufferDescription {
@@ -275,6 +269,7 @@ impl CameraData {
         pos: Vec3,
         front: Vec3,
         aspect_ratio: f32,
+        light_data: Option<&LightData>,
     ) -> Result<Self> {
         let bind_group = BindGroup::new(&cinder.device, bind_group_data)?;
         let transforms_buffer = cinder.device.create_buffer_with_data(
@@ -292,6 +287,14 @@ impl CameraData {
             dst_binding: 0,
             data: BindGroupWriteData::Uniform(transforms_buffer.bind_info()),
         }])?;
+
+        if let Some(light_data) = light_data {
+            cinder.device.write_bind_group(&[BindGroupBindInfo {
+                group: bind_group,
+                dst_binding: 1,
+                data: BindGroupWriteData::Uniform(light_data.data_buffer.bind_info()),
+            }])?;
+        }
 
         Ok(Self {
             bind_group,
@@ -416,16 +419,6 @@ impl HelloCube {
         let surface_rect = cinder.device.surface_rect();
         let aspect_ratio = cinder.device.surface_aspect_ratio();
 
-        let eye_pos = Vec3::new(4.0, 4.0, 0.0);
-        let eye_front = (Vec3::zero() - eye_pos).normalized();
-        let eye_camera = CameraData::new(
-            &cinder,
-            pipelines.lit_mesh.bind_group_data(0).unwrap(),
-            eye_pos,
-            eye_front,
-            aspect_ratio,
-        )?;
-
         let light_pos = Vec3::new(4.0, 2.0, 0.0);
         let light_look_at = Vec3::zero();
         let light_front = (light_look_at - light_pos).normalized();
@@ -435,8 +428,21 @@ impl HelloCube {
             light_pos,
             light_front,
             aspect_ratio,
+            None,
         )?;
         let light_data = LightData::new(&cinder, &light_camera, light_pos, light_look_at)?;
+
+        let eye_pos = Vec3::new(4.0, 4.0, 0.0);
+        let eye_front = (Vec3::zero() - eye_pos).normalized();
+        let eye_camera = CameraData::new(
+            &cinder,
+            pipelines.lit_mesh.bind_group_data(0).unwrap(),
+            eye_pos,
+            eye_front,
+            aspect_ratio,
+            Some(&light_data),
+        )?;
+
         //
         // Create Bind Groups
         //
@@ -839,6 +845,12 @@ impl HelloCube {
             );
 
             // Draw Light
+            cmd_list.bind_descriptor_sets(
+                &self.cinder.device,
+                &self.pipelines.light_caster,
+                0,
+                &[self.eye_camera.bind_group],
+            );
             cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.pipelines.light_caster);
             cmd_list.bind_index_buffer(&self.cinder.device, &self.light_data.index_buffer);
             cmd_list.bind_vertex_buffer(&self.cinder.device, &self.light_data.vertex_buffer);
