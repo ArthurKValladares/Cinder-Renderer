@@ -13,8 +13,10 @@ layout(set = 0, binding = 0) uniform CameraUniformBufferObject {
 } c_ubo;
 
 layout(set = 0, binding = 1) uniform GlobalLightData {
-    vec3 position;
-    vec3 look_at;
+    mat4 view;
+    mat4 proj;
+    vec4 position;
+    vec4 look_at;
 } l_ubo;
 
 layout( push_constant ) uniform constants

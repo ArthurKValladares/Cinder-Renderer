@@ -187,13 +187,20 @@ pub struct LightData {
 }
 
 impl LightData {
-    fn new(cinder: &Cinder, position: Vec3, look_at: Vec3) -> Result<Self> {
+    fn new(cinder: &Cinder, position: Vec3, look_at: Vec3, aspect_ratio: f32) -> Result<Self> {
         let cylinder_mesh = geometry::SurfaceMesh::cylinder::<30>(0.3, 0.1);
 
         let data_buffer = cinder.device.create_buffer_with_data(
             &[LitMeshGlobalLightData {
-                position: position.into(),
-                look_at: look_at.into(),
+                view: camera::look_to(
+                    position,
+                    (look_at - position).normalized(),
+                    Vec3::new(0.0, 1.0, 0.0),
+                )
+                .into(),
+                proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 0.01).into(),
+                position: [position.x(), position.y(), position.z(), 1.0],
+                look_at: [look_at.x(), look_at.y(), look_at.z(), 1.0],
             }],
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
@@ -227,12 +234,25 @@ impl LightData {
         })
     }
 
-    pub fn update(&mut self, angle: f32) -> Result<()> {
+    pub fn update(&mut self, angle: f32, aspect_ratio: f32) -> Result<()> {
         let p = Point2D::new(self.start_position.x(), self.start_position.z());
         let rotated_p = rotate_point(p, Point2D::zero(), angle);
         self.position = Vec3::new(rotated_p.x(), self.start_position.y(), rotated_p.y());
 
-        self.data_buffer.mem_copy(0, &[self.position])?;
+        self.data_buffer.mem_copy(
+            0,
+            &[LitMeshGlobalLightData {
+                view: camera::look_to(
+                    self.position,
+                    (self.look_at - self.position).normalized(),
+                    Vec3::new(0.0, 1.0, 0.0),
+                )
+                .into(),
+                proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 0.01).into(),
+                position: [self.position.x(), self.position.y(), self.position.z(), 1.0],
+                look_at: [self.look_at.x(), self.look_at.y(), self.look_at.z(), 1.0],
+            }],
+        )?;
 
         Ok(())
     }
@@ -418,7 +438,7 @@ impl HelloCube {
         let surface_rect = cinder.device.surface_rect();
         let aspect_ratio = cinder.device.surface_aspect_ratio();
 
-        let light_pos = Vec3::new(4.0, 2.0, 0.0);
+        let light_pos = Vec3::new(3.0, 2.0, 0.0);
         let light_look_at = Vec3::zero();
         let light_front = (light_look_at - light_pos).normalized();
         let light_camera = CameraData::new(
@@ -429,7 +449,7 @@ impl HelloCube {
             aspect_ratio,
             None,
         )?;
-        let light_data = LightData::new(&cinder, light_pos, light_look_at)?;
+        let light_data = LightData::new(&cinder, light_pos, light_look_at, aspect_ratio)?;
 
         let eye_pos = Vec3::new(4.0, 4.0, 0.0);
         let eye_front = (Vec3::zero() - eye_pos).normalized();
@@ -667,7 +687,7 @@ impl HelloCube {
             .mem_copy(0, &[Mat4::rotate(scale, Vec3::new(0.0, 1.0, 0.0))])?;
 
         let aspect_ratio = self.cinder.device.surface_aspect_ratio();
-        self.light_data.update(elapsed)?;
+        self.light_data.update(elapsed, aspect_ratio)?;
         self.light_camera.transforms_buffer.mem_copy(
             0,
             &[LitMeshCameraUniformBufferObject {
