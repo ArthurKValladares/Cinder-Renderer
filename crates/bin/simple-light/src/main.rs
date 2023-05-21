@@ -44,7 +44,6 @@ struct TexturedQuadData {
 impl TexturedQuadData {
     pub fn new(
         cinder: &Cinder,
-        pipeline: &GraphicsPipeline,
         bind_group: BindGroup,
         image: &Image,
         sampler: &Sampler,
@@ -228,7 +227,7 @@ impl LightData {
         })
     }
 
-    pub fn update(&mut self, angle: f32, aspect_ratio: f32) -> Result<()> {
+    pub fn update(&mut self, angle: f32) -> Result<()> {
         let p = Point2D::new(self.start_position.x(), self.start_position.z());
         let rotated_p = rotate_point(p, Point2D::zero(), angle);
         self.position = Vec3::new(rotated_p.x(), self.start_position.y(), rotated_p.y());
@@ -485,13 +484,8 @@ impl HelloCube {
         // Create Meshes
         //
 
-        let quad_data = TexturedQuadData::new(
-            &cinder,
-            &pipelines.shadow_map_quad,
-            texture_bind_group,
-            &shadow_map_image,
-            &sampler,
-        )?;
+        let quad_data =
+            TexturedQuadData::new(&cinder, texture_bind_group, &shadow_map_image, &sampler)?;
 
         let cube_mesh_data = MeshData::new(
             &cinder,
@@ -673,7 +667,7 @@ impl HelloCube {
             .mem_copy(0, &[Mat4::rotate(scale, Vec3::new(0.0, 1.0, 0.0))])?;
 
         let aspect_ratio = self.cinder.device.surface_aspect_ratio();
-        self.light_data.update(elapsed, aspect_ratio)?;
+        self.light_data.update(elapsed)?;
         self.light_camera.transforms_buffer.mem_copy(
             0,
             &[LitMeshCameraUniformBufferObject {
