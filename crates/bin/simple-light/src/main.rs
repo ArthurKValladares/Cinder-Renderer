@@ -5,10 +5,13 @@ use cinder::{
     },
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupData, BindGroupWriteData},
-        buffer::{vk, Buffer, BufferDescription, BufferUsage},
+        buffer::{
+            vk::{self},
+            Buffer, BufferDescription, BufferUsage,
+        },
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{DepthBiasInfo, GraphicsPipeline, GraphicsPipelineDescription},
-        sampler::Sampler,
+        sampler::{AddressMode, BorderColor, MipmapMode, Sampler, SamplerDescription},
     },
     Cinder,
 };
@@ -361,6 +364,7 @@ pub struct HelloCube {
     cinder: Cinder,
     pipelines: Pipelines,
     sampler: Sampler,
+    shadow_map_sampler: Sampler,
     depth_image: Image,
     shadow_map_image: Image,
     eye_pos: Vec3,
@@ -423,6 +427,10 @@ impl HelloCube {
             GraphicsPipelineDescription {
                 depth_format: Some(Format::D32_SFloat),
                 backface_culling: false,
+                depth_bias: Some(DepthBiasInfo {
+                    constant_factor: 1.0,
+                    slope_factor: 0.5,
+                }),
                 ..Default::default()
             },
         )?;
@@ -502,6 +510,12 @@ impl HelloCube {
         // Create Images
         //
         let sampler = cinder.device.create_sampler(Default::default())?;
+        let shadow_map_sampler = cinder.device.create_sampler(SamplerDescription {
+            address_mode: AddressMode::ClampToEdge,
+            mipmap_mode: MipmapMode::Nearest,
+            border_color: BorderColor::White,
+            ..Default::default()
+        })?;
 
         let depth_image = cinder.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
@@ -539,7 +553,7 @@ impl HelloCube {
             &cinder,
             &pipelines.lit_mesh,
             &shadow_map_image,
-            &sampler,
+            &shadow_map_sampler,
             &[
                 // Plane 1
                 LitMeshVertex {
@@ -658,7 +672,7 @@ impl HelloCube {
             &cinder,
             &pipelines.lit_mesh,
             &shadow_map_image,
-            &sampler,
+            &shadow_map_sampler,
             &[
                 LitMeshVertex {
                     i_pos: [-5.0, -1.0, 5.0],
@@ -696,6 +710,7 @@ impl HelloCube {
             cinder,
             pipelines,
             sampler,
+            shadow_map_sampler,
             depth_image,
             shadow_map_image,
             eye_pos,
@@ -997,10 +1012,16 @@ impl HelloCube {
                 None,
             )),
         }])?;
-        self.cube_mesh_data
-            .resize(&self.cinder, &self.shadow_map_image, &self.sampler)?;
-        self.plane_mesh_data
-            .resize(&self.cinder, &self.shadow_map_image, &self.sampler)?;
+        self.cube_mesh_data.resize(
+            &self.cinder,
+            &self.shadow_map_image,
+            &self.shadow_map_sampler,
+        )?;
+        self.plane_mesh_data.resize(
+            &self.cinder,
+            &self.shadow_map_image,
+            &self.shadow_map_sampler,
+        )?;
         Ok(())
     }
 }
@@ -1017,6 +1038,7 @@ impl Drop for HelloCube {
         self.eye_camera.cleanup(&self.cinder);
         self.light_camera.cleanup(&self.cinder);
         self.sampler.destroy(&self.cinder.device);
+        self.shadow_map_sampler.destroy(&self.cinder.device);
         self.pipelines.cleanup(&self.cinder);
     }
 }
