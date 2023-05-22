@@ -7,7 +7,7 @@ use cinder::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupData, BindGroupWriteData},
         buffer::{vk, Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
-        pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
+        pipeline::graphics::{DepthBiasInfo, GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
     },
     Cinder,

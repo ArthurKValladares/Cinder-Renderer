@@ -68,12 +68,19 @@ impl ColorBlendState {
 }
 
 #[derive(Debug, Copy, Clone)]
+pub struct DepthBiasInfo {
+    pub constant_factor: f32,
+    pub slope_factor: f32,
+}
+
+#[derive(Debug, Copy, Clone)]
 pub struct GraphicsPipelineDescription {
     pub name: Option<&'static str>, // TODO: Probably should have a lifetime
     pub blending: ColorBlendState,
     pub color_format: Option<Format>,
     pub depth_format: Option<Format>,
     pub backface_culling: bool,
+    pub depth_bias: Option<DepthBiasInfo>,
 }
 
 impl Default for GraphicsPipelineDescription {
@@ -84,6 +91,7 @@ impl Default for GraphicsPipelineDescription {
             color_format: Some(Format::B8G8R8A8_Unorm),
             depth_format: None,
             backface_culling: true,
+            depth_bias: None,
         }
     }
 }
@@ -143,9 +151,16 @@ impl GraphicsPipeline {
                 vk::CullModeFlags::NONE
             })
             .front_face(vk::FrontFace::CLOCKWISE)
-            .depth_bias_enable(false)
             .line_width(1.0);
 
+        let rasterization_info = if let Some(info) = desc.depth_bias {
+            rasterization_info
+                .depth_bias_enable(true)
+                .depth_bias_constant_factor(info.constant_factor)
+                .depth_bias_slope_factor(info.slope_factor)
+        } else {
+            rasterization_info.depth_bias_enable(false)
+        };
         let depth_state_info = if desc.depth_format.is_some() {
             vk::PipelineDepthStencilStateCreateInfo::builder()
                 .depth_test_enable(true)
