@@ -88,18 +88,15 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
-        cinder.device.write_bind_group(
-            &pipeline,
-            &[BindGroupBindInfo {
-                group: bind_group,
-                dst_binding: 0,
-                data: BindGroupWriteData::SampledImage(texture.bind_info(
-                    &sampler,
-                    Layout::ShaderReadOnly,
-                    None,
-                )),
-            }],
-        )?;
+        cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::SampledImage(texture.bind_info(
+                &sampler,
+                Layout::ShaderReadOnly,
+                None,
+            )),
+        }])?;
         let vertex_buffer = cinder.device.create_buffer_with_data(
             &[
                 // Top-left

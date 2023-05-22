@@ -254,14 +254,11 @@ impl Renderer {
                     ),
                 ],
             )?;
-            cinder.device.write_bind_group(
-                &mesh_pipeline,
-                &[BindGroupBindInfo {
-                    dst_binding: 0,
-                    group: mesh_bind_group,
-                    data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-                }],
-            )?;
+            cinder.device.write_bind_group(&[BindGroupBindInfo {
+                dst_binding: 0,
+                group: mesh_bind_group,
+                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+            }])?;
         }
         let quad_vertex_buffer = cinder.device.create_buffer_with_data(
             &[
@@ -296,18 +293,15 @@ impl Renderer {
         )?;
 
         let sampler = cinder.device.create_sampler(Default::default())?;
-        cinder.device.write_bind_group(
-            &texture_pipeline,
-            &[BindGroupBindInfo {
-                group: texture_bind_group,
-                dst_binding: 0,
-                data: BindGroupWriteData::SampledImage(depth_image.bind_info(
-                    &sampler,
-                    Layout::DepthStencilReadOnly,
-                    None,
-                )),
-            }],
-        )?;
+        cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: texture_bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::SampledImage(depth_image.bind_info(
+                &sampler,
+                Layout::DepthStencilReadOnly,
+                None,
+            )),
+        }])?;
 
         //
         // Cleanup
@@ -427,18 +421,15 @@ impl Renderer {
             vk::ImageLayout::UNDEFINED,
             vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
         )?;
-        self.cinder.device.write_bind_group(
-            &self.texture_pipeline,
-            &[BindGroupBindInfo {
-                group: self.texture_bind_group,
-                dst_binding: 0,
-                data: BindGroupWriteData::SampledImage(self.depth_image.bind_info(
-                    &self.sampler,
-                    Layout::DepthStencilReadOnly,
-                    None,
-                )),
-            }],
-        )?;
+        self.cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: self.texture_bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::SampledImage(self.depth_image.bind_info(
+                &self.sampler,
+                Layout::DepthStencilReadOnly,
+                None,
+            )),
+        }])?;
 
         Ok(())
     }

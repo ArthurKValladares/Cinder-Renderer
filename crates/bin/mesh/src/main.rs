@@ -134,25 +134,22 @@ impl Renderer {
             &cinder.command_queue,
             Default::default(),
         )?;
-        cinder.device.write_bind_group(
-            &pipeline,
-            &[
-                BindGroupBindInfo {
-                    group: bind_group,
-                    dst_binding: 0,
-                    data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-                },
-                BindGroupBindInfo {
-                    group: bind_group,
-                    dst_binding: 1,
-                    data: BindGroupWriteData::SampledImage(texture.bind_info(
-                        &sampler,
-                        Layout::ShaderReadOnly,
-                        None,
-                    )),
-                },
-            ],
-        )?;
+        cinder.device.write_bind_group(&[
+            BindGroupBindInfo {
+                group: bind_group,
+                dst_binding: 0,
+                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+            },
+            BindGroupBindInfo {
+                group: bind_group,
+                dst_binding: 1,
+                data: BindGroupWriteData::SampledImage(texture.bind_info(
+                    &sampler,
+                    Layout::ShaderReadOnly,
+                    None,
+                )),
+            },
+        ])?;
 
         let scene = Scene::<MeshVertex>::from_obj(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))

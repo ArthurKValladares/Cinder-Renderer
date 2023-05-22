@@ -214,21 +214,18 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
-        cinder.device.write_bind_group(
-            &pipeline,
-            &[
-                BindGroupBindInfo {
-                    group: bind_group,
-                    dst_binding: 0,
-                    data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-                },
-                BindGroupBindInfo {
-                    group: bind_group,
-                    dst_binding: 1,
-                    data: BindGroupWriteData::Storage(vertex_buffer.bind_info()),
-                },
-            ],
-        )?;
+        cinder.device.write_bind_group(&[
+            BindGroupBindInfo {
+                group: bind_group,
+                dst_binding: 0,
+                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+            },
+            BindGroupBindInfo {
+                group: bind_group,
+                dst_binding: 1,
+                data: BindGroupWriteData::Storage(vertex_buffer.bind_info()),
+            },
+        ])?;
 
         let image_data = scene
             .materials
@@ -254,18 +251,15 @@ impl Renderer {
 
                 cinder
                     .device
-                    .write_bind_group(
-                        &pipeline,
-                        &[BindGroupBindInfo {
-                            group: bind_group,
-                            dst_binding: 2,
-                            data: BindGroupWriteData::SampledImage(texture.bind_info(
-                                &sampler,
-                                Layout::ShaderReadOnly,
-                                Some(idx as u32),
-                            )),
-                        }],
-                    )
+                    .write_bind_group(&[BindGroupBindInfo {
+                        group: bind_group,
+                        dst_binding: 2,
+                        data: BindGroupWriteData::SampledImage(texture.bind_info(
+                            &sampler,
+                            Layout::ShaderReadOnly,
+                            Some(idx as u32),
+                        )),
+                    }])
                     .unwrap();
 
                 texture

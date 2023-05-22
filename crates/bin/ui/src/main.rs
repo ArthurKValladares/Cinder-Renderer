@@ -108,14 +108,11 @@ impl Renderer {
                 ),
             ],
         )?;
-        cinder.device.write_bind_group(
-            &pipeline,
-            &[BindGroupBindInfo {
-                group: bind_group,
-                dst_binding: 0,
-                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-            }],
-        )?;
+        cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+        }])?;
         let ui = EguiIntegration::new(
             &mut cinder.resource_manager,
             &cinder.device,

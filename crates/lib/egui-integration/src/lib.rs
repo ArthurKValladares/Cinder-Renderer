@@ -389,18 +389,15 @@ impl EguiIntegration {
             .get(self.pipeline)
             .unwrap();
         let sampler = resource_manager.samplers.get(self.sampler).unwrap();
-        device.write_bind_group(
-            pipeline,
-            &[BindGroupBindInfo {
-                group: self.bind_group,
-                dst_binding: 0,
-                data: BindGroupWriteData::SampledImage(image.bind_info(
-                    sampler,
-                    Layout::ShaderReadOnly,
-                    Some(index as u32),
-                )),
-            }],
-        )?;
+        device.write_bind_group(&[BindGroupBindInfo {
+            group: self.bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::SampledImage(image.bind_info(
+                sampler,
+                Layout::ShaderReadOnly,
+                Some(index as u32),
+            )),
+        }])?;
 
         let image_handle = resource_manager.insert_image(image);
         self.image_map.insert(*id, image_handle);

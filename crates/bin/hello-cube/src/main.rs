@@ -92,14 +92,11 @@ impl HelloCube {
                 ),
             ],
         )?;
-        cinder.device.write_bind_group(
-            &pipeline,
-            &[BindGroupBindInfo {
-                group: bind_group,
-                dst_binding: 0,
-                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-            }],
-        )?;
+        cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+        }])?;
 
         let vertex_buffer = cinder.device.create_buffer_with_data(
             &[

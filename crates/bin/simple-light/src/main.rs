@@ -11,7 +11,7 @@ use cinder::{
         },
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{
-            CullMode, DepthBiasInfo, GraphicsPipeline, GraphicsPipelineDescription,
+            GraphicsPipeline, GraphicsPipelineDescription,
         },
         sampler::{AddressMode, BorderColor, MipmapMode, Sampler, SamplerDescription},
     },
