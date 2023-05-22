@@ -10,9 +10,7 @@ use cinder::{
             Buffer, BufferDescription, BufferUsage,
         },
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
-        pipeline::graphics::{
-            GraphicsPipeline, GraphicsPipelineDescription,
-        },
+        pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::{AddressMode, BorderColor, MipmapMode, Sampler, SamplerDescription},
     },
     Cinder,
@@ -267,7 +265,9 @@ impl LightData {
         })
     }
 
-    pub fn update(&mut self, angle: f32, aspect_ratio: f32) -> Result<()> {
+    pub fn update(&mut self, elapsed: f32, aspect_ratio: f32) -> Result<()> {
+        let angle = (elapsed / 5.0) * (2.0 * std::f32::consts::PI);
+
         let p = Point2D::new(self.start_position.x(), self.start_position.z());
         let rotated_p = rotate_point(p, Point2D::zero(), angle);
         self.position = Vec3::new(rotated_p.x(), self.start_position.y(), rotated_p.y());
@@ -723,7 +723,7 @@ impl HelloCube {
 
     pub fn update(&mut self) -> Result<()> {
         let elapsed = self.cinder.init_time.elapsed().as_secs_f32();
-        let scale = (elapsed / 5.0) * (2.0 * std::f32::consts::PI);
+        let scale = (elapsed / 2.5) * (2.0 * std::f32::consts::PI);
 
         self.cube_mesh_data
             .model_transform_buffer
