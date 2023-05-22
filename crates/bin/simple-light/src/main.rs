@@ -10,7 +10,9 @@ use cinder::{
             Buffer, BufferDescription, BufferUsage,
         },
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
-        pipeline::graphics::{DepthBiasInfo, GraphicsPipeline, GraphicsPipelineDescription},
+        pipeline::graphics::{
+            CullMode, DepthBiasInfo, GraphicsPipeline, GraphicsPipelineDescription,
+        },
         sampler::{AddressMode, BorderColor, MipmapMode, Sampler, SamplerDescription},
     },
     Cinder,
@@ -229,7 +231,7 @@ impl LightData {
                     Vec3::new(0.0, 1.0, 0.0),
                 )
                 .into(),
-                proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 0.01).into(),
+                proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 1.0).into(),
                 position: [position.x(), position.y(), position.z(), 1.0],
                 look_at: [look_at.x(), look_at.y(), look_at.z(), 1.0],
             }],
@@ -279,7 +281,7 @@ impl LightData {
                     Vec3::new(0.0, 1.0, 0.0),
                 )
                 .into(),
-                proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 0.01).into(),
+                proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 1.0).into(),
                 position: [self.position.x(), self.position.y(), self.position.z(), 1.0],
                 look_at: [self.look_at.x(), self.look_at.y(), self.look_at.z(), 1.0],
             }],
@@ -313,7 +315,7 @@ impl CameraData {
         let transforms_buffer = cinder.device.create_buffer_with_data(
             &[LitMeshCameraUniformBufferObject {
                 view: camera::look_to(pos, front, Vec3::new(0.0, 1.0, 0.0)).into(),
-                proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 0.01).into(),
+                proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 1.0).into(),
             }],
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
@@ -426,11 +428,6 @@ impl HelloCube {
             Some(&lit_mesh_fs),
             GraphicsPipelineDescription {
                 depth_format: Some(Format::D32_SFloat),
-                backface_culling: false,
-                depth_bias: Some(DepthBiasInfo {
-                    constant_factor: 1.0,
-                    slope_factor: 0.5,
-                }),
                 ..Default::default()
             },
         )?;
@@ -450,7 +447,6 @@ impl HelloCube {
             GraphicsPipelineDescription {
                 color_format: None,
                 depth_format: Some(Format::D32_SFloat),
-                backface_culling: false,
                 ..Default::default()
             },
         )?;
@@ -744,7 +740,7 @@ impl HelloCube {
                     Vec3::new(0.0, 1.0, 0.0),
                 )
                 .into(),
-                proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 0.01).into(),
+                proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 1.0).into(),
             }],
         )?;
 

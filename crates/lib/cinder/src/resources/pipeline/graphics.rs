@@ -74,12 +74,37 @@ pub struct DepthBiasInfo {
 }
 
 #[derive(Debug, Copy, Clone)]
+pub enum CullMode {
+    Back,
+    Front,
+    FrontAndBack,
+    None,
+}
+
+impl Default for CullMode {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+impl From<CullMode> for vk::CullModeFlags {
+    fn from(value: CullMode) -> Self {
+        match value {
+            CullMode::Back => vk::CullModeFlags::BACK,
+            CullMode::Front => vk::CullModeFlags::FRONT,
+            CullMode::FrontAndBack => vk::CullModeFlags::FRONT_AND_BACK,
+            CullMode::None => vk::CullModeFlags::NONE,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
 pub struct GraphicsPipelineDescription {
     pub name: Option<&'static str>, // TODO: Probably should have a lifetime
     pub blending: ColorBlendState,
     pub color_format: Option<Format>,
     pub depth_format: Option<Format>,
-    pub backface_culling: bool,
+    pub cull_mode: CullMode,
     pub depth_bias: Option<DepthBiasInfo>,
 }
 
@@ -90,7 +115,7 @@ impl Default for GraphicsPipelineDescription {
             blending: Default::default(),
             color_format: Some(Format::B8G8R8A8_Unorm),
             depth_format: None,
-            backface_culling: true,
+            cull_mode: Default::default(),
             depth_bias: None,
         }
     }
@@ -145,11 +170,7 @@ impl GraphicsPipeline {
             .depth_clamp_enable(false)
             .rasterizer_discard_enable(false)
             .polygon_mode(vk::PolygonMode::FILL)
-            .cull_mode(if desc.backface_culling {
-                vk::CullModeFlags::BACK
-            } else {
-                vk::CullModeFlags::NONE
-            })
+            .cull_mode(desc.cull_mode.into())
             .front_face(vk::FrontFace::CLOCKWISE)
             .line_width(1.0);
 
