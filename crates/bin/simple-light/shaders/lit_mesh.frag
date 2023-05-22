@@ -45,16 +45,16 @@ void main() {
     vec3 light_dir = normalize(i_light_pos - i_light_look_at);
     vec3 ray_dir = normalize(i_light_pos - i_pos);
 
-    // Shadow
-    float shadow_factor = compute_shadow_factor(i_light_space_pos, image, norm, ray_dir);
-
     // Ambient
     vec3 ambient = (AMBIENT_LIGHT_STRENGTH * vec3(1.0)) * i_color;
     
     // Spotlight
     float theta = acos(dot(ray_dir, light_dir));
     float cutoff = 0.35;
-    if (theta < cutoff) {    
+    if (theta < cutoff) {
+        // Shadow
+        float shadow_factor = compute_shadow_factor(i_light_space_pos, image, norm, ray_dir);
+
         // Diffuse
         vec3 diffuse = max(dot(norm, light_dir), 0.0) * i_light_color * i_color;
 
