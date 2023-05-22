@@ -11,8 +11,11 @@ layout (location = 3) in vec3 i_light_pos;
 layout (location = 4) in vec3 i_view_from;
 layout (location = 5) in vec3 i_light_look_at;
 layout (location = 6) in vec3 i_light_color;
+layout (location = 7) in vec4 i_light_space_pos;
 
 layout (location = 0) out vec4 uFragColor;
+
+layout (set = 2, binding = 0) uniform sampler2D image;
 
 void main() {
     vec3 light_dir = normalize(i_light_pos - i_light_look_at);

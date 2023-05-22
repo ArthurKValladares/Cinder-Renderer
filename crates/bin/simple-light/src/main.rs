@@ -106,6 +106,7 @@ struct MeshData {
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     model_bind_group: BindGroup,
+    shadow_texture_bind_group: BindGroup,
     model_transform_buffer: Buffer,
 }
 
@@ -113,6 +114,8 @@ impl MeshData {
     pub fn new<T: Copy>(
         cinder: &Cinder,
         pipeline: &GraphicsPipeline,
+        shadow_texture: &Image,
+        sampler: &Sampler,
         vertex_buffer_data: &[T],
         index_buffer_data: &[u32],
     ) -> Result<Self> {
@@ -133,6 +136,8 @@ impl MeshData {
 
         let model_bind_group =
             BindGroup::new(&cinder.device, pipeline.bind_group_data(1).unwrap())?;
+        let shadow_texture_bind_group =
+            BindGroup::new(&cinder.device, pipeline.bind_group_data(2).unwrap())?;
 
         let model_transform_buffer = cinder.device.create_buffer(
             std::mem::size_of::<LitMeshModelUniformBufferObject>() as u64,
@@ -147,13 +152,36 @@ impl MeshData {
             dst_binding: 0,
             data: BindGroupWriteData::Uniform(model_transform_buffer.bind_info()),
         }])?;
+        cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: shadow_texture_bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::SampledImage(shadow_texture.bind_info(
+                sampler,
+                Layout::DepthStencilReadOnly,
+                None,
+            )),
+        }])?;
 
         Ok(Self {
             vertex_buffer,
             index_buffer,
             model_bind_group,
+            shadow_texture_bind_group,
             model_transform_buffer,
         })
+    }
+
+    pub fn resize(&self, cinder: &Cinder, shadow_texture: &Image, sampler: &Sampler) -> Result<()> {
+        cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: self.shadow_texture_bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::SampledImage(shadow_texture.bind_info(
+                sampler,
+                Layout::DepthStencilReadOnly,
+                None,
+            )),
+        }])?;
+        Ok(())
     }
 
     pub fn cleanup(&self, cinder: &Cinder) {
@@ -510,6 +538,8 @@ impl HelloCube {
         let cube_mesh_data = MeshData::new(
             &cinder,
             &pipelines.lit_mesh,
+            &shadow_map_image,
+            &sampler,
             &[
                 // Plane 1
                 LitMeshVertex {
@@ -627,6 +657,8 @@ impl HelloCube {
         let plane_mesh_data = MeshData::new(
             &cinder,
             &pipelines.lit_mesh,
+            &shadow_map_image,
+            &sampler,
             &[
                 LitMeshVertex {
                     i_pos: [-5.0, -1.0, 5.0],
@@ -823,7 +855,10 @@ impl HelloCube {
                 &self.cinder.device,
                 &self.pipelines.lit_mesh,
                 1,
-                &[self.cube_mesh_data.model_bind_group],
+                &[
+                    self.cube_mesh_data.model_bind_group,
+                    self.cube_mesh_data.shadow_texture_bind_group,
+                ],
             );
             cmd_list.bind_index_buffer(&self.cinder.device, &self.cube_mesh_data.index_buffer);
             cmd_list.bind_vertex_buffer(&self.cinder.device, &self.cube_mesh_data.vertex_buffer);
@@ -849,8 +884,12 @@ impl HelloCube {
                 &self.cinder.device,
                 &self.pipelines.lit_mesh,
                 1,
-                &[self.plane_mesh_data.model_bind_group],
+                &[
+                    self.plane_mesh_data.model_bind_group,
+                    self.plane_mesh_data.shadow_texture_bind_group,
+                ],
             );
+
             cmd_list.bind_index_buffer(&self.cinder.device, &self.plane_mesh_data.index_buffer);
             cmd_list.bind_vertex_buffer(&self.cinder.device, &self.plane_mesh_data.vertex_buffer);
             cmd_list.set_vertex_bytes(
@@ -958,6 +997,10 @@ impl HelloCube {
                 None,
             )),
         }])?;
+        self.cube_mesh_data
+            .resize(&self.cinder, &self.shadow_map_image, &self.sampler)?;
+        self.plane_mesh_data
+            .resize(&self.cinder, &self.shadow_map_image, &self.sampler)?;
         Ok(())
     }
 }
