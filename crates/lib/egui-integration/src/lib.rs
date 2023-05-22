@@ -384,7 +384,7 @@ impl EguiIntegration {
             TextureId::User(_) => unimplemented!(),
         };
 
-        let pipeline = resource_manager
+        let _pipeline = resource_manager
             .graphics_pipelines
             .get(self.pipeline)
             .unwrap();

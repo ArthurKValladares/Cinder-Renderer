@@ -93,7 +93,7 @@ impl Renderer {
             &cinder.command_queue,
             Default::default(),
         )?;
-        let pipeline = cinder
+        let _pipeline = cinder
             .resource_manager
             .graphics_pipelines
             .get(pipeline_handle)
