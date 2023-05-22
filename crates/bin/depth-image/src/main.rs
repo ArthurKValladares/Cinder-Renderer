@@ -5,7 +5,7 @@ use cinder::{
         AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc,
     },
     resources::{
-        bind_group::{BindGroupBindInfo, BindGroupWriteData},
+        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{vk, Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
@@ -32,7 +32,9 @@ pub struct Renderer {
     cinder: Cinder,
     depth_image: Image,
     mesh_pipeline: GraphicsPipeline,
+    mesh_bind_group: BindGroup,
     texture_pipeline: GraphicsPipeline,
+    texture_bind_group: BindGroup,
     cube_vertex_buffer: Buffer,
     cube_index_buffer: Buffer,
     ubo_buffer: Buffer,
@@ -79,12 +81,14 @@ impl Renderer {
         )?;
         let mesh_pipeline = cinder.device.create_graphics_pipeline(
             &mesh_vertex_shader,
-            &mesh_fragment_shader,
+            Some(&mesh_fragment_shader),
             GraphicsPipelineDescription {
                 depth_format: Some(Format::D32_SFloat),
                 ..Default::default()
             },
         )?;
+        let mesh_bind_group =
+            BindGroup::new(&cinder.device, mesh_pipeline.bind_group_data(0).unwrap())?;
 
         let texture_vertex_shader = cinder.device.create_shader(
             include_bytes!("../shaders/spv/depth_texture.vert.spv"),
@@ -96,9 +100,11 @@ impl Renderer {
         )?;
         let texture_pipeline = cinder.device.create_graphics_pipeline(
             &texture_vertex_shader,
-            &texture_fragment_shader,
+            Some(&texture_fragment_shader),
             Default::default(),
         )?;
+        let texture_bind_group =
+            BindGroup::new(&cinder.device, texture_pipeline.bind_group_data(0).unwrap())?;
 
         let cube_vertex_buffer = cinder.device.create_buffer_with_data(
             &[
@@ -248,13 +254,11 @@ impl Renderer {
                     ),
                 ],
             )?;
-            cinder.device.write_bind_group(
-                &mesh_pipeline,
-                &[BindGroupBindInfo {
-                    dst_binding: 0,
-                    data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-                }],
-            )?;
+            cinder.device.write_bind_group(&[BindGroupBindInfo {
+                dst_binding: 0,
+                group: mesh_bind_group,
+                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+            }])?;
         }
         let quad_vertex_buffer = cinder.device.create_buffer_with_data(
             &[
@@ -289,17 +293,15 @@ impl Renderer {
         )?;
 
         let sampler = cinder.device.create_sampler(Default::default())?;
-        cinder.device.write_bind_group(
-            &texture_pipeline,
-            &[BindGroupBindInfo {
-                dst_binding: 0,
-                data: BindGroupWriteData::SampledImage(depth_image.bind_info(
-                    &sampler,
-                    Layout::DepthStencilReadOnly,
-                    None,
-                )),
-            }],
-        )?;
+        cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: texture_bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::SampledImage(depth_image.bind_info(
+                &sampler,
+                Layout::DepthStencilReadOnly,
+                None,
+            )),
+        }])?;
 
         //
         // Cleanup
@@ -313,7 +315,9 @@ impl Renderer {
             cinder,
             depth_image,
             mesh_pipeline,
+            mesh_bind_group,
             texture_pipeline,
+            texture_bind_group,
             cube_vertex_buffer,
             cube_index_buffer,
             ubo_buffer,
@@ -366,8 +370,12 @@ impl Renderer {
         cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.mesh_pipeline);
         cmd_list.bind_index_buffer(&self.cinder.device, &self.cube_index_buffer);
         cmd_list.bind_vertex_buffer(&self.cinder.device, &self.cube_vertex_buffer);
-        // TODO: re-think API later when using more than one set
-        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.mesh_pipeline);
+        cmd_list.bind_descriptor_sets(
+            &self.cinder.device,
+            &self.mesh_pipeline,
+            0,
+            &[self.mesh_bind_group],
+        );
         cmd_list.draw_offset(&self.cinder.device, 36, 0, 0);
         cmd_list.end_rendering(&self.cinder.device);
 
@@ -387,8 +395,12 @@ impl Renderer {
         cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.texture_pipeline);
         cmd_list.bind_index_buffer(&self.cinder.device, &self.quad_index_buffer);
         cmd_list.bind_vertex_buffer(&self.cinder.device, &self.quad_vertex_buffer);
-        // TODO: re-think API later when using more than one set
-        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.texture_pipeline);
+        cmd_list.bind_descriptor_sets(
+            &self.cinder.device,
+            &self.texture_pipeline,
+            0,
+            &[self.texture_bind_group],
+        );
         cmd_list.draw_offset(&self.cinder.device, 6, 0, 0);
         cmd_list.end_rendering(&self.cinder.device);
 
@@ -401,18 +413,23 @@ impl Renderer {
         self.cinder.resize(width, height)?;
         self.depth_image
             .resize(&self.cinder.device, Size2D::new(width, height))?;
-
-        self.cinder.device.write_bind_group(
-            &self.texture_pipeline,
-            &[BindGroupBindInfo {
-                dst_binding: 0,
-                data: BindGroupWriteData::SampledImage(self.depth_image.bind_info(
-                    &self.sampler,
-                    Layout::DepthStencilReadOnly,
-                    None,
-                )),
-            }],
+        self.cinder.command_queue.transition_image(
+            &self.cinder.device,
+            &self.depth_image,
+            // TODO: get rid of `vk`
+            vk::ImageAspectFlags::DEPTH,
+            vk::ImageLayout::UNDEFINED,
+            vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
         )?;
+        self.cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: self.texture_bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::SampledImage(self.depth_image.bind_info(
+                &self.sampler,
+                Layout::DepthStencilReadOnly,
+                None,
+            )),
+        }])?;
 
         Ok(())
     }

@@ -2,7 +2,7 @@ use anyhow::Result;
 use cinder::{
     command_queue::{AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc},
     resources::{
-        bind_group::{BindGroupBindInfo, BindGroupWriteData},
+        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
@@ -25,6 +25,7 @@ pub struct HelloCube {
     cinder: Cinder,
     depth_image: Image,
     pipeline: GraphicsPipeline,
+    bind_group: BindGroup,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     ubo_buffer: Buffer,
@@ -61,12 +62,14 @@ impl HelloCube {
         )?;
         let pipeline = cinder.device.create_graphics_pipeline(
             &vertex_shader,
-            &fragment_shader,
+            Some(&fragment_shader),
             GraphicsPipelineDescription {
                 depth_format: Some(Format::D32_SFloat),
                 ..Default::default()
             },
         )?;
+        let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(0).unwrap())?;
+
         let ubo_buffer = cinder.device.create_buffer(
             std::mem::size_of::<CubeUniformBufferObject>() as u64,
             BufferDescription {
@@ -89,13 +92,11 @@ impl HelloCube {
                 ),
             ],
         )?;
-        cinder.device.write_bind_group(
-            &pipeline,
-            &[BindGroupBindInfo {
-                dst_binding: 0,
-                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-            }],
-        )?;
+        cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+        }])?;
 
         let vertex_buffer = cinder.device.create_buffer_with_data(
             &[
@@ -229,6 +230,7 @@ impl HelloCube {
             cinder,
             depth_image,
             pipeline,
+            bind_group,
             vertex_buffer,
             index_buffer,
             ubo_buffer,
@@ -277,7 +279,7 @@ impl HelloCube {
         cmd_list.bind_index_buffer(&self.cinder.device, &self.index_buffer);
         cmd_list.bind_vertex_buffer(&self.cinder.device, &self.vertex_buffer);
         // TODO: re-think API later when using more than one set
-        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline);
+        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline, 0, &[self.bind_group]);
         cmd_list.draw_offset(&self.cinder.device, 36, 0, 0);
         cmd_list.end_rendering(&self.cinder.device);
 

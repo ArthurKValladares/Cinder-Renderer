@@ -4,7 +4,7 @@ use anyhow::Result;
 use cinder::{
     command_queue::RenderAttachment,
     resources::{
-        bind_group::{BindGroupBindInfo, BindGroupWriteData},
+        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::Layout,
         pipeline::graphics::GraphicsPipeline,
@@ -26,6 +26,7 @@ include!(concat!(
 pub struct Renderer {
     cinder: Cinder,
     pipeline_handle: ResourceId<GraphicsPipeline>,
+    bind_group: BindGroup,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
 }
@@ -55,21 +56,17 @@ impl Renderer {
                     include_bytes!("../shaders/spv/hot_reload.frag.spv"),
                     Default::default(),
                 )?);
-        let pipeline_handle = cinder.resource_manager.insert_graphics_pipeline(
-            cinder.device.create_graphics_pipeline(
-                cinder
-                    .resource_manager
-                    .shaders
-                    .get(vertex_shader_handle)
-                    .unwrap(),
-                cinder
-                    .resource_manager
-                    .shaders
-                    .get(fragment_shader_handle)
-                    .unwrap(),
-                Default::default(),
-            )?,
-        );
+        let pipeline = cinder.device.create_graphics_pipeline(
+            cinder
+                .resource_manager
+                .shaders
+                .get(vertex_shader_handle)
+                .unwrap(),
+            cinder.resource_manager.shaders.get(fragment_shader_handle),
+            Default::default(),
+        )?;
+        let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(0).unwrap())?;
+        let pipeline_handle = cinder.resource_manager.insert_graphics_pipeline(pipeline);
         cinder.shader_hot_reloader.set_graphics(
             Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("shaders")
@@ -96,22 +93,20 @@ impl Renderer {
             &cinder.command_queue,
             Default::default(),
         )?;
-        let pipeline = cinder
+        let _pipeline = cinder
             .resource_manager
             .graphics_pipelines
             .get(pipeline_handle)
             .unwrap();
-        cinder.device.write_bind_group(
-            pipeline,
-            &[BindGroupBindInfo {
-                dst_binding: 0,
-                data: BindGroupWriteData::SampledImage(texture.bind_info(
-                    &sampler,
-                    Layout::ShaderReadOnly,
-                    None,
-                )),
-            }],
-        )?;
+        cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::SampledImage(texture.bind_info(
+                &sampler,
+                Layout::ShaderReadOnly,
+                None,
+            )),
+        }])?;
         let vertex_buffer = cinder.device.create_buffer_with_data(
             &[
                 HotReloadVertex {
@@ -155,6 +150,7 @@ impl Renderer {
         Ok(Self {
             cinder,
             pipeline_handle,
+            bind_group,
             vertex_buffer,
             index_buffer,
         })
@@ -189,7 +185,7 @@ impl Renderer {
         cmd_list.bind_scissor(&self.cinder.device, surface_rect);
         cmd_list.bind_index_buffer(&self.cinder.device, &self.index_buffer);
         cmd_list.bind_vertex_buffer(&self.cinder.device, &self.vertex_buffer);
-        cmd_list.bind_descriptor_sets(&self.cinder.device, pipeline);
+        cmd_list.bind_descriptor_sets(&self.cinder.device, pipeline, 0, &[self.bind_group]);
         cmd_list.draw_offset(&self.cinder.device, 6, 0, 0);
         cmd_list.end_rendering(&self.cinder.device);
 
@@ -220,7 +216,7 @@ impl Renderer {
                     &mut self.cinder.resource_manager,
                     pipeline_shader_set.pipeline_handle,
                     pipeline_shader_set.vertex_handle,
-                    pipeline_shader_set.fragment_handle,
+                    Some(pipeline_shader_set.fragment_handle),
                 )?;
             }
         }

@@ -4,7 +4,7 @@ use anyhow::Result;
 use cinder::{
     command_queue::RenderAttachment,
     resources::{
-        bind_group::{BindGroupBindInfo, BindGroupWriteData},
+        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{ImageDescription, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
@@ -28,6 +28,7 @@ include!(concat!(
 pub struct Renderer {
     cinder: Cinder,
     pipeline: GraphicsPipeline,
+    bind_group: BindGroup,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
 }
@@ -57,12 +58,13 @@ impl Renderer {
         )?;
         let pipeline = cinder.device.create_graphics_pipeline(
             &vertex_shader,
-            &fragment_shader,
+            Some(&fragment_shader),
             GraphicsPipelineDescription {
                 name: Some("Debug Graphics Pipeline"),
                 ..Default::default()
             },
         )?;
+        let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(0).unwrap())?;
         let sampler = cinder.device.create_sampler(SamplerDescription {
             name: Some("Debug Sampler"),
             ..Default::default()
@@ -86,17 +88,15 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
-        cinder.device.write_bind_group(
-            &pipeline,
-            &[BindGroupBindInfo {
-                dst_binding: 0,
-                data: BindGroupWriteData::SampledImage(texture.bind_info(
-                    &sampler,
-                    Layout::ShaderReadOnly,
-                    None,
-                )),
-            }],
-        )?;
+        cinder.device.write_bind_group(&[BindGroupBindInfo {
+            group: bind_group,
+            dst_binding: 0,
+            data: BindGroupWriteData::SampledImage(texture.bind_info(
+                &sampler,
+                Layout::ShaderReadOnly,
+                None,
+            )),
+        }])?;
         let vertex_buffer = cinder.device.create_buffer_with_data(
             &[
                 // Top-left
@@ -149,6 +149,7 @@ impl Renderer {
         Ok(Self {
             cinder,
             pipeline,
+            bind_group,
             vertex_buffer,
             index_buffer,
         })
@@ -181,7 +182,7 @@ impl Renderer {
         cmd_list.bind_scissor(&self.cinder.device, surface_rect);
         cmd_list.bind_index_buffer(&self.cinder.device, &self.index_buffer);
         cmd_list.bind_vertex_buffer(&self.cinder.device, &self.vertex_buffer);
-        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline);
+        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline, 0, &[self.bind_group]);
         cmd_list.insert_label(&self.cinder.device, "Draw Offset", [0.0, 1.0, 0.0, 1.0]);
         cmd_list.draw_offset(&self.cinder.device, 6, 0, 0);
         cmd_list.end_rendering(&self.cinder.device);

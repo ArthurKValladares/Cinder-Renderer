@@ -1,6 +1,6 @@
-use super::{get_pipeline_layout, PipelineCommon};
+use super::{get_pipeline_layout, BindGroupData, PipelineCommon};
 use crate::device::Device;
-use crate::resources::bind_group::BindGroup;
+
 use crate::resources::{
     image::{reflect_format_to_vk, Format},
     shader::Shader,
@@ -68,12 +68,44 @@ impl ColorBlendState {
 }
 
 #[derive(Debug, Copy, Clone)]
+pub struct DepthBiasInfo {
+    pub constant_factor: f32,
+    pub slope_factor: f32,
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum CullMode {
+    Back,
+    Front,
+    FrontAndBack,
+    None,
+}
+
+impl Default for CullMode {
+    fn default() -> Self {
+        Self::None
+    }
+}
+
+impl From<CullMode> for vk::CullModeFlags {
+    fn from(value: CullMode) -> Self {
+        match value {
+            CullMode::Back => vk::CullModeFlags::BACK,
+            CullMode::Front => vk::CullModeFlags::FRONT,
+            CullMode::FrontAndBack => vk::CullModeFlags::FRONT_AND_BACK,
+            CullMode::None => vk::CullModeFlags::NONE,
+        }
+    }
+}
+
+#[derive(Debug, Copy, Clone)]
 pub struct GraphicsPipelineDescription {
     pub name: Option<&'static str>, // TODO: Probably should have a lifetime
     pub blending: ColorBlendState,
-    pub surface_format: Format,
+    pub color_format: Option<Format>,
     pub depth_format: Option<Format>,
-    pub backface_culling: bool,
+    pub cull_mode: CullMode,
+    pub depth_bias: Option<DepthBiasInfo>,
 }
 
 impl Default for GraphicsPipelineDescription {
@@ -81,16 +113,16 @@ impl Default for GraphicsPipelineDescription {
         Self {
             name: None,
             blending: Default::default(),
-            surface_format: Format::B8G8R8A8_Unorm,
-            depth_format: Default::default(),
-            backface_culling: Default::default(),
+            color_format: Some(Format::B8G8R8A8_Unorm),
+            depth_format: None,
+            cull_mode: Default::default(),
+            depth_bias: None,
         }
     }
 }
 
 pub struct GraphicsPipeline {
     pub common: PipelineCommon,
-    pub bind_group: Option<BindGroup>,
     pub desc: GraphicsPipelineDescription,
 }
 
@@ -98,7 +130,7 @@ impl GraphicsPipeline {
     fn create_raw_pipeline(
         device: &Device,
         vertex_shader: &Shader,
-        fragment_shader: &Shader,
+        fragment_shader: Option<&Shader>,
         desc: &GraphicsPipelineDescription,
         pipeline_layout: vk::PipelineLayout,
     ) -> Result<vk::Pipeline> {
@@ -138,15 +170,18 @@ impl GraphicsPipeline {
             .depth_clamp_enable(false)
             .rasterizer_discard_enable(false)
             .polygon_mode(vk::PolygonMode::FILL)
-            .cull_mode(if desc.backface_culling {
-                vk::CullModeFlags::BACK
-            } else {
-                vk::CullModeFlags::NONE
-            })
+            .cull_mode(desc.cull_mode.into())
             .front_face(vk::FrontFace::CLOCKWISE)
-            .depth_bias_enable(false)
             .line_width(1.0);
 
+        let rasterization_info = if let Some(info) = desc.depth_bias {
+            rasterization_info
+                .depth_bias_enable(true)
+                .depth_bias_constant_factor(info.constant_factor)
+                .depth_bias_slope_factor(info.slope_factor)
+        } else {
+            rasterization_info.depth_bias_enable(false)
+        };
         let depth_state_info = if desc.depth_format.is_some() {
             vk::PipelineDepthStencilStateCreateInfo::builder()
                 .depth_test_enable(true)
@@ -179,27 +214,42 @@ impl GraphicsPipeline {
                 stage: vk::ShaderStageFlags::VERTEX,
                 ..Default::default()
             },
-            vk::PipelineShaderStageCreateInfo {
-                module: fragment_shader.module,
-                p_name: shader_entry_name.as_ptr(),
-                stage: vk::ShaderStageFlags::FRAGMENT,
-                ..Default::default()
+            if let Some(fragment_shader) = fragment_shader {
+                vk::PipelineShaderStageCreateInfo {
+                    module: fragment_shader.module,
+                    p_name: shader_entry_name.as_ptr(),
+                    stage: vk::ShaderStageFlags::FRAGMENT,
+                    ..Default::default()
+                }
+            } else {
+                Default::default()
             },
         ];
 
-        let surface_format = desc.surface_format.into();
-        let pipeline_rendering_ci = vk::PipelineRenderingCreateInfo::builder()
-            .color_attachment_formats(std::slice::from_ref(&surface_format));
-        let mut pipeline_rendering_ci = if let Some(depth_format) = desc.depth_format {
-            pipeline_rendering_ci
-                .depth_attachment_format(depth_format.into())
-                .build()
+        // TODO: I repeat this pattern in a few places, abstract it
+        let color_attachment_formats = if let Some(color_format) = desc.color_format {
+            [color_format.into()]
         } else {
-            pipeline_rendering_ci.build()
+            [Default::default()]
         };
+        let mut pipeline_rendering_ci = {
+            let mut builder = vk::PipelineRenderingCreateInfo::builder();
+            if desc.color_format.is_some() {
+                builder = builder.color_attachment_formats(&color_attachment_formats);
+            }
+            if let Some(depth_format) = desc.depth_format {
+                builder = builder.depth_attachment_format(depth_format.into());
+            }
+            builder.build()
+        };
+
         let graphic_pipeline_infos = vk::GraphicsPipelineCreateInfo::builder()
             .push_next(&mut pipeline_rendering_ci)
-            .stages(&shader_stage_create_infos)
+            .stages(if fragment_shader.is_some() {
+                &shader_stage_create_infos
+            } else {
+                &shader_stage_create_infos[..1]
+            })
             .vertex_input_state(&vertex_input_state_info)
             .input_assembly_state(&vertex_input_assembly_state_info)
             .viewport_state(&viewport_state_info)
@@ -229,17 +279,37 @@ impl GraphicsPipeline {
         Ok(pipeline)
     }
 
+    pub fn bind_group_data(&self, idx: usize) -> Option<&BindGroupData> {
+        self.common.bind_group_data(idx)
+    }
+
     pub(crate) fn create(
         device: &Device,
         vertex_shader: &Shader,
-        fragment_shader: &Shader,
+        fragment_shader: Option<&Shader>,
         desc: GraphicsPipelineDescription,
     ) -> Result<Self> {
         //
         // Pipeline stuff, pretty temp
         //
-        let (pipeline_layout, common_data) =
-            get_pipeline_layout(device, &[vertex_shader, fragment_shader], desc.name)?;
+        let default_shader = Shader::default();
+        let shaders = [
+            vertex_shader,
+            if let Some(fragment_shader) = fragment_shader {
+                fragment_shader
+            } else {
+                &default_shader
+            },
+        ];
+        let (pipeline_layout, common_data) = get_pipeline_layout(
+            device,
+            if fragment_shader.is_some() {
+                &shaders
+            } else {
+                &shaders[0..1]
+            },
+            desc.name,
+        )?;
 
         let pipeline = Self::create_raw_pipeline(
             device,
@@ -249,34 +319,15 @@ impl GraphicsPipeline {
             pipeline_layout,
         )?;
 
-        let bind_group = if common_data.bind_group_layouts().is_empty() {
-            None
-        } else {
-            let bind_group_layouts = common_data.bind_group_layouts();
-            let descriptor_counts = common_data.descriptor_counts();
-
-            let bind_group = BindGroup::new(device, bind_group_layouts, descriptor_counts)?;
-
-            if let Some(name) = desc.name {
-                bind_group.set_name(device, name);
-            }
-
-            Some(bind_group)
-        };
-
         let common = PipelineCommon::new(device, pipeline_layout, pipeline, common_data, desc.name);
 
-        Ok(GraphicsPipeline {
-            common,
-            bind_group,
-            desc,
-        })
+        Ok(GraphicsPipeline { common, desc })
     }
 
     pub fn recreate(
         &mut self,
         vertex_shader: &Shader,
-        fragment_shader: &Shader,
+        fragment_shader: Option<&Shader>,
         device: &Device,
     ) -> Result<vk::Pipeline> {
         let new_pipeline = Self::create_raw_pipeline(
@@ -291,7 +342,7 @@ impl GraphicsPipeline {
         Ok(old)
     }
 
-    pub fn destroy(&mut self, device: &Device) {
+    pub fn destroy(&self, device: &Device) {
         self.common.destroy(device);
     }
 }

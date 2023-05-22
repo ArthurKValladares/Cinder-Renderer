@@ -1,7 +1,7 @@
 use crate::device::Device;
 
 use super::{
-    bind_group::{BindGroupLayoutData, BindGroupType},
+    bind_group::{BindGroupBindingData, BindGroupSet, BindGroupType},
     pipeline::push_constant::PushConstant,
 };
 use anyhow::Result;
@@ -54,6 +54,7 @@ pub struct ShaderDesc {
     pub name: Option<&'static str>,
 }
 
+#[derive(Default)]
 pub struct Shader {
     pub(crate) module: vk::ShaderModule,
     pub reflect_data: ShaderData,
@@ -110,10 +111,10 @@ impl Shader {
             .collect::<Vec<_>>())
     }
 
-    pub fn bind_group_layouts(
+    pub fn bind_group_descriptions(
         &self,
         p_device_descriptor_indexing_properties: vk::PhysicalDeviceDescriptorIndexingProperties,
-    ) -> Result<BTreeMap<u32, Vec<BindGroupLayoutData>>, ShaderError> {
+    ) -> Result<BTreeMap<BindGroupSet, Vec<BindGroupBindingData>>, ShaderError> {
         let shader_stage = self.stage();
         self.reflect_data
             .module()
@@ -169,7 +170,7 @@ impl Shader {
                             } else {
                                 1
                             };
-                            Ok(BindGroupLayoutData::new(
+                            Ok(BindGroupBindingData::new(
                                 reflect_binding.binding,
                                 ty,
                                 count,

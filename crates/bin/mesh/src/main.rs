@@ -3,7 +3,7 @@ use cinder::{
     cinder::Cinder,
     command_queue::{AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc},
     resources::{
-        bind_group::{BindGroupBindInfo, BindGroupWriteData},
+        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
@@ -54,6 +54,7 @@ pub struct Renderer {
     cinder: Cinder,
     index_count: u32,
     pipeline: GraphicsPipeline,
+    bind_group: BindGroup,
     depth_image: Image,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
@@ -88,14 +89,16 @@ impl Renderer {
             include_bytes!("../shaders/spv/mesh.frag.spv"),
             Default::default(),
         )?;
-        let render_pipeline = cinder.device.create_graphics_pipeline(
+        let pipeline = cinder.device.create_graphics_pipeline(
             &vertex_shader,
-            &fragment_shader,
+            Some(&fragment_shader),
             GraphicsPipelineDescription {
                 depth_format: Some(Format::D32_SFloat),
                 ..Default::default()
             },
         )?;
+        let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(0).unwrap())?;
+
         let ubo_buffer = cinder.device.create_buffer(
             std::mem::size_of::<MeshUniformBufferObject>() as u64,
             BufferDescription {
@@ -131,23 +134,22 @@ impl Renderer {
             &cinder.command_queue,
             Default::default(),
         )?;
-        cinder.device.write_bind_group(
-            &render_pipeline,
-            &[
-                BindGroupBindInfo {
-                    dst_binding: 0,
-                    data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-                },
-                BindGroupBindInfo {
-                    dst_binding: 1,
-                    data: BindGroupWriteData::SampledImage(texture.bind_info(
-                        &sampler,
-                        Layout::ShaderReadOnly,
-                        None,
-                    )),
-                },
-            ],
-        )?;
+        cinder.device.write_bind_group(&[
+            BindGroupBindInfo {
+                group: bind_group,
+                dst_binding: 0,
+                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+            },
+            BindGroupBindInfo {
+                group: bind_group,
+                dst_binding: 1,
+                data: BindGroupWriteData::SampledImage(texture.bind_info(
+                    &sampler,
+                    Layout::ShaderReadOnly,
+                    None,
+                )),
+            },
+        ])?;
 
         let scene = Scene::<MeshVertex>::from_obj(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -187,7 +189,8 @@ impl Renderer {
             cinder,
             index_count: mesh.indices.len() as u32,
             depth_image,
-            pipeline: render_pipeline,
+            pipeline,
+            bind_group,
             vertex_buffer,
             index_buffer,
             ubo_buffer,
@@ -238,8 +241,7 @@ impl Renderer {
         cmd_list.bind_scissor(&self.cinder.device, surface_rect);
         cmd_list.bind_index_buffer(&self.cinder.device, &self.index_buffer);
         cmd_list.bind_vertex_buffer(&self.cinder.device, &self.vertex_buffer);
-        // TODO: re-think API later when using more than one set
-        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline);
+        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline, 0, &[self.bind_group]);
         cmd_list.draw_offset(&self.cinder.device, self.index_count, 0, 0);
         cmd_list.end_rendering(&self.cinder.device);
 

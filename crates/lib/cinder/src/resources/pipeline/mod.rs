@@ -5,7 +5,7 @@ pub mod push_constant;
 use crate::{
     device::Device,
     resources::{
-        bind_group::{BindGroupLayout, BindGroupLayoutData},
+        bind_group::{BindGroupBindingData, BindGroupLayout},
         pipeline::push_constant::PushConstant,
         shader::{Shader, ShaderStage},
     },
@@ -14,6 +14,8 @@ use anyhow::Result;
 use ash::vk;
 use std::collections::{BTreeMap, HashMap};
 use thiserror::Error;
+
+use super::bind_group::{BindGroupData, BindGroupMap, BindGroupSet};
 
 // TODO: Can refactor a bunch of pipeline stuff
 #[derive(Debug, Error)]
@@ -26,28 +28,20 @@ pub enum PipelineError {
     NoBoundPipeline,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct PipelineCommonData {
     // TODO: Think of a better key
     push_constants: HashMap<(ShaderStage, u32), PushConstant>,
-    // TODO: Also need a better way to get these
-    bind_group_layouts: Vec<BindGroupLayout>,
-    counts: Vec<u32>,
+    bind_group_map: BindGroupMap,
 }
 
 impl PipelineCommonData {
-    pub fn bind_group_layouts(&self) -> &[BindGroupLayout] {
-        &self.bind_group_layouts
+    pub fn destroy(&self, device: &ash::Device) {
+        self.bind_group_map.destroy(device);
     }
 
-    pub fn descriptor_counts(&self) -> &[u32] {
-        &self.counts
-    }
-
-    pub fn destroy(&mut self, device: &ash::Device) {
-        for mut layout in self.bind_group_layouts.drain(..) {
-            layout.destroy(device)
-        }
+    pub fn bind_group_data(&self, idx: usize) -> Option<&BindGroupData> {
+        self.bind_group_map.map.get(&idx)
     }
 }
 
@@ -85,6 +79,10 @@ impl PipelineCommon {
         ret
     }
 
+    pub fn bind_group_data(&self, idx: usize) -> Option<&BindGroupData> {
+        self.common_data.bind_group_data(idx)
+    }
+
     pub fn pipeline(&self) -> vk::Pipeline {
         self.pipeline
     }
@@ -97,11 +95,7 @@ impl PipelineCommon {
         self.common_data.push_constants.get(&(shader_stage, idx))
     }
 
-    pub fn bind_group_layouts(&self) -> &[BindGroupLayout] {
-        self.common_data.bind_group_layouts()
-    }
-
-    pub fn destroy(&mut self, device: &Device) {
+    pub fn destroy(&self, device: &Device) {
         self.common_data.destroy(device.raw());
         unsafe {
             device.raw().destroy_pipeline(self.pipeline, None);
@@ -127,37 +121,42 @@ pub fn get_pipeline_layout(
         map
     };
 
-    let (bind_group_layouts, counts) = {
-        let mut data_map: BTreeMap<u32, Vec<BindGroupLayoutData>> = Default::default();
+    let bind_group_map = {
+        let mut data_map: BTreeMap<BindGroupSet, Vec<BindGroupBindingData>> = Default::default();
         for shader in shaders {
-            for (set, data) in shader.bind_group_layouts(device.descriptor_indexing_properties())? {
+            for (set, data) in
+                shader.bind_group_descriptions(device.descriptor_indexing_properties())?
+            {
                 let entry = data_map.entry(set).or_insert_with(Vec::new);
                 entry.extend(data);
             }
         }
 
-        let mut bind_group_layouts = Vec::with_capacity(data_map.len());
-        let mut counts = Vec::with_capacity(data_map.len());
+        let mut bind_group_map = BindGroupMap::default();
         for (i, layout_data) in data_map.values().enumerate() {
             let count = layout_data.last().unwrap().count;
             let layout = BindGroupLayout::new(device, layout_data)?;
             if let Some(name) = name {
                 layout.set_name(device, &format!("{name} [Descriptor Set Layout {i}]"));
             }
-            bind_group_layouts.push(layout);
-            counts.push(count);
+            bind_group_map
+                .map
+                .insert(i, BindGroupData { count, layout });
         }
-        (bind_group_layouts, counts)
+        bind_group_map
     };
-    let set_layouts = unsafe {
-        std::mem::transmute::<&[BindGroupLayout], &[vk::DescriptorSetLayout]>(&bind_group_layouts)
-    };
+
+    let set_layouts = bind_group_map
+        .map
+        .values()
+        .map(|data| data.layout.0)
+        .collect::<Vec<_>>();
     let push_constant_ranges = push_constants
         .values()
         .map(|pc| pc.to_raw())
         .collect::<Vec<_>>();
     let layout_create_info = vk::PipelineLayoutCreateInfo::builder()
-        .set_layouts(set_layouts)
+        .set_layouts(&set_layouts)
         .push_constant_ranges(&push_constant_ranges)
         .build();
 
@@ -169,8 +168,7 @@ pub fn get_pipeline_layout(
 
     let pipeline_common_data = PipelineCommonData {
         push_constants,
-        bind_group_layouts,
-        counts,
+        bind_group_map,
     };
 
     Ok((pipeline_layout, pipeline_common_data))

@@ -419,7 +419,8 @@ impl Device {
         desc: BufferDescription,
     ) -> Result<Buffer> {
         let size = size_of_slice(data);
-        let buffer = Buffer::create(self, size, desc)?;
+        let mut buffer = Buffer::create(self, size, desc)?;
+        buffer.num_elements = Some(data.len() as u32);
         buffer.mem_copy(0, data)?;
         Ok(buffer)
     }
@@ -498,7 +499,7 @@ impl Device {
     pub fn create_graphics_pipeline(
         &self,
         vertex_shader: &Shader,
-        fragment_shader: &Shader,
+        fragment_shader: Option<&Shader>,
         desc: GraphicsPipelineDescription,
     ) -> Result<GraphicsPipeline> {
         GraphicsPipeline::create(self, vertex_shader, fragment_shader, desc)
@@ -509,7 +510,7 @@ impl Device {
         manager: &mut ResourceManager,
         pipeline_handle: ResourceId<GraphicsPipeline>,
         vertex_handle: ResourceId<Shader>,
-        fragment_handle: ResourceId<Shader>,
+        fragment_handle: Option<ResourceId<Shader>>,
     ) -> Result<()> {
         manager.recreate_graphics_pipeline(
             self,
@@ -532,13 +533,14 @@ impl Device {
         let sampler_info = vk::SamplerCreateInfo {
             mag_filter: desc.filter.into(),
             min_filter: desc.filter.into(),
-            mipmap_mode: vk::SamplerMipmapMode::LINEAR,
+            mipmap_mode: desc.mipmap_mode.into(),
             address_mode_u: desc.address_mode.into(),
             address_mode_v: desc.address_mode.into(),
             address_mode_w: desc.address_mode.into(),
             max_anisotropy: 1.0,
-            border_color: vk::BorderColor::FLOAT_OPAQUE_WHITE,
-            compare_op: vk::CompareOp::NEVER,
+            border_color: desc.border_color.into(),
+            compare_enable: vk::FALSE,
+            compare_op: vk::CompareOp::ALWAYS,
             ..Default::default()
         };
 
@@ -562,16 +564,17 @@ impl Device {
         )
     }
 
-    pub fn write_bind_group(
-        &self,
-        pipeline: &GraphicsPipeline,
-        infos: &[BindGroupBindInfo],
-    ) -> Result<(), DeviceError> {
+    pub fn surface_aspect_ratio(&self) -> f32 {
+        self.surface_data.surface_resolution.width as f32
+            / self.surface_data.surface_resolution.height as f32
+    }
+
+    pub fn write_bind_group(&self, infos: &[BindGroupBindInfo]) -> Result<(), DeviceError> {
         let writes = infos
             .iter()
             .map(|info| {
                 let mut write = vk::WriteDescriptorSet::builder()
-                    .dst_set(pipeline.bind_group.as_ref().unwrap().0)
+                    .dst_set(info.group.0)
                     .dst_binding(info.dst_binding);
                 write = match &info.data {
                     BindGroupWriteData::Uniform(buffer_info) => write

@@ -4,6 +4,7 @@ use crate::{
 };
 use anyhow::Result;
 use ash::vk;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Copy, Clone)]
 pub enum BindGroupType {
@@ -68,8 +69,10 @@ impl BindGroupPool {
     }
 }
 
+pub type BindGroupSet = u32;
+
 #[derive(Debug)]
-pub struct BindGroupLayoutData {
+pub struct BindGroupBindingData {
     pub binding: u32,
     pub ty: BindGroupType,
     pub count: u32,
@@ -77,7 +80,7 @@ pub struct BindGroupLayoutData {
     pub flags: vk::DescriptorBindingFlags,
 }
 
-impl BindGroupLayoutData {
+impl BindGroupBindingData {
     pub fn new(binding: u32, ty: BindGroupType, count: u32, shader_stage: ShaderStage) -> Self {
         Self {
             binding,
@@ -101,10 +104,10 @@ pub fn bindless_bind_group_flags() -> vk::DescriptorBindingFlags {
 
 #[repr(transparent)]
 #[derive(Debug)]
-pub struct BindGroupLayout(vk::DescriptorSetLayout);
+pub struct BindGroupLayout(pub vk::DescriptorSetLayout);
 
 impl BindGroupLayout {
-    pub fn new(device: &Device, layout_data: &[BindGroupLayoutData]) -> Result<Self> {
+    pub fn new(device: &Device, layout_data: &[BindGroupBindingData]) -> Result<Self> {
         let bindings = layout_data
             .iter()
             .map(|data| {
@@ -144,7 +147,7 @@ impl BindGroupLayout {
         device.set_name(vk::ObjectType::DESCRIPTOR_SET_LAYOUT, self.0, name);
     }
 
-    pub fn destroy(&mut self, device: &ash::Device) {
+    pub fn destroy(&self, device: &ash::Device) {
         unsafe { device.destroy_descriptor_set_layout(self.0, None) }
     }
 }
@@ -159,28 +162,24 @@ pub enum BindGroupWriteData {
 
 #[derive(Debug)]
 pub struct BindGroupBindInfo {
+    pub group: BindGroup,
     pub dst_binding: u32,
     pub data: BindGroupWriteData,
 }
 
+#[derive(Debug, Copy, Clone)]
 #[repr(transparent)]
 pub struct BindGroup(pub vk::DescriptorSet);
 
 impl BindGroup {
-    pub fn new(
-        device: &Device,
-        layouts: &[BindGroupLayout],
-        descriptor_counts: &[u32],
-    ) -> Result<Self> {
+    pub fn new(device: &Device, bind_group_data: &BindGroupData) -> Result<Self> {
         let mut count_info = vk::DescriptorSetVariableDescriptorCountAllocateInfo::builder()
-            .descriptor_counts(descriptor_counts)
+            .descriptor_counts(std::slice::from_ref(&bind_group_data.count))
             .build();
-
-        let set_layouts = layouts.iter().map(|layout| layout.0).collect::<Vec<_>>();
 
         let desc_alloc_info = vk::DescriptorSetAllocateInfo::builder()
             .descriptor_pool(device.bind_group_pool.0)
-            .set_layouts(&set_layouts)
+            .set_layouts(std::slice::from_ref(&bind_group_data.layout.0))
             .push_next(&mut count_info)
             .build();
 
@@ -191,5 +190,30 @@ impl BindGroup {
 
     pub(crate) fn set_name(&self, device: &Device, name: &str) {
         device.set_name(vk::ObjectType::DESCRIPTOR_SET, self.0, name);
+    }
+}
+
+#[derive(Debug)]
+pub struct BindGroupData {
+    pub count: u32,
+    pub layout: BindGroupLayout,
+}
+
+impl BindGroupData {
+    pub fn destroy(&self, device: &ash::Device) {
+        self.layout.destroy(device);
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct BindGroupMap {
+    pub map: BTreeMap<usize, BindGroupData>,
+}
+
+impl BindGroupMap {
+    pub fn destroy(&self, device: &ash::Device) {
+        for layout in self.map.values() {
+            layout.destroy(device);
+        }
     }
 }
