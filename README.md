@@ -78,6 +78,10 @@ Will be very slow to load the first time as we are processing mesh and texture d
 ### [Hot Reload](./crates/bin/shader-hot-reload/src/main.rs)<br/>
 Shader hot-reloading.
 
+### [Simple Shadow Map](./crates/bin/simple-light/src/main.rs)<br/>
+A very simple hard shadow example.
+
+![hello-cube 5_22_2023 12_22_12 AM](https://github.com/ArthurKValladares/Cinder-Renderer/assets/23410311/4a9c396e-bb2e-464b-b038-50c609d70f86)
 
 
 https://user-images.githubusercontent.com/23410311/220039871-11cf4ead-a305-4210-bf8e-04ae78656b48.mp4
