@@ -3,7 +3,7 @@ use crate::{
     resources::{
         bind_group::BindGroup,
         buffer::Buffer,
-        image::{Image, Layout},
+        image::{Image, ImageUsage, Layout},
         pipeline::{graphics::GraphicsPipeline, PipelineCommon, PipelineError},
         shader::ShaderStage,
     },
@@ -560,17 +560,17 @@ impl CommandQueue {
         &self,
         device: &Device,
         image: &Image,
-        aspect_mask: vk::ImageAspectFlags,
-        old_layout: vk::ImageLayout,
-        new_layout: vk::ImageLayout,
+        aspect_mask: ImageUsage,
+        old_layout: Layout,
+        new_layout: Layout,
     ) -> Result<()> {
         let instant_command_list = self.get_immediate_command_list(device)?;
         instant_command_list.set_image_memory_barrier(
             device,
             image.raw,
-            aspect_mask,
-            old_layout,
-            new_layout,
+            aspect_mask.into(),
+            old_layout.into(),
+            new_layout.into(),
             Default::default(),
         );
         instant_command_list.end(device)?;

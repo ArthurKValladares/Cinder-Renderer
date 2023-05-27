@@ -6,7 +6,10 @@ use cinder::{
     },
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
-        buffer::{vk, Buffer, BufferDescription, BufferUsage},
+        buffer::{
+            vk::{self, ImageLayout},
+            Buffer, BufferDescription, BufferUsage,
+        },
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
@@ -66,10 +69,9 @@ impl Renderer {
         cinder.command_queue.transition_image(
             &cinder.device,
             &depth_image,
-            // TODO: get rid of `vk`
-            vk::ImageAspectFlags::DEPTH,
-            vk::ImageLayout::UNDEFINED,
-            vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+            ImageUsage::Depth,
+            Layout::Undefined,
+            Layout::DepthStencilReadOnly,
         )?;
         let mesh_vertex_shader = cinder.device.create_shader(
             include_bytes!("../shaders/spv/depth_mesh.vert.spv"),
@@ -416,10 +418,9 @@ impl Renderer {
         self.cinder.command_queue.transition_image(
             &self.cinder.device,
             &self.depth_image,
-            // TODO: get rid of `vk`
-            vk::ImageAspectFlags::DEPTH,
-            vk::ImageLayout::UNDEFINED,
-            vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+            ImageUsage::Depth,
+            Layout::Undefined,
+            Layout::DepthStencilReadOnly,
         )?;
         self.cinder.device.write_bind_group(&[BindGroupBindInfo {
             group: self.texture_bind_group,

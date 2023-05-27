@@ -532,10 +532,9 @@ impl HelloCube {
         cinder.command_queue.transition_image(
             &cinder.device,
             &shadow_map_image,
-            // TODO: get rid of `vk`
-            vk::ImageAspectFlags::DEPTH,
-            vk::ImageLayout::UNDEFINED,
-            vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+            ImageUsage::Depth,
+            Layout::Undefined,
+            Layout::DepthStencilReadOnly,
         )?;
 
         //
@@ -994,10 +993,9 @@ impl HelloCube {
         self.cinder.command_queue.transition_image(
             &self.cinder.device,
             &self.shadow_map_image,
-            // TODO: get rid of `vk`
-            vk::ImageAspectFlags::DEPTH,
-            vk::ImageLayout::UNDEFINED,
-            vk::ImageLayout::DEPTH_STENCIL_READ_ONLY_OPTIMAL,
+            ImageUsage::Depth,
+            Layout::Undefined,
+            Layout::DepthStencilReadOnly,
         )?;
         self.cinder.device.write_bind_group(&[BindGroupBindInfo {
             group: self.texture_bind_group,
