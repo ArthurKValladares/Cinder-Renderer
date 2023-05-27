@@ -7,7 +7,6 @@ use cinder::{
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{
-            vk::{self, ImageLayout},
             Buffer, BufferDescription, BufferUsage,
         },
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
