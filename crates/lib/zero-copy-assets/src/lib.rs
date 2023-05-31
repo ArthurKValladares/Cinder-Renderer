@@ -11,7 +11,6 @@ use rkyv::{
 };
 use thiserror::Error;
 
-// TODO: Figure a good number here
 const SCRATCH_SPACE: usize = 4096;
 
 #[derive(Debug, Error)]
@@ -99,7 +98,6 @@ where
     }
 }
 
-// TODO: Move this somewhere else
 #[derive(Archive, Serialize, Deserialize, Debug)]
 pub struct ImageData {
     pub width: u32,

@@ -226,7 +226,6 @@ impl GraphicsPipeline {
             },
         ];
 
-        // TODO: I repeat this pattern in a few places, abstract it
         let color_attachment_formats = if let Some(color_format) = desc.color_format {
             [color_format.into()]
         } else {

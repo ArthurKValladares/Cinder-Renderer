@@ -160,7 +160,6 @@ impl EguiIntegration {
         self.egui_sdl
             .handle_platform_output(window, &self.egui_context, platform_output);
 
-        // TODO? Make this a separate step
         self.set_textures(resource_manager, device, command_queue, &textures_delta)?;
 
         self.paint(

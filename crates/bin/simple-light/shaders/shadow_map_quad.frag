@@ -3,7 +3,7 @@
 #extension GL_ARB_separate_shader_objects : enable
 #extension GL_ARB_shading_language_420pack : enable
  
-// TODO: If this is set zero, pipeline creation fails
+// TODO: If this is not zero, pipeline creation fails
 layout (binding = 0) uniform sampler2D image;
  
 layout(location = 0) in vec2 i_uv;

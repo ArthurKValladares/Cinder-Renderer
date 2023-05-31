@@ -278,7 +278,6 @@ impl HelloCube {
         cmd_list.bind_scissor(&self.cinder.device, surface_rect);
         cmd_list.bind_index_buffer(&self.cinder.device, &self.index_buffer);
         cmd_list.bind_vertex_buffer(&self.cinder.device, &self.vertex_buffer);
-        // TODO: re-think API later when using more than one set
         cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline, 0, &[self.bind_group]);
         cmd_list.draw_offset(&self.cinder.device, 36, 0, 0);
         cmd_list.end_rendering(&self.cinder.device);

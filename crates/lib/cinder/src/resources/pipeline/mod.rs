@@ -2,6 +2,7 @@ pub mod compute;
 pub mod graphics;
 pub mod push_constant;
 
+use super::bind_group::{BindGroupData, BindGroupMap, BindGroupSet};
 use crate::{
     device::Device,
     resources::{
@@ -15,9 +16,6 @@ use ash::vk;
 use std::collections::{BTreeMap, HashMap};
 use thiserror::Error;
 
-use super::bind_group::{BindGroupData, BindGroupMap, BindGroupSet};
-
-// TODO: Can refactor a bunch of pipeline stuff
 #[derive(Debug, Error)]
 pub enum PipelineError {
     #[error("invalid push constant")]
