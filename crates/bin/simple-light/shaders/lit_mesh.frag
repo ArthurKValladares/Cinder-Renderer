@@ -1,6 +1,5 @@
 #version 450
 
-// TODO: Put this in a DescriptorSet later
 float AMBIENT_LIGHT_STRENGTH = 0.15;
 
 layout (location = 0) in vec3 i_pos;
