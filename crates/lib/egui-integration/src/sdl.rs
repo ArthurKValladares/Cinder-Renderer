@@ -1,7 +1,5 @@
-use std::time::Instant;
-
-use egui::epaint::ahash::HashSet;
 use sdl2::{event::Event, mouse::MouseButton, video::Window};
+use std::time::Instant;
 
 fn translate_mouse_button(button: &MouseButton) -> Option<egui::PointerButton> {
     match button {
@@ -24,16 +22,10 @@ pub struct EventResponse {
     pub consumed: bool,
 }
 
-#[derive(Default)]
-struct MouseState {
-    is_down: HashSet<MouseButton>,
-}
-
 pub struct EguiSdl {
     start_time: Instant,
     egui_input: egui::RawInput,
     current_pixels_per_point: f32,
-    mouse_state: MouseState,
 }
 
 impl EguiSdl {
@@ -42,7 +34,6 @@ impl EguiSdl {
             start_time: Instant::now(),
             egui_input: Default::default(),
             current_pixels_per_point: 1.0,
-            mouse_state: Default::default(),
         }
     }
 
