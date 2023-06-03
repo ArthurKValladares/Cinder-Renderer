@@ -1,4 +1,3 @@
-pub mod compute;
 pub mod graphics;
 pub mod push_constant;
 
@@ -55,7 +54,7 @@ impl PipelineCommon {
         pipeline_layout: vk::PipelineLayout,
         pipeline: vk::Pipeline,
         common_data: PipelineCommonData,
-        name: Option<&str>,
+        name: &Option<String>,
     ) -> Self {
         let ret = Self {
             pipeline_layout,
@@ -107,7 +106,7 @@ impl PipelineCommon {
 pub fn get_pipeline_layout(
     device: &Device,
     shaders: &[&Shader],
-    name: Option<&'static str>,
+    name: &Option<String>,
 ) -> Result<(vk::PipelineLayout, PipelineCommonData)> {
     let push_constants = {
         let mut map = HashMap::new();

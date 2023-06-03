@@ -14,10 +14,7 @@ use crate::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Image, ImageDescription, ImageError},
         manager::ResourceManager,
-        pipeline::{
-            compute::{ComputePipeline, ComputePipelineDescription},
-            graphics::{GraphicsPipeline, GraphicsPipelineDescription},
-        },
+        pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::{Sampler, SamplerDescription},
         shader::{Shader, ShaderDesc},
     },
@@ -519,14 +516,6 @@ impl Device {
             fragment_handle,
         )?;
         Ok(())
-    }
-
-    pub fn create_compute_pipeline(
-        &self,
-        shader: Shader,
-        desc: ComputePipelineDescription,
-    ) -> Result<ComputePipeline> {
-        ComputePipeline::create(self, shader, desc)
     }
 
     pub fn create_sampler(&self, desc: SamplerDescription) -> Result<Sampler> {

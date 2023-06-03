@@ -98,9 +98,9 @@ impl From<CullMode> for vk::CullModeFlags {
     }
 }
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct GraphicsPipelineDescription {
-    pub name: Option<&'static str>, // TODO: Probably should have a lifetime
+    pub name: Option<String>,
     pub blending: ColorBlendState,
     pub color_format: Option<Format>,
     pub depth_format: Option<Format>,
@@ -307,7 +307,7 @@ impl GraphicsPipeline {
             } else {
                 &shaders[0..1]
             },
-            desc.name,
+            &desc.name,
         )?;
 
         let pipeline = Self::create_raw_pipeline(
@@ -318,7 +318,8 @@ impl GraphicsPipeline {
             pipeline_layout,
         )?;
 
-        let common = PipelineCommon::new(device, pipeline_layout, pipeline, common_data, desc.name);
+        let common =
+            PipelineCommon::new(device, pipeline_layout, pipeline, common_data, &desc.name);
 
         Ok(GraphicsPipeline { common, desc })
     }

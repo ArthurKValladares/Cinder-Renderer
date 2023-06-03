@@ -60,7 +60,7 @@ impl Renderer {
             &vertex_shader,
             Some(&fragment_shader),
             GraphicsPipelineDescription {
-                name: Some("Debug Graphics Pipeline"),
+                name: Some(String::from("Debug Graphics Pipeline")),
                 ..Default::default()
             },
         )?;

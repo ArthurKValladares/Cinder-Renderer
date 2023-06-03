@@ -262,8 +262,6 @@ impl CommandList {
         )
     }
 
-    // TODO: This abstraction is too close to raw Vulkan,
-    // will improve it later to something with a smaller surface area
     pub fn begin_rendering(
         &self,
         device: &Device,

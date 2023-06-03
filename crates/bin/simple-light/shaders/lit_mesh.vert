@@ -31,7 +31,6 @@ layout(set = 1, binding = 0 ) uniform ModelUniformBufferObject {
 layout( push_constant ) uniform constants
 {
     vec4 color;
-    // TODO: Move this to a ubo
     vec4 view_from;
     vec3 light_color;
 } PushConstants;
