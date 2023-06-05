@@ -98,6 +98,7 @@ impl From<CullMode> for vk::CullModeFlags {
     }
 }
 
+pub type VertexInputRate = vk::VertexInputRate;
 pub type VertexBindingDesc = vk::VertexInputBindingDescription;
 pub type VertexAttributeDescription = vk::VertexInputAttributeDescription;
 

@@ -5,11 +5,12 @@ use cinder::{
     },
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupData, BindGroupWriteData},
-        buffer::{
-            Buffer, BufferDescription, BufferUsage,
-        },
+        buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
-        pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
+        pipeline::graphics::{
+            GraphicsPipeline, GraphicsPipelineDescription, VertexAttributeDescription,
+            VertexBindingDesc, VertexDescription, VertexInputRate,
+        },
         sampler::{AddressMode, BorderColor, MipmapMode, Sampler, SamplerDescription},
     },
     Cinder,
@@ -446,6 +447,19 @@ impl HelloCube {
             GraphicsPipelineDescription {
                 color_format: None,
                 depth_format: Some(Format::D32_SFloat),
+                vertex_desc: Some(VertexDescription {
+                    binding_desc: vec![VertexBindingDesc {
+                        binding: 0,
+                        stride: std::mem::size_of::<LitMeshVertex>() as u32,
+                        input_rate: VertexInputRate::VERTEX,
+                    }],
+                    attribute_desc: vec![VertexAttributeDescription {
+                        location: 0,
+                        binding: 0,
+                        format: Format::R32G32B32_SFloat.into(),
+                        offset: 0,
+                    }],
+                }),
                 ..Default::default()
             },
         )?;
