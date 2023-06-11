@@ -2,6 +2,7 @@ pub mod cinder;
 pub mod command_queue;
 pub mod device;
 pub mod profiling;
+pub mod render_graph;
 pub mod resources;
 pub mod shader_hot_reloader;
 pub mod swapchain;
