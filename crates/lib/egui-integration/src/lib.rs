@@ -10,8 +10,11 @@ use cinder::{
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
-        image::{Image, Layout},
-        pipeline::graphics::{ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription},
+        image::{Format, Image, Layout},
+        pipeline::graphics::{
+            ColorBlendState, GraphicsPipeline, GraphicsPipelineDescription,
+            VertexAttributeDescription, VertexBindingDesc, VertexDescription, VertexInputRate,
+        },
         sampler::{AddressMode, Sampler, SamplerDescription},
         ResourceManager,
     },
@@ -72,6 +75,33 @@ impl EguiIntegration {
             GraphicsPipelineDescription {
                 blending: ColorBlendState::pma(),
                 color_format: Some(device.surface_data().format()),
+                vertex_desc: Some(VertexDescription {
+                    binding_desc: vec![VertexBindingDesc {
+                        binding: 0,
+                        stride: std::mem::size_of::<egui::epaint::Vertex>() as u32,
+                        input_rate: VertexInputRate::VERTEX,
+                    }],
+                    attribute_desc: vec![
+                        VertexAttributeDescription {
+                            location: 0,
+                            binding: 0,
+                            format: Format::R32G32_SFloat.into(),
+                            offset: 0,
+                        },
+                        VertexAttributeDescription {
+                            location: 1,
+                            binding: 0,
+                            format: Format::R32G32_SFloat.into(),
+                            offset: util::offset_of!(egui::epaint::Vertex, uv) as u32,
+                        },
+                        VertexAttributeDescription {
+                            location: 2,
+                            binding: 0,
+                            format: Format::R8G8B8A8_Srgb.into(),
+                            offset: util::offset_of!(egui::epaint::Vertex, color) as u32,
+                        },
+                    ],
+                }),
                 ..Default::default()
             },
         )?;

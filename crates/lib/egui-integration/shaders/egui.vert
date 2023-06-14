@@ -2,7 +2,7 @@
 
 layout(location = 0) in vec2 i_pos;
 layout(location = 1) in vec2 i_uv;
-layout(location = 2) in vec4 i_color_lowp;
+layout(location = 2) in vec4 i_color;
 
 layout (location = 0) out vec2 o_uv;
 layout (location = 1) out vec4 o_color;
@@ -21,7 +21,7 @@ vec3 srgb_to_linear(vec3 srgb) {
 
 void main() {
     o_uv = i_uv;
-    o_color = vec4(srgb_to_linear(i_color_lowp.rgb), i_color_lowp.a);
+    o_color = vec4(srgb_to_linear(i_color.rgb), i_color.a);
     
     gl_Position = vec4(
         2.0 * i_pos.x / PushConstants.screen_size.x - 1.0,
