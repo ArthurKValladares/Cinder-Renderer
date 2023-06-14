@@ -21,24 +21,21 @@ pub enum ImageError {
     NotMemoryMappable,
 }
 
-pub fn reflect_format_to_vk(fmt: ReflectFormat, low_precision: bool) -> vk::Format {
-    match (fmt, low_precision) {
-        (ReflectFormat::Undefined, _) => vk::Format::UNDEFINED,
-        (ReflectFormat::R32_UINT, _) => vk::Format::R32_UINT,
-        (ReflectFormat::R32_SINT, _) => vk::Format::R32_SINT,
-        (ReflectFormat::R32_SFLOAT, _) => vk::Format::R32_SFLOAT,
-        (ReflectFormat::R32G32_UINT, _) => vk::Format::R32G32_UINT,
-        (ReflectFormat::R32G32_SINT, _) => vk::Format::R32G32_SINT,
-        (ReflectFormat::R32G32B32_UINT, _) => vk::Format::R32G32B32_UINT,
-        (ReflectFormat::R32G32B32_SINT, _) => vk::Format::R32G32B32_SINT,
-        (ReflectFormat::R32G32B32A32_UINT, _) => vk::Format::R32G32B32A32_UINT,
-        (ReflectFormat::R32G32B32A32_SINT, _) => vk::Format::R32G32B32A32_SINT,
-        (ReflectFormat::R32G32_SFLOAT, false) => vk::Format::R32G32_SFLOAT,
-        (ReflectFormat::R32G32B32_SFLOAT, false) => vk::Format::R32G32B32_SFLOAT,
-        (ReflectFormat::R32G32B32A32_SFLOAT, false) => vk::Format::R32G32B32A32_SFLOAT,
-        (ReflectFormat::R32G32_SFLOAT, true) => vk::Format::R8G8_UNORM,
-        (ReflectFormat::R32G32B32_SFLOAT, true) => vk::Format::R8G8B8_UNORM,
-        (ReflectFormat::R32G32B32A32_SFLOAT, true) => vk::Format::R8G8B8A8_UNORM,
+pub fn reflect_format_to_vk(fmt: ReflectFormat) -> vk::Format {
+    match fmt {
+        ReflectFormat::Undefined => vk::Format::UNDEFINED,
+        ReflectFormat::R32_UINT => vk::Format::R32_UINT,
+        ReflectFormat::R32_SINT => vk::Format::R32_SINT,
+        ReflectFormat::R32_SFLOAT => vk::Format::R32_SFLOAT,
+        ReflectFormat::R32G32_UINT => vk::Format::R32G32_UINT,
+        ReflectFormat::R32G32_SINT => vk::Format::R32G32_SINT,
+        ReflectFormat::R32G32_SFLOAT => vk::Format::R32G32_SFLOAT,
+        ReflectFormat::R32G32B32_UINT => vk::Format::R32G32B32_UINT,
+        ReflectFormat::R32G32B32_SINT => vk::Format::R32G32B32_SINT,
+        ReflectFormat::R32G32B32_SFLOAT => vk::Format::R32G32B32_SFLOAT,
+        ReflectFormat::R32G32B32A32_UINT => vk::Format::R32G32B32A32_UINT,
+        ReflectFormat::R32G32B32A32_SINT => vk::Format::R32G32B32A32_SINT,
+        ReflectFormat::R32G32B32A32_SFLOAT => vk::Format::R32G32B32A32_SFLOAT,
     }
 }
 

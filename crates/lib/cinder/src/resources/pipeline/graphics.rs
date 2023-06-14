@@ -171,7 +171,7 @@ impl GraphicsPipeline {
                 .map(|(location, att)| vk::VertexInputAttributeDescription {
                     location: location as u32,
                     binding,
-                    format: reflect_format_to_vk(att.format, att.low_precision),
+                    format: reflect_format_to_vk(att.format),
                     offset: att.offset / 8,
                 })
                 .collect::<Vec<_>>();
