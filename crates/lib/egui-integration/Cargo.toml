@@ -8,6 +8,6 @@ edition = "2021"
 anyhow = "1"
 cinder = {path = "../cinder"}
 util = {path = "../util"}
-egui = "0.21"
+egui = "0.22"
 sdl2 = { git = "https://github.com/Rust-SDL2/rust-sdl2", features = ["bundled", "raw-window-handle"] }
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }

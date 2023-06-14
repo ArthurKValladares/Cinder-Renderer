@@ -42,12 +42,9 @@ where
                 .into_par_iter()
                 .map(|material| {
                     let diffuse: Result<Option<ImageData>, SceneError> =
-                        if material.diffuse_texture.is_empty() {
-                            Ok(None)
-                        } else {
-                            let material_path = material
-                                .diffuse_texture
-                                .replace("\\", &format!("{}", std::path::MAIN_SEPARATOR));
+                        if let Some(diffuse_texture) = material.diffuse_texture {
+                            let material_path = diffuse_texture
+                                .replace('\\', &format!("{}", std::path::MAIN_SEPARATOR));
                             let image_path = path.join(material_path);
                             let image_stem = image_path.file_stem().unwrap();
                             let image = try_decoded_file::<ImageData>(
@@ -59,6 +56,8 @@ where
                             )
                             .unwrap();
                             Ok(Some(image))
+                        } else {
+                            Ok(None)
                         };
                     let diffuse = diffuse?;
                     Ok(Material { diffuse })

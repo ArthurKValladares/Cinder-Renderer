@@ -17,7 +17,7 @@ pub enum BufferError {
 }
 
 bitflags! {
-    #[derive(Default, serde::Deserialize)]
+    #[derive(Debug, Default, serde::Deserialize, Copy, Clone)]
     pub struct BufferUsage: u32 {
         const VERTEX = 0x00000080;
         const INDEX = 0x00000040;
@@ -30,7 +30,7 @@ bitflags! {
 
 impl From<BufferUsage> for vk::BufferUsageFlags {
     fn from(value: BufferUsage) -> Self {
-        vk::BufferUsageFlags::from_raw(value.bits)
+        vk::BufferUsageFlags::from_raw(value.bits())
     }
 }
 
