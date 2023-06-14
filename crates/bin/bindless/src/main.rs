@@ -88,7 +88,7 @@ pub struct MeshDraw {
     vertex_buffer_offset: i32,
     index_buffer_offset: u32,
     num_indices: u32,
-    image_index: u32,
+    image_index: Option<u32>,
 }
 
 pub struct Renderer {
@@ -172,7 +172,7 @@ impl Renderer {
                     vertex_buffer_offset: first_vertex as i32,
                     index_buffer_offset: first_index as u32,
                     num_indices,
-                    image_index: mesh.material_index.unwrap_or(0) as u32, // TODO: handle the None case better
+                    image_index: mesh.material_index,
                 });
             }
             (vertices, indices, mesh_draws)
@@ -328,12 +328,9 @@ impl Renderer {
         cmd_list.bind_index_buffer(&self.cinder.device, &self.index_buffer);
         cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline, 0, &[self.bind_group]);
         for mesh_draw in &self.mesh_draws {
-            cmd_list.set_fragment_bytes(
-                &self.cinder.device,
-                &self.pipeline,
-                &[mesh_draw.image_index],
-                0,
-            )?;
+            if let Some(index) = mesh_draw.image_index {
+                cmd_list.set_fragment_bytes(&self.cinder.device, &self.pipeline, &[index], 0)?;
+            }
             cmd_list.draw_offset(
                 &self.cinder.device,
                 mesh_draw.num_indices,

@@ -6,7 +6,7 @@ use tobj::Model;
 pub struct Mesh<V: Vertex> {
     pub indices: Vec<u32>,
     pub vertices: Vec<V>,
-    pub material_index: Option<usize>,
+    pub material_index: Option<u32>,
     pub min_pos: [f32; 3],
     pub max_pos: [f32; 3],
 }
@@ -37,7 +37,7 @@ where
         Self {
             indices: obj_mesh.indices,
             vertices,
-            material_index: obj_mesh.material_id,
+            material_index: obj_mesh.material_id.map(|i| i as u32),
             min_pos: mesh_min_pos,
             max_pos: mesh_max_pos,
         }
