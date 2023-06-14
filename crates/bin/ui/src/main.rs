@@ -312,7 +312,6 @@ impl Renderer {
             &mut self.cinder.resource_manager,
             &self.cinder.device,
             window,
-            &self.cinder.command_queue,
             &cmd_list,
             surface_rect,
             swapchain_image,

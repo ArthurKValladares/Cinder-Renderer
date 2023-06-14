@@ -87,7 +87,7 @@ impl Renderer {
             .to_rgba8();
         let (width, height) = image.dimensions();
         let image_data = image.into_raw();
-        let texture = cinder.device.create_image_with_data(
+        let texture = cinder.device.create_image_with_data_immediate(
             Size2D::new(width, height),
             &image_data,
             &cinder.command_queue,

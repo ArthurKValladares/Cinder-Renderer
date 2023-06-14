@@ -168,8 +168,6 @@ impl EguiIntegration {
         resource_manager: &mut ResourceManager,
         device: &Device,
         window: &Window,
-        // TODO: Having to pass both here is kinda bad
-        command_queue: &CommandQueue,
         command_list: &CommandList,
         render_area: Rect2D<i32, u32>,
         swapchain_image: SwapchainImage,
@@ -190,7 +188,7 @@ impl EguiIntegration {
         self.egui_sdl
             .handle_platform_output(window, &self.egui_context, platform_output);
 
-        self.set_textures(resource_manager, device, command_queue, &textures_delta)?;
+        self.set_textures(resource_manager, device, command_list, &textures_delta)?;
 
         self.paint(
             resource_manager,
@@ -396,17 +394,18 @@ impl EguiIntegration {
         &mut self,
         resource_manager: &mut ResourceManager,
         device: &Device,
-        command_queue: &CommandQueue,
+        command_list: &CommandList,
         id: &TextureId,
         size: Size2D<u32>,
         data: &[egui::Color32],
     ) -> Result<()> {
-        let image = device.create_image_with_data(
+        let (image, buffer) = device.create_image_with_data(
             size,
             util::typed_to_bytes(data),
-            command_queue,
+            command_list,
             Default::default(),
         )?;
+        resource_manager.delete_buffer_raw(buffer, device.current_frame_in_flight());
 
         let index = match id {
             TextureId::Managed(index) => *index,
@@ -438,7 +437,7 @@ impl EguiIntegration {
         &mut self,
         resource_manager: &mut ResourceManager,
         device: &Device,
-        command_queue: &CommandQueue,
+        command_list: &CommandList,
         id: &TextureId,
         delta: &ImageDelta,
     ) -> Result<()> {
@@ -446,7 +445,7 @@ impl EguiIntegration {
             ImageData::Color(color_data) => self.set_image_helper(
                 resource_manager,
                 device,
-                command_queue,
+                command_list,
                 id,
                 Size2D::new(color_data.size[0] as u32, color_data.size[1] as u32),
                 &color_data.pixels,
@@ -457,7 +456,7 @@ impl EguiIntegration {
                 self.set_image_helper(
                     resource_manager,
                     device,
-                    command_queue,
+                    command_list,
                     id,
                     Size2D::new(font_data.width() as u32, font_data.height() as u32),
                     &data,
@@ -470,11 +469,11 @@ impl EguiIntegration {
         &mut self,
         resource_manager: &mut ResourceManager,
         device: &Device,
-        command_queue: &CommandQueue,
+        command_list: &CommandList,
         textures_delta: &TexturesDelta,
     ) -> Result<()> {
         for (id, delta) in &textures_delta.set {
-            self.set_image(resource_manager, device, command_queue, id, delta)?;
+            self.set_image(resource_manager, device, command_list, id, delta)?;
         }
         Ok(())
     }

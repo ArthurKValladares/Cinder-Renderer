@@ -241,7 +241,7 @@ impl Renderer {
             .map(|(idx, image_data)| {
                 let texture = cinder
                     .device
-                    .create_image_with_data(
+                    .create_image_with_data_immediate(
                         Size2D::new(image_data.width, image_data.height),
                         &image_data.bytes,
                         &cinder.command_queue,

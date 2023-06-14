@@ -7,7 +7,7 @@ pub use self::instance::{debug::*, Instance};
 use self::{extensions::DeviceExtensions, properties::DeviceProperties, surface::Surface};
 pub use self::{instance::Extension, surface::SurfaceData};
 use crate::{
-    command_queue::CommandQueue,
+    command_queue::{CommandList, CommandQueue},
     profiling::QueryPool,
     resources::{
         bind_group::{BindGroupBindInfo, BindGroupPool, BindGroupWriteData},
@@ -430,9 +430,9 @@ impl Device {
         &self,
         size: Size2D<u32>,
         bytes: &[u8],
-        cmd_queue: &CommandQueue,
+        cmd_list: &CommandList,
         desc: ImageDescription,
-    ) -> Result<Image> {
+    ) -> Result<(Image, Buffer)> {
         let image = Image::create(self, size, desc)?;
 
         let image_buffer = self.create_buffer_with_data(
@@ -443,8 +443,7 @@ impl Device {
             },
         )?;
 
-        let instant_command_list = cmd_queue.get_immediate_command_list(self)?;
-        instant_command_list.set_image_memory_barrier(
+        cmd_list.set_image_memory_barrier(
             self,
             image.raw,
             vk::ImageAspectFlags::COLOR,
@@ -452,8 +451,8 @@ impl Device {
             vk::ImageLayout::TRANSFER_DST_OPTIMAL,
             Default::default(),
         );
-        instant_command_list.copy_buffer_to_image(self, &image_buffer, &image);
-        instant_command_list.set_image_memory_barrier(
+        cmd_list.copy_buffer_to_image(self, &image_buffer, &image);
+        cmd_list.set_image_memory_barrier(
             self,
             image.raw,
             vk::ImageAspectFlags::COLOR,
@@ -461,11 +460,27 @@ impl Device {
             vk::ImageLayout::SHADER_READ_ONLY_OPTIMAL,
             Default::default(),
         );
+
+        Ok((image, image_buffer))
+    }
+
+    pub fn create_image_with_data_immediate(
+        &self,
+        size: Size2D<u32>,
+        bytes: &[u8],
+        cmd_queue: &CommandQueue,
+        desc: ImageDescription,
+    ) -> Result<Image> {
+        let instant_command_list = cmd_queue.get_immediate_command_list(self)?;
+
+        let (image, buffer) =
+            self.create_image_with_data(size, bytes, &instant_command_list, desc)?;
+
         instant_command_list.end(self)?;
         instant_command_list.immediate_submit(self, self.present_queue)?;
         instant_command_list.reset(self)?;
 
-        image_buffer.destroy(self);
+        buffer.destroy(self);
 
         Ok(image)
     }
