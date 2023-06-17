@@ -158,7 +158,7 @@ impl GraphicsPipeline {
                 &vertex_desc.attribute_desc,
             )
         } else {
-            let binding = 0; // TODO: Support non-zero bindings, need to be done shader-side, probably in the name atm
+            let binding = 0;
             let vertex_input_binding_descriptions = vec![vk::VertexInputBindingDescription {
                 binding,
                 stride: atttributes.stride / 8,
