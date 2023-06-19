@@ -1,56 +1,27 @@
-use crate::{
-    device::Device,
-    resources::{
-        buffer::Buffer,
-        image::{Image, ImageUsage, Layout},
-    },
-};
-use anyhow::Result;
+use crate::command_queue::RenderAttachment;
+use resource_manager::ResourceId;
 
-pub struct ImageResource<T> {
-    f: Box<dyn Fn(&Device, &mut T) -> Image>,
-    aspect_mask: ImageUsage,
-    old_layout: Layout,
-    new_layout: Layout,
+pub struct RenderGraphNode {
+    render_attachment: ResourceId<RenderAttachment>,
+    inputs: Vec<ResourceId<RenderGraphResource>>,
+    outputs: Vec<ResourceId<RenderGraphResource>>,
+    edges: Vec<ResourceId<RenderGraphNode>>,
 }
 
-pub struct BufferResource<T> {
-    f: Box<dyn Fn(&Device, &mut T) -> Buffer>,
-    // TODO: Buffer memory barrier stuff
+pub enum RenderGraphResourceType {
+    Buffer,
+    Texture,
+    Attachment,
+    Reference,
 }
 
-pub enum Resource<T> {
-    Buffer(BufferResource<T>),
-    Image(ImageResource<T>),
+pub struct RenderGraphResource {
+    ty: RenderGraphResourceType,
+    producer: ResourceId<RenderGraphNode>,
+    output: ResourceId<RenderGraphResource>,
+    ref_count: usize,
 }
 
-pub struct Task<T, F: FnMut(&Device) -> Result<()>> {
-    resources: Vec<Resource<T>>,
-    task: F,
-}
+pub struct RenderGraphBuilder {}
 
-pub type NodeFn<'a> = dyn FnMut(&Device) -> Result<()> + 'a;
-pub struct Node<'a, T> {
-    resources: Vec<Resource<T>>,
-    task: Box<NodeFn<'a>>,
-}
-
-pub struct RenderGraphBuilder<'a, T> {
-    nodes: Vec<Node<'a, T>>,
-}
-
-impl<'a, T> RenderGraphBuilder<'a, T> {
-    pub fn with_task<'b: 'a, F: FnMut(&Device) -> Result<()> + 'b>(
-        mut self,
-        task: Task<T, F>,
-    ) -> Self {
-        let Task { resources, task } = task;
-
-        self.nodes.push(Node {
-            resources,
-            task: Box::new(task),
-        });
-
-        self
-    }
-}
+pub struct RenderGraph {}
