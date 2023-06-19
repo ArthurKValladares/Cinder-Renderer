@@ -1,4 +1,5 @@
-use crate::command_queue::RenderAttachment;
+use crate::{command_queue::RenderAttachment, device::Device};
+use anyhow::Result;
 use resource_manager::ResourceId;
 
 pub struct RenderGraphNode {
@@ -22,6 +23,20 @@ pub struct RenderGraphResource {
     ref_count: usize,
 }
 
+#[derive(Debug, Default)]
 pub struct RenderGraphBuilder {}
 
+impl RenderGraphBuilder {
+    pub fn build(device: &Device) -> Result<RenderGraph> {
+        Ok(RenderGraph {})
+    }
+}
+
+#[derive(Debug)]
 pub struct RenderGraph {}
+
+impl RenderGraph {
+    pub fn render(&self, device: &Device) -> Result<()> {
+        Ok(())
+    }
+}
