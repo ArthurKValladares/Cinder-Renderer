@@ -1,5 +1,13 @@
-use crate::{command_queue::RenderAttachment, device::Device};
+use crate::{
+    command_queue::RenderAttachment,
+    device::Device,
+    resources::{
+        buffer::BufferUsage,
+        image::{Format, ImageUsage},
+    },
+};
 use anyhow::Result;
+use math::size::Size3D;
 use resource_manager::ResourceId;
 
 pub struct RenderGraphNode<'a> {
@@ -17,8 +25,36 @@ pub enum RenderGraphResourceType {
     Reference,
 }
 
+struct RenderGraphBuffer {}
+
+pub struct BufferInfo {
+    size: u64,
+    usage: BufferUsage,
+    id: ResourceId<RenderGraphBuffer>,
+}
+
+struct RenderGraphTexture {}
+
+pub struct TextureInfo {
+    size: Size3D<u32>,
+    format: Format,
+    usage: ImageUsage,
+    id: ResourceId<RenderGraphTexture>,
+}
+
+pub struct ReferenceInfo<'a> {
+    name: &'a str,
+}
+
+pub enum RenderGraphResourceInfo<'a> {
+    Texture(TextureInfo),
+    Buffer(BufferInfo),
+    Reference(ReferenceInfo<'a>),
+}
+
 pub struct RenderGraphResource<'a> {
     ty: RenderGraphResourceType,
+    info: RenderGraphResourceInfo<'a>,
     producer: ResourceId<RenderGraphNode<'a>>,
     output: ResourceId<RenderGraphResource<'a>>,
     ref_count: usize,
