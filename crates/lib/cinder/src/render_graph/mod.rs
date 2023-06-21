@@ -2,11 +2,12 @@ use crate::{command_queue::RenderAttachment, device::Device};
 use anyhow::Result;
 use resource_manager::ResourceId;
 
-pub struct RenderGraphNode {
+pub struct RenderGraphNode<'a> {
     render_attachment: ResourceId<RenderAttachment>,
-    inputs: Vec<ResourceId<RenderGraphResource>>,
-    outputs: Vec<ResourceId<RenderGraphResource>>,
-    edges: Vec<ResourceId<RenderGraphNode>>,
+    inputs: Vec<ResourceId<RenderGraphResource<'a>>>,
+    outputs: Vec<ResourceId<RenderGraphResource<'a>>>,
+    edges: Vec<ResourceId<RenderGraphNode<'a>>>,
+    name: &'a str,
 }
 
 pub enum RenderGraphResourceType {
@@ -16,11 +17,12 @@ pub enum RenderGraphResourceType {
     Reference,
 }
 
-pub struct RenderGraphResource {
+pub struct RenderGraphResource<'a> {
     ty: RenderGraphResourceType,
-    producer: ResourceId<RenderGraphNode>,
-    output: ResourceId<RenderGraphResource>,
+    producer: ResourceId<RenderGraphNode<'a>>,
+    output: ResourceId<RenderGraphResource<'a>>,
     ref_count: usize,
+    name: &'a str,
 }
 
 #[derive(Debug, Default)]
