@@ -1,3 +1,5 @@
+mod serde_repr;
+
 use crate::{
     command_queue::RenderAttachment,
     device::Device,
@@ -9,6 +11,8 @@ use crate::{
 use anyhow::Result;
 use math::size::Size3D;
 use resource_manager::ResourceId;
+// TODO: Temp
+pub use serde_repr::RenderGraphRepr;
 
 pub struct RenderGraphNode<'a> {
     render_attachment: ResourceId<RenderAttachment>,

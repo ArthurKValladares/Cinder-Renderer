@@ -221,6 +221,7 @@ dependencies = [
  "resource-manager",
  "rust-shader-tools",
  "serde",
+ "serde_json",
  "take_mut",
  "thiserror",
  "tracing",
