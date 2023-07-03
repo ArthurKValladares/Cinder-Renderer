@@ -1,5 +1,5 @@
 use super::RenderGraphResourceType;
-use crate::resources::image::Format;
+use crate::{command_queue::AttachmentLoadOp, resources::image::Format};
 use anyhow::Result;
 use serde::Deserialize;
 use std::path::Path;
@@ -16,7 +16,7 @@ pub struct TextureOuputInfo {
     name: String,
     resolution: [u32; 2],
     format: Format,
-    //usage: ImageUsage,
+    load_op: AttachmentLoadOp,
 }
 
 #[derive(Debug, Deserialize)]

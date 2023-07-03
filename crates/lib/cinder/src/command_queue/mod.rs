@@ -12,6 +12,7 @@ use crate::{
 use anyhow::Result;
 use ash::vk;
 use math::rect::Rect2D;
+use serde::Deserialize;
 
 ///
 /// TEMP START: Not convinced about this, keeping it for now
@@ -58,7 +59,8 @@ impl From<ClearValue> for vk::ClearValue {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum AttachmentLoadOp {
     Clear,
     Load,
