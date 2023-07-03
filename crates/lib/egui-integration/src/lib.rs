@@ -85,19 +85,19 @@ impl EguiIntegration {
                         VertexAttributeDescription {
                             location: 0,
                             binding: 0,
-                            format: Format::R32G32_SFloat.into(),
+                            format: Format::R32G32_SFLOAT.into(),
                             offset: 0,
                         },
                         VertexAttributeDescription {
                             location: 1,
                             binding: 0,
-                            format: Format::R32G32_SFloat.into(),
+                            format: Format::R32G32_SFLOAT.into(),
                             offset: util::offset_of!(egui::epaint::Vertex, uv) as u32,
                         },
                         VertexAttributeDescription {
                             location: 2,
                             binding: 0,
-                            format: Format::R8G8B8A8_Srgb.into(),
+                            format: Format::R8G8B8A8_SRGB.into(),
                             offset: util::offset_of!(egui::epaint::Vertex, color) as u32,
                         },
                     ],

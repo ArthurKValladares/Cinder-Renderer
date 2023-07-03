@@ -6,9 +6,7 @@ use cinder::{
     },
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
-        buffer::{
-            Buffer, BufferDescription, BufferUsage,
-        },
+        buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
@@ -60,7 +58,7 @@ impl Renderer {
         let depth_image = cinder.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
-                format: Format::D32_SFloat,
+                format: Format::D32_SFLOAT,
                 usage: ImageUsage::DepthSampled,
                 ..Default::default()
             },
@@ -84,7 +82,7 @@ impl Renderer {
             &mesh_vertex_shader,
             Some(&mesh_fragment_shader),
             GraphicsPipelineDescription {
-                depth_format: Some(Format::D32_SFloat),
+                depth_format: Some(Format::D32_SFLOAT),
                 ..Default::default()
             },
         )?;

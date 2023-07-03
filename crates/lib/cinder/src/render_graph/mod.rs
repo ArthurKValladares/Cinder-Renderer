@@ -11,6 +11,7 @@ use crate::{
 use anyhow::Result;
 use math::size::Size3D;
 use resource_manager::ResourceId;
+use serde::Deserialize;
 // TODO: Temp
 pub use serde_repr::RenderGraphRepr;
 
@@ -22,6 +23,8 @@ pub struct RenderGraphNode<'a> {
     name: &'a str,
 }
 
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum RenderGraphResourceType {
     Buffer,
     Texture,

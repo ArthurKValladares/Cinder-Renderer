@@ -427,7 +427,7 @@ impl HelloCube {
             &lit_mesh_vs,
             Some(&lit_mesh_fs),
             GraphicsPipelineDescription {
-                depth_format: Some(Format::D32_SFloat),
+                depth_format: Some(Format::D32_SFLOAT),
                 ..Default::default()
             },
         )?;
@@ -436,7 +436,7 @@ impl HelloCube {
             &light_vs,
             Some(&light_fs),
             GraphicsPipelineDescription {
-                depth_format: Some(Format::D32_SFloat),
+                depth_format: Some(Format::D32_SFLOAT),
                 ..Default::default()
             },
         )?;
@@ -446,7 +446,7 @@ impl HelloCube {
             None,
             GraphicsPipelineDescription {
                 color_format: None,
-                depth_format: Some(Format::D32_SFloat),
+                depth_format: Some(Format::D32_SFLOAT),
                 vertex_desc: Some(VertexDescription {
                     binding_desc: vec![VertexBindingDesc {
                         binding: 0,
@@ -456,7 +456,7 @@ impl HelloCube {
                     attribute_desc: vec![VertexAttributeDescription {
                         location: 0,
                         binding: 0,
-                        format: Format::R32G32B32_SFloat.into(),
+                        format: Format::R32G32B32_SFLOAT.into(),
                         offset: 0,
                     }],
                 }),
@@ -529,7 +529,7 @@ impl HelloCube {
         let depth_image = cinder.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
-                format: Format::D32_SFloat,
+                format: Format::D32_SFLOAT,
                 usage: ImageUsage::Depth,
                 ..Default::default()
             },
@@ -537,7 +537,7 @@ impl HelloCube {
         let shadow_map_image = cinder.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
-                format: Format::D32_SFloat,
+                format: Format::D32_SFLOAT,
                 usage: ImageUsage::DepthSampled,
                 ..Default::default()
             },

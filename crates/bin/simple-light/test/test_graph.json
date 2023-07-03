@@ -15,31 +15,39 @@
             [
                 {
                     "type": "attachment",
-                    "name": "gbuffer_colour",
-                    "format": "VK_FORMAT_B8G8R8A8_UNORM",
-                    "resolution": [ 1280, 800 ],
-                    "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                    "info" : {
+                        "name": "gbuffer_colour",
+                        "format": "B8G8R8A8_UNORM",
+                        "resolution": [ 1280, 800 ],
+                        "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                    }
                 },
                 {
                     "type": "attachment",
-                    "name": "gbuffer_normals",
-                    "format": "VK_FORMAT_R16G16B16A16_SFLOAT",
-                    "resolution": [ 1280, 800 ],
-                    "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                    "info" : {
+                        "name": "gbuffer_normals",
+                        "format": "R16G16B16A16_SFLOAT",
+                        "resolution": [ 1280, 800 ],
+                        "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                    }
                 },
                 {
                     "type": "attachment",
-                    "name": "gbuffer_metallic_roughness_occlusion",
-                    "format": "VK_FORMAT_B8G8R8A8_UNORM",
-                    "resolution": [ 1280, 800 ],
-                    "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                    "info" : {
+                        "name": "gbuffer_metallic_roughness_occlusion",
+                        "format": "B8G8R8A8_UNORM",
+                        "resolution": [ 1280, 800 ],
+                        "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                    }
                 },
                 {
                     "type": "attachment",
-                    "name": "gbuffer_position",
-                    "format": "VK_FORMAT_R16G16B16A16_SFLOAT",
-                    "resolution": [ 1280, 800 ],
-                    "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                    "info" : {
+                        "name": "gbuffer_position",
+                        "format": "R16G16B16A16_SFLOAT",
+                        "resolution": [ 1280, 800 ],
+                        "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                    }
                 }
             ]
         },
@@ -60,7 +68,9 @@
             [
                 {
                     "type": "reference",
-                    "name": "lighting"
+                    "info": {
+                        "name": "lighting"
+                    }
                 }
             ]
         },
@@ -81,10 +91,12 @@
             [
                 {
                     "type": "attachment",
-                    "name": "final",
-                    "format": "VK_FORMAT_B8G8R8A8_UNORM",
-                    "resolution": [ 1280, 800 ],
-                    "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                    "info" : {
+                        "name": "final",
+                        "format": "B8G8R8A8_UNORM",
+                        "resolution": [ 1280, 800 ],
+                        "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                    }
                 }
             ]
         },
@@ -113,10 +125,12 @@
             [
                 {
                     "type": "attachment",
-                    "name": "lighting",
-                    "format": "VK_FORMAT_B8G8R8A8_UNORM",
-                    "resolution": [ 1280, 800 ],
-                    "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                    "info" : {
+                        "name": "lighting",
+                        "format": "B8G8R8A8_UNORM",
+                        "resolution": [ 1280, 800 ],
+                        "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                    }
                 }
             ]
         },
@@ -127,10 +141,12 @@
             [
                 {
                     "type": "attachment",
-                    "name": "depth",
-                    "format": "VK_FORMAT_D32_SFLOAT",
-                    "resolution": [ 1280, 800 ],
-                    "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                    "info" : {
+                        "name": "depth",
+                        "format": "D32_SFLOAT",
+                        "resolution": [ 1280, 800 ],
+                        "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                    }
                 }
             ]
         }

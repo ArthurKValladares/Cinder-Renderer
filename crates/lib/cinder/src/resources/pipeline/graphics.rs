@@ -124,7 +124,7 @@ impl Default for GraphicsPipelineDescription {
         Self {
             name: None,
             blending: Default::default(),
-            color_format: Some(Format::B8G8R8A8_Unorm),
+            color_format: Some(Format::B8G8R8A8_UNORM),
             depth_format: None,
             cull_mode: Default::default(),
             depth_bias: None,

@@ -42,35 +42,37 @@ pub fn reflect_format_to_vk(fmt: ReflectFormat) -> vk::Format {
 #[allow(non_camel_case_types)]
 #[derive(Debug, Deserialize, Clone, Copy, Eq, PartialEq, PartialOrd, Ord, Hash)]
 pub enum Format {
-    R8G8B8A8_Unorm,
-    R8G8B8A8_Srgb,
-    B8G8R8A8_Unorm,
-    D32_SFloat,
-    D16Unorm,
-    R32G32B32A32_SFloat,
-    R32G32B32_SFloat,
-    R32G32_SFloat,
-    R32_SFloat,
+    R8G8B8A8_UNORM,
+    R8G8B8A8_SRGB,
+    B8G8R8A8_UNORM,
+    D32_SFLOAT,
+    D16_UNORM,
+    R32G32B32A32_SFLOAT,
+    R32G32B32_SFLOAT,
+    R32G32_SFLOAT,
+    R32_SFLOAT,
+    R16G16B16A16_SFLOAT,
 }
 
 impl Default for Format {
     fn default() -> Self {
-        Self::R8G8B8A8_Unorm
+        Self::R8G8B8A8_UNORM
     }
 }
 
 impl From<Format> for vk::Format {
     fn from(format: Format) -> Self {
         match format {
-            Format::R8G8B8A8_Unorm => vk::Format::R8G8B8A8_UNORM,
-            Format::R8G8B8A8_Srgb => vk::Format::R8G8B8A8_SRGB,
-            Format::B8G8R8A8_Unorm => vk::Format::B8G8R8A8_UNORM,
-            Format::D32_SFloat => vk::Format::D32_SFLOAT,
-            Format::D16Unorm => vk::Format::D16_UNORM,
-            Format::R32G32B32A32_SFloat => vk::Format::R32G32B32A32_SFLOAT,
-            Format::R32G32B32_SFloat => vk::Format::R32G32B32_SFLOAT,
-            Format::R32G32_SFloat => vk::Format::R32G32_SFLOAT,
-            Format::R32_SFloat => vk::Format::R32_SFLOAT,
+            Format::R8G8B8A8_UNORM => vk::Format::R8G8B8A8_UNORM,
+            Format::R8G8B8A8_SRGB => vk::Format::R8G8B8A8_SRGB,
+            Format::B8G8R8A8_UNORM => vk::Format::B8G8R8A8_UNORM,
+            Format::D32_SFLOAT => vk::Format::D32_SFLOAT,
+            Format::D16_UNORM => vk::Format::D16_UNORM,
+            Format::R32G32B32A32_SFLOAT => vk::Format::R32G32B32A32_SFLOAT,
+            Format::R32G32B32_SFLOAT => vk::Format::R32G32B32_SFLOAT,
+            Format::R32G32_SFLOAT => vk::Format::R32G32_SFLOAT,
+            Format::R32_SFLOAT => vk::Format::R32_SFLOAT,
+            Format::R16G16B16A16_SFLOAT => vk::Format::R16G16B16A16_SFLOAT,
         }
     }
 }
@@ -78,15 +80,15 @@ impl From<Format> for vk::Format {
 impl From<vk::Format> for Format {
     fn from(vk: vk::Format) -> Self {
         match vk {
-            vk::Format::R8G8B8A8_UNORM => Self::R8G8B8A8_Unorm,
-            vk::Format::R8G8B8A8_SRGB => Self::R8G8B8A8_Srgb,
-            vk::Format::B8G8R8A8_UNORM => Self::B8G8R8A8_Unorm,
-            vk::Format::D32_SFLOAT => Self::D32_SFloat,
-            vk::Format::D16_UNORM => Self::D16Unorm,
-            vk::Format::R32G32B32A32_SFLOAT => Self::R32G32B32A32_SFloat,
-            vk::Format::R32G32B32_SFLOAT => Self::R32G32B32_SFloat,
-            vk::Format::R32G32_SFLOAT => Self::R32G32_SFloat,
-            vk::Format::R32_SFLOAT => Self::R32_SFloat,
+            vk::Format::R8G8B8A8_UNORM => Self::R8G8B8A8_UNORM,
+            vk::Format::R8G8B8A8_SRGB => Self::R8G8B8A8_SRGB,
+            vk::Format::B8G8R8A8_UNORM => Self::B8G8R8A8_UNORM,
+            vk::Format::D32_SFLOAT => Self::D32_SFLOAT,
+            vk::Format::D16_UNORM => Self::D16_UNORM,
+            vk::Format::R32G32B32A32_SFLOAT => Self::R32G32B32A32_SFLOAT,
+            vk::Format::R32G32B32_SFLOAT => Self::R32G32B32_SFLOAT,
+            vk::Format::R32G32_SFLOAT => Self::R32G32_SFLOAT,
+            vk::Format::R32_SFLOAT => Self::R32_SFLOAT,
             _ => panic!("Unsupported image format: {vk:?}"),
         }
     }
