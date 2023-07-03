@@ -16,37 +16,45 @@
                 {
                     "type": "attachment",
                     "info" : {
-                        "name": "gbuffer_colour",
-                        "format": "B8G8R8A8_UNORM",
-                        "resolution": [ 1280, 800 ],
-                        "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                        "texture" : { 
+                            "name": "gbuffer_colour",
+                            "format": "B8G8R8A8_UNORM",
+                            "resolution": [ 1280, 800 ],
+                            "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                        }
                     }
                 },
                 {
                     "type": "attachment",
                     "info" : {
-                        "name": "gbuffer_normals",
-                        "format": "R16G16B16A16_SFLOAT",
-                        "resolution": [ 1280, 800 ],
-                        "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                        "texture" : {
+                            "name": "gbuffer_normals",
+                            "format": "R16G16B16A16_SFLOAT",
+                            "resolution": [ 1280, 800 ],
+                            "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                        }
                     }
                 },
                 {
                     "type": "attachment",
                     "info" : {
-                        "name": "gbuffer_metallic_roughness_occlusion",
-                        "format": "B8G8R8A8_UNORM",
-                        "resolution": [ 1280, 800 ],
-                        "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                        "texture" : {
+                            "name": "gbuffer_metallic_roughness_occlusion",
+                            "format": "B8G8R8A8_UNORM",
+                            "resolution": [ 1280, 800 ],
+                            "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                        }
                     }
                 },
                 {
                     "type": "attachment",
                     "info" : {
-                        "name": "gbuffer_position",
-                        "format": "R16G16B16A16_SFLOAT",
-                        "resolution": [ 1280, 800 ],
-                        "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                        "texture" : {
+                            "name": "gbuffer_position",
+                            "format": "R16G16B16A16_SFLOAT",
+                            "resolution": [ 1280, 800 ],
+                            "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                        }
                     }
                 }
             ]
@@ -68,8 +76,10 @@
             [
                 {
                     "type": "reference",
-                    "info": {
-                        "name": "lighting"
+                    "info" : {
+                        "reference": {
+                            "name": "lighting"
+                        }
                     }
                 }
             ]
@@ -92,10 +102,12 @@
                 {
                     "type": "attachment",
                     "info" : {
-                        "name": "final",
-                        "format": "B8G8R8A8_UNORM",
-                        "resolution": [ 1280, 800 ],
-                        "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                        "texture" : {
+                            "name": "final",
+                            "format": "B8G8R8A8_UNORM",
+                            "resolution": [ 1280, 800 ],
+                            "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                        }
                     }
                 }
             ]
@@ -126,10 +138,12 @@
                 {
                     "type": "attachment",
                     "info" : {
-                        "name": "lighting",
-                        "format": "B8G8R8A8_UNORM",
-                        "resolution": [ 1280, 800 ],
-                        "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                        "texture" : {
+                            "name": "lighting",
+                            "format": "B8G8R8A8_UNORM",
+                            "resolution": [ 1280, 800 ],
+                            "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                        }
                     }
                 }
             ]
@@ -142,10 +156,12 @@
                 {
                     "type": "attachment",
                     "info" : {
-                        "name": "depth",
-                        "format": "D32_SFLOAT",
-                        "resolution": [ 1280, 800 ],
-                        "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                        "texture" : {
+                            "name": "depth",
+                            "format": "D32_SFLOAT",
+                            "resolution": [ 1280, 800 ],
+                            "op": "VK_ATTACHMENT_LOAD_OP_CLEAR"
+                        }
                     }
                 }
             ]

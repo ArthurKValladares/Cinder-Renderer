@@ -26,7 +26,6 @@ pub struct ReferenceOutputInfo {
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
-#[serde(untagged)]
 pub enum RenderGraphResourceInfo {
     Texture(TextureOuputInfo),
     Buffer(BufferOutputInfo),
