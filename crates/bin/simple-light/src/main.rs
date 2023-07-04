@@ -1055,7 +1055,7 @@ fn main() {
     let serde = cinder::render_graph::RenderGraphRepr::from_json(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("test")
-            .join("test_graph.json"),
+            .join("test_graph2.json"),
     )
     .unwrap();
     println!("=========\nRENDER GRAPH\n=========\n{:#?}", serde);

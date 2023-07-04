@@ -30,6 +30,7 @@ pub enum RenderGraphResourceType {
     Texture,
     Attachment,
     Reference,
+    ShadingRate,
 }
 
 struct RenderGraphBuffer {}

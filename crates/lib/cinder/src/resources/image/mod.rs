@@ -52,6 +52,7 @@ pub enum Format {
     R32G32_SFLOAT,
     R32_SFLOAT,
     R16G16B16A16_SFLOAT,
+    R16G16_SFLOAT,
 }
 
 impl Default for Format {
@@ -73,6 +74,7 @@ impl From<Format> for vk::Format {
             Format::R32G32_SFLOAT => vk::Format::R32G32_SFLOAT,
             Format::R32_SFLOAT => vk::Format::R32_SFLOAT,
             Format::R16G16B16A16_SFLOAT => vk::Format::R16G16B16A16_SFLOAT,
+            Format::R16G16_SFLOAT => vk::Format::R16G16_SFLOAT,
         }
     }
 }
@@ -89,6 +91,8 @@ impl From<vk::Format> for Format {
             vk::Format::R32G32B32_SFLOAT => Self::R32G32B32_SFLOAT,
             vk::Format::R32G32_SFLOAT => Self::R32G32_SFLOAT,
             vk::Format::R32_SFLOAT => Self::R32_SFLOAT,
+            vk::Format::R16G16B16A16_SFLOAT => Self::R16G16B16A16_SFLOAT,
+            vk::Format::R16G16_SFLOAT => Self::R16G16_SFLOAT,
             _ => panic!("Unsupported image format: {vk:?}"),
         }
     }
