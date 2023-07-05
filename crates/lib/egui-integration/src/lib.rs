@@ -4,7 +4,7 @@ mod sdl;
 use anyhow::Result;
 use cinder::{
     command_queue::{
-        AttachmentLoadOp, CommandList, CommandQueue, RenderAttachment, RenderAttachmentDesc,
+        AttachmentLoadOp, CommandList, RenderAttachment, RenderAttachmentDesc,
     },
     device::Device,
     resources::{

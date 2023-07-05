@@ -73,7 +73,7 @@ pub struct RenderGraphResource<'a> {
 pub struct RenderGraphBuilder {}
 
 impl RenderGraphBuilder {
-    pub fn build(device: &Device) -> Result<RenderGraph> {
+    pub fn build(_device: &Device) -> Result<RenderGraph> {
         Ok(RenderGraph {})
     }
 }
@@ -82,7 +82,7 @@ impl RenderGraphBuilder {
 pub struct RenderGraph {}
 
 impl RenderGraph {
-    pub fn render(&self, device: &Device) -> Result<()> {
+    pub fn render(&self, _device: &Device) -> Result<()> {
         Ok(())
     }
 }
