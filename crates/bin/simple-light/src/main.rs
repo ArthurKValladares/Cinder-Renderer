@@ -1052,7 +1052,7 @@ impl Drop for HelloCube {
 
 fn main() {
     // TODO: Testing temporarily
-    let serde = cinder::render_graph::RenderGraphRepr::from_json(
+    let serde = cinder::render_graph::RenderGraphData::from_json(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("test")
             .join("test_graph2.json"),

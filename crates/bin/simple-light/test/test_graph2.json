@@ -1,34 +1,33 @@
 {
     "name": "gltf_graph",
-    "passes":
-    [
+    "passes": [
         {
             "name": "mesh_occlusion_early_pass",
             "type": "compute",
             "inputs": [],
-            "outputs":
-            [
+            "outputs": [
                 {
+                    "name": "early_mesh_indirect_draw_list",
                     "type": "buffer",
-                    "info" : {
+                    "info": {
                         "reference": {
-                            "name": "early_mesh_indirect_draw_list"
+                            "external": false
                         }
                     }
                 },
                 {
+                    "name": "early_task_indirect_draw_list",
                     "type": "buffer",
-                    "info" : {
+                    "info": {
                         "reference": {
-                            "name": "early_task_indirect_draw_list"
+                            "external": false
                         }
                     }
                 }
             ]
         },
         {
-            "inputs":
-            [
+            "inputs": [
                 {
                     "type": "texture",
                     "name": "depth_pyramid"
@@ -36,29 +35,29 @@
             ],
             "name": "mesh_occlusion_late_pass",
             "type": "compute",
-            "outputs":
-            [
+            "outputs": [
                 {
+                    "name": "late_mesh_indirect_draw_list",
                     "type": "buffer",
-                    "info" : {
+                    "info": {
                         "reference": {
-                            "name": "late_mesh_indirect_draw_list"
+                            "external": false
                         }
                     }
                 },
                 {
+                    "name": "late_task_indirect_draw_list",
                     "type": "buffer",
-                    "info" : {
+                    "info": {
                         "reference": {
-                            "name": "late_task_indirect_draw_list"
+                            "external": false
                         }
                     }
                 }
             ]
         },
         {
-            "inputs":
-            [
+            "inputs": [
                 {
                     "type": "buffer",
                     "name": "early_mesh_indirect_draw_list"
@@ -69,74 +68,107 @@
                 }
             ],
             "name": "gbuffer_pass_early",
-            "outputs":
-            [
+            "outputs": [
                 {
                     "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "gbuffer_colour",
+                    "name": "gbuffer_colour",
+                    "info": {
+                        "texture": {
                             "format": "B8G8R8A8_UNORM",
-                            "resolution": [ 1280, 800 ],
+                            "resolution": [
+                                1280,
+                                800
+                            ],
                             "load_op": "CLEAR",
-                            "clear_color":[0.529, 0.807, 0.921, 1]
+                            "clear_color": [
+                                0.529,
+                                0.807,
+                                0.921,
+                                1
+                            ]
                         }
                     }
                 },
                 {
                     "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "gbuffer_normals",
+                    "name": "gbuffer_normals",
+                    "info": {
+                        "texture": {
                             "format": "R16G16_SFLOAT",
-                            "resolution": [ 1280, 800 ],
+                            "resolution": [
+                                1280,
+                                800
+                            ],
                             "load_op": "CLEAR",
-                            "clear_color":[0.0, 0.0, 0.0, 0.0]
+                            "clear_color": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ]
                         }
                     }
                 },
                 {
                     "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "gbuffer_occlusion_roughness_metalness",
+                    "name": "gbuffer_occlusion_roughness_metalness",
+                    "info": {
+                        "texture": {
                             "format": "B8G8R8A8_UNORM",
-                            "resolution": [ 1280, 800 ],
+                            "resolution": [
+                                1280,
+                                800
+                            ],
                             "load_op": "CLEAR",
-                            "clear_color":[0.0, 0.0, 0.0, 0.0]
+                            "clear_color": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ]
                         }
                     }
                 },
                 {
                     "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "gbuffer_emissive",
+                    "name": "gbuffer_emissive",
+                    "info": {
+                        "texture": {
                             "format": "R16G16B16A16_SFLOAT",
-                            "resolution": [ 1280, 800 ],
+                            "resolution": [
+                                1280,
+                                800
+                            ],
                             "load_op": "CLEAR",
-                            "clear_color":[0.0, 0.0, 0.0, 0.0]
+                            "clear_color": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ]
                         }
                     }
                 },
                 {
                     "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "depth",
+                    "name": "depth",
+                    "info": {
+                        "texture": {
                             "format": "D32_SFLOAT",
-                            "resolution": [ 1280, 800 ],
+                            "resolution": [
+                                1280,
+                                800
+                            ],
                             "load_op": "CLEAR",
-                            "clear_depth" : 1.0,
-                            "clear_stencil" : 0
+                            "clear_depth": 1.0,
+                            "clear_stencil": 0
                         }
                     }
                 }
             ]
         },
         {
-            "inputs":
-            [
+            "inputs": [
                 {
                     "type": "buffer",
                     "name": "late_mesh_indirect_draw_list"
@@ -170,37 +202,40 @@
                     "name": "depth_pyramid"
                 }
             ],
-            "outputs":
-            [
+            "outputs": [
                 {
+                    "name": "gbuffer_colour",
                     "type": "reference",
-                    "info" : {
+                    "info": {
                         "reference": {
-                            "name": "gbuffer_colour"
+                            "external": false
                         }
                     }
                 },
                 {
+                    "name": "gbuffer_normals",
                     "type": "reference",
-                    "info" : {
+                    "info": {
                         "reference": {
-                            "name": "gbuffer_normals"
+                            "external": false
                         }
                     }
                 },
                 {
+                    "name": "gbuffer_occlusion_roughness_metalness",
                     "type": "reference",
-                    "info" : {
+                    "info": {
                         "reference": {
-                            "name": "gbuffer_occlusion_roughness_metalness"
+                            "external": false
                         }
                     }
                 },
                 {
+                    "name": "gbuffer_emissive",
                     "type": "reference",
-                    "info" : {
+                    "info": {
                         "reference": {
-                            "name": "gbuffer_emissive"
+                            "external": false
                         }
                     }
                 }
@@ -208,8 +243,7 @@
             "name": "gbuffer_pass_late"
         },
         {
-            "inputs":
-            [
+            "inputs": [
                 {
                     "type": "texture",
                     "name": "depth"
@@ -217,14 +251,13 @@
             ],
             "name": "depth_pyramid_pass",
             "type": "compute",
-            "outputs":
-            [
+            "outputs": [
                 {
                     "type": "texture",
-                    "info" : {
+                    "name": "depth_pyramid",
+                    "info": {
                         "reference": {
-                            "external": true,
-                            "name": "depth_pyramid"
+                            "external": true
                         }
                     }
                 }
@@ -232,8 +265,7 @@
         },
         {
             "name": "transparent_pass",
-            "inputs":
-            [
+            "inputs": [
                 {
                     "type": "attachment",
                     "name": "final"
@@ -246,8 +278,7 @@
             "outputs": []
         },
         {
-            "inputs":
-            [
+            "inputs": [
                 {
                     "type": "reference",
                     "name": "lighting"
@@ -259,17 +290,24 @@
             ],
             "name": "depth_of_field_pass",
             "enabled": false,
-            "outputs":
-            [
+            "outputs": [
                 {
                     "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "final",
+                    "name": "final",
+                    "info": {
+                        "texture": {
                             "format": "B8G8R8A8_UNORM",
-                            "resolution": [ 1280, 800 ],
+                            "resolution": [
+                                1280,
+                                800
+                            ],
                             "load_op": "CLEAR",
-                            "clear_color":[0, 0, 0, 1]
+                            "clear_color": [
+                                0,
+                                0,
+                                0,
+                                1
+                            ]
                         }
                     }
                 }
@@ -277,8 +315,7 @@
         },
         {
             "name": "debug_pass",
-            "inputs":
-            [
+            "inputs": [
                 {
                     "type": "attachment",
                     "name": "final"
@@ -291,8 +328,7 @@
             "outputs": []
         },
         {
-            "inputs":
-            [
+            "inputs": [
                 {
                     "type": "texture",
                     "name": "gbuffer_colour"
@@ -318,57 +354,64 @@
                     "name": "shading_rate_image"
                 },
                 {
-                    "type":"texture",
-                    "name":"indirect_lighting"
+                    "type": "texture",
+                    "name": "indirect_lighting"
                 }
             ],
             "name": "lighting_pass",
-            "outputs":
-            [
+            "outputs": [
                 {
                     "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "final",
+                    "name": "final",
+                    "info": {
+                        "texture": {
                             "format": "B8G8R8A8_UNORM",
-                            "resolution": [ 1280, 800 ],
+                            "resolution": [
+                                1280,
+                                800
+                            ],
                             "load_op": "CLEAR",
-                            "clear_color":[0, 0, 0, 1]
+                            "clear_color": [
+                                0,
+                                0,
+                                0,
+                                1
+                            ]
                         }
                     }
                 }
             ]
         },
         {
-            "inputs":
-            [
+            "inputs": [
                 {
-                    "type" : "texture",
-                    "name" : "dummy_resource"
+                    "type": "texture",
+                    "name": "dummy_resource"
                 }
             ],
             "name": "depth_pre_pass",
             "enabled": false,
-            "outputs":
-            [
+            "outputs": [
                 {
+                    "name": "depth",
                     "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "depth",
+                    "info": {
+                        "texture": {
                             "format": "D32_SFLOAT",
-                            "resolution": [ 1280, 800 ],
+                            "resolution": [
+                                1280,
+                                800
+                            ],
                             "load_op": "CLEAR",
-                            "clear_depth" : 1.0,
-                            "clear_stencil" : 0
+                            "clear_depth": 1.0,
+                            "clear_stencil": 0
                         }
                     }
                 }
             ]
         },
         {
-            "inputs":
-            [
+            "inputs": [
                 {
                     "type": "texture",
                     "name": "dummy_resource"
@@ -377,22 +420,20 @@
             "name": "point_shadows_pass",
             "enabled": true,
             "type": "compute",
-            "outputs":
-            [
+            "outputs": [
                 {
+                    "name": "point_shadows_depth",
                     "type": "texture",
-                    "info" : {
+                    "info": {
                         "reference": {
-                            "external": true,
-                            "name": "point_shadows_depth"
+                            "external": true
                         }
                     }
                 }
             ]
         },
         {
-            "inputs":
-            [
+            "inputs": [
                 {
                     "type": "texture",
                     "name": "dummy_resource"
@@ -401,14 +442,13 @@
             "name": "volumetric_fog_pass",
             "enabled": true,
             "type": "compute",
-            "outputs":
-            [
+            "outputs": [
                 {
+                    "name": "volumetric_fog_texture",
                     "type": "texture",
-                    "info" : {
+                    "info": {
                         "reference": {
-                            "external": true,
-                            "name": "volumetric_fog_texture"
+                            "external": true
                         }
                     }
                 }
@@ -416,8 +456,7 @@
         },
         {
             "name": "temporal_anti_aliasing_pass",
-            "inputs":
-            [
+            "inputs": [
                 {
                     "type": "texture",
                     "name": "final"
@@ -433,14 +472,13 @@
             ],
             "enabled": true,
             "type": "compute",
-            "outputs":
-            [
+            "outputs": [
                 {
+                    "name": "taa_output",
                     "type": "texture",
-                    "info" : {
+                    "info": {
                         "reference": {
-                            "external": true,
-                            "name": "taa_output"
+                            "external": true
                         }
                     }
                 }
@@ -448,8 +486,7 @@
         },
         {
             "name": "motion_vector_pass",
-            "inputs":
-            [
+            "inputs": [
                 {
                     "type": "texture",
                     "name": "gbuffer_normals"
@@ -461,29 +498,44 @@
             ],
             "enabled": true,
             "type": "compute",
-            "outputs":
-            [
+            "outputs": [
                 {
+                    "name": "motion_vectors",
                     "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "motion_vectors",
+                    "info": {
+                        "texture": {
                             "format": "R16G16_SFLOAT",
-                            "resolution": [ 1280, 800 ],
+                            "resolution": [
+                                1280,
+                                800
+                            ],
                             "load_op": "CLEAR",
-                            "clear_color":[0.0, 0.0, 0.0, 0.0]
+                            "clear_color": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ]
                         }
                     }
                 },
                 {
+                    "name": "visibility_motion_vectors",
                     "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "visibility_motion_vectors",
+                    "info": {
+                        "texture": {
                             "format": "R16G16_SFLOAT",
-                            "resolution": [ 1280, 800 ],
+                            "resolution": [
+                                1280,
+                                800
+                            ],
                             "load_op": "CLEAR",
-                            "clear_color":[0.0, 0.0, 0.0, 0.0]
+                            "clear_color": [
+                                0.0,
+                                0.0,
+                                0.0,
+                                0.0
+                            ]
                         }
                     }
                 }
@@ -491,8 +543,7 @@
         },
         {
             "name": "indirect_lighting_pass",
-            "inputs":
-            [
+            "inputs": [
                 {
                     "type": "texture",
                     "name": "gbuffer_normals"
@@ -504,17 +555,24 @@
             ],
             "enabled": true,
             "type": "compute",
-            "outputs":
-            [
+            "outputs": [
                 {
+                    "name": "indirect_lighting",
                     "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "indirect_lighting",
+                    "info": {
+                        "texture": {
                             "format": "R16G16B16A16_SFLOAT",
-                            "resolution": [ 1280, 800 ],
+                            "resolution": [
+                                1280,
+                                800
+                            ],
                             "load_op": "CLEAR",
-                            "clear_color":[0, 0, 0, 1]
+                            "clear_color": [
+                                0,
+                                0,
+                                0,
+                                1
+                            ]
                         }
                     }
                 }

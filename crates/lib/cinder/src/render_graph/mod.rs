@@ -1,27 +1,7 @@
-mod serde_repr;
-
-use crate::{
-    command_queue::RenderAttachment,
-    device::Device,
-    resources::{
-        buffer::BufferUsage,
-        image::{Format, ImageUsage},
-    },
-};
+use crate::{command_queue::AttachmentLoadOp, resources::image::Format};
 use anyhow::Result;
-use math::size::Size3D;
-use resource_manager::ResourceId;
 use serde::Deserialize;
-// TODO: Temp
-pub use serde_repr::RenderGraphRepr;
-
-pub struct RenderGraphNode<'a> {
-    render_attachment: ResourceId<RenderAttachment>,
-    inputs: Vec<ResourceId<RenderGraphResource<'a>>>,
-    outputs: Vec<ResourceId<RenderGraphResource<'a>>>,
-    edges: Vec<ResourceId<RenderGraphNode<'a>>>,
-    name: &'a str,
-}
+use std::path::Path;
 
 #[derive(Debug, Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -33,56 +13,64 @@ pub enum RenderGraphResourceType {
     ShadingRate,
 }
 
-struct RenderGraphBuffer {}
-
-pub struct BufferInfo {
+#[derive(Debug, Deserialize)]
+pub struct BufferOutputInfo {
     size: u64,
-    usage: BufferUsage,
-    id: ResourceId<RenderGraphBuffer>,
+    //usage: BufferUsage,
 }
 
-struct RenderGraphTexture {}
-
-pub struct TextureInfo {
-    size: Size3D<u32>,
+#[derive(Debug, Deserialize)]
+pub struct TextureOuputInfo {
+    resolution: [u32; 2],
     format: Format,
-    usage: ImageUsage,
-    id: ResourceId<RenderGraphTexture>,
+    load_op: AttachmentLoadOp,
 }
 
-pub struct ReferenceInfo<'a> {
-    name: &'a str,
+#[derive(Debug, Deserialize)]
+pub struct ReferenceOutputInfo {
+    external: bool,
 }
 
-pub enum RenderGraphResourceInfo<'a> {
-    Texture(TextureInfo),
-    Buffer(BufferInfo),
-    Reference(ReferenceInfo<'a>),
+#[derive(Debug, Deserialize)]
+#[serde(rename_all = "snake_case")]
+pub enum RenderGraphResourceInfo {
+    Texture(TextureOuputInfo),
+    Buffer(BufferOutputInfo),
+    Reference(ReferenceOutputInfo),
 }
 
-pub struct RenderGraphResource<'a> {
+#[derive(Debug, Deserialize)]
+pub struct RenderGraphOutput {
+    name: String,
+    #[serde(rename = "type")]
     ty: RenderGraphResourceType,
-    info: RenderGraphResourceInfo<'a>,
-    producer: ResourceId<RenderGraphNode<'a>>,
-    output: ResourceId<RenderGraphResource<'a>>,
-    ref_count: usize,
-    name: &'a str,
+    info: RenderGraphResourceInfo,
 }
 
-#[derive(Debug, Default)]
-pub struct RenderGraphBuilder {}
-
-impl RenderGraphBuilder {
-    pub fn build(_device: &Device) -> Result<RenderGraph> {
-        Ok(RenderGraph {})
-    }
+#[derive(Debug, Deserialize)]
+pub struct RenderGraphInput {
+    name: String,
+    #[serde(rename = "type")]
+    ty: RenderGraphResourceType,
 }
 
-#[derive(Debug)]
-pub struct RenderGraph {}
+#[derive(Debug, Deserialize)]
+pub struct RenderGraphPass {
+    name: String,
+    inputs: Vec<RenderGraphInput>,
+    outputs: Vec<RenderGraphOutput>,
+}
 
-impl RenderGraph {
-    pub fn render(&self, _device: &Device) -> Result<()> {
-        Ok(())
+#[derive(Debug, Deserialize)]
+pub struct RenderGraphData {
+    name: String,
+    passes: Vec<RenderGraphPass>,
+}
+
+impl RenderGraphData {
+    pub fn from_json(path: impl AsRef<Path>) -> Result<Self> {
+        let file = std::fs::File::open(&path)?;
+        let result = serde_json::from_reader(file)?;
+        Ok(result)
     }
 }
