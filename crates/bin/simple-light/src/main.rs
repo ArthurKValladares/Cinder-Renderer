@@ -1051,9 +1051,6 @@ impl Drop for HelloCube {
 }
 
 fn main() {
-    // TODO: Testing temporarily
-    let graph = cinder::render_graph::RenderGraph::new();
-
     let mut sdl = SdlContext::new(
         WINDOW_WIDTH,
         WINDOW_HEIGHT,

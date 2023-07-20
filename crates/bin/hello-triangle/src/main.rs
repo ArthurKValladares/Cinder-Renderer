@@ -1,6 +1,7 @@
 use anyhow::Result;
 use cinder::{
-    command_queue::RenderAttachment,
+    command_queue::{RenderAttachment, RenderAttachmentDesc},
+    render_graph::{AttachmentType, RenderGraph},
     resources::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         pipeline::graphics::GraphicsPipeline,
@@ -75,6 +76,13 @@ impl HelloTriangle {
 
         vertex_shader.destroy(&cinder.device);
         fragment_shader.destroy(&cinder.device);
+
+        // Experimenting with RenderGraph
+        // TODO: Testing temporarily
+        let mut graph = RenderGraph::new();
+        let depth = graph
+            .register_pass("main_pass")
+            .add_color_attachment(AttachmentType::SwapchainImage, Default::default());
 
         Ok(Self {
             cinder,
