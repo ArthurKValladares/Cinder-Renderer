@@ -19,7 +19,7 @@ use serde::Deserialize;
 ///
 
 #[repr(C)]
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Deserialize)]
 pub enum ClearValue {
     Color { color: [f32; 4] },
     Depth { depth: f32, stencil: u32 },
@@ -83,7 +83,7 @@ impl From<AttachmentLoadOp> for vk::AttachmentLoadOp {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Deserialize)]
 pub enum AttachmentStoreOp {
     Store,
     DontCare,
@@ -103,7 +103,7 @@ impl From<AttachmentStoreOp> for vk::AttachmentStoreOp {
         }
     }
 }
-#[derive(Debug, Default, Clone, Copy)]
+#[derive(Debug, Default, Clone, Copy, Deserialize)]
 pub struct RenderAttachmentDesc {
     pub load_op: AttachmentLoadOp,
     pub store_op: AttachmentStoreOp,

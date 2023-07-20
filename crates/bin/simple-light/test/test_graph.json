@@ -1,170 +1,44 @@
 {
-    "name": "gltf_graph",
-    "passes":
-    [
+    "name": "test_graph",
+    "passes": [
         {
-            "inputs":
-            [
-                {
-                    "type": "attachment",
-                    "name": "depth"
-                }
-            ],
-            "name": "gbuffer_pass",
-            "outputs":
-            [
-                {
-                    "type": "attachment",
-                    "info" : {
-                        "texture" : { 
-                            "name": "gbuffer_colour",
-                            "format": "B8G8R8A8_UNORM",
-                            "resolution": [ 1280, 800 ],
-                            "load_op": "CLEAR"
-                        }
-                    }
-                },
-                {
-                    "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "gbuffer_normals",
-                            "format": "R16G16B16A16_SFLOAT",
-                            "resolution": [ 1280, 800 ],
-                            "load_op": "CLEAR"
-                        }
-                    }
-                },
-                {
-                    "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "gbuffer_metallic_roughness_occlusion",
-                            "format": "B8G8R8A8_UNORM",
-                            "resolution": [ 1280, 800 ],
-                            "load_op": "CLEAR"
-                        }
-                    }
-                },
-                {
-                    "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "gbuffer_position",
-                            "format": "R16G16B16A16_SFLOAT",
-                            "resolution": [ 1280, 800 ],
-                            "load_op": "CLEAR"
-                        }
-                    }
-                }
-            ]
+            "name": "test1",
+            "render_area": {
+                "offset": [
+                    0,
+                    0
+                ],
+                "size": [
+                    100,
+                    100
+                ]
+            }
         },
         {
-            "inputs":
-            [
-                {
-                    "type": "attachment",
-                    "name": "lighting"
-                },
-                {
-                    "type": "attachment",
-                    "name": "depth"
-                }
-            ],
-            "name": "transparent_pass",
-            "outputs":
-            [
-                {
-                    "type": "reference",
-                    "info" : {
-                        "reference": {
-                            "name": "lighting"
-                        }
-                    }
-                }
-            ]
+            "name": "test2",
+            "render_area": {
+                "offset": [
+                    0,
+                    0
+                ],
+                "size": [
+                    100,
+                    100
+                ]
+            }
         },
         {
-            "inputs":
-            [
-                {
-                    "type": "reference",
-                    "name": "lighting"
-                },
-                {
-                    "type": "reference",
-                    "name": "depth"
-                }
-            ],
-            "name": "depth_of_field_pass",
-            "outputs":
-            [
-                {
-                    "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "final",
-                            "format": "B8G8R8A8_UNORM",
-                            "resolution": [ 1280, 800 ],
-                            "load_op": "CLEAR"
-                        }
-                    }
-                }
-            ]
-        },
-        {
-            "inputs":
-            [
-                {
-                    "type": "texture",
-                    "name": "gbuffer_colour"
-                },
-                {
-                    "type": "texture",
-                    "name": "gbuffer_normals"
-                },
-                {
-                    "type": "texture",
-                    "name": "gbuffer_metallic_roughness_occlusion"
-                },
-                {
-                    "type": "texture",
-                    "name": "gbuffer_position"
-                }
-            ],
-            "name": "lighting_pass",
-            "outputs":
-            [
-                {
-                    "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "lighting",
-                            "format": "B8G8R8A8_UNORM",
-                            "resolution": [ 1280, 800 ],
-                            "load_op": "CLEAR"
-                        }
-                    }
-                }
-            ]
-        },
-        {
-            "inputs": [],
-            "name": "depth_pre_pass",
-            "outputs":
-            [
-                {
-                    "type": "attachment",
-                    "info" : {
-                        "texture" : {
-                            "name": "depth",
-                            "format": "D32_SFLOAT",
-                            "resolution": [ 1280, 800 ],
-                            "load_op": "CLEAR"
-                        }
-                    }
-                }
-            ]
+            "name": "test3",
+            "render_area": {
+                "offset": [
+                    0,
+                    0
+                ],
+                "size": [
+                    100,
+                    100
+                ]
+            }
         }
     ]
 }

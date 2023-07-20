@@ -98,7 +98,7 @@ impl From<vk::Format> for Format {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Deserialize)]
 pub enum Layout {
     Undefined,
     General,

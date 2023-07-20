@@ -1,64 +1,21 @@
-use crate::{command_queue::AttachmentLoadOp, resources::image::Format};
+use crate::command_queue::RenderAttachmentDesc;
 use anyhow::Result;
+use math::rect::Rect2D;
 use serde::Deserialize;
 use std::path::Path;
 
 #[derive(Debug, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RenderGraphResourceType {
-    Buffer,
-    Texture,
-    Attachment,
-    Reference,
-    ShadingRate,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct BufferOutputInfo {
-    size: u64,
-    //usage: BufferUsage,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct TextureOuputInfo {
-    resolution: [u32; 2],
-    format: Format,
-    load_op: AttachmentLoadOp,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct ReferenceOutputInfo {
-    external: bool,
-}
-
-#[derive(Debug, Deserialize)]
-#[serde(rename_all = "snake_case")]
-pub enum RenderGraphResourceInfo {
-    Texture(TextureOuputInfo),
-    Buffer(BufferOutputInfo),
-    Reference(ReferenceOutputInfo),
-}
-
-#[derive(Debug, Deserialize)]
-pub struct RenderGraphOutput {
+pub struct RenderAttachment {
     name: String,
-    #[serde(rename = "type")]
-    ty: RenderGraphResourceType,
-    info: RenderGraphResourceInfo,
-}
-
-#[derive(Debug, Deserialize)]
-pub struct RenderGraphInput {
-    name: String,
-    #[serde(rename = "type")]
-    ty: RenderGraphResourceType,
+    desc: RenderAttachmentDesc,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct RenderGraphPass {
     name: String,
-    inputs: Vec<RenderGraphInput>,
-    outputs: Vec<RenderGraphOutput>,
+    render_area: Rect2D<i32, u32>,
+    //color_attachments: Vec<RenderAttachment>,
+    //depth_attachment: Option<RenderAttachment>,
 }
 
 #[derive(Debug, Deserialize)]
