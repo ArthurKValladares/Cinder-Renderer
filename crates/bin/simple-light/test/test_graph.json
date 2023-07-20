@@ -3,41 +3,13 @@
     "passes": [
         {
             "name": "test1",
-            "render_area": {
-                "offset": [
-                    0,
-                    0
-                ],
-                "size": [
-                    100,
-                    100
-                ]
-            }
-        },
-        {
-            "name": "test2",
-            "render_area": {
-                "offset": [
-                    0,
-                    0
-                ],
-                "size": [
-                    100,
-                    100
-                ]
-            }
-        },
-        {
-            "name": "test3",
-            "render_area": {
-                "offset": [
-                    0,
-                    0
-                ],
-                "size": [
-                    100,
-                    100
-                ]
+            "color_attachments": [],
+            "depth_attachment": {
+                "name": "depth_image",
+                "desc": {
+                    "store_op": "Store",
+                    "layout": "DepthAttachment"
+                }
             }
         }
     ]

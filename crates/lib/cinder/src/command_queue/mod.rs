@@ -104,6 +104,7 @@ impl From<AttachmentStoreOp> for vk::AttachmentStoreOp {
     }
 }
 #[derive(Debug, Default, Clone, Copy, Deserialize)]
+#[serde(default)]
 pub struct RenderAttachmentDesc {
     pub load_op: AttachmentLoadOp,
     pub store_op: AttachmentStoreOp,

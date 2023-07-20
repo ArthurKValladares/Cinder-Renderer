@@ -13,9 +13,8 @@ pub struct RenderAttachment {
 #[derive(Debug, Deserialize)]
 pub struct RenderGraphPass {
     name: String,
-    render_area: Rect2D<i32, u32>,
-    //color_attachments: Vec<RenderAttachment>,
-    //depth_attachment: Option<RenderAttachment>,
+    color_attachments: Vec<RenderAttachment>,
+    depth_attachment: Option<RenderAttachment>,
 }
 
 #[derive(Debug, Deserialize)]
