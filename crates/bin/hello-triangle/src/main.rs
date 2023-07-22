@@ -25,6 +25,7 @@ pub struct HelloTriangle {
     pipeline: GraphicsPipeline,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
+    graph: RenderGraph,
 }
 
 impl HelloTriangle {
@@ -77,19 +78,22 @@ impl HelloTriangle {
         vertex_shader.destroy(&cinder.device);
         fragment_shader.destroy(&cinder.device);
 
-        // Experimenting with RenderGraph
-        // TODO: Testing temporarily
         let mut graph = RenderGraph::new();
-        let depth = graph
-            .register_pass("main_pass")
-            .add_color_attachment(AttachmentType::SwapchainImage, Default::default());
 
         Ok(Self {
             cinder,
             pipeline,
             vertex_buffer,
             index_buffer,
+            graph,
         })
+    }
+
+    pub fn setup_graph(&mut self) {
+        self.graph.reset();
+        self.graph
+            .register_pass("main_pass")
+            .add_color_attachment(AttachmentType::SwapchainImage, Default::default());
     }
 
     pub fn draw(&mut self) -> Result<bool> {
@@ -181,6 +185,8 @@ fn main() {
                 _ => {}
             }
         }
+
+        //hello_triangle.setup_graph();
         hello_triangle.draw().unwrap();
 
         hello_triangle.cinder.end_frame();

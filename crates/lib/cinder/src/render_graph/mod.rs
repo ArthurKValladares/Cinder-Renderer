@@ -1,5 +1,6 @@
 use crate::{
-    command_queue::{RenderAttachment, RenderAttachmentDesc},
+    command_queue::{CommandList, RenderAttachment, RenderAttachmentDesc},
+    device::Device,
     Cinder,
 };
 use anyhow::Result;
@@ -23,10 +24,29 @@ impl From<String> for AttachmentType {
     }
 }
 
-#[derive(Debug, Default)]
 pub struct RenderPass {
     color_attachments: HashMap<AttachmentType, RenderAttachmentDesc>,
     depth_attachment: Option<(String, RenderAttachmentDesc)>,
+    callback: Box<dyn Fn(&Device, &CommandList)>,
+}
+
+impl std::fmt::Debug for RenderPass {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("RenderPass")
+            .field("color_attachments", &self.color_attachments)
+            .field("depth_attachment", &self.depth_attachment)
+            .finish()
+    }
+}
+
+impl Default for RenderPass {
+    fn default() -> Self {
+        Self {
+            color_attachments: Default::default(),
+            depth_attachment: Default::default(),
+            callback: Box::new(|_, _| {}),
+        }
+    }
 }
 
 impl RenderPass {
@@ -50,6 +70,13 @@ impl RenderPass {
     ) -> &mut Self {
         self.depth_attachment = Some((name.into(), desc));
         self
+    }
+
+    pub fn set_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(&Device, &CommandList) + 'static,
+    {
+        self.callback = Box::new(callback);
     }
 }
 
@@ -93,5 +120,9 @@ impl RenderGraph {
         }
 
         Ok(())
+    }
+
+    pub fn reset(&mut self) {
+        self.passes.clear();
     }
 }
