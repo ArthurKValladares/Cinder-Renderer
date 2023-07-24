@@ -93,7 +93,25 @@ impl HelloTriangle {
         self.graph.reset();
         self.graph
             .register_pass("main_pass")
-            .add_color_attachment(AttachmentType::SwapchainImage, Default::default());
+            .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
+            .set_callback(|cinder, cmd_list| {
+                cmd_list.bind_graphics_pipeline(&cinder.device, &self.pipeline);
+                cmd_list.bind_index_buffer(&cinder.device, &self.index_buffer);
+                cmd_list.bind_vertex_buffer(&cinder.device, &self.vertex_buffer);
+                cmd_list.set_vertex_bytes(
+                    &cinder.device,
+                    &self.pipeline,
+                    &Mat4::rotate(
+                        (cinder.init_time.elapsed().as_secs_f32() / 5.0)
+                            * (2.0 * std::f32::consts::PI),
+                        Vec3::new(0.0, 0.0, 1.0),
+                    ),
+                    0,
+                )?;
+                cmd_list.draw_offset(&cinder.device, 3, 0, 0);
+
+                Ok(())
+            });
     }
 
     pub fn draw(&mut self) -> Result<bool> {

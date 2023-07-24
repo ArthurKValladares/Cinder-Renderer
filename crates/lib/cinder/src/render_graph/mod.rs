@@ -1,6 +1,5 @@
 use crate::{
     command_queue::{CommandList, RenderAttachment, RenderAttachmentDesc},
-    device::Device,
     Cinder,
 };
 use anyhow::Result;
@@ -27,7 +26,7 @@ impl From<String> for AttachmentType {
 pub struct RenderPass {
     color_attachments: HashMap<AttachmentType, RenderAttachmentDesc>,
     depth_attachment: Option<(String, RenderAttachmentDesc)>,
-    callback: Box<dyn Fn(&Device, &CommandList)>,
+    callback: Box<dyn Fn(&Cinder, &CommandList) -> Result<()>>,
 }
 
 impl std::fmt::Debug for RenderPass {
@@ -44,7 +43,7 @@ impl Default for RenderPass {
         Self {
             color_attachments: Default::default(),
             depth_attachment: Default::default(),
-            callback: Box::new(|_, _| {}),
+            callback: Box::new(|_, _| Ok(())),
         }
     }
 }
@@ -74,7 +73,7 @@ impl RenderPass {
 
     pub fn set_callback<F>(&mut self, callback: F)
     where
-        F: Fn(&Device, &CommandList) + 'static,
+        F: Fn(&Cinder, &CommandList) -> Result<()> + 'static,
     {
         self.callback = Box::new(callback);
     }
@@ -117,7 +116,16 @@ impl RenderGraph {
             // TODO: Will need to figure something out for the surface rect
             // TODO: Hook up depth
             cmd_list.begin_rendering(&cinder.device, surface_rect, &compiled_passes, None);
+            // TODO: Figure out something with viewport/scissor as well
+            cmd_list.bind_viewport(&cinder.device, surface_rect, true);
+            cmd_list.bind_scissor(&cinder.device, surface_rect);
+            (pass.callback)(cinder, &cmd_list);
+            cmd_list.end_rendering(&cinder.device);
         }
+
+        cinder
+            .swapchain
+            .present(&cinder.device, cmd_list, swapchain_image)?;
 
         Ok(())
     }
