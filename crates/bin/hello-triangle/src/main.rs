@@ -161,7 +161,6 @@ fn main() {
             }
         }
 
-        //hello_triangle.setup_graph();
         hello_triangle.draw().unwrap();
 
         hello_triangle.cinder.end_frame();
