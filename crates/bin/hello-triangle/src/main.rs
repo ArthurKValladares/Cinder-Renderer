@@ -25,7 +25,6 @@ pub struct HelloTriangle {
     pipeline: GraphicsPipeline,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
-    graph: RenderGraph,
 }
 
 impl HelloTriangle {
@@ -78,20 +77,17 @@ impl HelloTriangle {
         vertex_shader.destroy(&cinder.device);
         fragment_shader.destroy(&cinder.device);
 
-        let mut graph = RenderGraph::new();
-
         Ok(Self {
             cinder,
             pipeline,
             vertex_buffer,
             index_buffer,
-            graph,
         })
     }
 
-    pub fn setup_graph(&mut self) {
-        self.graph.reset();
-        self.graph
+    pub fn draw(&mut self) -> Result<bool> {
+        let mut graph = RenderGraph::new();
+        graph
             .register_pass("main_pass")
             .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
             .set_callback(|cinder, cmd_list| {
@@ -112,47 +108,8 @@ impl HelloTriangle {
 
                 Ok(())
             });
-    }
 
-    pub fn draw(&mut self) -> Result<bool> {
-        let surface_rect = self.cinder.device.surface_rect();
-
-        let cmd_list = self
-            .cinder
-            .command_queue
-            .get_command_list(&self.cinder.device)?;
-        let swapchain_image = self
-            .cinder
-            .swapchain
-            .acquire_image(&self.cinder.device, &cmd_list)?;
-
-        cmd_list.begin_rendering(
-            &self.cinder.device,
-            surface_rect,
-            &[RenderAttachment::color(swapchain_image, Default::default())],
-            None,
-        );
-        cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.pipeline);
-        cmd_list.bind_viewport(&self.cinder.device, surface_rect, true);
-        cmd_list.bind_scissor(&self.cinder.device, surface_rect);
-        cmd_list.bind_index_buffer(&self.cinder.device, &self.index_buffer);
-        cmd_list.bind_vertex_buffer(&self.cinder.device, &self.vertex_buffer);
-        cmd_list.set_vertex_bytes(
-            &self.cinder.device,
-            &self.pipeline,
-            &Mat4::rotate(
-                (self.cinder.init_time.elapsed().as_secs_f32() / 5.0)
-                    * (2.0 * std::f32::consts::PI),
-                Vec3::new(0.0, 0.0, 1.0),
-            ),
-            0,
-        )?;
-        cmd_list.draw_offset(&self.cinder.device, 3, 0, 0);
-        cmd_list.end_rendering(&self.cinder.device);
-
-        self.cinder
-            .swapchain
-            .present(&self.cinder.device, cmd_list, swapchain_image)
+        graph.run(&mut self.cinder)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {

@@ -23,13 +23,13 @@ impl From<String> for AttachmentType {
     }
 }
 
-pub struct RenderPass {
+pub struct RenderPass<'a> {
     color_attachments: HashMap<AttachmentType, RenderAttachmentDesc>,
     depth_attachment: Option<(String, RenderAttachmentDesc)>,
-    callback: Box<dyn Fn(&Cinder, &CommandList) -> Result<()>>,
+    callback: Box<dyn Fn(&Cinder, &CommandList) -> Result<()> + 'a>,
 }
 
-impl std::fmt::Debug for RenderPass {
+impl<'a> std::fmt::Debug for RenderPass<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("RenderPass")
             .field("color_attachments", &self.color_attachments)
@@ -38,7 +38,7 @@ impl std::fmt::Debug for RenderPass {
     }
 }
 
-impl Default for RenderPass {
+impl<'a> Default for RenderPass<'a> {
     fn default() -> Self {
         Self {
             color_attachments: Default::default(),
@@ -48,7 +48,7 @@ impl Default for RenderPass {
     }
 }
 
-impl RenderPass {
+impl<'a> RenderPass<'a> {
     pub fn new() -> Self {
         Default::default()
     }
@@ -73,27 +73,27 @@ impl RenderPass {
 
     pub fn set_callback<F>(&mut self, callback: F)
     where
-        F: Fn(&Cinder, &CommandList) -> Result<()> + 'static,
+        F: Fn(&Cinder, &CommandList) -> Result<()> + 'a,
     {
         self.callback = Box::new(callback);
     }
 }
 
 #[derive(Debug, Default)]
-pub struct RenderGraph {
-    passes: HashMap<String, RenderPass>,
+pub struct RenderGraph<'a> {
+    passes: HashMap<String, RenderPass<'a>>,
 }
 
-impl RenderGraph {
+impl<'a> RenderGraph<'a> {
     pub fn new() -> Self {
         Default::default()
     }
 
-    pub fn register_pass(&mut self, name: impl Into<String>) -> &mut RenderPass {
+    pub fn register_pass(&mut self, name: impl Into<String>) -> &mut RenderPass<'a> {
         self.passes.entry(name.into()).or_insert(Default::default())
     }
 
-    pub fn run(&self, cinder: &mut Cinder) -> Result<()> {
+    pub fn run(&self, cinder: &mut Cinder) -> Result<bool> {
         // TODO: This is nowhere close to right
         let surface_rect = cinder.device.surface_rect();
 
@@ -119,18 +119,12 @@ impl RenderGraph {
             // TODO: Figure out something with viewport/scissor as well
             cmd_list.bind_viewport(&cinder.device, surface_rect, true);
             cmd_list.bind_scissor(&cinder.device, surface_rect);
-            (pass.callback)(cinder, &cmd_list);
+            (pass.callback)(cinder, &cmd_list)?;
             cmd_list.end_rendering(&cinder.device);
         }
 
         cinder
             .swapchain
-            .present(&cinder.device, cmd_list, swapchain_image)?;
-
-        Ok(())
-    }
-
-    pub fn reset(&mut self) {
-        self.passes.clear();
+            .present(&cinder.device, cmd_list, swapchain_image)
     }
 }
