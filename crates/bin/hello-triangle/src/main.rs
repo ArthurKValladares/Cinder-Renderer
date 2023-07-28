@@ -1,11 +1,9 @@
 use anyhow::Result;
 use cinder::{
-    command_queue::{RenderAttachment, RenderAttachmentDesc},
     render_graph::{AttachmentType, RenderGraph},
     resources::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         pipeline::graphics::GraphicsPipeline,
-        ResourceManager,
     },
     Cinder,
 };

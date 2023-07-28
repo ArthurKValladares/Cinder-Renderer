@@ -1,13 +1,12 @@
 use anyhow::Result;
 use cinder::{
-    command_queue::{AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc},
+    command_queue::{AttachmentStoreOp, ClearValue, RenderAttachmentDesc},
     render_graph::{AttachmentType, RenderGraph},
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
-        ResourceManager,
     },
     Cinder, ResourceId,
 };

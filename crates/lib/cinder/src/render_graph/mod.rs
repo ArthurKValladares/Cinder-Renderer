@@ -1,6 +1,6 @@
 use crate::{
     command_queue::{CommandList, RenderAttachment, RenderAttachmentDesc},
-    resources::{image::Image, ResourceManager},
+    resources::{image::Image},
     Cinder,
 };
 use anyhow::Result;
