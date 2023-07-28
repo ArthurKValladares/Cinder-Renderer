@@ -24,7 +24,6 @@ include!(concat!(
 ));
 
 pub struct HelloCube {
-    resource_manager: ResourceManager,
     cinder: Cinder,
     depth_image_handle: ResourceId<Image>,
     pipeline: GraphicsPipeline,
@@ -39,9 +38,8 @@ impl HelloCube {
         //
         // Create Base Resources
         //
-        let mut resource_manager = ResourceManager::default();
         let (width, height) = window.drawable_size();
-        let cinder = Cinder::new(window, width, height)?;
+        let mut cinder = Cinder::new(window, width, height)?;
 
         //
         // Create App Resources
@@ -230,10 +228,9 @@ impl HelloCube {
         vertex_shader.destroy(&cinder.device);
         fragment_shader.destroy(&cinder.device);
 
-        let depth_image_handle = resource_manager.insert_image(depth_image);
+        let depth_image_handle = cinder.resource_manager.insert_image(depth_image);
 
         Ok(Self {
-            resource_manager,
             cinder,
             depth_image_handle,
             pipeline,
@@ -278,17 +275,23 @@ impl HelloCube {
                     0,
                     &[self.bind_group],
                 );
-                cmd_list.draw_offset(&cinder.device, 36, 0, 0);
+                cmd_list.draw_offset(
+                    &cinder.device,
+                    self.index_buffer.num_elements().unwrap(),
+                    0,
+                    0,
+                );
 
                 Ok(())
             });
 
-        graph.run(&mut self.cinder, &self.resource_manager)
+        graph.run(&mut self.cinder)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
         self.cinder.resize(width, height)?;
         let depth_image = self
+            .cinder
             .resource_manager
             .images
             .get_mut(self.depth_image_handle)

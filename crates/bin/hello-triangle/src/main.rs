@@ -25,7 +25,6 @@ include!(concat!(
 
 // TODO: a `Cleanup` proc-macro
 pub struct HelloTriangle {
-    resource_manager: ResourceManager,
     cinder: Cinder,
     pipeline: GraphicsPipeline,
     vertex_buffer: Buffer,
@@ -83,7 +82,6 @@ impl HelloTriangle {
         fragment_shader.destroy(&cinder.device);
 
         Ok(Self {
-            resource_manager: Default::default(),
             cinder,
             pipeline,
             vertex_buffer,
@@ -115,7 +113,7 @@ impl HelloTriangle {
                 Ok(())
             });
 
-        graph.run(&mut self.cinder, &self.resource_manager)
+        graph.run(&mut self.cinder)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {

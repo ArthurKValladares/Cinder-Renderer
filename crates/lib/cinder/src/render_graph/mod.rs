@@ -91,7 +91,7 @@ impl<'a> RenderGraph<'a> {
         self.passes.entry(name.into()).or_insert(Default::default())
     }
 
-    pub fn run(&self, cinder: &mut Cinder, manager: &ResourceManager) -> Result<bool> {
+    pub fn run(&self, cinder: &mut Cinder) -> Result<bool> {
         // TODO: This is nowhere close to right
         let surface_rect = cinder.device.surface_rect();
 
@@ -116,7 +116,8 @@ impl<'a> RenderGraph<'a> {
                     panic!("Swapchain Image not yet supported for depth attachment")
                 }
                 AttachmentType::Reference(id) => {
-                    let image = manager
+                    let image = cinder
+                        .resource_manager
                         .images
                         .get(*id)
                         .expect("Could not find depth attachment image");
