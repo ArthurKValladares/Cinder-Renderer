@@ -5,6 +5,7 @@ use cinder::{
     resources::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         pipeline::graphics::GraphicsPipeline,
+        ResourceManager,
     },
     Cinder,
 };
@@ -20,7 +21,11 @@ include!(concat!(
     "/gen/triangle_shader_structs.rs"
 ));
 
+// TODO: Abstract a lot of this in a `App` trait that will reduce boilerplate
+
+// TODO: a `Cleanup` proc-macro
 pub struct HelloTriangle {
+    resource_manager: ResourceManager,
     cinder: Cinder,
     pipeline: GraphicsPipeline,
     vertex_buffer: Buffer,
@@ -78,6 +83,7 @@ impl HelloTriangle {
         fragment_shader.destroy(&cinder.device);
 
         Ok(Self {
+            resource_manager: Default::default(),
             cinder,
             pipeline,
             vertex_buffer,
@@ -109,7 +115,7 @@ impl HelloTriangle {
                 Ok(())
             });
 
-        graph.run(&mut self.cinder)
+        graph.run(&mut self.cinder, &self.resource_manager)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {

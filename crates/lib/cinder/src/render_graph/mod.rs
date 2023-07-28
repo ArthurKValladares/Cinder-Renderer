@@ -1,31 +1,23 @@
 use crate::{
     command_queue::{CommandList, RenderAttachment, RenderAttachmentDesc},
+    resources::{image::Image, ResourceManager},
     Cinder,
 };
 use anyhow::Result;
+use math::rect::Rect2D;
+use resource_manager::ResourceId;
 use std::collections::HashMap;
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum AttachmentType {
     SwapchainImage,
-    Reference(String),
-}
-
-impl From<&str> for AttachmentType {
-    fn from(value: &str) -> Self {
-        Self::Reference(value.to_string())
-    }
-}
-
-impl From<String> for AttachmentType {
-    fn from(value: String) -> Self {
-        Self::Reference(value)
-    }
+    Reference(ResourceId<Image>),
 }
 
 pub struct RenderPass<'a> {
     color_attachments: HashMap<AttachmentType, RenderAttachmentDesc>,
-    depth_attachment: Option<(String, RenderAttachmentDesc)>,
+    depth_attachment: Option<(AttachmentType, RenderAttachmentDesc)>,
+    render_area: Option<Rect2D<i32, u32>>,
     callback: Box<dyn Fn(&Cinder, &CommandList) -> Result<()> + 'a>,
 }
 
@@ -43,6 +35,7 @@ impl<'a> Default for RenderPass<'a> {
         Self {
             color_attachments: Default::default(),
             depth_attachment: Default::default(),
+            render_area: None,
             callback: Box::new(|_, _| Ok(())),
         }
     }
@@ -64,10 +57,15 @@ impl<'a> RenderPass<'a> {
 
     pub fn set_depth_attachment(
         &mut self,
-        name: impl Into<String>,
+        attachment: impl Into<AttachmentType>,
         desc: RenderAttachmentDesc,
     ) -> &mut Self {
-        self.depth_attachment = Some((name.into(), desc));
+        self.depth_attachment = Some((attachment.into(), desc));
+        self
+    }
+
+    pub fn with_render_area(&mut self, render_area: Rect2D<i32, u32>) -> &mut Self {
+        self.render_area = Some(render_area);
         self
     }
 
@@ -93,7 +91,7 @@ impl<'a> RenderGraph<'a> {
         self.passes.entry(name.into()).or_insert(Default::default())
     }
 
-    pub fn run(&self, cinder: &mut Cinder) -> Result<bool> {
+    pub fn run(&self, cinder: &mut Cinder, manager: &ResourceManager) -> Result<bool> {
         // TODO: This is nowhere close to right
         let surface_rect = cinder.device.surface_rect();
 
@@ -113,9 +111,25 @@ impl<'a> RenderGraph<'a> {
                 })
                 .collect::<Vec<_>>();
 
-            // TODO: Will need to figure something out for the surface rect
-            // TODO: Hook up depth
-            cmd_list.begin_rendering(&cinder.device, surface_rect, &compiled_passes, None);
+            let depth_attachment = pass.depth_attachment.as_ref().map(|(ty, desc)| match ty {
+                AttachmentType::SwapchainImage => {
+                    panic!("Swapchain Image not yet supported for depth attachment")
+                }
+                AttachmentType::Reference(id) => {
+                    let image = manager
+                        .images
+                        .get(*id)
+                        .expect("Could not find depth attachment image");
+                    RenderAttachment::depth(image, *desc)
+                }
+            });
+
+            cmd_list.begin_rendering(
+                &cinder.device,
+                pass.render_area.unwrap_or(surface_rect),
+                &compiled_passes,
+                depth_attachment,
+            );
             // TODO: Figure out something with viewport/scissor as well
             cmd_list.bind_viewport(&cinder.device, surface_rect, true);
             cmd_list.bind_scissor(&cinder.device, surface_rect);

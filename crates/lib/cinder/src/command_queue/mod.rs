@@ -270,7 +270,7 @@ impl CommandList {
         device: &Device,
         render_area: Rect2D<i32, u32>,
         color_attachments: &[RenderAttachment],
-        depth_attahcment: Option<RenderAttachment>,
+        depth_attachment: Option<RenderAttachment>,
     ) {
         let color_attachments = unsafe {
             std::mem::transmute::<&[RenderAttachment], &[vk::RenderingAttachmentInfo]>(
@@ -282,7 +282,7 @@ impl CommandList {
             .render_area(crate::util::rect_to_vk(render_area).unwrap())
             .color_attachments(color_attachments)
             .layer_count(1);
-        let rendering_info = if let Some(depth_attachment) = &depth_attahcment {
+        let rendering_info = if let Some(depth_attachment) = &depth_attachment {
             rendering_info.depth_attachment(&depth_attachment.0).build()
         } else {
             rendering_info.build()

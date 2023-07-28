@@ -1,13 +1,15 @@
 use anyhow::Result;
 use cinder::{
     command_queue::{AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc},
+    render_graph::{AttachmentType, RenderGraph},
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
+        ResourceManager,
     },
-    Cinder,
+    Cinder, ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
@@ -22,8 +24,9 @@ include!(concat!(
 ));
 
 pub struct HelloCube {
+    resource_manager: ResourceManager,
     cinder: Cinder,
-    depth_image: Image,
+    depth_image_handle: ResourceId<Image>,
     pipeline: GraphicsPipeline,
     bind_group: BindGroup,
     vertex_buffer: Buffer,
@@ -36,6 +39,7 @@ impl HelloCube {
         //
         // Create Base Resources
         //
+        let mut resource_manager = ResourceManager::default();
         let (width, height) = window.drawable_size();
         let cinder = Cinder::new(window, width, height)?;
 
@@ -226,9 +230,12 @@ impl HelloCube {
         vertex_shader.destroy(&cinder.device);
         fragment_shader.destroy(&cinder.device);
 
+        let depth_image_handle = resource_manager.insert_image(depth_image);
+
         Ok(Self {
+            resource_manager,
             cinder,
-            depth_image,
+            depth_image_handle,
             pipeline,
             bind_group,
             vertex_buffer,
@@ -248,49 +255,45 @@ impl HelloCube {
     }
 
     pub fn draw(&mut self) -> Result<bool> {
-        let surface_rect = self.cinder.device.surface_rect();
-
-        let cmd_list = self
-            .cinder
-            .command_queue
-            .get_command_list(&self.cinder.device)?;
-        let swapchain_image = self
-            .cinder
-            .swapchain
-            .acquire_image(&self.cinder.device, &cmd_list)?;
-
-        cmd_list.begin_rendering(
-            &self.cinder.device,
-            surface_rect,
-            &[RenderAttachment::color(swapchain_image, Default::default())],
-            Some(RenderAttachment::depth(
-                &self.depth_image,
+        let mut graph = RenderGraph::new();
+        graph
+            .register_pass("main_pass")
+            .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
+            .set_depth_attachment(
+                AttachmentType::Reference(self.depth_image_handle),
                 RenderAttachmentDesc {
                     store_op: AttachmentStoreOp::DontCare,
                     layout: Layout::DepthAttachment,
                     clear_value: ClearValue::default_depth(),
                     ..Default::default()
                 },
-            )),
-        );
-        cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.pipeline);
-        cmd_list.bind_viewport(&self.cinder.device, surface_rect, true);
-        cmd_list.bind_scissor(&self.cinder.device, surface_rect);
-        cmd_list.bind_index_buffer(&self.cinder.device, &self.index_buffer);
-        cmd_list.bind_vertex_buffer(&self.cinder.device, &self.vertex_buffer);
-        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline, 0, &[self.bind_group]);
-        cmd_list.draw_offset(&self.cinder.device, 36, 0, 0);
-        cmd_list.end_rendering(&self.cinder.device);
+            )
+            .set_callback(|cinder, cmd_list| {
+                cmd_list.bind_graphics_pipeline(&cinder.device, &self.pipeline);
+                cmd_list.bind_index_buffer(&cinder.device, &self.index_buffer);
+                cmd_list.bind_vertex_buffer(&cinder.device, &self.vertex_buffer);
+                cmd_list.bind_descriptor_sets(
+                    &cinder.device,
+                    &self.pipeline,
+                    0,
+                    &[self.bind_group],
+                );
+                cmd_list.draw_offset(&cinder.device, 36, 0, 0);
 
-        self.cinder
-            .swapchain
-            .present(&self.cinder.device, cmd_list, swapchain_image)
+                Ok(())
+            });
+
+        graph.run(&mut self.cinder, &self.resource_manager)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
         self.cinder.resize(width, height)?;
-        self.depth_image
-            .resize(&self.cinder.device, Size2D::new(width, height))?;
+        let depth_image = self
+            .resource_manager
+            .images
+            .get_mut(self.depth_image_handle)
+            .unwrap();
+        depth_image.resize(&self.cinder.device, Size2D::new(width, height))?;
         Ok(())
     }
 }
@@ -302,7 +305,6 @@ impl Drop for HelloCube {
         self.vertex_buffer.destroy(&self.cinder.device);
         self.ubo_buffer.destroy(&self.cinder.device);
         self.pipeline.destroy(&self.cinder.device);
-        self.depth_image.destroy(&self.cinder.device);
     }
 }
 
