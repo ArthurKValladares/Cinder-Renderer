@@ -2,7 +2,6 @@ use anyhow::Result;
 use cinder::{
     cinder::Cinder,
     command_queue::{AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc},
-    render_graph::{AttachmentType, RenderGraph},
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
@@ -12,6 +11,7 @@ use cinder::{
     ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
+use render_graph::{AttachmentType, RenderGraph};
 use scene::{ObjMesh, Scene, Vertex};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use std::path::PathBuf;
@@ -242,7 +242,7 @@ impl Renderer {
                 Ok(())
             });
 
-        graph.run(&mut self.cinder)
+        graph.run(&mut self.cinder)?.present(&mut self.cinder)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
