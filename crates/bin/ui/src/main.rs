@@ -305,7 +305,30 @@ impl Renderer {
                 Ok(())
             });
 
-        graph.run(&mut self.cinder)
+        let pc = graph.run(&mut self.cinder)?;
+
+        self.ui.run(
+            &mut self.cinder.resource_manager,
+            &self.cinder.device,
+            window,
+            &pc.cmd_list,
+            pc.present_rect,
+            pc.swapchain_image,
+            |ctx| {
+                let pi_2 = std::f32::consts::PI * 2.0;
+                egui::Window::new("UI").show(ctx, |ui| {
+                    ui.add(
+                        egui::Slider::new(&mut self.model_data.rotation, -pi_2..=pi_2)
+                            .text("Rotation"),
+                    );
+                    ui.add(egui::Slider::new(&mut self.model_data.scale, 1.0..=2.0).text("Scale"));
+                    self.helper_egui_menu.draw(ui);
+                });
+            },
+        )?;
+        self.helper_egui_menu.update(&mut self.ui);
+
+        pc.present(&mut self.cinder)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {

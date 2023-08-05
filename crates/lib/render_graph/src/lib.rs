@@ -1,7 +1,8 @@
-use anyhow::Result;
+use anyhow::{Ok, Result};
 use cinder::{
     command_queue::{CommandList, RenderAttachment, RenderAttachmentDesc},
     resources::image::Image,
+    swapchain::SwapchainImage,
     Cinder,
 };
 use math::rect::Rect2D;
@@ -77,6 +78,21 @@ impl<'a> RenderPass<'a> {
     }
 }
 
+#[derive(Debug)]
+pub struct PresentContext {
+    pub present_rect: Rect2D<i32, u32>,
+    pub cmd_list: CommandList,
+    pub swapchain_image: SwapchainImage,
+}
+
+impl PresentContext {
+    pub fn present(self, cinder: &mut Cinder) -> Result<bool> {
+        cinder
+            .swapchain
+            .present(&cinder.device, self.cmd_list, self.swapchain_image)
+    }
+}
+
 #[derive(Debug, Default)]
 pub struct RenderGraph<'a> {
     passes: HashMap<String, RenderPass<'a>>,
@@ -91,7 +107,7 @@ impl<'a> RenderGraph<'a> {
         self.passes.entry(name.into()).or_insert(Default::default())
     }
 
-    pub fn run(&mut self, cinder: &mut Cinder) -> Result<bool> {
+    pub fn run(&mut self, cinder: &mut Cinder) -> Result<PresentContext> {
         // TODO: This is nowhere close to right
         let surface_rect = cinder.device.surface_rect();
 
@@ -138,8 +154,10 @@ impl<'a> RenderGraph<'a> {
             cmd_list.end_rendering(&cinder.device);
         }
 
-        cinder
-            .swapchain
-            .present(&cinder.device, cmd_list, swapchain_image)
+        Ok(PresentContext {
+            present_rect: surface_rect,
+            cmd_list,
+            swapchain_image,
+        })
     }
 }
