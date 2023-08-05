@@ -1,6 +1,5 @@
 use anyhow::Result;
 use cinder::{
-    render_graph::{AttachmentType, RenderGraph},
     resources::{
         buffer::{Buffer, BufferDescription, BufferUsage},
         pipeline::graphics::GraphicsPipeline,
@@ -8,6 +7,7 @@ use cinder::{
     Cinder,
 };
 use math::{mat::Mat4, vec::Vec3};
+use render_graph::{AttachmentType, RenderGraph};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
 

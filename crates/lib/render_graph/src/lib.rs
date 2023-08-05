@@ -1,9 +1,9 @@
-use crate::{
+use anyhow::Result;
+use cinder::{
     command_queue::{CommandList, RenderAttachment, RenderAttachmentDesc},
-    resources::{image::Image},
+    resources::image::Image,
     Cinder,
 };
-use anyhow::Result;
 use math::rect::Rect2D;
 use resource_manager::ResourceId;
 use std::collections::HashMap;
@@ -84,14 +84,14 @@ pub struct RenderGraph<'a> {
 
 impl<'a> RenderGraph<'a> {
     pub fn new() -> Self {
-        Default::default()
+        Self::default()
     }
 
     pub fn register_pass(&mut self, name: impl Into<String>) -> &mut RenderPass<'a> {
         self.passes.entry(name.into()).or_insert(Default::default())
     }
 
-    pub fn run(&self, cinder: &mut Cinder) -> Result<bool> {
+    pub fn run(&mut self, cinder: &mut Cinder) -> Result<bool> {
         // TODO: This is nowhere close to right
         let surface_rect = cinder.device.surface_rect();
 

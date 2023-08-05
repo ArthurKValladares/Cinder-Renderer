@@ -3,9 +3,7 @@ mod sdl;
 
 use anyhow::Result;
 use cinder::{
-    command_queue::{
-        AttachmentLoadOp, CommandList, RenderAttachment, RenderAttachmentDesc,
-    },
+    command_queue::{AttachmentLoadOp, CommandList, RenderAttachment, RenderAttachmentDesc},
     device::Device,
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
@@ -38,6 +36,7 @@ pub(crate) const DEFAULT_PPP: f32 = 3.0;
 const VERTEX_BUFFER_SIZE: u64 = 1024 * 1024 * 4;
 const INDEX_BUFFER_SIZE: u64 = 1024 * 1024 * 2;
 
+#[derive(Debug)]
 pub struct EguiIntegration {
     egui_context: egui::Context,
     egui_sdl: EguiSdl,

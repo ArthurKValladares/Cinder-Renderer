@@ -644,6 +644,7 @@ dependencies = [
  "home",
  "image",
  "math",
+ "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",
@@ -1225,6 +1226,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "render_graph"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "cinder",
+ "math",
+ "resource-manager",
+]
+
+[[package]]
 name = "resource-manager"
 version = "0.1.0"
 
@@ -1640,6 +1651,7 @@ dependencies = [
  "home",
  "image",
  "math",
+ "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",

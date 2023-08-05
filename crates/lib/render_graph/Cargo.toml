@@ -1,0 +1,11 @@
+[package]
+name = "render_graph"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+anyhow = "1"
+cinder = {path = "../cinder"}
+resource-manager = {path = "../resource-manager"}
+math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }

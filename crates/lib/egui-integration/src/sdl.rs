@@ -22,6 +22,7 @@ pub struct EventResponse {
     pub consumed: bool,
 }
 
+#[derive(Debug)]
 pub struct EguiSdl {
     start_time: Instant,
     egui_input: egui::RawInput,
