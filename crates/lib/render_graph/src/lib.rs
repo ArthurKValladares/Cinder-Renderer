@@ -7,7 +7,7 @@ use cinder::{
 };
 use math::rect::Rect2D;
 use resource_manager::ResourceId;
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum AttachmentType {
@@ -95,7 +95,7 @@ impl PresentContext {
 
 #[derive(Debug, Default)]
 pub struct RenderGraph<'a> {
-    passes: HashMap<String, RenderPass<'a>>,
+    passes: BTreeMap<String, RenderPass<'a>>,
 }
 
 impl<'a> RenderGraph<'a> {
@@ -114,7 +114,7 @@ impl<'a> RenderGraph<'a> {
         let cmd_list = cinder.command_queue.get_command_list(&cinder.device)?;
         let swapchain_image = cinder.swapchain.acquire_image(&cinder.device, &cmd_list)?;
 
-        for (_, pass) in &self.passes {
+        for (name, pass) in &self.passes {
             // TODO: Maybe stop allocating every frame here
             let compiled_passes = pass
                 .color_attachments

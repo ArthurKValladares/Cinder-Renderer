@@ -14,6 +14,7 @@ use cinder::{
     Cinder,
 };
 use math::size::Size2D;
+use render_graph::{AttachmentType, RenderGraph};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
 

@@ -11,8 +11,10 @@ use cinder::{
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
         sampler::Sampler,
     },
+    ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
+use render_graph::{AttachmentType, RenderGraph};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
 
@@ -30,7 +32,7 @@ include!(concat!(
 
 pub struct Renderer {
     cinder: Cinder,
-    depth_image: Image,
+    depth_image_handle: ResourceId<Image>,
     mesh_pipeline: GraphicsPipeline,
     mesh_bind_group: BindGroup,
     texture_pipeline: GraphicsPipeline,
@@ -49,7 +51,7 @@ impl Renderer {
         // Create Base Resources
         //
         let (width, height) = window.drawable_size();
-        let cinder = Cinder::new(window, width, height)?;
+        let mut cinder = Cinder::new(window, width, height)?;
 
         //
         // Create App Resources
@@ -310,9 +312,11 @@ impl Renderer {
         mesh_vertex_shader.destroy(&cinder.device);
         mesh_fragment_shader.destroy(&cinder.device);
 
+        let depth_image_handle = cinder.resource_manager.insert_image(depth_image);
+
         Ok(Self {
             cinder,
-            depth_image,
+            depth_image_handle,
             mesh_pipeline,
             mesh_bind_group,
             texture_pipeline,
@@ -337,84 +341,74 @@ impl Renderer {
     }
 
     pub fn draw(&mut self) -> Result<bool> {
-        let surface_rect = self.cinder.device.surface_rect();
+        let mut graph = RenderGraph::new();
 
-        let cmd_list = self
-            .cinder
-            .command_queue
-            .get_command_list(&self.cinder.device)?;
-        let swapchain_image = self
-            .cinder
-            .swapchain
-            .acquire_image(&self.cinder.device, &cmd_list)?;
-
-        cmd_list.bind_viewport(&self.cinder.device, surface_rect, true);
-        cmd_list.bind_scissor(&self.cinder.device, surface_rect);
-
-        // Mesh render pass
-        cmd_list.begin_rendering(
-            &self.cinder.device,
-            surface_rect,
-            &[RenderAttachment::color(swapchain_image, Default::default())],
-            Some(RenderAttachment::depth(
-                &self.depth_image,
+        graph
+            .register_pass("a_mesh_pass")
+            .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
+            .set_depth_attachment(
+                AttachmentType::Reference(self.depth_image_handle),
                 RenderAttachmentDesc {
                     store_op: AttachmentStoreOp::Store,
                     layout: Layout::DepthAttachment,
                     clear_value: ClearValue::default_depth(),
                     ..Default::default()
                 },
-            )),
-        );
-        cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.mesh_pipeline);
-        cmd_list.bind_index_buffer(&self.cinder.device, &self.cube_index_buffer);
-        cmd_list.bind_vertex_buffer(&self.cinder.device, &self.cube_vertex_buffer);
-        cmd_list.bind_descriptor_sets(
-            &self.cinder.device,
-            &self.mesh_pipeline,
-            0,
-            &[self.mesh_bind_group],
-        );
-        cmd_list.draw_offset(&self.cinder.device, 36, 0, 0);
-        cmd_list.end_rendering(&self.cinder.device);
+            )
+            .set_callback(|cinder, cmd_list| {
+                cmd_list.bind_graphics_pipeline(&cinder.device, &self.mesh_pipeline);
+                cmd_list.bind_index_buffer(&cinder.device, &self.cube_index_buffer);
+                cmd_list.bind_vertex_buffer(&cinder.device, &self.cube_vertex_buffer);
+                cmd_list.bind_descriptor_sets(
+                    &cinder.device,
+                    &self.mesh_pipeline,
+                    0,
+                    &[self.mesh_bind_group],
+                );
+                cmd_list.draw_offset(&cinder.device, 36, 0, 0);
 
-        // Depth image render pass
-        cmd_list.begin_rendering(
-            &self.cinder.device,
-            surface_rect,
-            &[RenderAttachment::color(
-                swapchain_image,
+                Ok(())
+            });
+
+        graph
+            .register_pass("b_depth_image_pass")
+            .add_color_attachment(
+                AttachmentType::SwapchainImage,
                 RenderAttachmentDesc {
                     load_op: AttachmentLoadOp::Load,
                     ..Default::default()
                 },
-            )],
-            None,
-        );
-        cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.texture_pipeline);
-        cmd_list.bind_index_buffer(&self.cinder.device, &self.quad_index_buffer);
-        cmd_list.bind_vertex_buffer(&self.cinder.device, &self.quad_vertex_buffer);
-        cmd_list.bind_descriptor_sets(
-            &self.cinder.device,
-            &self.texture_pipeline,
-            0,
-            &[self.texture_bind_group],
-        );
-        cmd_list.draw_offset(&self.cinder.device, 6, 0, 0);
-        cmd_list.end_rendering(&self.cinder.device);
+            )
+            .set_callback(|cinder, cmd_list| {
+                cmd_list.bind_graphics_pipeline(&cinder.device, &self.texture_pipeline);
+                cmd_list.bind_index_buffer(&cinder.device, &self.quad_index_buffer);
+                cmd_list.bind_vertex_buffer(&cinder.device, &self.quad_vertex_buffer);
+                cmd_list.bind_descriptor_sets(
+                    &cinder.device,
+                    &self.texture_pipeline,
+                    0,
+                    &[self.texture_bind_group],
+                );
+                cmd_list.draw_offset(&cinder.device, 6, 0, 0);
 
-        self.cinder
-            .swapchain
-            .present(&self.cinder.device, cmd_list, swapchain_image)
+                Ok(())
+            });
+
+        graph.run(&mut self.cinder)?.present(&mut self.cinder)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
         self.cinder.resize(width, height)?;
-        self.depth_image
-            .resize(&self.cinder.device, Size2D::new(width, height))?;
+        let depth_image = self
+            .cinder
+            .resource_manager
+            .images
+            .get_mut(self.depth_image_handle)
+            .unwrap();
+        depth_image.resize(&self.cinder.device, Size2D::new(width, height))?;
         self.cinder.command_queue.transition_image(
             &self.cinder.device,
-            &self.depth_image,
+            &depth_image,
             ImageUsage::Depth,
             Layout::Undefined,
             Layout::DepthStencilReadOnly,
@@ -422,7 +416,7 @@ impl Renderer {
         self.cinder.device.write_bind_group(&[BindGroupBindInfo {
             group: self.texture_bind_group,
             dst_binding: 0,
-            data: BindGroupWriteData::SampledImage(self.depth_image.bind_info(
+            data: BindGroupWriteData::SampledImage(depth_image.bind_info(
                 &self.sampler,
                 Layout::DepthStencilReadOnly,
                 None,
@@ -436,7 +430,6 @@ impl Renderer {
 impl Drop for Renderer {
     fn drop(&mut self) {
         self.cinder.device.wait_idle().ok();
-        self.depth_image.destroy(&self.cinder.device);
         self.mesh_pipeline.destroy(&self.cinder.device);
         self.texture_pipeline.destroy(&self.cinder.device);
         self.cube_vertex_buffer.destroy(&self.cinder.device);
