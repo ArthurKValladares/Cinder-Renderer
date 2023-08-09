@@ -3,7 +3,6 @@ use std::path::PathBuf;
 use anyhow::Result;
 use cinder::{
     cinder::Cinder,
-    command_queue::RenderAttachment,
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
