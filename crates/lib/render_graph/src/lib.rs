@@ -87,9 +87,11 @@ pub struct PresentContext {
 
 impl PresentContext {
     pub fn present(self, cinder: &mut Cinder) -> Result<bool> {
-        cinder
+        let ret = cinder
             .swapchain
-            .present(&cinder.device, self.cmd_list, self.swapchain_image)
+            .present(&cinder.device, self.cmd_list, self.swapchain_image);
+        cinder.device.end_queue_label();
+        ret
     }
 }
 
@@ -108,9 +110,14 @@ impl<'a> RenderGraph<'a> {
     }
 
     pub fn run(&mut self, cinder: &mut Cinder) -> Result<PresentContext> {
-        // TODO: This is nowhere close to right
+        // TODO: Label colors, flag to disable it
+
+        // TODO: This logic is nowhere close to right
         let surface_rect = cinder.device.surface_rect();
 
+        cinder
+            .device
+            .begin_queue_label("Frame Begin", [0.0, 0.0, 1.0, 1.0]);
         let cmd_list = cinder.command_queue.get_command_list(&cinder.device)?;
         let swapchain_image = cinder.swapchain.acquire_image(&cinder.device, &cmd_list)?;
 
@@ -141,6 +148,11 @@ impl<'a> RenderGraph<'a> {
                 }
             });
 
+            cmd_list.begin_label(
+                &cinder.device,
+                &format!("Begin Rendering: {name:?}"),
+                [1.0, 0.0, 0.0, 1.0],
+            );
             cmd_list.begin_rendering(
                 &cinder.device,
                 pass.render_area.unwrap_or(surface_rect),
@@ -152,6 +164,7 @@ impl<'a> RenderGraph<'a> {
             cmd_list.bind_scissor(&cinder.device, surface_rect);
             (pass.callback)(cinder, &cmd_list)?;
             cmd_list.end_rendering(&cinder.device);
+            cmd_list.end_label(&cinder.device);
         }
 
         Ok(PresentContext {

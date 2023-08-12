@@ -172,53 +172,13 @@ impl Renderer {
                     &[self.bind_group],
                 );
                 cmd_list.insert_label(&cinder.device, "Draw Offset", [0.0, 1.0, 0.0, 1.0]);
+                cmd_list.insert_label(&cinder.device, "Draw Offset", [0.0, 1.0, 0.0, 1.0]);
                 cmd_list.draw_offset(&cinder.device, 6, 0, 0);
 
                 Ok(())
             });
 
         graph.run(&mut self.cinder)?.present(&mut self.cinder)
-
-        /*
-        let surface_rect = self.cinder.device.surface_rect();
-
-        self.cinder
-            .device
-            .begin_queue_label("Frame Begin", [0.0, 0.0, 1.0, 1.0]);
-        let cmd_list = self
-            .cinder
-            .command_queue
-            .get_command_list(&self.cinder.device)?;
-        let swapchain_image = self
-            .cinder
-            .swapchain
-            .acquire_image(&self.cinder.device, &cmd_list)?;
-
-        cmd_list.begin_label(&self.cinder.device, "Begin Rendering", [1.0, 0.0, 0.0, 1.0]);
-        cmd_list.begin_rendering(
-            &self.cinder.device,
-            surface_rect,
-            &[RenderAttachment::color(swapchain_image, Default::default())],
-            None,
-        );
-        cmd_list.bind_graphics_pipeline(&self.cinder.device, &self.pipeline);
-        cmd_list.bind_viewport(&self.cinder.device, surface_rect, true);
-        cmd_list.bind_scissor(&self.cinder.device, surface_rect);
-        cmd_list.bind_index_buffer(&self.cinder.device, &self.index_buffer);
-        cmd_list.bind_vertex_buffer(&self.cinder.device, &self.vertex_buffer);
-        cmd_list.bind_descriptor_sets(&self.cinder.device, &self.pipeline, 0, &[self.bind_group]);
-        cmd_list.insert_label(&self.cinder.device, "Draw Offset", [0.0, 1.0, 0.0, 1.0]);
-        cmd_list.draw_offset(&self.cinder.device, 6, 0, 0);
-        cmd_list.end_rendering(&self.cinder.device);
-        cmd_list.end_label(&self.cinder.device);
-
-        let ret = self
-            .cinder
-            .swapchain
-            .present(&self.cinder.device, cmd_list, swapchain_image);
-        self.cinder.device.end_queue_label();
-        ret
-        */
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
