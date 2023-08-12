@@ -381,6 +381,7 @@ dependencies = [
  "home",
  "image",
  "math",
+ "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",

@@ -18,6 +18,7 @@ math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 thiserror = "1"
+render_graph = { path = "../../lib/render_graph" }
 
 [build-dependencies]
 home = "0.5.3"

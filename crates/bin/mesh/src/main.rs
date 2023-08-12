@@ -1,7 +1,7 @@
 use anyhow::Result;
 use cinder::{
     cinder::Cinder,
-    command_queue::{AttachmentStoreOp, ClearValue, RenderAttachment, RenderAttachmentDesc},
+    command_queue::{AttachmentStoreOp, ClearValue, RenderAttachmentDesc},
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},

@@ -157,6 +157,29 @@ impl Renderer {
     }
 
     pub fn draw(&mut self) -> Result<bool> {
+        let mut graph = RenderGraph::new();
+        graph
+            .register_pass("main_pass")
+            .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
+            .set_callback(|cinder, cmd_list| {
+                cmd_list.bind_graphics_pipeline(&cinder.device, &self.pipeline);
+                cmd_list.bind_index_buffer(&cinder.device, &self.index_buffer);
+                cmd_list.bind_vertex_buffer(&cinder.device, &self.vertex_buffer);
+                cmd_list.bind_descriptor_sets(
+                    &cinder.device,
+                    &self.pipeline,
+                    0,
+                    &[self.bind_group],
+                );
+                cmd_list.insert_label(&cinder.device, "Draw Offset", [0.0, 1.0, 0.0, 1.0]);
+                cmd_list.draw_offset(&cinder.device, 6, 0, 0);
+
+                Ok(())
+            });
+
+        graph.run(&mut self.cinder)?.present(&mut self.cinder)
+
+        /*
         let surface_rect = self.cinder.device.surface_rect();
 
         self.cinder
@@ -195,6 +218,7 @@ impl Renderer {
             .present(&self.cinder.device, cmd_list, swapchain_image);
         self.cinder.device.end_queue_label();
         ret
+        */
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
