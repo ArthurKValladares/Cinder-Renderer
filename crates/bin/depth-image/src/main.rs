@@ -14,7 +14,7 @@ use cinder::{
     ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
-use render_graph::{AttachmentType, RenderGraph};
+use render_graph::{AttachmentType, RenderGraph, RenderPassOutput, RenderPassInput};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
 
@@ -355,6 +355,7 @@ impl Renderer {
                     ..Default::default()
                 },
             )
+            .add_output(RenderPassOutput::Image(self.depth_image_handle))
             .set_callback(|cinder, cmd_list| {
                 cmd_list.bind_graphics_pipeline(&cinder.device, &self.mesh_pipeline);
                 cmd_list.bind_index_buffer(&cinder.device, &self.cube_index_buffer);
@@ -379,6 +380,7 @@ impl Renderer {
                     ..Default::default()
                 },
             )
+            .add_input(RenderPassInput::Image(self.depth_image_handle))
             .set_callback(|cinder, cmd_list| {
                 cmd_list.bind_graphics_pipeline(&cinder.device, &self.texture_pipeline);
                 cmd_list.bind_index_buffer(&cinder.device, &self.quad_index_buffer);

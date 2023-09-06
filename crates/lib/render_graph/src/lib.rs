@@ -9,6 +9,16 @@ use math::rect::Rect2D;
 use resource_manager::ResourceId;
 use std::collections::{BTreeMap, HashMap};
 
+#[derive(Debug)]
+pub enum RenderPassInput {
+    Image(ResourceId<Image>),
+}
+
+#[derive(Debug)]
+pub enum RenderPassOutput {
+    Image(ResourceId<Image>),
+}
+
 #[derive(Debug, PartialEq, Eq, Hash)]
 pub enum AttachmentType {
     SwapchainImage,
@@ -18,6 +28,8 @@ pub enum AttachmentType {
 pub struct RenderPass<'a> {
     color_attachments: HashMap<AttachmentType, RenderAttachmentDesc>,
     depth_attachment: Option<(AttachmentType, RenderAttachmentDesc)>,
+    inputs: Vec<RenderPassInput>,
+    outputs: Vec<RenderPassOutput>,
     render_area: Option<Rect2D<i32, u32>>,
     callback: Box<dyn Fn(&Cinder, &CommandList) -> Result<()> + 'a>,
 }
@@ -36,6 +48,8 @@ impl<'a> Default for RenderPass<'a> {
         Self {
             color_attachments: Default::default(),
             depth_attachment: Default::default(),
+            inputs: Default::default(),
+            outputs: Default::default(),
             render_area: None,
             callback: Box::new(|_, _| Ok(())),
         }
@@ -67,6 +81,16 @@ impl<'a> RenderPass<'a> {
 
     pub fn with_render_area(&mut self, render_area: Rect2D<i32, u32>) -> &mut Self {
         self.render_area = Some(render_area);
+        self
+    }
+
+    pub fn add_input(&mut self, input: RenderPassInput) -> &mut Self {
+        self.inputs.push(input);
+        self
+    }
+
+    pub fn add_output(&mut self, output: RenderPassOutput) -> &mut Self {
+        self.outputs.push(output);
         self
     }
 
