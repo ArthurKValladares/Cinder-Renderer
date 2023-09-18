@@ -31,6 +31,7 @@ pub struct RenderPass<'a> {
     inputs: Vec<RenderPassInput>,
     outputs: Vec<RenderPassOutput>,
     render_area: Option<Rect2D<i32, u32>>,
+    flipped_viewport: bool,
     callback: Box<dyn Fn(&Cinder, &CommandList) -> Result<()> + 'a>,
 }
 
@@ -51,6 +52,7 @@ impl<'a> Default for RenderPass<'a> {
             inputs: Default::default(),
             outputs: Default::default(),
             render_area: None,
+            flipped_viewport: true,
             callback: Box::new(|_, _| Ok(())),
         }
     }
@@ -81,6 +83,11 @@ impl<'a> RenderPass<'a> {
 
     pub fn with_render_area(&mut self, render_area: Rect2D<i32, u32>) -> &mut Self {
         self.render_area = Some(render_area);
+        self
+    }
+
+    pub fn with_flipped_viewport(&mut self, flipped: bool) -> &mut Self {
+        self.flipped_viewport = flipped;
         self
     }
 
@@ -184,7 +191,7 @@ impl<'a> RenderGraph<'a> {
                 depth_attachment,
             );
             // TODO: Figure out something with viewport/scissor as well
-            cmd_list.bind_viewport(&cinder.device, surface_rect, true);
+            cmd_list.bind_viewport(&cinder.device, surface_rect, pass.flipped_viewport);
             cmd_list.bind_scissor(&cinder.device, surface_rect);
             (pass.callback)(cinder, &cmd_list)?;
             cmd_list.end_rendering(&cinder.device);
