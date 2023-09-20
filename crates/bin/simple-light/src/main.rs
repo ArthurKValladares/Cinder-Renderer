@@ -368,7 +368,7 @@ pub struct HelloCube {
     pipelines: Pipelines,
     sampler: Sampler,
     shadow_map_sampler: Sampler,
-    depth_image: Image,
+    depth_image_handle: ResourceId<Image>,
     shadow_map_image_handle: ResourceId<Image>,
     eye_pos: Vec3,
     eye_camera: CameraData,
@@ -714,6 +714,7 @@ impl HelloCube {
         shadow_map_quad_vs.destroy(&cinder.device);
         shadow_map_quad_fs.destroy(&cinder.device);
 
+        let depth_image_handle = cinder.resource_manager.insert_image(depth_image);
         let shadow_map_image_handle = cinder.resource_manager.insert_image(shadow_map_image);
 
         Ok(Self {
@@ -721,7 +722,7 @@ impl HelloCube {
             pipelines,
             sampler,
             shadow_map_sampler,
-            depth_image,
+            depth_image_handle,
             shadow_map_image_handle,
             eye_pos,
             eye_camera,
@@ -833,7 +834,7 @@ impl HelloCube {
                 },
             )
             .set_depth_attachment(
-                AttachmentType::Reference(self.shadow_map_image_handle),
+                AttachmentType::Reference(self.depth_image_handle),
                 RenderAttachmentDesc {
                     store_op: AttachmentStoreOp::DontCare,
                     layout: Layout::DepthAttachment,
@@ -987,9 +988,13 @@ impl HelloCube {
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
         self.cinder.resize(width, height)?;
-        self.depth_image
-            .resize(&self.cinder.device, Size2D::new(width, height))?;
 
+        self.cinder
+            .resource_manager
+            .images
+            .get_mut(self.depth_image_handle)
+            .unwrap()
+            .resize(&self.cinder.device, Size2D::new(width, height))?;
         self.cinder
             .resource_manager
             .images
@@ -1031,7 +1036,6 @@ impl HelloCube {
 impl Drop for HelloCube {
     fn drop(&mut self) {
         self.cinder.device.wait_idle().ok();
-        self.depth_image.destroy(&self.cinder.device);
         self.cube_mesh_data.cleanup(&self.cinder);
         self.plane_mesh_data.cleanup(&self.cinder);
         self.light_data.cleanup(&self.cinder);

@@ -1,9 +1,7 @@
 use anyhow::Result;
 use cinder::{
     cinder::Cinder,
-    command_queue::{
-        AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderAttachmentDesc,
-    },
+    command_queue::{AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderAttachmentDesc},
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
@@ -14,7 +12,7 @@ use cinder::{
     ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
-use render_graph::{AttachmentType, RenderGraph, RenderPassOutput, RenderPassInput};
+use render_graph::{AttachmentType, RenderGraph, RenderPassInput, RenderPassOutput};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
 
@@ -410,7 +408,7 @@ impl Renderer {
         depth_image.resize(&self.cinder.device, Size2D::new(width, height))?;
         self.cinder.command_queue.transition_image(
             &self.cinder.device,
-            &depth_image,
+            depth_image,
             ImageUsage::Depth,
             Layout::Undefined,
             Layout::DepthStencilReadOnly,
