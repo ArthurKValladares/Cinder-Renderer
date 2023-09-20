@@ -947,42 +947,40 @@ impl HelloCube {
                 Ok(())
             });
 
-        /*
-                if self.show_shadow_map_image {
-                    // Depth image render pass
-                    cmd_list.begin_rendering(
-                        &self.cinder.device,
-                        surface_rect,
-                        &[RenderAttachment::color(
-                            swapchain_image,
-                            RenderAttachmentDesc {
-                                load_op: AttachmentLoadOp::Load,
-                                ..Default::default()
-                            },
-                        )],
-                        None,
+        if self.show_shadow_map_image {
+            graph
+                .register_pass("c_depth_image_pass")
+                .add_color_attachment(
+                    AttachmentType::SwapchainImage,
+                    RenderAttachmentDesc {
+                        load_op: AttachmentLoadOp::Load,
+                        ..Default::default()
+                    },
+                )
+                .add_input(RenderPassInput::Image(self.shadow_map_image_handle))
+                .with_flipped_viewport(false)
+                .set_callback(|cinder, cmd_list| {
+                    cmd_list
+                        .bind_graphics_pipeline(&cinder.device, &self.pipelines.shadow_map_quad);
+                    cmd_list.bind_descriptor_sets(
+                        &cinder.device,
+                        &self.pipelines.shadow_map_quad,
+                        0,
+                        &[self.texture_bind_group],
                     );
-                    {
-                        cmd_list
-                            .bind_graphics_pipeline(&self.cinder.device, &self.pipelines.shadow_map_quad);
-                        cmd_list.bind_descriptor_sets(
-                            &self.cinder.device,
-                            &self.pipelines.shadow_map_quad,
-                            0,
-                            &[self.texture_bind_group],
-                        );
-                        cmd_list.bind_index_buffer(&self.cinder.device, &self.quad_data.index_buffer);
-                        cmd_list.bind_vertex_buffer(&self.cinder.device, &self.quad_data.vertex_buffer);
-                        cmd_list.draw_offset(
-                            &self.cinder.device,
-                            self.quad_data.index_buffer.num_elements().unwrap(),
-                            0,
-                            0,
-                        );
-                    }
-                    cmd_list.end_rendering(&self.cinder.device);
-                }
-        */
+                    cmd_list.bind_index_buffer(&cinder.device, &self.quad_data.index_buffer);
+                    cmd_list.bind_vertex_buffer(&cinder.device, &self.quad_data.vertex_buffer);
+                    cmd_list.draw_offset(
+                        &cinder.device,
+                        self.quad_data.index_buffer.num_elements().unwrap(),
+                        0,
+                        0,
+                    );
+
+                    Ok(())
+                });
+        }
+
         graph.run(&mut self.cinder)?.present(&mut self.cinder)
     }
 
