@@ -7,15 +7,17 @@ use cinder::{
 };
 use math::rect::Rect2D;
 use resource_manager::ResourceId;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
-#[derive(Debug)]
-pub enum RenderPassInput {
-    Image(ResourceId<Image>),
+#[derive(Debug, Default)]
+pub struct RenderGraphNode {
+    // TODO: Will use an ID instead of String for these
+    input_nodes: Vec<String>,
+    output_nodes: Vec<String>,
 }
 
-#[derive(Debug)]
-pub enum RenderPassOutput {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+pub enum RenderPassResource {
     Image(ResourceId<Image>),
 }
 
@@ -28,8 +30,8 @@ pub enum AttachmentType {
 pub struct RenderPass<'a> {
     color_attachments: HashMap<AttachmentType, RenderAttachmentDesc>,
     depth_attachment: Option<(AttachmentType, RenderAttachmentDesc)>,
-    inputs: Vec<RenderPassInput>,
-    outputs: Vec<RenderPassOutput>,
+    inputs: Vec<RenderPassResource>,
+    outputs: Vec<RenderPassResource>,
     render_area: Option<Rect2D<i32, u32>>,
     flipped_viewport: bool,
     callback: Box<dyn Fn(&Cinder, &CommandList) -> Result<()> + 'a>,
@@ -91,12 +93,12 @@ impl<'a> RenderPass<'a> {
         self
     }
 
-    pub fn add_input(&mut self, input: RenderPassInput) -> &mut Self {
+    pub fn add_input(&mut self, input: RenderPassResource) -> &mut Self {
         self.inputs.push(input);
         self
     }
 
-    pub fn add_output(&mut self, output: RenderPassOutput) -> &mut Self {
+    pub fn add_output(&mut self, output: RenderPassResource) -> &mut Self {
         self.outputs.push(output);
         self
     }
@@ -140,10 +142,58 @@ impl<'a> RenderGraph<'a> {
         self.passes.entry(name.into()).or_insert(Default::default())
     }
 
+    fn compile_nodes(&mut self) -> HashMap<String, RenderGraphNode> {
+        // TODO: Instead of creating these maps here, should do as we build the graph.
+        // Also need to use an ID instead of `String` as the HashSet value to get rid of clones
+
+        // Maps resources to nodes that use it as an input
+        let mut input_map: HashMap<RenderPassResource, HashSet<String>> = Default::default();
+        // Maps resources to nodes that use it as an output
+        let mut output_map: HashMap<RenderPassResource, HashSet<String>> = Default::default();
+        for (name, pass) in &self.passes {
+            for input in &pass.inputs {
+                input_map.entry(*input).or_default().insert(name.clone());
+            }
+            for output in &pass.outputs {
+                output_map.entry(*output).or_default().insert(name.clone());
+            }
+        }
+
+        let mut nodes: HashMap<String, RenderGraphNode> = Default::default();
+        for (name, pass) in &self.passes {
+            let mut node = RenderGraphNode::default();
+
+            // If an input of this node is used as an output by another node, then
+            // that node must have an edge pointing to this node.
+            for input in &pass.inputs {
+                if let Some(uses_as_output) = output_map.get(input) {
+                    for input_pass in uses_as_output {
+                        node.input_nodes.push(input_pass.clone());
+                    }
+                }
+            }
+
+            // If an output of this node is used as an input by another node, then
+            // this node must have an edge pointing to that node.
+            for output in &pass.outputs {
+                if let Some(uses_as_input) = input_map.get(output) {
+                    for output_pass in uses_as_input {
+                        node.output_nodes.push(output_pass.clone());
+                    }
+                }
+            }
+
+            nodes.insert(name.clone(), node);
+        }
+        nodes
+    }
+
     pub fn run(&mut self, cinder: &mut Cinder) -> Result<PresentContext> {
         // TODO: Label colors, flag to disable it
 
-        // TODO: This logic is nowhere close to right
+        let nodes = self.compile_nodes();
+        //println!("Compiled Nodes: {nodes:#?}");
+
         let surface_rect = cinder.device.surface_rect();
 
         cinder

@@ -16,7 +16,7 @@ use cinder::{
     Cinder, ResourceId,
 };
 use math::{mat::Mat4, point::Point2D, size::Size2D, vec::Vec3};
-use render_graph::{AttachmentType, RenderGraph, RenderPassInput, RenderPassOutput};
+use render_graph::{AttachmentType, RenderGraph, RenderPassResource};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
 
@@ -776,7 +776,7 @@ impl HelloCube {
                     ..Default::default()
                 },
             )
-            .add_output(RenderPassOutput::Image(self.shadow_map_image_handle))
+            .add_output(RenderPassResource::Image(self.shadow_map_image_handle))
             .with_flipped_viewport(false)
             .set_callback(|cinder, cmd_list| {
                 cmd_list.bind_descriptor_sets(
@@ -842,7 +842,7 @@ impl HelloCube {
                     ..Default::default()
                 },
             )
-            .add_input(RenderPassInput::Image(self.shadow_map_image_handle))
+            .add_input(RenderPassResource::Image(self.shadow_map_image_handle))
             .with_flipped_viewport(false)
             .set_callback(|cinder, cmd_list| {
                 // Bind Mesh Data
@@ -957,7 +957,7 @@ impl HelloCube {
                         ..Default::default()
                     },
                 )
-                .add_input(RenderPassInput::Image(self.shadow_map_image_handle))
+                .add_input(RenderPassResource::Image(self.shadow_map_image_handle))
                 .with_flipped_viewport(false)
                 .set_callback(|cinder, cmd_list| {
                     cmd_list
