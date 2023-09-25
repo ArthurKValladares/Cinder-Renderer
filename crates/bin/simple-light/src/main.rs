@@ -766,7 +766,7 @@ impl HelloCube {
         let mut graph = RenderGraph::new();
 
         graph
-            .register_pass("a_light_pass")
+            .register_pass("light_pass")
             .set_depth_attachment(
                 AttachmentType::Reference(self.shadow_map_image_handle),
                 RenderAttachmentDesc {
@@ -823,7 +823,7 @@ impl HelloCube {
             });
 
         graph
-            .register_pass("b_main_pass")
+            .register_pass("main_pass")
             .add_color_attachment(
                 AttachmentType::SwapchainImage,
                 RenderAttachmentDesc {
@@ -843,6 +843,7 @@ impl HelloCube {
                 },
             )
             .add_input(RenderPassResource::Image(self.shadow_map_image_handle))
+            .add_output(RenderPassResource::SwapchainImage)
             .with_flipped_viewport(false)
             .set_callback(|cinder, cmd_list| {
                 // Bind Mesh Data
@@ -949,7 +950,7 @@ impl HelloCube {
 
         if self.show_shadow_map_image {
             graph
-                .register_pass("c_depth_image_pass")
+                .register_pass("depth_image_pass")
                 .add_color_attachment(
                     AttachmentType::SwapchainImage,
                     RenderAttachmentDesc {
@@ -958,6 +959,7 @@ impl HelloCube {
                     },
                 )
                 .add_input(RenderPassResource::Image(self.shadow_map_image_handle))
+                .add_input(RenderPassResource::SwapchainImage)
                 .with_flipped_viewport(false)
                 .set_callback(|cinder, cmd_list| {
                     cmd_list

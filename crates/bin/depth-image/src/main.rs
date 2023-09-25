@@ -342,7 +342,7 @@ impl Renderer {
         let mut graph = RenderGraph::new();
 
         graph
-            .register_pass("a_mesh_pass")
+            .register_pass("mesh_pass")
             .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
             .set_depth_attachment(
                 AttachmentType::Reference(self.depth_image_handle),
@@ -370,7 +370,7 @@ impl Renderer {
             });
 
         graph
-            .register_pass("b_depth_image_pass")
+            .register_pass("depth_image_pass")
             .add_color_attachment(
                 AttachmentType::SwapchainImage,
                 RenderAttachmentDesc {

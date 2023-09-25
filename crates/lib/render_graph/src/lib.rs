@@ -18,6 +18,7 @@ pub struct RenderGraphNode {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum RenderPassResource {
+    SwapchainImage,
     Image(ResourceId<Image>),
 }
 
@@ -185,14 +186,54 @@ impl<'a> RenderGraph<'a> {
 
             nodes.insert(name.clone(), node);
         }
+
+        //println!("Compiled Nodes: {nodes:#?}");
         nodes
+    }
+
+    fn sorted_nodes(nodes: &HashMap<String, RenderGraphNode>) -> Vec<String> {
+        // TODO: String identifier for nodes is temporary
+        let mut sorted_nodes: Vec<String> = Vec::with_capacity(nodes.len());
+        let mut visited: HashMap<String, u8> = Default::default();
+        let mut stack: Vec<String> = Default::default();
+
+        for (name, _) in nodes {
+            stack.push(name.clone());
+            while !stack.is_empty() {
+                let to_visit = stack.last().unwrap();
+                if let Some(count) = visited.get_mut(to_visit) {
+                    match count {
+                        1 => {
+                            *count = 2;
+                            sorted_nodes.push(to_visit.clone());
+                            stack.pop();
+                        }
+                        2 => {
+                            stack.pop();
+                        }
+                        _ => unreachable!(),
+                    }
+                } else {
+                    visited.insert(to_visit.clone(), 1);
+                    let to_visit_node = nodes.get(to_visit).unwrap();
+                    for child_name in &to_visit_node.output_nodes {
+                        if !visited.contains_key(child_name) {
+                            stack.push(child_name.clone());
+                        }
+                    }
+                }
+            }
+        }
+
+        //println!("Sorted Nodes: {sorted_nodes:#?}");
+        sorted_nodes
     }
 
     pub fn run(&mut self, cinder: &mut Cinder) -> Result<PresentContext> {
         // TODO: Label colors, flag to disable it
 
         let nodes = self.compile_nodes();
-        //println!("Compiled Nodes: {nodes:#?}");
+        let sorted_nodes = Self::sorted_nodes(&nodes);
 
         let surface_rect = cinder.device.surface_rect();
 
@@ -202,7 +243,9 @@ impl<'a> RenderGraph<'a> {
         let cmd_list = cinder.command_queue.get_command_list(&cinder.device)?;
         let swapchain_image = cinder.swapchain.acquire_image(&cinder.device, &cmd_list)?;
 
-        for (name, pass) in &self.passes {
+        for name in sorted_nodes.iter().rev() {
+            let pass = self.passes.get(name).unwrap();
+
             // TODO: Maybe stop allocating every frame here
             let compiled_passes = pass
                 .color_attachments
