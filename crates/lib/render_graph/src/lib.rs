@@ -7,13 +7,15 @@ use cinder::{
 };
 use math::rect::Rect2D;
 use resource_manager::ResourceId;
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::{HashMap, HashSet};
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+struct RenderPassId(usize);
 
 #[derive(Debug, Default)]
 pub struct RenderGraphNode {
-    // TODO: Will use an ID instead of String for these
-    input_nodes: Vec<String>,
-    output_nodes: Vec<String>,
+    input_nodes: Vec<RenderPassId>,
+    output_nodes: Vec<RenderPassId>,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -28,6 +30,8 @@ pub enum AttachmentType {
     Reference(ResourceId<Image>),
 }
 
+type RenderPassCallback<'a> = dyn Fn(&Cinder, &CommandList) -> Result<()> + 'a;
+
 pub struct RenderPass<'a> {
     color_attachments: HashMap<AttachmentType, RenderAttachmentDesc>,
     depth_attachment: Option<(AttachmentType, RenderAttachmentDesc)>,
@@ -35,7 +39,8 @@ pub struct RenderPass<'a> {
     outputs: Vec<RenderPassResource>,
     render_area: Option<Rect2D<i32, u32>>,
     flipped_viewport: bool,
-    callback: Box<dyn Fn(&Cinder, &CommandList) -> Result<()> + 'a>,
+    callback: Box<RenderPassCallback<'a>>,
+    name: Option<&'a String>,
 }
 
 impl<'a> std::fmt::Debug for RenderPass<'a> {
@@ -43,6 +48,11 @@ impl<'a> std::fmt::Debug for RenderPass<'a> {
         f.debug_struct("RenderPass")
             .field("color_attachments", &self.color_attachments)
             .field("depth_attachment", &self.depth_attachment)
+            .field("inputs", &self.inputs)
+            .field("outputs", &self.outputs)
+            .field("render_area", &self.render_area)
+            .field("flipped_viewport", &self.flipped_viewport)
+            .field("name", &self.name)
             .finish()
     }
 }
@@ -57,6 +67,7 @@ impl<'a> Default for RenderPass<'a> {
             render_area: None,
             flipped_viewport: true,
             callback: Box::new(|_, _| Ok(())),
+            name: None,
         }
     }
 }
@@ -67,48 +78,49 @@ impl<'a> RenderPass<'a> {
     }
 
     pub fn add_color_attachment(
-        &mut self,
+        mut self,
         attachment: impl Into<AttachmentType>,
         desc: RenderAttachmentDesc,
-    ) -> &mut Self {
+    ) -> Self {
         self.color_attachments.insert(attachment.into(), desc);
         self
     }
 
     pub fn set_depth_attachment(
-        &mut self,
+        mut self,
         attachment: impl Into<AttachmentType>,
         desc: RenderAttachmentDesc,
-    ) -> &mut Self {
+    ) -> Self {
         self.depth_attachment = Some((attachment.into(), desc));
         self
     }
 
-    pub fn with_render_area(&mut self, render_area: Rect2D<i32, u32>) -> &mut Self {
+    pub fn with_render_area(mut self, render_area: Rect2D<i32, u32>) -> Self {
         self.render_area = Some(render_area);
         self
     }
 
-    pub fn with_flipped_viewport(&mut self, flipped: bool) -> &mut Self {
+    pub fn with_flipped_viewport(mut self, flipped: bool) -> Self {
         self.flipped_viewport = flipped;
         self
     }
 
-    pub fn add_input(&mut self, input: RenderPassResource) -> &mut Self {
+    pub fn add_input(mut self, input: RenderPassResource) -> Self {
         self.inputs.push(input);
         self
     }
 
-    pub fn add_output(&mut self, output: RenderPassResource) -> &mut Self {
+    pub fn add_output(mut self, output: RenderPassResource) -> Self {
         self.outputs.push(output);
         self
     }
 
-    pub fn set_callback<F>(&mut self, callback: F)
+    pub fn set_callback<F>(mut self, callback: F) -> Self
     where
         F: Fn(&Cinder, &CommandList) -> Result<()> + 'a,
     {
         self.callback = Box::new(callback);
+        self
     }
 }
 
@@ -131,7 +143,7 @@ impl PresentContext {
 
 #[derive(Debug, Default)]
 pub struct RenderGraph<'a> {
-    passes: BTreeMap<String, RenderPass<'a>>,
+    passes: Vec<RenderPass<'a>>,
 }
 
 impl<'a> RenderGraph<'a> {
@@ -139,29 +151,30 @@ impl<'a> RenderGraph<'a> {
         Self::default()
     }
 
-    pub fn register_pass(&mut self, name: impl Into<String>) -> &mut RenderPass<'a> {
-        self.passes.entry(name.into()).or_insert(Default::default())
+    pub fn add_pass(&mut self, pass: RenderPass<'a>) {
+        self.passes.push(pass)
     }
 
-    fn compile_nodes(&mut self) -> HashMap<String, RenderGraphNode> {
+    fn compile_nodes(&mut self) -> HashMap<RenderPassId, RenderGraphNode> {
         // TODO: Instead of creating these maps here, should do as we build the graph.
-        // Also need to use an ID instead of `String` as the HashSet value to get rid of clones
+        // Instead of a map, could maybe be a vector of bool
 
         // Maps resources to nodes that use it as an input
-        let mut input_map: HashMap<RenderPassResource, HashSet<String>> = Default::default();
+        let mut input_map: HashMap<RenderPassResource, HashSet<RenderPassId>> = Default::default();
         // Maps resources to nodes that use it as an output
-        let mut output_map: HashMap<RenderPassResource, HashSet<String>> = Default::default();
-        for (name, pass) in &self.passes {
+        let mut output_map: HashMap<RenderPassResource, HashSet<RenderPassId>> = Default::default();
+        for (idx, pass) in self.passes.iter().enumerate() {
+            let id = RenderPassId(idx);
             for input in &pass.inputs {
-                input_map.entry(*input).or_default().insert(name.clone());
+                input_map.entry(*input).or_default().insert(id);
             }
             for output in &pass.outputs {
-                output_map.entry(*output).or_default().insert(name.clone());
+                output_map.entry(*output).or_default().insert(id);
             }
         }
 
-        let mut nodes: HashMap<String, RenderGraphNode> = Default::default();
-        for (name, pass) in &self.passes {
+        let mut nodes: HashMap<RenderPassId, RenderGraphNode> = Default::default();
+        for (idx, pass) in self.passes.iter().enumerate() {
             let mut node = RenderGraphNode::default();
 
             // If an input of this node is used as an output by another node, then
@@ -184,21 +197,21 @@ impl<'a> RenderGraph<'a> {
                 }
             }
 
-            nodes.insert(name.clone(), node);
+            nodes.insert(RenderPassId(idx), node);
         }
 
         //println!("Compiled Nodes: {nodes:#?}");
         nodes
     }
 
-    fn sorted_nodes(nodes: &HashMap<String, RenderGraphNode>) -> Vec<String> {
+    fn sorted_nodes(nodes: &HashMap<RenderPassId, RenderGraphNode>) -> Vec<RenderPassId> {
         // TODO: String identifier for nodes is temporary
-        let mut sorted_nodes: Vec<String> = Vec::with_capacity(nodes.len());
-        let mut visited: HashMap<String, u8> = Default::default();
-        let mut stack: Vec<String> = Default::default();
+        let mut sorted_nodes: Vec<RenderPassId> = Vec::with_capacity(nodes.len());
+        let mut visited: HashMap<RenderPassId, u8> = Default::default();
+        let mut stack: Vec<RenderPassId> = Default::default();
 
-        for (name, _) in nodes {
-            stack.push(name.clone());
+        for (pass_id, _) in nodes {
+            stack.push(pass_id.clone());
             while !stack.is_empty() {
                 let to_visit = stack.last().unwrap();
                 if let Some(count) = visited.get_mut(to_visit) {
@@ -243,8 +256,8 @@ impl<'a> RenderGraph<'a> {
         let cmd_list = cinder.command_queue.get_command_list(&cinder.device)?;
         let swapchain_image = cinder.swapchain.acquire_image(&cinder.device, &cmd_list)?;
 
-        for name in sorted_nodes.iter().rev() {
-            let pass = self.passes.get(name).unwrap();
+        for pass_id in sorted_nodes.iter().rev() {
+            let pass = self.passes.get(pass_id.0).unwrap();
 
             // TODO: Maybe stop allocating every frame here
             let compiled_passes = pass
@@ -274,7 +287,10 @@ impl<'a> RenderGraph<'a> {
 
             cmd_list.begin_label(
                 &cinder.device,
-                &format!("Begin Rendering: {name:?}"),
+                &format!(
+                    "Begin Rendering: {:?}",
+                    pass.name.unwrap_or(&format!("Pass #{}", pass_id.0))
+                ),
                 [1.0, 0.0, 0.0, 1.0],
             );
             cmd_list.begin_rendering(

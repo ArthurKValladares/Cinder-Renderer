@@ -11,7 +11,7 @@ use cinder::{
 };
 use egui_integration::{egui, helpers::HelperEguiMenu, EguiIntegration};
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
-use render_graph::{AttachmentType, RenderGraph};
+use render_graph::{AttachmentType, RenderGraph, RenderPass};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
 
@@ -278,32 +278,33 @@ impl Renderer {
 
     pub fn draw(&mut self, window: &Window) -> Result<bool> {
         let mut graph = RenderGraph::new();
-        graph
-            .register_pass("main_pass")
-            .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
-            .set_depth_attachment(
-                AttachmentType::Reference(self.depth_image_handle),
-                RenderAttachmentDesc {
-                    store_op: AttachmentStoreOp::DontCare,
-                    layout: Layout::DepthAttachment,
-                    clear_value: ClearValue::default_depth(),
-                    ..Default::default()
-                },
-            )
-            .set_callback(|cinder, cmd_list| {
-                cmd_list.bind_graphics_pipeline(&cinder.device, &self.pipeline);
-                cmd_list.bind_index_buffer(&cinder.device, &self.index_buffer);
-                cmd_list.bind_vertex_buffer(&cinder.device, &self.vertex_buffer);
-                cmd_list.bind_descriptor_sets(
-                    &cinder.device,
-                    &self.pipeline,
-                    0,
-                    &[self.bind_group],
-                );
-                cmd_list.draw_offset(&cinder.device, 36, 0, 0);
+        graph.add_pass(
+            RenderPass::default()
+                .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
+                .set_depth_attachment(
+                    AttachmentType::Reference(self.depth_image_handle),
+                    RenderAttachmentDesc {
+                        store_op: AttachmentStoreOp::DontCare,
+                        layout: Layout::DepthAttachment,
+                        clear_value: ClearValue::default_depth(),
+                        ..Default::default()
+                    },
+                )
+                .set_callback(|cinder, cmd_list| {
+                    cmd_list.bind_graphics_pipeline(&cinder.device, &self.pipeline);
+                    cmd_list.bind_index_buffer(&cinder.device, &self.index_buffer);
+                    cmd_list.bind_vertex_buffer(&cinder.device, &self.vertex_buffer);
+                    cmd_list.bind_descriptor_sets(
+                        &cinder.device,
+                        &self.pipeline,
+                        0,
+                        &[self.bind_group],
+                    );
+                    cmd_list.draw_offset(&cinder.device, 36, 0, 0);
 
-                Ok(())
-            });
+                    Ok(())
+                }),
+        );
 
         let pc = graph.run(&mut self.cinder)?;
 
