@@ -144,6 +144,9 @@ impl PresentContext {
 #[derive(Debug, Default)]
 pub struct RenderGraph<'a> {
     passes: Vec<RenderPass<'a>>,
+    // Instead of a set, could maybe be a vector of bool
+    input_map: HashMap<RenderPassResource, HashSet<RenderPassId>>,
+    output_map: HashMap<RenderPassResource, HashSet<RenderPassId>>,
 }
 
 impl<'a> RenderGraph<'a> {
@@ -152,27 +155,17 @@ impl<'a> RenderGraph<'a> {
     }
 
     pub fn add_pass(&mut self, pass: RenderPass<'a>) {
+        let id = RenderPassId(self.passes.len());
+        for input in &pass.inputs {
+            self.input_map.entry(*input).or_default().insert(id);
+        }
+        for output in &pass.outputs {
+            self.output_map.entry(*output).or_default().insert(id);
+        }
         self.passes.push(pass)
     }
 
     fn compile_nodes(&mut self) -> HashMap<RenderPassId, RenderGraphNode> {
-        // TODO: Instead of creating these maps here, should do as we build the graph.
-        // Instead of a map, could maybe be a vector of bool
-
-        // Maps resources to nodes that use it as an input
-        let mut input_map: HashMap<RenderPassResource, HashSet<RenderPassId>> = Default::default();
-        // Maps resources to nodes that use it as an output
-        let mut output_map: HashMap<RenderPassResource, HashSet<RenderPassId>> = Default::default();
-        for (idx, pass) in self.passes.iter().enumerate() {
-            let id = RenderPassId(idx);
-            for input in &pass.inputs {
-                input_map.entry(*input).or_default().insert(id);
-            }
-            for output in &pass.outputs {
-                output_map.entry(*output).or_default().insert(id);
-            }
-        }
-
         let mut nodes: HashMap<RenderPassId, RenderGraphNode> = Default::default();
         for (idx, pass) in self.passes.iter().enumerate() {
             let mut node = RenderGraphNode::default();
@@ -180,9 +173,9 @@ impl<'a> RenderGraph<'a> {
             // If an input of this node is used as an output by another node, then
             // that node must have an edge pointing to this node.
             for input in &pass.inputs {
-                if let Some(uses_as_output) = output_map.get(input) {
+                if let Some(uses_as_output) = self.output_map.get(input) {
                     for input_pass in uses_as_output {
-                        node.input_nodes.push(input_pass.clone());
+                        node.input_nodes.push(*input_pass);
                     }
                 }
             }
@@ -190,9 +183,9 @@ impl<'a> RenderGraph<'a> {
             // If an output of this node is used as an input by another node, then
             // this node must have an edge pointing to that node.
             for output in &pass.outputs {
-                if let Some(uses_as_input) = input_map.get(output) {
+                if let Some(uses_as_input) = self.input_map.get(output) {
                     for output_pass in uses_as_input {
-                        node.output_nodes.push(output_pass.clone());
+                        node.output_nodes.push(*output_pass);
                     }
                 }
             }
@@ -211,14 +204,14 @@ impl<'a> RenderGraph<'a> {
         let mut stack: Vec<RenderPassId> = Default::default();
 
         for (pass_id, _) in nodes {
-            stack.push(pass_id.clone());
+            stack.push(*pass_id);
             while !stack.is_empty() {
                 let to_visit = stack.last().unwrap();
                 if let Some(count) = visited.get_mut(to_visit) {
                     match count {
                         1 => {
                             *count = 2;
-                            sorted_nodes.push(to_visit.clone());
+                            sorted_nodes.push(*to_visit);
                             stack.pop();
                         }
                         2 => {
@@ -227,11 +220,11 @@ impl<'a> RenderGraph<'a> {
                         _ => unreachable!(),
                     }
                 } else {
-                    visited.insert(to_visit.clone(), 1);
+                    visited.insert(*to_visit, 1);
                     let to_visit_node = nodes.get(to_visit).unwrap();
                     for child_name in &to_visit_node.output_nodes {
                         if !visited.contains_key(child_name) {
-                            stack.push(child_name.clone());
+                            stack.push(*child_name);
                         }
                     }
                 }
