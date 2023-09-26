@@ -5,16 +5,18 @@ use crate::{
 use anyhow::Result;
 use ash::vk;
 
-fn create_swapchain_structures(
-    device: &Device,
-    swapchain_loader: &ash::extensions::khr::Swapchain,
-    old_swapchain: Option<vk::SwapchainKHR>,
-) -> Result<(
+type SwapchainStructures = (
     vk::SwapchainKHR,
     Vec<vk::Image>,
     Vec<vk::ImageView>,
     Vec<vk::ImageLayout>,
-)> {
+);
+
+fn create_swapchain_structures(
+    device: &Device,
+    swapchain_loader: &ash::extensions::khr::Swapchain,
+    old_swapchain: Option<vk::SwapchainKHR>,
+) -> Result<SwapchainStructures> {
     let pre_transform = if device
         .surface_data
         .surface_capabilities
@@ -108,10 +110,10 @@ fn create_swapchain_structures(
 
 #[derive(Debug, Clone, Copy)]
 pub struct SwapchainImage {
-    pub(crate) image: vk::Image,
+    pub(crate) _image: vk::Image,
     pub(crate) image_view: vk::ImageView,
     pub(crate) index: u32,
-    pub(crate) is_suboptimal: bool,
+    pub(crate) _is_suboptimal: bool,
 }
 
 impl SwapchainImage {
@@ -167,9 +169,9 @@ impl Swapchain {
 
         let swapchain_image = SwapchainImage {
             index,
-            image: self.present_images[index as usize],
+            _image: self.present_images[index as usize],
             image_view: self.present_image_views[index as usize],
-            is_suboptimal,
+            _is_suboptimal: is_suboptimal,
         };
 
         self.transition_image(device, command_list, swapchain_image);

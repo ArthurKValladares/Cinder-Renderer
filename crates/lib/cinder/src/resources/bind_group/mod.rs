@@ -188,7 +188,7 @@ impl BindGroup {
         Ok(Self(set))
     }
 
-    pub(crate) fn set_name(&self, device: &Device, name: &str) {
+    pub fn set_name(&self, device: &Device, name: &str) {
         device.set_name(vk::ObjectType::DESCRIPTOR_SET, self.0, name);
     }
 }

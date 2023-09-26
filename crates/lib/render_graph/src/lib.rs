@@ -203,7 +203,7 @@ impl<'a> RenderGraph<'a> {
         let mut visited: HashMap<RenderPassId, u8> = Default::default();
         let mut stack: Vec<RenderPassId> = Default::default();
 
-        for (pass_id, _) in nodes {
+        for pass_id in nodes.keys() {
             stack.push(*pass_id);
             while !stack.is_empty() {
                 let to_visit = stack.last().unwrap();
