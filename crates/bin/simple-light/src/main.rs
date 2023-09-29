@@ -1,8 +1,6 @@
 use anyhow::Result;
 use cinder::{
-    command_queue::{
-        AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderAttachmentDesc,
-    },
+    command_queue::{AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderAttachmentDesc},
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupData, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
