@@ -13,6 +13,7 @@ use cinder::{
     },
     Cinder, ResourceId,
 };
+use geometry::SurfaceMesh;
 use math::{mat::Mat4, point::Point2D, size::Size2D, vec::Vec3};
 use render_graph::{AttachmentType, RenderGraph, RenderPass, RenderPassResource};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
@@ -207,19 +208,75 @@ fn rotate_point(p: Point2D<f32>, pivot: Point2D<f32>, angle: f32) -> Point2D<f32
     Point2D::new(x_new + pivot.x(), y_new + pivot.y())
 }
 
+struct FlashligthMesh {
+    // TODO: Could consolidate buffers
+    cylinder_vb: Buffer,
+    cylinder_ib: Buffer,
+    cone_vb: Buffer,
+    cone_ib: Buffer,
+}
+
+impl FlashligthMesh {
+    fn new(cinder: &Cinder) -> Result<Self> {
+        let cylinder = geometry::SurfaceMesh::cylinder::<30>(0.3, 0.05);
+        let cylinder_vb = cinder.device.create_buffer_with_data(
+            &cylinder.vertices,
+            BufferDescription {
+                usage: BufferUsage::VERTEX,
+                ..Default::default()
+            },
+        )?;
+        let cylinder_ib = cinder.device.create_buffer_with_data(
+            &cylinder.indices,
+            BufferDescription {
+                usage: BufferUsage::INDEX,
+                ..Default::default()
+            },
+        )?;
+
+        let cone = geometry::SurfaceMesh::cone::<30>(0.125, 0.1);
+        let cone_vb = cinder.device.create_buffer_with_data(
+            &cone.vertices,
+            BufferDescription {
+                usage: BufferUsage::VERTEX,
+                ..Default::default()
+            },
+        )?;
+        let cone_ib = cinder.device.create_buffer_with_data(
+            &cone.indices,
+            BufferDescription {
+                usage: BufferUsage::INDEX,
+                ..Default::default()
+            },
+        )?;
+
+        Ok(Self {
+            cylinder_vb,
+            cylinder_ib,
+            cone_vb,
+            cone_ib,
+        })
+    }
+
+    fn cleanup(&self, cinder: &Cinder) {
+        self.cylinder_vb.destroy(&cinder.device);
+        self.cylinder_ib.destroy(&cinder.device);
+
+        self.cone_vb.destroy(&cinder.device);
+        self.cone_ib.destroy(&cinder.device);
+    }
+}
+
 pub struct LightData {
     start_position: Vec3,
     position: Vec3,
     look_at: Vec3,
     data_buffer: Buffer,
-    vertex_buffer: Buffer,
-    index_buffer: Buffer,
+    flashlight: FlashligthMesh,
 }
 
 impl LightData {
     fn new(cinder: &Cinder, position: Vec3, look_at: Vec3, aspect_ratio: f32) -> Result<Self> {
-        let cylinder_mesh = geometry::SurfaceMesh::cylinder::<30>(0.3, 0.1);
-
         let data_buffer = cinder.device.create_buffer_with_data(
             &[LitMeshGlobalLightData {
                 view: camera::look_to(
@@ -238,29 +295,14 @@ impl LightData {
             },
         )?;
 
-        let vertex_buffer = cinder.device.create_buffer_with_data(
-            &cylinder_mesh.vertices,
-            BufferDescription {
-                usage: BufferUsage::VERTEX,
-                ..Default::default()
-            },
-        )?;
-
-        let index_buffer = cinder.device.create_buffer_with_data(
-            &cylinder_mesh.indices,
-            BufferDescription {
-                usage: BufferUsage::INDEX,
-                ..Default::default()
-            },
-        )?;
+        let flashlight = FlashligthMesh::new(cinder)?;
 
         Ok(Self {
             start_position: position,
             position,
             look_at,
             data_buffer,
-            vertex_buffer,
-            index_buffer,
+            flashlight,
         })
     }
 
@@ -290,8 +332,7 @@ impl LightData {
     }
 
     pub fn cleanup(&self, cinder: &Cinder) {
-        self.vertex_buffer.destroy(&cinder.device);
-        self.index_buffer.destroy(&cinder.device);
+        self.flashlight.cleanup(cinder);
         self.data_buffer.destroy(&cinder.device);
     }
 }
@@ -932,17 +973,36 @@ impl HelloCube {
                         &[self.eye_camera.bind_group],
                     );
                     cmd_list.bind_graphics_pipeline(&cinder.device, &self.pipelines.light_caster);
-                    cmd_list.bind_index_buffer(&cinder.device, &self.light_data.index_buffer);
-                    cmd_list.bind_vertex_buffer(&cinder.device, &self.light_data.vertex_buffer);
                     cmd_list.set_vertex_bytes(
                         &cinder.device,
                         &self.pipelines.light_caster,
                         &light_color,
                         0,
                     )?;
+
+                    cmd_list
+                        .bind_index_buffer(&cinder.device, &self.light_data.flashlight.cylinder_ib);
+                    cmd_list.bind_vertex_buffer(
+                        &cinder.device,
+                        &self.light_data.flashlight.cylinder_vb,
+                    );
                     cmd_list.draw_offset(
                         &cinder.device,
-                        self.light_data.index_buffer.num_elements().unwrap(),
+                        self.light_data
+                            .flashlight
+                            .cylinder_ib
+                            .num_elements()
+                            .unwrap(),
+                        0,
+                        0,
+                    );
+
+                    cmd_list.bind_index_buffer(&cinder.device, &self.light_data.flashlight.cone_ib);
+                    cmd_list
+                        .bind_vertex_buffer(&cinder.device, &self.light_data.flashlight.cone_vb);
+                    cmd_list.draw_offset(
+                        &cinder.device,
+                        self.light_data.flashlight.cone_ib.num_elements().unwrap(),
                         0,
                         0,
                     );
