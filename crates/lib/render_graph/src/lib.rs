@@ -193,12 +193,10 @@ impl<'a> RenderGraph<'a> {
             nodes.insert(RenderPassId(idx), node);
         }
 
-        //println!("Compiled Nodes: {nodes:#?}");
         nodes
     }
 
     fn sorted_nodes(nodes: &HashMap<RenderPassId, RenderGraphNode>) -> Vec<RenderPassId> {
-        // TODO: String identifier for nodes is temporary
         let mut sorted_nodes: Vec<RenderPassId> = Vec::with_capacity(nodes.len());
         let mut visited: HashMap<RenderPassId, u8> = Default::default();
         let mut stack: Vec<RenderPassId> = Default::default();
@@ -231,7 +229,6 @@ impl<'a> RenderGraph<'a> {
             }
         }
 
-        //println!("Sorted Nodes: {sorted_nodes:#?}");
         sorted_nodes
     }
 
