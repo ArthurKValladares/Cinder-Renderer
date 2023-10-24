@@ -163,7 +163,9 @@ fn main() {
                     win_event: sdl2::event::WindowEvent::SizeChanged(width, height),
                     ..
                 } => {
-                    hello_triangle.resize(width as u32, height as u32).unwrap();
+                    permit_alloc(|| {
+                        hello_triangle.resize(width as u32, height as u32).unwrap();
+                    });
                 }
                 _ => {}
             }

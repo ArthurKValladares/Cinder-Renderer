@@ -38,6 +38,7 @@ impl Surface {
         window_height: u32,
         vsync: bool,
     ) -> Result<SurfaceData> {
+        // TODO: Would be nice to not allocate here
         let surface_formats = unsafe {
             self.surface_loader
                 .get_physical_device_surface_formats(p_device, self.surface)
@@ -77,15 +78,16 @@ impl Surface {
             _ => surface_capabilities.current_extent,
         };
 
+        // TODO: Also nice not to allocate here
         let present_modes = unsafe {
             self.surface_loader
                 .get_physical_device_surface_present_modes(p_device, self.surface)
         }?;
 
         let present_mode_preference = if !vsync {
-            vec![vk::PresentModeKHR::FIFO_RELAXED, vk::PresentModeKHR::FIFO]
+            [vk::PresentModeKHR::FIFO_RELAXED, vk::PresentModeKHR::FIFO]
         } else {
-            vec![vk::PresentModeKHR::MAILBOX, vk::PresentModeKHR::IMMEDIATE]
+            [vk::PresentModeKHR::MAILBOX, vk::PresentModeKHR::IMMEDIATE]
         };
         let present_mode = present_mode_preference
             .into_iter()
