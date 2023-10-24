@@ -1,4 +1,5 @@
 use anyhow::Result;
+use assert_no_alloc::*;
 use cinder::{
     resources::{
         buffer::{Buffer, BufferDescription, BufferUsage},
@@ -10,6 +11,10 @@ use math::{mat::Mat4, vec::Vec3};
 use render_graph::{AttachmentType, RenderGraph, RenderPass};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
+
+#[cfg(debug_assertions)]
+#[global_allocator]
+static A: AllocDisabler = AllocDisabler;
 
 pub const WINDOW_WIDTH: u32 = 1280;
 pub const WINDOW_HEIGHT: u32 = 1280;
@@ -142,7 +147,7 @@ fn main() {
 
     let mut hello_triangle = HelloTriangle::new(&sdl.window).unwrap();
 
-    'running: loop {
+    assert_no_alloc(|| 'running: loop {
         hello_triangle.cinder.start_frame().unwrap();
 
         for event in sdl.event_pump.poll_iter() {
@@ -167,5 +172,5 @@ fn main() {
         hello_triangle.draw().unwrap();
 
         hello_triangle.cinder.end_frame();
-    }
+    });
 }

@@ -1,5 +1,4 @@
 use std::path::PathBuf;
-
 use rust_shader_tools::{EnvVersion, OptimizationLevel, ShaderCompiler, ShaderStage};
 
 fn main() {
