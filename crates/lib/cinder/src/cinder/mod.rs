@@ -3,7 +3,6 @@ use crate::{
     shader_hot_reloader::HotReloaderState, swapchain::Swapchain,
 };
 use anyhow::Result;
-use bumpalo::Bump;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use std::time::Instant;
 

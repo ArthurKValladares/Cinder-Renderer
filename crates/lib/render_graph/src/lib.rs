@@ -205,10 +205,10 @@ impl<'a> RenderGraph<'a> {
         nodes
     }
 
-    fn sorted_nodes(nodes: &HashMap<RenderPassId, RenderGraphNode>) -> Vec<RenderPassId> {
-        let mut sorted_nodes: Vec<RenderPassId> = Vec::with_capacity(nodes.len());
+    fn sorted_nodes(bump: &'a Bump, nodes: &HashMap<RenderPassId, RenderGraphNode>) -> BumpVec<'a, RenderPassId> {
+        let mut sorted_nodes: BumpVec<'a, RenderPassId> = BumpVec::with_capacity_in(nodes.len(), bump);
+        let mut stack: BumpVec<RenderPassId> = BumpVec::new_in(&bump);
         let mut visited: HashMap<RenderPassId, u8> = Default::default();
-        let mut stack: Vec<RenderPassId> = Default::default();
 
         for pass_id in nodes.keys() {
             stack.push(*pass_id);
@@ -245,7 +245,7 @@ impl<'a> RenderGraph<'a> {
         // TODO: Label colors, flag to disable it
 
         let nodes = self.compile_nodes(bump);
-        let sorted_nodes = Self::sorted_nodes(&nodes);
+        let sorted_nodes = Self::sorted_nodes(bump, &nodes);
 
         let surface_rect = cinder.device.surface_rect();
 

@@ -218,7 +218,6 @@ dependencies = [
  "ash",
  "ash-window",
  "bitflags 2.4.1",
- "bumpalo",
  "math",
  "notify-debouncer-mini",
  "num",
