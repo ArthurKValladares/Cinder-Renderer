@@ -212,32 +212,32 @@ impl<'a> RenderGraph<'a> {
         let mut sorted_nodes: BumpVec<'a, RenderPassId> =
             BumpVec::with_capacity_in(nodes.len(), bump);
         let mut stack: BumpVec<RenderPassId> = BumpVec::new_in(&bump);
-        let mut visited: HashMap<RenderPassId, u8> = Default::default();
+        let mut visited: BumpVec<u8> = bumpalo::vec![in &bump; 0; nodes.len()];
 
         for pass_id in nodes.keys() {
             stack.push(*pass_id);
             while !stack.is_empty() {
                 let to_visit = stack.last().unwrap();
-                if let Some(count) = visited.get_mut(to_visit) {
-                    match count {
-                        1 => {
-                            *count = 2;
-                            sorted_nodes.push(*to_visit);
-                            stack.pop();
-                        }
-                        2 => {
-                            stack.pop();
-                        }
-                        _ => unreachable!(),
-                    }
-                } else {
-                    visited.insert(*to_visit, 1);
-                    let to_visit_node = nodes.get(to_visit).unwrap();
-                    for child_name in &to_visit_node.output_nodes {
-                        if !visited.contains_key(child_name) {
-                            stack.push(*child_name);
+                let visit_count = &mut visited[to_visit.0];
+                match visit_count {
+                    0 => {
+                        *visit_count = 1;
+                        let to_visit_node = nodes.get(to_visit).unwrap();
+                        for child_id in &to_visit_node.output_nodes {
+                            if visited[child_id.0] == 0 {
+                                stack.push(*child_id);
+                            }
                         }
                     }
+                    1 => {
+                        *visit_count = 2;
+                        sorted_nodes.push(*to_visit);
+                        stack.pop();
+                    }
+                    2 => {
+                        stack.pop();
+                    }
+                    _ => unreachable!(),
                 }
             }
         }
@@ -263,7 +263,7 @@ impl<'a> RenderGraph<'a> {
             let pass = self.passes.get(pass_id.0).unwrap();
 
             let mut compiled_passes = BumpVec::new_in(bump);
-            for  (ty, desc) in pass.color_attachments.iter() {
+            for (ty, desc) in pass.color_attachments.iter() {
                 match ty {
                     AttachmentType::SwapchainImage => {
                         compiled_passes.push(RenderAttachment::color(swapchain_image, *desc));
