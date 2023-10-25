@@ -1,5 +1,5 @@
 use anyhow::Result;
-use assert_no_alloc::*;
+use bumpalo::Bump;
 use cinder::{
     resources::{
         buffer::{Buffer, BufferDescription, BufferUsage},
@@ -11,11 +11,6 @@ use math::{mat::Mat4, vec::Vec3};
 use render_graph::{AttachmentType, RenderGraph, RenderPass};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
-use bumpalo::Bump;
-
-#[cfg(debug_assertions)]
-#[global_allocator]
-static A: AllocDisabler = AllocDisabler;
 
 pub const WINDOW_WIDTH: u32 = 1280;
 pub const WINDOW_HEIGHT: u32 = 1280;
@@ -120,7 +115,9 @@ impl HelloTriangle {
                 }),
         );
 
-        graph.run(&mut self.cinder)?.present(&mut self.cinder)
+        graph
+            .run(&self.allocator, &mut self.cinder)?
+            .present(&mut self.cinder)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
@@ -150,7 +147,7 @@ fn main() {
 
     let mut hello_triangle = HelloTriangle::new(&sdl.window).unwrap();
 
-    assert_no_alloc(|| 'running: loop {
+    'running: loop {
         hello_triangle.cinder.start_frame().unwrap();
 
         for event in sdl.event_pump.poll_iter() {
@@ -166,9 +163,7 @@ fn main() {
                     win_event: sdl2::event::WindowEvent::SizeChanged(width, height),
                     ..
                 } => {
-                    permit_alloc(|| {
-                        hello_triangle.resize(width as u32, height as u32).unwrap();
-                    });
+                    hello_triangle.resize(width as u32, height as u32).unwrap();
                 }
                 _ => {}
             }
@@ -177,5 +172,5 @@ fn main() {
         hello_triangle.draw().unwrap();
 
         hello_triangle.cinder.end_frame();
-    });
+    }
 }

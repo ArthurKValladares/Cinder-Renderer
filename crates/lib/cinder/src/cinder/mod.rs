@@ -63,7 +63,7 @@ impl Cinder {
             hot_reloader.run()
         });
     }
-     
+
     pub fn init_time(&self) -> Instant {
         self.init_time
     }

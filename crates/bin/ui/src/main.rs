@@ -309,7 +309,7 @@ impl Renderer {
                 }),
         );
 
-        let pc = graph.run(&mut self.cinder)?;
+        let pc = graph.run(&self.allocator, &mut self.cinder)?;
 
         self.ui.run(
             &mut self.cinder.resource_manager,

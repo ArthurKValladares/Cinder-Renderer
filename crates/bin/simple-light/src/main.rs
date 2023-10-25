@@ -1051,7 +1051,9 @@ impl HelloCube {
             );
         }
 
-        graph.run(&mut self.cinder)?.present(&mut self.cinder)
+        graph
+            .run(&self.allocator, &mut self.cinder)?
+            .present(&mut self.cinder)
     }
 
     pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {

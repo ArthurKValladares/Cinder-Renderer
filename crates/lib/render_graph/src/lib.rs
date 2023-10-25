@@ -1,4 +1,5 @@
 use anyhow::{Ok, Result};
+use bumpalo::{collections::Vec as BumpVec, Bump};
 use cinder::{
     command_queue::{CommandList, RenderAttachment, RenderAttachmentDesc},
     resources::image::Image,
@@ -8,15 +9,23 @@ use cinder::{
 use math::rect::Rect2D;
 use resource_manager::ResourceId;
 use std::collections::{HashMap, HashSet};
-use bumpalo::{collections::Vec as BumpVec,  Bump};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct RenderPassId(usize);
 
-#[derive(Debug, Default)]
-pub struct RenderGraphNode {
-    input_nodes: Vec<RenderPassId>,
-    output_nodes: Vec<RenderPassId>,
+#[derive(Debug)]
+pub struct RenderGraphNode<'a> {
+    input_nodes: BumpVec<'a, RenderPassId>,
+    output_nodes: BumpVec<'a, RenderPassId>,
+}
+
+impl<'a> RenderGraphNode<'a> {
+    pub fn new(bump: &'a Bump) -> Self {
+        Self {
+            input_nodes: BumpVec::new_in(bump),
+            output_nodes: BumpVec::new_in(bump),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -146,7 +155,11 @@ pub struct RenderGraph<'a> {
 
 impl<'a> RenderGraph<'a> {
     pub fn new(bump: &'a Bump) -> Self {
-        Self { passes: BumpVec::new_in(bump), input_map: Default::default(), output_map: Default::default() }
+        Self {
+            passes: BumpVec::new_in(bump),
+            input_map: Default::default(),
+            output_map: Default::default(),
+        }
     }
 
     pub fn add_pass(&mut self, pass: RenderPass<'a>) {
@@ -160,10 +173,11 @@ impl<'a> RenderGraph<'a> {
         self.passes.push(pass)
     }
 
-    fn compile_nodes(&mut self) -> HashMap<RenderPassId, RenderGraphNode> {
+    fn compile_nodes<'b>(&mut self, bump: &'b Bump) -> HashMap<RenderPassId, RenderGraphNode<'b>> {
+        // TODO: since  `RenderPassId` is just an int, this can be a BumpVec too
         let mut nodes: HashMap<RenderPassId, RenderGraphNode> = Default::default();
         for (idx, pass) in self.passes.iter().enumerate() {
-            let mut node = RenderGraphNode::default();
+            let mut node = RenderGraphNode::new(bump);
 
             // If an input of this node is used as an output by another node, then
             // that node must have an edge pointing to this node.
@@ -227,10 +241,10 @@ impl<'a> RenderGraph<'a> {
         sorted_nodes
     }
 
-    pub fn run(&mut self, cinder: &mut Cinder) -> Result<PresentContext> {
+    pub fn run(&mut self, bump: &'a Bump, cinder: &mut Cinder) -> Result<PresentContext> {
         // TODO: Label colors, flag to disable it
 
-        let nodes = self.compile_nodes();
+        let nodes = self.compile_nodes(bump);
         let sorted_nodes = Self::sorted_nodes(&nodes);
 
         let surface_rect = cinder.device.surface_rect();

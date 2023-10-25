@@ -5,7 +5,6 @@ edition = "2021"
 
 
 [dependencies]
-assert_no_alloc = {version = "1.1.2", features = ["warn_debug"]}
 anyhow = "1"
 bumpalo = {version = "3.14.0", features = ["collections"]}
 cinder = { path = "../../lib/cinder" }
