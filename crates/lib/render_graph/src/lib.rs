@@ -262,17 +262,15 @@ impl<'a> RenderGraph<'a> {
         for pass_id in sorted_nodes.iter().rev() {
             let pass = self.passes.get(pass_id.0).unwrap();
 
-            // TODO: Maybe stop allocating every frame here
-            let compiled_passes = pass
-                .color_attachments
-                .iter()
-                .map(|(ty, desc)| match ty {
+            let mut compiled_passes = BumpVec::new_in(bump);
+            for  (ty, desc) in pass.color_attachments.iter() {
+                match ty {
                     AttachmentType::SwapchainImage => {
-                        RenderAttachment::color(swapchain_image, *desc)
+                        compiled_passes.push(RenderAttachment::color(swapchain_image, *desc));
                     }
                     AttachmentType::Reference(_) => todo!(),
-                })
-                .collect::<Vec<_>>();
+                }
+            }
 
             let depth_attachment = pass.depth_attachment.as_ref().map(|(ty, desc)| match ty {
                 AttachmentType::SwapchainImage => {
