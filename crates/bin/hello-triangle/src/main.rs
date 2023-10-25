@@ -152,6 +152,7 @@ fn main() {
     let mut hello_triangle = HelloTriangle::new(&sdl.window).unwrap();
 
     'running: loop {
+        println!("---");
         hello_triangle.cinder.start_frame().unwrap();
 
         for event in sdl.event_pump.poll_iter() {

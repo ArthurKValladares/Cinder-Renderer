@@ -28,6 +28,9 @@ unsafe impl GlobalAlloc for TrackingAllocator {
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+		run_guarded(|| {
+            eprintln!("Deallocated {} bytes", layout.size());
+        });
         System.dealloc(ptr, layout)
     }
 }
