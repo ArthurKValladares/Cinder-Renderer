@@ -10,7 +10,11 @@ use cinder::{
 use math::{mat::Mat4, vec::Vec3};
 use render_graph::{AttachmentType, RenderGraph, RenderPass};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
+use tracking_allocator::TrackingAllocator;
 use util::{SdlContext, WindowDescription};
+
+#[global_allocator]
+static A: TrackingAllocator = TrackingAllocator;
 
 pub const WINDOW_WIDTH: u32 = 1280;
 pub const WINDOW_HEIGHT: u32 = 1280;

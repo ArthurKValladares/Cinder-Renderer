@@ -205,8 +205,12 @@ impl<'a> RenderGraph<'a> {
         nodes
     }
 
-    fn sorted_nodes(bump: &'a Bump, nodes: &HashMap<RenderPassId, RenderGraphNode>) -> BumpVec<'a, RenderPassId> {
-        let mut sorted_nodes: BumpVec<'a, RenderPassId> = BumpVec::with_capacity_in(nodes.len(), bump);
+    fn sorted_nodes(
+        bump: &'a Bump,
+        nodes: &HashMap<RenderPassId, RenderGraphNode>,
+    ) -> BumpVec<'a, RenderPassId> {
+        let mut sorted_nodes: BumpVec<'a, RenderPassId> =
+            BumpVec::with_capacity_in(nodes.len(), bump);
         let mut stack: BumpVec<RenderPassId> = BumpVec::new_in(&bump);
         let mut visited: HashMap<RenderPassId, u8> = Default::default();
 
