@@ -3,6 +3,7 @@ use crate::{
     shader_hot_reloader::HotReloaderState, swapchain::Swapchain,
 };
 use anyhow::Result;
+use bumpalo::Bump;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
 use std::time::Instant;
 
@@ -27,7 +28,7 @@ pub struct Cinder {
     pub command_queue: CommandQueue,
     pub resource_manager: ResourceManager,
     pub shader_hot_reloader: HotReloaderState,
-    pub init_time: Instant,
+    init_time: Instant,
     frame_state: FrameState,
     last_dt: Option<u128>,
 }
@@ -61,6 +62,10 @@ impl Cinder {
         take_mut::take(&mut self.shader_hot_reloader, |hot_reloader| {
             hot_reloader.run()
         });
+    }
+     
+    pub fn init_time(&self) -> Instant {
+        self.init_time
     }
 
     pub fn last_dt(&self) -> Option<u128> {

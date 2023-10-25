@@ -153,6 +153,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a"
 
 [[package]]
+name = "bumpalo"
+version = "3.14.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7f30e7476521f6f8af1a1c4c0b8cc94f0bee37d91763d0ca2665f299b6cd8aec"
+
+[[package]]
 name = "bytecheck"
 version = "0.6.11"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -218,6 +224,7 @@ dependencies = [
  "ash",
  "ash-window",
  "bitflags 2.4.1",
+ "bumpalo",
  "math",
  "notify-debouncer-mini",
  "num",
@@ -380,6 +387,7 @@ name = "debug"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bumpalo",
  "cinder",
  "home",
  "image",
@@ -399,6 +407,7 @@ name = "depth-image"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bumpalo",
  "camera",
  "cinder",
  "home",
@@ -609,6 +618,7 @@ name = "hello-cube"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bumpalo",
  "camera",
  "cinder",
  "home",
@@ -629,6 +639,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "assert_no_alloc",
+ "bumpalo",
  "cinder",
  "home",
  "image",
@@ -818,6 +829,7 @@ name = "mesh"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bumpalo",
  "camera",
  "cinder",
  "home",
@@ -1165,6 +1177,7 @@ name = "render_graph"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bumpalo",
  "cinder",
  "math",
  "resource-manager",
@@ -1378,6 +1391,7 @@ name = "simple-light"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bumpalo",
  "camera",
  "cinder",
  "geometry",
@@ -1470,6 +1484,7 @@ name = "texture"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bumpalo",
  "cinder",
  "home",
  "math",
@@ -1581,6 +1596,7 @@ name = "ui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "bumpalo",
  "camera",
  "cinder",
  "egui-integration",

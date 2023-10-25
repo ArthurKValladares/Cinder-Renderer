@@ -1,6 +1,7 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
+use bumpalo::Bump;
 use cinder::{
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
@@ -31,6 +32,7 @@ pub struct Renderer {
     bind_group: BindGroup,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
+    allocator: Bump,
 }
 
 impl Renderer {
@@ -152,13 +154,14 @@ impl Renderer {
             bind_group,
             vertex_buffer,
             index_buffer,
+            allocator: Bump::new(),
         })
     }
 
     pub fn draw(&mut self) -> Result<bool> {
-        let mut graph = RenderGraph::new();
+        let mut graph = RenderGraph::new(&self.allocator);
         graph.add_pass(
-            RenderPass::default()
+            RenderPass::new(&self.allocator)
                 .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
                 .set_callback(|cinder, cmd_list| {
                     cmd_list.bind_graphics_pipeline(&cinder.device, &self.pipeline);

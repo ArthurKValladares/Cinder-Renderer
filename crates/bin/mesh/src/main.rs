@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bumpalo::Bump;
 use cinder::{
     cinder::Cinder,
     command_queue::{AttachmentStoreOp, ClearValue, RenderAttachmentDesc},
@@ -61,6 +62,7 @@ pub struct Renderer {
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     ubo_buffer: Buffer,
+    allocator: Bump,
 }
 
 impl Renderer {
@@ -198,12 +200,13 @@ impl Renderer {
             vertex_buffer,
             index_buffer,
             ubo_buffer,
+            allocator: Bump::new(),
         })
     }
 
     pub fn update(&mut self) -> Result<()> {
         let scale =
-            (self.cinder.init_time.elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
+            (self.cinder.init_time().elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
         self.ubo_buffer.mem_copy(
             util::offset_of!(MeshUniformBufferObject, model) as u64,
             &[
@@ -215,9 +218,9 @@ impl Renderer {
     }
 
     pub fn draw(&mut self) -> Result<bool> {
-        let mut graph = RenderGraph::new();
+        let mut graph = RenderGraph::new(&self.allocator);
         graph.add_pass(
-            RenderPass::default()
+            RenderPass::new(&self.allocator)
                 .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
                 .set_depth_attachment(
                     AttachmentType::Reference(self.depth_image_handle),

@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bumpalo::Bump;
 use cinder::{
     command_queue::{AttachmentStoreOp, ClearValue, RenderAttachmentDesc},
     resources::{
@@ -48,6 +49,7 @@ pub struct Renderer {
     vertex_buffer: Buffer,
     index_buffer: Buffer,
     ubo_buffer: Buffer,
+    allocator: Bump,
 }
 
 impl Renderer {
@@ -263,6 +265,7 @@ impl Renderer {
             ui,
             helper_egui_menu: HelperEguiMenu::default(),
             model_data: Default::default(),
+            allocator: Bump::new(),
         })
     }
 
@@ -277,9 +280,9 @@ impl Renderer {
     }
 
     pub fn draw(&mut self, window: &Window) -> Result<bool> {
-        let mut graph = RenderGraph::new();
+        let mut graph = RenderGraph::new(&self.allocator);
         graph.add_pass(
-            RenderPass::default()
+            RenderPass::new(&self.allocator)
                 .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
                 .set_depth_attachment(
                     AttachmentType::Reference(self.depth_image_handle),

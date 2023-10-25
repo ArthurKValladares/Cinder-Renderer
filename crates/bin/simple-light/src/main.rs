@@ -1,4 +1,5 @@
 use anyhow::Result;
+use bumpalo::Bump;
 use cinder::{
     command_queue::{AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderAttachmentDesc},
     resources::{
@@ -13,7 +14,6 @@ use cinder::{
     },
     Cinder, ResourceId,
 };
-use geometry::SurfaceMesh;
 use math::{mat::Mat4, point::Point2D, size::Size2D, vec::Vec3};
 use render_graph::{AttachmentType, RenderGraph, RenderPass, RenderPassResource};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
@@ -418,6 +418,7 @@ pub struct HelloCube {
     cube_mesh_data: MeshData,
     plane_mesh_data: MeshData,
     show_shadow_map_image: bool,
+    allocator: Bump,
 }
 
 impl HelloCube {
@@ -772,11 +773,12 @@ impl HelloCube {
             cube_mesh_data,
             plane_mesh_data,
             show_shadow_map_image: false,
+            allocator: Bump::new(),
         })
     }
 
     pub fn update(&mut self) -> Result<()> {
-        let elapsed = self.cinder.init_time.elapsed().as_secs_f32();
+        let elapsed = self.cinder.init_time().elapsed().as_secs_f32();
         let scale = (elapsed / 2.5) * (2.0 * std::f32::consts::PI);
 
         self.cube_mesh_data
@@ -802,10 +804,10 @@ impl HelloCube {
     }
 
     pub fn draw(&mut self) -> Result<bool> {
-        let mut graph = RenderGraph::new();
+        let mut graph = RenderGraph::new(&self.allocator);
 
         graph.add_pass(
-            RenderPass::default()
+            RenderPass::new(&self.allocator)
                 .set_depth_attachment(
                     AttachmentType::Reference(self.shadow_map_image_handle),
                     RenderAttachmentDesc {
@@ -865,7 +867,7 @@ impl HelloCube {
         );
 
         graph.add_pass(
-            RenderPass::default()
+            RenderPass::new(&self.allocator)
                 .add_color_attachment(
                     AttachmentType::SwapchainImage,
                     RenderAttachmentDesc {
@@ -897,7 +899,7 @@ impl HelloCube {
                     );
                     cmd_list.bind_graphics_pipeline(&cinder.device, &self.pipelines.lit_mesh);
 
-                    let scale = (cinder.init_time.elapsed().as_secs_f32() / 5.0)
+                    let scale = (cinder.init_time().elapsed().as_secs_f32() / 5.0)
                         * (2.0 * std::f32::consts::PI);
                     let light_color = [
                         (scale.sin() + 1.0) / 2.0,
@@ -1013,7 +1015,7 @@ impl HelloCube {
 
         if self.show_shadow_map_image {
             graph.add_pass(
-                RenderPass::default()
+                RenderPass::new(&self.allocator)
                     .add_color_attachment(
                         AttachmentType::SwapchainImage,
                         RenderAttachmentDesc {

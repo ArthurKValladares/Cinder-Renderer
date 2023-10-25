@@ -11,6 +11,7 @@ use math::{mat::Mat4, vec::Vec3};
 use render_graph::{AttachmentType, RenderGraph, RenderPass};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
+use bumpalo::Bump;
 
 #[cfg(debug_assertions)]
 #[global_allocator]
@@ -32,6 +33,7 @@ pub struct HelloTriangle {
     pipeline: GraphicsPipeline,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
+    allocator: Bump,
 }
 
 impl HelloTriangle {
@@ -89,13 +91,14 @@ impl HelloTriangle {
             pipeline,
             vertex_buffer,
             index_buffer,
+            allocator: Bump::new(),
         })
     }
 
     pub fn draw(&mut self) -> Result<bool> {
-        let mut graph = RenderGraph::new();
+        let mut graph = RenderGraph::new(&self.allocator);
         graph.add_pass(
-            RenderPass::default()
+            RenderPass::new(&self.allocator)
                 .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
                 .set_callback(|cinder, cmd_list| {
                     cmd_list.bind_graphics_pipeline(&cinder.device, &self.pipeline);
@@ -105,7 +108,7 @@ impl HelloTriangle {
                         &cinder.device,
                         &self.pipeline,
                         &Mat4::rotate(
-                            (cinder.init_time.elapsed().as_secs_f32() / 5.0)
+                            (cinder.init_time().elapsed().as_secs_f32() / 5.0)
                                 * (2.0 * std::f32::consts::PI),
                             Vec3::new(0.0, 0.0, 1.0),
                         ),

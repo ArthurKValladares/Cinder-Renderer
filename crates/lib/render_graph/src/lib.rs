@@ -8,6 +8,7 @@ use cinder::{
 use math::rect::Rect2D;
 use resource_manager::ResourceId;
 use std::collections::{HashMap, HashSet};
+use bumpalo::{collections::Vec as BumpVec,  Bump};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct RenderPassId(usize);
@@ -35,8 +36,8 @@ type RenderPassCallback<'a> = dyn Fn(&Cinder, &CommandList) -> Result<()> + 'a;
 pub struct RenderPass<'a> {
     color_attachments: HashMap<AttachmentType, RenderAttachmentDesc>,
     depth_attachment: Option<(AttachmentType, RenderAttachmentDesc)>,
-    inputs: Vec<RenderPassResource>,
-    outputs: Vec<RenderPassResource>,
+    inputs: BumpVec<'a, RenderPassResource>,
+    outputs: BumpVec<'a, RenderPassResource>,
     render_area: Option<Rect2D<i32, u32>>,
     flipped_viewport: bool,
     callback: Box<RenderPassCallback<'a>>,
@@ -57,24 +58,18 @@ impl<'a> std::fmt::Debug for RenderPass<'a> {
     }
 }
 
-impl<'a> Default for RenderPass<'a> {
-    fn default() -> Self {
+impl<'a> RenderPass<'a> {
+    pub fn new(bump: &'a Bump) -> Self {
         Self {
             color_attachments: Default::default(),
             depth_attachment: Default::default(),
-            inputs: Default::default(),
-            outputs: Default::default(),
+            inputs: BumpVec::new_in(bump),
+            outputs: BumpVec::new_in(bump),
             render_area: None,
             flipped_viewport: true,
             callback: Box::new(|_, _| Ok(())),
             name: None,
         }
-    }
-}
-
-impl<'a> RenderPass<'a> {
-    pub fn new() -> Self {
-        Default::default()
     }
 
     pub fn add_color_attachment(
@@ -141,17 +136,17 @@ impl PresentContext {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct RenderGraph<'a> {
-    passes: Vec<RenderPass<'a>>,
+    passes: BumpVec<'a, RenderPass<'a>>,
     // Instead of a set, could maybe be a vector of bool
     input_map: HashMap<RenderPassResource, HashSet<RenderPassId>>,
     output_map: HashMap<RenderPassResource, HashSet<RenderPassId>>,
 }
 
 impl<'a> RenderGraph<'a> {
-    pub fn new() -> Self {
-        Self::default()
+    pub fn new(bump: &'a Bump) -> Self {
+        Self { passes: BumpVec::new_in(bump), input_map: Default::default(), output_map: Default::default() }
     }
 
     pub fn add_pass(&mut self, pass: RenderPass<'a>) {
