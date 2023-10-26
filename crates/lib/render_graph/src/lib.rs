@@ -6,9 +6,12 @@ use cinder::{
     swapchain::SwapchainImage,
     Cinder,
 };
+use hashbrown::{hash_map::DefaultHashBuilder, HashMap, HashSet};
 use math::rect::Rect2D;
 use resource_manager::ResourceId;
-use std::collections::{HashMap, HashSet};
+
+type BumpHashSet<'a, T> = HashSet<T, DefaultHashBuilder, &'a Bump>;
+type BumpHashMap<'a, K, V> = HashMap<K, V, DefaultHashBuilder, &'a Bump>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct RenderPassId(usize);
@@ -43,7 +46,7 @@ pub enum AttachmentType {
 type RenderPassCallback<'a> = dyn Fn(&Cinder, &CommandList) -> Result<()> + 'a;
 
 pub struct RenderPass<'a> {
-    color_attachments: HashMap<AttachmentType, RenderAttachmentDesc>,
+    color_attachments: BumpHashMap<'a, AttachmentType, RenderAttachmentDesc>,
     depth_attachment: Option<(AttachmentType, RenderAttachmentDesc)>,
     inputs: BumpVec<'a, RenderPassResource>,
     outputs: BumpVec<'a, RenderPassResource>,
@@ -70,7 +73,7 @@ impl<'a> std::fmt::Debug for RenderPass<'a> {
 impl<'a> RenderPass<'a> {
     pub fn new(bump: &'a Bump) -> Self {
         Self {
-            color_attachments: Default::default(),
+            color_attachments: BumpHashMap::new_in(bump),
             depth_attachment: Default::default(),
             inputs: BumpVec::new_in(bump),
             outputs: BumpVec::new_in(bump),
@@ -149,26 +152,32 @@ impl PresentContext {
 pub struct RenderGraph<'a> {
     passes: BumpVec<'a, RenderPass<'a>>,
     // Instead of a set, could maybe be a vector of bool
-    input_map: HashMap<RenderPassResource, HashSet<RenderPassId>>,
-    output_map: HashMap<RenderPassResource, HashSet<RenderPassId>>,
+    input_map: BumpHashMap<'a, RenderPassResource, BumpHashSet<'a, RenderPassId>>,
+    output_map: BumpHashMap<'a, RenderPassResource, BumpHashSet<'a, RenderPassId>>,
 }
 
 impl<'a> RenderGraph<'a> {
     pub fn new(bump: &'a Bump) -> Self {
         Self {
             passes: BumpVec::new_in(bump),
-            input_map: Default::default(),
-            output_map: Default::default(),
+            input_map: BumpHashMap::new_in(bump),
+            output_map: BumpHashMap::new_in(bump),
         }
     }
 
-    pub fn add_pass(&mut self, pass: RenderPass<'a>) {
+    pub fn add_pass(&mut self, bump: &'a Bump, pass: RenderPass<'a>) {
         let id = RenderPassId(self.passes.len());
         for input in &pass.inputs {
-            self.input_map.entry(*input).or_default().insert(id);
+            self.input_map
+                .entry(*input)
+                .or_insert_with(|| BumpHashSet::new_in(bump))
+                .insert(id);
         }
         for output in &pass.outputs {
-            self.output_map.entry(*output).or_default().insert(id);
+            self.output_map
+                .entry(*output)
+                .or_insert_with(|| BumpHashSet::new_in(bump))
+                .insert(id);
         }
         self.passes.push(pass)
     }

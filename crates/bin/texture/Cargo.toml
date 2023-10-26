@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-bumpalo = {version = "3.14.0", features = ["collections"]}
+bumpalo = {version = "3.14.0", features = ["collections", "allocator-api2"]}
 cinder = { path = "../../lib/cinder" }
 util = { path = "../../lib/util" }
 zero-copy-assets = { path = "../../lib/zero-copy-assets" }

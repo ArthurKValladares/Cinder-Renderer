@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-bumpalo = {version = "3.14.0", features = ["collections"]}
+bumpalo = {version = "3.14.0", features = ["collections", "allocator-api2"]}
 cinder = { path = "../../lib/cinder" }
 image = "0.24.3"
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }

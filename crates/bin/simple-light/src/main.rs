@@ -807,6 +807,7 @@ impl HelloCube {
         let mut graph = RenderGraph::new(&self.allocator);
 
         graph.add_pass(
+            &self.allocator,
             RenderPass::new(&self.allocator)
                 .set_depth_attachment(
                     AttachmentType::Reference(self.shadow_map_image_handle),
@@ -867,6 +868,7 @@ impl HelloCube {
         );
 
         graph.add_pass(
+            &self.allocator,
             RenderPass::new(&self.allocator)
                 .add_color_attachment(
                     AttachmentType::SwapchainImage,
@@ -1015,6 +1017,7 @@ impl HelloCube {
 
         if self.show_shadow_map_image {
             graph.add_pass(
+                &self.allocator,
                 RenderPass::new(&self.allocator)
                     .add_color_attachment(
                         AttachmentType::SwapchainImage,

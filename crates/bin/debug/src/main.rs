@@ -161,6 +161,7 @@ impl Renderer {
     pub fn draw(&mut self) -> Result<bool> {
         let mut graph = RenderGraph::new(&self.allocator);
         graph.add_pass(
+            &self.allocator,
             RenderPass::new(&self.allocator)
                 .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
                 .set_callback(|cinder, cmd_list| {
