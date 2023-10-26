@@ -173,9 +173,8 @@ impl<'a> RenderGraph<'a> {
         self.passes.push(pass)
     }
 
-    fn compile_nodes<'b>(&mut self, bump: &'b Bump) -> HashMap<RenderPassId, RenderGraphNode<'b>> {
-        // TODO: since  `RenderPassId` is just an int, this can be a BumpVec too
-        let mut nodes: HashMap<RenderPassId, RenderGraphNode> = Default::default();
+    fn compile_nodes<'b>(&self, bump: &'b Bump) -> BumpVec<RenderGraphNode<'b>> {
+        let mut nodes = BumpVec::with_capacity_in(self.passes.len(), bump);
         for (idx, pass) in self.passes.iter().enumerate() {
             let mut node = RenderGraphNode::new(bump);
 
@@ -199,30 +198,31 @@ impl<'a> RenderGraph<'a> {
                 }
             }
 
-            nodes.insert(RenderPassId(idx), node);
+            nodes.push(node);
         }
 
         nodes
     }
 
-    fn sorted_nodes(
+    fn sorted_nodes<'b>(
         bump: &'a Bump,
-        nodes: &HashMap<RenderPassId, RenderGraphNode>,
+        nodes: &BumpVec<'b, RenderGraphNode>,
     ) -> BumpVec<'a, RenderPassId> {
         let mut sorted_nodes: BumpVec<'a, RenderPassId> =
             BumpVec::with_capacity_in(nodes.len(), bump);
         let mut stack: BumpVec<RenderPassId> = BumpVec::new_in(&bump);
         let mut visited: BumpVec<u8> = bumpalo::vec![in &bump; 0; nodes.len()];
 
-        for pass_id in nodes.keys() {
-            stack.push(*pass_id);
+        for pass_idx in 0..nodes.len() {
+            let pass_id = RenderPassId(pass_idx);
+            stack.push(pass_id);
             while !stack.is_empty() {
                 let to_visit = stack.last().unwrap();
                 let visit_count = &mut visited[to_visit.0];
                 match visit_count {
                     0 => {
                         *visit_count = 1;
-                        let to_visit_node = nodes.get(to_visit).unwrap();
+                        let to_visit_node = &nodes[to_visit.0];
                         for child_id in &to_visit_node.output_nodes {
                             if visited[child_id.0] == 0 {
                                 stack.push(*child_id);
