@@ -53,7 +53,7 @@ pub struct RenderPass<'a> {
     render_area: Option<Rect2D<i32, u32>>,
     flipped_viewport: bool,
     callback: Box<RenderPassCallback<'a>>,
-    name: Option<&'a String>,
+    name: Option<&'a str>,
 }
 
 impl<'a> std::fmt::Debug for RenderPass<'a> {
