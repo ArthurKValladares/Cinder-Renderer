@@ -820,7 +820,7 @@ impl HelloCube {
                 )
                 .add_output(RenderPassResource::Image(self.shadow_map_image_handle))
                 .with_flipped_viewport(false)
-                .set_callback(|cinder, cmd_list| {
+                .set_callback(&self.allocator, |cinder, cmd_list| {
                     cmd_list.bind_descriptor_sets(
                         &cinder.device,
                         &self.pipelines.shadow_map_depth,
@@ -891,7 +891,7 @@ impl HelloCube {
                 .add_input(RenderPassResource::Image(self.shadow_map_image_handle))
                 .add_output(RenderPassResource::SwapchainImage)
                 .with_flipped_viewport(false)
-                .set_callback(|cinder, cmd_list| {
+                .set_callback(&self.allocator, |cinder, cmd_list| {
                     // Bind Mesh Data
                     cmd_list.bind_descriptor_sets(
                         &cinder.device,
@@ -1029,7 +1029,7 @@ impl HelloCube {
                     .add_input(RenderPassResource::Image(self.shadow_map_image_handle))
                     .add_input(RenderPassResource::SwapchainImage)
                     .with_flipped_viewport(false)
-                    .set_callback(|cinder, cmd_list| {
+                    .set_callback(&self.allocator, |cinder, cmd_list| {
                         cmd_list.bind_graphics_pipeline(
                             &cinder.device,
                             &self.pipelines.shadow_map_quad,

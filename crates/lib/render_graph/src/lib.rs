@@ -1,3 +1,5 @@
+#![feature(allocator_api)]
+
 use anyhow::{Ok, Result};
 use bumpalo::{collections::Vec as BumpVec, Bump};
 use cinder::{
@@ -12,6 +14,7 @@ use resource_manager::ResourceId;
 
 type BumpHashSet<'a, T> = HashSet<T, DefaultHashBuilder, &'a Bump>;
 type BumpHashMap<'a, K, V> = HashMap<K, V, DefaultHashBuilder, &'a Bump>;
+type BumpBox<'a, T> = Box<T, &'a Bump>;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 struct RenderPassId(usize);
@@ -52,7 +55,7 @@ pub struct RenderPass<'a> {
     outputs: BumpVec<'a, RenderPassResource>,
     render_area: Option<Rect2D<i32, u32>>,
     flipped_viewport: bool,
-    callback: Box<RenderPassCallback<'a>>,
+    callback: BumpBox<'a, RenderPassCallback<'a>>,
     name: Option<&'a str>,
 }
 
@@ -79,7 +82,7 @@ impl<'a> RenderPass<'a> {
             outputs: BumpVec::new_in(bump),
             render_area: None,
             flipped_viewport: true,
-            callback: Box::new(|_, _| Ok(())),
+            callback: Box::new_in(|_, _| Ok(()), bump),
             name: None,
         }
     }
@@ -122,11 +125,11 @@ impl<'a> RenderPass<'a> {
         self
     }
 
-    pub fn set_callback<F>(mut self, callback: F) -> Self
+    pub fn set_callback<F>(mut self, bump: &'a Bump, callback: F) -> Self
     where
         F: Fn(&Cinder, &CommandList) -> Result<()> + 'a,
     {
-        self.callback = Box::new(callback);
+        self.callback = Box::new_in(callback, bump);
         self
     }
 }

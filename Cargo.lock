@@ -155,8 +155,7 @@ checksum = "0d8c1fef690941d3e7788d328517591fecc684c084084702d6ff1641e993699a"
 [[package]]
 name = "bumpalo"
 version = "3.14.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7f30e7476521f6f8af1a1c4c0b8cc94f0bee37d91763d0ca2665f299b6cd8aec"
+source = "git+https://github.com/ArthurKValladares/bumpalo#4ca96a7226d452228046b7eab2562e074599c3a6"
 dependencies = [
  "allocator-api2",
 ]

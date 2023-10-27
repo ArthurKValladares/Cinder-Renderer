@@ -164,7 +164,7 @@ impl Renderer {
             &self.allocator,
             RenderPass::new(&self.allocator)
                 .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
-                .set_callback(|cinder, cmd_list| {
+                .set_callback(&self.allocator, |cinder, cmd_list| {
                     cmd_list.bind_graphics_pipeline(&cinder.device, &self.pipeline);
                     cmd_list.bind_index_buffer(&cinder.device, &self.index_buffer);
                     cmd_list.bind_vertex_buffer(&cinder.device, &self.vertex_buffer);

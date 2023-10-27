@@ -358,7 +358,7 @@ impl Renderer {
                     },
                 )
                 .add_output(RenderPassResource::Image(self.depth_image_handle))
-                .set_callback(|cinder, cmd_list| {
+                .set_callback(&self.allocator, |cinder, cmd_list| {
                     cmd_list.bind_graphics_pipeline(&cinder.device, &self.mesh_pipeline);
                     cmd_list.bind_index_buffer(&cinder.device, &self.cube_index_buffer);
                     cmd_list.bind_vertex_buffer(&cinder.device, &self.cube_vertex_buffer);
@@ -385,7 +385,7 @@ impl Renderer {
                     },
                 )
                 .add_input(RenderPassResource::Image(self.depth_image_handle))
-                .set_callback(|cinder, cmd_list| {
+                .set_callback(&self.allocator, |cinder, cmd_list| {
                     cmd_list.bind_graphics_pipeline(&cinder.device, &self.texture_pipeline);
                     cmd_list.bind_index_buffer(&cinder.device, &self.quad_index_buffer);
                     cmd_list.bind_vertex_buffer(&cinder.device, &self.quad_vertex_buffer);

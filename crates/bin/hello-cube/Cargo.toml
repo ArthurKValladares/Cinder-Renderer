@@ -6,7 +6,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-bumpalo = {version = "3.14.0", features = ["collections", "allocator-api2"]}
+bumpalo = {git = "https://github.com/ArthurKValladares/bumpalo", features = ["collections", "allocator_api", "allocator-api2"]}
 camera = { path = "../../lib/camera" }
 cinder = { path = "../../lib/cinder" }
 util = { path = "../../lib/util" }
