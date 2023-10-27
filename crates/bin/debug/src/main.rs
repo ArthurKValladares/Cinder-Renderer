@@ -215,6 +215,7 @@ fn main() {
     let mut renderer = Renderer::new(&sdl.window).unwrap();
 
     'running: loop {
+        renderer.allocator.reset();
         renderer.cinder.start_frame().unwrap();
 
         for event in sdl.event_pump.poll_iter() {

@@ -154,6 +154,7 @@ fn main() {
 
     'running: loop {
         println!("---");
+        hello_triangle.allocator.reset();
         hello_triangle.cinder.start_frame().unwrap();
 
         for event in sdl.event_pump.poll_iter() {
