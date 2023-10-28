@@ -18,7 +18,6 @@ include!(concat!(
     "/gen/triangle_shader_structs.rs"
 ));
 
-// TODO: a `Cleanup` proc-macro
 pub struct HelloTriangle {
     pipeline: GraphicsPipeline,
     vertex_buffer: Buffer,
@@ -105,18 +104,14 @@ impl App for HelloTriangle {
         );
         Ok(())
     }
-}
 
-/*
-impl Drop for HelloTriangle {
-    fn drop(&mut self) {
-        self.cinder.device.wait_idle().ok();
-        self.index_buffer.destroy(&self.cinder.device);
-        self.vertex_buffer.destroy(&self.cinder.device);
-        self.pipeline.destroy(&self.cinder.device);
+    fn cleanup(&mut self, renderer: &mut Renderer) -> anyhow::Result<()>{
+        self.index_buffer.destroy(&renderer.device);
+        self.vertex_buffer.destroy(&renderer.device);
+        self.pipeline.destroy(&renderer.device);
+        Ok(())
     }
 }
-*/
 
 fn main() {
     let mut sdl = SdlContext::new(

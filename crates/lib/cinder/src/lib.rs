@@ -16,7 +16,11 @@ pub trait App: Sized {
     // TODO: Explicit error type
     fn new(renderer: &mut Renderer, width: u32, height: u32) -> anyhow::Result<Self>;
     fn draw<'a>(&'a mut self, allocator: &'a Bump, graph: &mut RenderGraph<'a>) -> anyhow::Result<()>;
+    
     fn resize(&mut self, _width: u32, _height: u32) -> anyhow::Result<()> {
+        Ok(())
+    }
+    fn cleanup(&mut self, _renderer: &mut Renderer) -> anyhow::Result<()>{
         Ok(())
     }
 }
@@ -108,5 +112,12 @@ where
 
             self.renderer.end_frame();
         }
+    }
+}
+
+impl<A> Drop for Cinder<A> where A: App {
+    fn drop(&mut self) {
+        self.renderer.device.wait_idle().ok();
+        self.app.cleanup(&mut self.renderer).ok();
     }
 }

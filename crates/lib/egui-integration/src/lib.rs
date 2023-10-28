@@ -28,7 +28,7 @@ use renderer::{
     ResourceId,
 };
 use sdl::{EguiSdl, EventResponse};
-use sdl2::{event::Event, video::Window};
+use sdl2::event::Event;
 use std::collections::HashMap;
 
 pub(crate) const DEFAULT_PPP: f32 = 3.0;
