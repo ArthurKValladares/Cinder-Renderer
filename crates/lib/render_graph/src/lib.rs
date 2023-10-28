@@ -261,7 +261,7 @@ impl<'a> RenderGraph<'a> {
         sorted_nodes
     }
 
-    pub fn run(&mut self, bump: &'a Bump, cinder: &mut Renderer) -> Result<PresentContext> {
+    pub fn run(self, bump: &'a Bump, cinder: &mut Renderer) -> Result<PresentContext> {
         // TODO: Label colors, flag to disable it
 
         let nodes = self.compile_nodes(bump);

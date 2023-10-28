@@ -1,6 +1,6 @@
 use bumpalo::Bump;
 use egui_integration::EguiIntegration;
-use render_graph::RenderGraph;
+use render_graph::{PresentContext, RenderGraph};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::SdlContext;
 
@@ -75,9 +75,14 @@ where
     // TODO: Update function
 
     fn draw(&mut self) -> anyhow::Result<bool> {
-        let mut graph = RenderGraph::new(&self.allocator);
-        self.app.draw(&self.allocator, &mut graph)?;
-        let present_context = graph.run(&self.allocator, &mut self.renderer)?;
+        let present_context: anyhow::Result<PresentContext> = {
+            let mut graph = RenderGraph::new(&self.allocator);
+            self.app.draw(&self.allocator, &mut graph)?;
+            let present_context = graph.run(&self.allocator, &mut self.renderer)?;
+            Ok(present_context)
+        };
+        let present_context = present_context?;
+
         self.egui.run(
             &mut self.renderer.resource_manager,
             &self.renderer.device,
