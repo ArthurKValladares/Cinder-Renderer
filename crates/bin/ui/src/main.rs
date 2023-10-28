@@ -8,7 +8,7 @@ use cinder::{
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
     },
-    Cinder, ResourceId,
+    Renderer, ResourceId,
 };
 use egui_integration::{egui, helpers::HelperEguiMenu, EguiIntegration};
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
@@ -39,7 +39,7 @@ impl Default for ModelData {
 }
 
 pub struct Renderer {
-    cinder: Cinder,
+    cinder: Renderer,
     ui: EguiIntegration,
     helper_egui_menu: HelperEguiMenu,
     model_data: ModelData,
@@ -58,7 +58,7 @@ impl Renderer {
         // Create Base Resources
         //
         let (width, height) = window.drawable_size();
-        let mut cinder = Cinder::new(window, width, height)?;
+        let mut cinder = Renderer::new(window, width, height)?;
 
         //
         // Create App Resources

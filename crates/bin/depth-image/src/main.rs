@@ -1,8 +1,8 @@
 use anyhow::Result;
 use bumpalo::Bump;
 use cinder::{
-    cinder::Cinder,
     command_queue::{AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderAttachmentDesc},
+    renderer::Renderer,
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
@@ -30,7 +30,7 @@ include!(concat!(
 ));
 
 pub struct Renderer {
-    cinder: Cinder,
+    cinder: Renderer,
     depth_image_handle: ResourceId<Image>,
     mesh_pipeline: GraphicsPipeline,
     mesh_bind_group: BindGroup,
@@ -51,7 +51,7 @@ impl Renderer {
         // Create Base Resources
         //
         let (width, height) = window.drawable_size();
-        let mut cinder = Cinder::new(window, width, height)?;
+        let mut cinder = Renderer::new(window, width, height)?;
 
         //
         // Create App Resources

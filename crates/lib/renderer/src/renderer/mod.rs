@@ -21,7 +21,7 @@ impl FrameState {
     }
 }
 
-pub struct Cinder {
+pub struct Renderer {
     pub device: Device,
     pub swapchain: Swapchain,
     pub command_queue: CommandQueue,
@@ -32,7 +32,7 @@ pub struct Cinder {
     last_dt: Option<u128>,
 }
 
-impl Cinder {
+impl Renderer {
     pub fn new<W>(window: &W, window_width: u32, window_height: u32) -> Result<Self>
     where
         W: HasRawWindowHandle + HasRawDisplayHandle,
@@ -106,7 +106,7 @@ impl Cinder {
     }
 }
 
-impl Drop for Cinder {
+impl Drop for Renderer {
     fn drop(&mut self) {
         self.device.wait_idle().ok();
         self.command_queue.destroy(&self.device);

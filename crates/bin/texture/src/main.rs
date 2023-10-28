@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use anyhow::Result;
 use bumpalo::Bump;
 use cinder::{
-    cinder::Cinder,
+    renderer::Renderer,
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
@@ -25,7 +25,7 @@ include!(concat!(
 ));
 
 pub struct Renderer {
-    cinder: Cinder,
+    cinder: Renderer,
     pipeline: GraphicsPipeline,
     bind_group: BindGroup,
     vertex_buffer: Buffer,
@@ -39,7 +39,7 @@ impl Renderer {
         // Create Base Resources
         //
         let (width, height) = window.drawable_size();
-        let mut cinder = Cinder::new(window, width, height)?;
+        let mut cinder = Renderer::new(window, width, height)?;
 
         //
         // Create App Resources

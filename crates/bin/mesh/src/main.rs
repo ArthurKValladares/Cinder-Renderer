@@ -1,8 +1,8 @@
 use anyhow::Result;
 use bumpalo::Bump;
 use cinder::{
-    cinder::Cinder,
     command_queue::{AttachmentStoreOp, ClearValue, RenderAttachmentDesc},
+    renderer::Renderer,
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
@@ -54,7 +54,7 @@ impl Vertex for MeshVertex {
 }
 
 pub struct Renderer {
-    cinder: Cinder,
+    cinder: Renderer,
     index_count: u32,
     pipeline: GraphicsPipeline,
     bind_group: BindGroup,
@@ -71,7 +71,7 @@ impl Renderer {
         // Create Base Resources
         //
         let (width, height) = window.drawable_size();
-        let mut cinder = Cinder::new(window, width, height)?;
+        let mut cinder = Renderer::new(window, width, height)?;
 
         //
         // Create App Resources

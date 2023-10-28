@@ -1,5 +1,4 @@
-use sdl2::{event::Event, mouse::MouseButton, video::Window};
-use std::time::Instant;
+use sdl2::{event::Event, mouse::MouseButton};
 
 fn translate_mouse_button(button: &MouseButton) -> Option<egui::PointerButton> {
     match button {
@@ -12,11 +11,6 @@ fn translate_mouse_button(button: &MouseButton) -> Option<egui::PointerButton> {
     }
 }
 
-fn screen_size_in_pixels(window: &Window) -> egui::Vec2 {
-    let (width, height) = window.drawable_size();
-    egui::vec2(width as f32, height as f32)
-}
-
 #[must_use]
 pub struct EventResponse {
     pub consumed: bool,
@@ -24,7 +18,6 @@ pub struct EventResponse {
 
 #[derive(Debug)]
 pub struct EguiSdl {
-    start_time: Instant,
     egui_input: egui::RawInput,
     current_pixels_per_point: f32,
 }
@@ -32,7 +25,6 @@ pub struct EguiSdl {
 impl EguiSdl {
     pub fn new() -> Self {
         Self {
-            start_time: Instant::now(),
             egui_input: Default::default(),
             current_pixels_per_point: 1.0,
         }
@@ -75,22 +67,21 @@ impl EguiSdl {
         }
     }
 
-    pub fn take_egui_input(&mut self, window: &Window) -> egui::RawInput {
-        self.egui_input.time = Some(self.start_time.elapsed().as_secs_f64());
-
-        let screen_size_in_pixels = screen_size_in_pixels(window);
+    pub fn resize(&mut self, width: u32, height: u32) {
+        let screen_size_in_pixels = egui::vec2(width as f32, height as f32);
         let screen_size_in_points = screen_size_in_pixels / self.pixels_per_point();
         self.egui_input.screen_rect = Some(egui::Rect::from_min_size(
             egui::Pos2::ZERO,
             screen_size_in_points,
         ));
+    }
 
+    pub fn take_egui_input(&mut self) -> egui::RawInput {
         self.egui_input.take()
     }
 
     pub fn handle_platform_output(
         &mut self,
-        _window: &Window,
         egui_ctx: &egui::Context,
         platform_output: egui::PlatformOutput,
     ) {

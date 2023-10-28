@@ -2,7 +2,14 @@ pub mod helpers;
 mod sdl;
 
 use anyhow::Result;
-use cinder::{
+use core::panic;
+pub use egui;
+use egui::{
+    epaint::{ImageDelta, Primitive},
+    ClippedPrimitive, ImageData, Mesh, TextureId, TexturesDelta,
+};
+use math::{point::Point2D, rect::Rect2D, size::Size2D};
+use renderer::{
     command_queue::{AttachmentLoadOp, CommandList, RenderAttachment, RenderAttachmentDesc},
     device::Device,
     resources::{
@@ -20,13 +27,6 @@ use cinder::{
     util::MemoryMappablePointer,
     ResourceId,
 };
-use core::panic;
-pub use egui;
-use egui::{
-    epaint::{ImageDelta, Primitive},
-    ClippedPrimitive, ImageData, Mesh, TextureId, TexturesDelta,
-};
-use math::{point::Point2D, rect::Rect2D, size::Size2D};
 use sdl::{EguiSdl, EventResponse};
 use sdl2::{event::Event, video::Window};
 use std::collections::HashMap;
@@ -161,18 +161,21 @@ impl EguiIntegration {
         self.egui_sdl.on_event(&self.egui_context, event)
     }
 
+    pub fn resize(&mut self, width: u32, height: u32) {
+        self.egui_sdl.resize(width, height);
+    }
+
     #[allow(clippy::too_many_arguments)]
     pub fn run(
         &mut self,
         resource_manager: &mut ResourceManager,
         device: &Device,
-        window: &Window,
         command_list: &CommandList,
         render_area: Rect2D<i32, u32>,
         swapchain_image: SwapchainImage,
         f: impl FnOnce(&egui::Context),
     ) -> Result<()> {
-        let raw_input = self.egui_sdl.take_egui_input(window);
+        let raw_input = self.egui_sdl.take_egui_input();
 
         // TODO: Hook up repaint_after
         let egui::FullOutput {
@@ -185,7 +188,7 @@ impl EguiIntegration {
         let clipped_primitives = self.egui_context.tessellate(shapes);
 
         self.egui_sdl
-            .handle_platform_output(window, &self.egui_context, platform_output);
+            .handle_platform_output(&self.egui_context, platform_output);
 
         self.set_textures(resource_manager, device, command_list, &textures_delta)?;
 

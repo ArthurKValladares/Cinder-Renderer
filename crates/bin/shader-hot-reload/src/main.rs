@@ -9,7 +9,7 @@ use cinder::{
         image::Layout,
         pipeline::graphics::GraphicsPipeline,
     },
-    Cinder, ResourceId,
+    Renderer, ResourceId,
 };
 use math::size::Size2D;
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
@@ -24,7 +24,7 @@ include!(concat!(
 ));
 
 pub struct Renderer {
-    cinder: Cinder,
+    cinder: Renderer,
     pipeline_handle: ResourceId<GraphicsPipeline>,
     bind_group: BindGroup,
     vertex_buffer: Buffer,
@@ -37,7 +37,7 @@ impl Renderer {
         // Create Base Resources
         //
         let (width, height) = window.drawable_size();
-        let mut cinder = Cinder::new(window, width, height)?;
+        let mut cinder = Renderer::new(window, width, height)?;
 
         //
         // Setup Shader Hot-reloading

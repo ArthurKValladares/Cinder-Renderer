@@ -11,7 +11,7 @@ use cinder::{
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
     },
-    Cinder,
+    Renderer,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use rayon::iter::*;
@@ -92,7 +92,7 @@ pub struct MeshDraw {
 }
 
 pub struct Renderer {
-    cinder: Cinder,
+    cinder: Renderer,
     camera: Camera,
     keyboard_state: KeyboardState,
     mouse_state: MouseState,
@@ -110,7 +110,7 @@ impl Renderer {
         // Create Base Resources
         //
         let (width, height) = window.drawable_size();
-        let mut cinder = Cinder::new(window, width, height)?;
+        let mut cinder = Renderer::new(window, width, height)?;
 
         //
         // Create App Resources

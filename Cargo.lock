@@ -223,20 +223,12 @@ name = "cinder"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "ash",
- "ash-window",
- "bitflags 2.4.1",
- "math",
- "notify-debouncer-mini",
- "num",
+ "bumpalo",
+ "egui-integration",
  "raw-window-handle",
- "resource-manager",
- "rust-shader-tools",
- "serde",
- "serde_json",
- "take_mut",
- "thiserror",
- "tracing",
+ "render_graph",
+ "renderer",
+ "sdl2",
  "util",
 ]
 
@@ -445,9 +437,9 @@ name = "egui-integration"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "cinder",
  "egui",
  "math",
+ "renderer",
  "sdl2",
  "util",
 ]
@@ -1189,10 +1181,32 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bumpalo",
- "cinder",
  "hashbrown 0.14.2",
  "math",
+ "renderer",
  "resource-manager",
+]
+
+[[package]]
+name = "renderer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ash",
+ "ash-window",
+ "bitflags 2.4.1",
+ "math",
+ "notify-debouncer-mini",
+ "num",
+ "raw-window-handle",
+ "resource-manager",
+ "rust-shader-tools",
+ "serde",
+ "serde_json",
+ "take_mut",
+ "thiserror",
+ "tracing",
+ "util",
 ]
 
 [[package]]

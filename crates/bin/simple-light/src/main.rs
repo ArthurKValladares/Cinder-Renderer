@@ -12,7 +12,7 @@ use cinder::{
         },
         sampler::{AddressMode, BorderColor, MipmapMode, Sampler, SamplerDescription},
     },
-    Cinder, ResourceId,
+    Renderer, ResourceId,
 };
 use math::{mat::Mat4, point::Point2D, size::Size2D, vec::Vec3};
 use render_graph::{AttachmentType, RenderGraph, RenderPass, RenderPassResource};
@@ -46,7 +46,7 @@ struct TexturedQuadData {
 
 impl TexturedQuadData {
     pub fn new(
-        cinder: &Cinder,
+        cinder: &Renderer,
         bind_group: BindGroup,
         image: &Image,
         sampler: &Sampler,
@@ -99,7 +99,7 @@ impl TexturedQuadData {
         })
     }
 
-    pub fn cleanup(&self, cinder: &Cinder) {
+    pub fn cleanup(&self, cinder: &Renderer) {
         self.index_buffer.destroy(&cinder.device);
         self.vertex_buffer.destroy(&cinder.device);
     }
@@ -115,7 +115,7 @@ struct MeshData {
 
 impl MeshData {
     pub fn new<T: Copy>(
-        cinder: &Cinder,
+        cinder: &Renderer,
         pipeline: &GraphicsPipeline,
         shadow_texture: &Image,
         sampler: &Sampler,
@@ -174,7 +174,12 @@ impl MeshData {
         })
     }
 
-    pub fn resize(&self, cinder: &Cinder, shadow_texture: &Image, sampler: &Sampler) -> Result<()> {
+    pub fn resize(
+        &self,
+        cinder: &Renderer,
+        shadow_texture: &Image,
+        sampler: &Sampler,
+    ) -> Result<()> {
         cinder.device.write_bind_group(&[BindGroupBindInfo {
             group: self.shadow_texture_bind_group,
             dst_binding: 0,
@@ -187,7 +192,7 @@ impl MeshData {
         Ok(())
     }
 
-    pub fn cleanup(&self, cinder: &Cinder) {
+    pub fn cleanup(&self, cinder: &Renderer) {
         self.index_buffer.destroy(&cinder.device);
         self.vertex_buffer.destroy(&cinder.device);
         self.model_transform_buffer.destroy(&cinder.device);
@@ -217,7 +222,7 @@ struct FlashligthMesh {
 }
 
 impl FlashligthMesh {
-    fn new(cinder: &Cinder) -> Result<Self> {
+    fn new(cinder: &Renderer) -> Result<Self> {
         let cylinder = geometry::SurfaceMesh::cylinder::<30>(0.3, 0.05);
         let cylinder_vb = cinder.device.create_buffer_with_data(
             &cylinder.vertices,
@@ -258,7 +263,7 @@ impl FlashligthMesh {
         })
     }
 
-    fn cleanup(&self, cinder: &Cinder) {
+    fn cleanup(&self, cinder: &Renderer) {
         self.cylinder_vb.destroy(&cinder.device);
         self.cylinder_ib.destroy(&cinder.device);
 
@@ -276,7 +281,7 @@ pub struct LightData {
 }
 
 impl LightData {
-    fn new(cinder: &Cinder, position: Vec3, look_at: Vec3, aspect_ratio: f32) -> Result<Self> {
+    fn new(cinder: &Renderer, position: Vec3, look_at: Vec3, aspect_ratio: f32) -> Result<Self> {
         let data_buffer = cinder.device.create_buffer_with_data(
             &[LitMeshGlobalLightData {
                 view: camera::look_to(
@@ -331,7 +336,7 @@ impl LightData {
         Ok(())
     }
 
-    pub fn cleanup(&self, cinder: &Cinder) {
+    pub fn cleanup(&self, cinder: &Renderer) {
         self.flashlight.cleanup(cinder);
         self.data_buffer.destroy(&cinder.device);
     }
@@ -344,7 +349,7 @@ struct CameraData {
 
 impl CameraData {
     pub fn new(
-        cinder: &Cinder,
+        cinder: &Renderer,
         bind_group_data: &BindGroupData,
         pos: Vec3,
         front: Vec3,
@@ -382,7 +387,7 @@ impl CameraData {
         })
     }
 
-    pub fn cleanup(&self, cinder: &Cinder) {
+    pub fn cleanup(&self, cinder: &Renderer) {
         self.transforms_buffer.destroy(&cinder.device);
     }
 }
@@ -395,7 +400,7 @@ struct Pipelines {
 }
 
 impl Pipelines {
-    pub fn cleanup(&self, cinder: &Cinder) {
+    pub fn cleanup(&self, cinder: &Renderer) {
         self.lit_mesh.destroy(&cinder.device);
         self.light_caster.destroy(&cinder.device);
         self.shadow_map_depth.destroy(&cinder.device);
@@ -403,7 +408,7 @@ impl Pipelines {
     }
 }
 pub struct HelloCube {
-    cinder: Cinder,
+    cinder: Renderer,
     pipelines: Pipelines,
     sampler: Sampler,
     shadow_map_sampler: Sampler,
@@ -427,7 +432,7 @@ impl HelloCube {
         // Create Base Resources
         //
         let (width, height) = window.drawable_size();
-        let mut cinder = Cinder::new(window, width, height)?;
+        let mut cinder = Renderer::new(window, width, height)?;
 
         //
         // Create Shaders and Pipelines

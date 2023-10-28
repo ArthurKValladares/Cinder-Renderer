@@ -11,7 +11,7 @@ use cinder::{
         sampler::SamplerDescription,
         shader::ShaderDesc,
     },
-    Cinder,
+    Renderer,
 };
 use math::size::Size2D;
 use render_graph::{AttachmentType, RenderGraph, RenderPass};
@@ -27,7 +27,7 @@ include!(concat!(
 ));
 
 pub struct Renderer {
-    cinder: Cinder,
+    cinder: Renderer,
     pipeline: GraphicsPipeline,
     bind_group: BindGroup,
     vertex_buffer: Buffer,
@@ -41,7 +41,7 @@ impl Renderer {
         // Create Base Resources
         //
         let (width, height) = window.drawable_size();
-        let mut cinder = Cinder::new(window, width, height)?;
+        let mut cinder = Renderer::new(window, width, height)?;
 
         //
         // Create App Resources

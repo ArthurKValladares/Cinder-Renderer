@@ -8,7 +8,7 @@ use cinder::{
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
         pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
     },
-    Cinder, ResourceId,
+    Renderer, ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use render_graph::{AttachmentType, RenderGraph, RenderPass};
@@ -24,7 +24,7 @@ include!(concat!(
 ));
 
 pub struct HelloCube {
-    cinder: Cinder,
+    cinder: Renderer,
     depth_image_handle: ResourceId<Image>,
     pipeline: GraphicsPipeline,
     bind_group: BindGroup,
@@ -40,7 +40,7 @@ impl HelloCube {
         // Create Base Resources
         //
         let (width, height) = window.drawable_size();
-        let mut cinder = Cinder::new(window, width, height)?;
+        let mut cinder = Renderer::new(window, width, height)?;
 
         //
         // Create App Resources
