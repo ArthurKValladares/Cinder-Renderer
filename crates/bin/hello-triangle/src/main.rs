@@ -7,9 +7,6 @@ use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use tracking_allocator::TrackingAllocator;
 use util::{SdlContext, WindowDescription};
 
-#[global_allocator]
-static A: TrackingAllocator = TrackingAllocator;
-
 pub const WINDOW_WIDTH: u32 = 1280;
 pub const WINDOW_HEIGHT: u32 = 1280;
 
@@ -25,7 +22,7 @@ pub struct HelloTriangle {
 }
 
 impl App for HelloTriangle {
-    fn new(renderer: &mut Renderer, width: u32, height: u32) -> anyhow::Result<Self> {
+    fn new(renderer: &mut Renderer, _width: u32, _height: u32) -> anyhow::Result<Self> {
         let vertex_shader = renderer.device.create_shader(
             include_bytes!("../shaders/spv/triangle.vert.spv"),
             Default::default(),
@@ -78,7 +75,11 @@ impl App for HelloTriangle {
         })
     }
 
-    fn draw<'a>(&'a mut self, allocator: &'a Bump, graph: &mut RenderGraph<'a>) -> anyhow::Result<()> {
+    fn draw<'a>(
+        &'a mut self,
+        allocator: &'a Bump,
+        graph: &mut RenderGraph<'a>,
+    ) -> anyhow::Result<()> {
         graph.add_pass(
             allocator,
             RenderPass::new(allocator)
@@ -105,7 +106,7 @@ impl App for HelloTriangle {
         Ok(())
     }
 
-    fn cleanup(&mut self, renderer: &mut Renderer) -> anyhow::Result<()>{
+    fn cleanup(&mut self, renderer: &mut Renderer) -> anyhow::Result<()> {
         self.index_buffer.destroy(&renderer.device);
         self.vertex_buffer.destroy(&renderer.device);
         self.pipeline.destroy(&renderer.device);
