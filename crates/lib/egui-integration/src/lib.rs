@@ -3,10 +3,9 @@ mod sdl;
 
 use anyhow::Result;
 use core::panic;
-pub use egui;
 use egui::{
     epaint::{ImageDelta, Primitive},
-    ClippedPrimitive, ImageData, Mesh, TextureId, TexturesDelta,
+    ClippedPrimitive, Context, ImageData, Mesh, TextureId, TexturesDelta,
 };
 use math::{point::Point2D, rect::Rect2D, size::Size2D};
 use renderer::{
@@ -30,6 +29,9 @@ use renderer::{
 use sdl::{EguiSdl, EventResponse};
 use sdl2::event::Event;
 use std::collections::HashMap;
+
+pub use egui;
+pub use helpers::SharedEguiMenu;
 
 pub(crate) const DEFAULT_PPP: f32 = 3.0;
 

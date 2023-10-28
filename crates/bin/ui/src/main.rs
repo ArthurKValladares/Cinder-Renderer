@@ -2,11 +2,11 @@ use anyhow::Result;
 use bumpalo::Bump;
 use cinder::{
     App, AttachmentStoreOp, BindGroup, BindGroupBindInfo, BindGroupWriteData, Buffer,
-    BufferDescription, BufferUsage, Cinder, ClearValue, Format, GraphicsPipeline,
+    BufferDescription, BufferUsage, Cinder, ClearValue, DebugUiContext, Format, GraphicsPipeline,
     GraphicsPipelineDescription, Image, ImageDescription, ImageUsage, Layout, RenderAttachmentDesc,
     Renderer, ResourceId,
 };
-use egui_integration::{egui, helpers::HelperEguiMenu, EguiIntegration};
+use egui_integration::{egui, EguiIntegration};
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use render_graph::{AttachmentType, RenderGraph, RenderPass};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
@@ -35,7 +35,6 @@ impl Default for ModelData {
 }
 
 pub struct UiSample {
-    helper_egui_menu: HelperEguiMenu,
     model_data: ModelData,
     depth_image_handle: ResourceId<Image>,
     pipeline: GraphicsPipeline,
@@ -243,7 +242,6 @@ impl App for UiSample {
             vertex_buffer,
             index_buffer,
             ubo_buffer,
-            helper_egui_menu: HelperEguiMenu::default(),
             model_data: Default::default(),
         })
     }
@@ -291,28 +289,15 @@ impl App for UiSample {
                     Ok(())
                 }),
         );
-        /*
-        self.ui.run(
-            &mut self.cinder.resource_manager,
-            &self.cinder.device,
-            window,
-            &pc.cmd_list,
-            pc.present_rect,
-            pc.swapchain_image,
-            |ctx| {
-                let pi_2 = std::f32::consts::PI * 2.0;
-                egui::Window::new("UI").show(ctx, |ui| {
-                    ui.add(
-                        egui::Slider::new(&mut self.model_data.rotation, -pi_2..=pi_2)
-                            .text("Rotation"),
-                    );
-                    ui.add(egui::Slider::new(&mut self.model_data.scale, 1.0..=2.0).text("Scale"));
-                    self.helper_egui_menu.draw(ui);
-                });
-            },
-        )?;
-        */
         Ok(())
+    }
+
+    fn draw_debug_ui(&mut self, context: &DebugUiContext) {
+        let pi_2 = std::f32::consts::PI * 2.0;
+        egui::Window::new("UI").show(context, |ui| {
+            ui.add(egui::Slider::new(&mut self.model_data.rotation, -pi_2..=pi_2).text("Rotation"));
+            ui.add(egui::Slider::new(&mut self.model_data.scale, 1.0..=2.0).text("Scale"));
+        });
     }
 
     fn resize(&mut self, renderer: &mut Renderer, width: u32, height: u32) -> Result<()> {

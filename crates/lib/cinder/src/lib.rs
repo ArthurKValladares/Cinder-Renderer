@@ -1,9 +1,10 @@
 use bumpalo::Bump;
-use egui_integration::EguiIntegration;
+use egui_integration::{EguiIntegration, SharedEguiMenu};
 use render_graph::{PresentContext, RenderGraph};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::SdlContext;
 
+pub use egui_integration::egui::Context as DebugUiContext;
 pub use renderer::{
     command_queue::{AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderAttachmentDesc},
     resources::{
@@ -23,6 +24,8 @@ pub trait App: Sized {
         allocator: &'a Bump,
         graph: &mut RenderGraph<'a>,
     ) -> anyhow::Result<()>;
+
+    fn draw_debug_ui(&mut self, _context: &DebugUiContext) {}
 
     fn update(&mut self, _renderer: &mut Renderer) -> anyhow::Result<()> {
         Ok(())
@@ -44,6 +47,7 @@ pub struct Cinder<A: App> {
     renderer: Renderer,
     allocator: Bump,
     egui: EguiIntegration,
+    shared_egui_menu: SharedEguiMenu,
     app: A,
 }
 
@@ -61,6 +65,7 @@ where
             &renderer.device,
             &renderer.swapchain,
         )?;
+        let shared_egui_menu = SharedEguiMenu::default();
 
         let app = A::new(&mut renderer, width, height)?;
 
@@ -68,6 +73,7 @@ where
             renderer,
             allocator,
             egui,
+            shared_egui_menu,
             app,
         })
     }
@@ -90,7 +96,9 @@ where
             present_context.present_rect,
             present_context.swapchain_image,
             |ctx| {
-                // TODO: App-defined function
+                // TODO: Conditional draw
+                self.shared_egui_menu.draw(ctx);
+                self.app.draw_debug_ui(ctx);
             },
         )?;
 
@@ -98,6 +106,7 @@ where
     }
 
     fn update(&mut self) -> anyhow::Result<()> {
+        self.shared_egui_menu.update(&mut self.egui);
         self.app.update(&mut self.renderer)
     }
 
@@ -114,21 +123,24 @@ where
             self.renderer.start_frame()?;
 
             for event in sdl.event_pump.poll_iter() {
-                match event {
-                    Event::Quit { .. }
-                    | Event::KeyDown {
-                        keycode: Some(Keycode::Escape),
-                        ..
-                    } => {
-                        break 'running;
+                let response = self.egui.on_event(&event);
+                if !response.consumed {
+                    match event {
+                        Event::Quit { .. }
+                        | Event::KeyDown {
+                            keycode: Some(Keycode::Escape),
+                            ..
+                        } => {
+                            break 'running;
+                        }
+                        Event::Window {
+                            win_event: sdl2::event::WindowEvent::SizeChanged(width, height),
+                            ..
+                        } => {
+                            self.resize(width as u32, height as u32)?;
+                        }
+                        _ => {}
                     }
-                    Event::Window {
-                        win_event: sdl2::event::WindowEvent::SizeChanged(width, height),
-                        ..
-                    } => {
-                        self.resize(width as u32, height as u32)?;
-                    }
-                    _ => {}
                 }
             }
 
