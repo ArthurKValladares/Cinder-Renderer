@@ -1,6 +1,11 @@
 use anyhow::Result;
 use bumpalo::Bump;
-use cinder::{App, Buffer, BufferDescription, BufferUsage, GraphicsPipeline, Renderer, ResourceId, Cinder, Layout, BindGroupWriteData, BindGroupBindInfo, AttachmentStoreOp, ClearValue, RenderAttachmentDesc, BindGroup, Format, GraphicsPipelineDescription, ImageUsage, Image, ImageDescription};
+use cinder::{
+    App, AttachmentStoreOp, BindGroup, BindGroupBindInfo, BindGroupWriteData, Buffer,
+    BufferDescription, BufferUsage, Cinder, ClearValue, Format, GraphicsPipeline,
+    GraphicsPipelineDescription, Image, ImageDescription, ImageUsage, Layout, RenderAttachmentDesc,
+    Renderer, ResourceId,
+};
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use render_graph::{AttachmentType, RenderGraph, RenderPass};
 use sdl2::{event::Event, keyboard::Keycode, video::Window};

@@ -5,7 +5,7 @@ use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::SdlContext;
 
 pub use renderer::{
-    command_queue::{AttachmentStoreOp, AttachmentLoadOp, ClearValue, RenderAttachmentDesc},
+    command_queue::{AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderAttachmentDesc},
     resources::{
         bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
