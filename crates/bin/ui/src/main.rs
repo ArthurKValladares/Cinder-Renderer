@@ -6,10 +6,10 @@ use cinder::{
     GraphicsPipelineDescription, Image, ImageDescription, ImageUsage, Layout, RenderAttachmentDesc,
     Renderer, ResourceId,
 };
-use egui_integration::{egui, EguiIntegration};
+use egui_integration::{egui};
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use render_graph::{AttachmentType, RenderGraph, RenderPass};
-use sdl2::{event::Event, keyboard::Keycode, video::Window};
+
 use util::{SdlContext, WindowDescription};
 
 pub const WINDOW_WIDTH: u32 = 1280;
@@ -246,7 +246,7 @@ impl App for UiSample {
         })
     }
 
-    fn update(&mut self, renderer: &mut Renderer) -> Result<()> {
+    fn update(&mut self, _renderer: &mut Renderer) -> Result<()> {
         let scale = self.model_data.scale;
         self.ubo_buffer.mem_copy(
             util::offset_of!(UiUniformBufferObject, model) as u64,

@@ -2,13 +2,13 @@ use std::path::Path;
 
 use anyhow::Result;
 use cinder::{
-    App, AttachmentLoadOp, AttachmentStoreOp, AttachmentType, BindGroup, BindGroupBindInfo,
-    BindGroupWriteData, Buffer, BufferDescription, BufferUsage, Bump, Cinder, ClearValue, Format,
-    GraphicsPipeline, GraphicsPipelineDescription, Image, ImageDescription, ImageUsage, Layout,
-    PipelineError, RenderAttachmentDesc, RenderGraph, RenderPass, Renderer, ResourceId, Sampler,
+    App, AttachmentType, BindGroup, BindGroupBindInfo,
+    BindGroupWriteData, Buffer, BufferDescription, BufferUsage, Bump, Cinder,
+    GraphicsPipeline, Layout,
+    PipelineError, RenderGraph, RenderPass, Renderer, ResourceId,
 };
 use math::size::Size2D;
-use sdl2::{event::Event, keyboard::Keycode, video::Window};
+
 use util::{SdlContext, WindowDescription};
 
 pub const WINDOW_WIDTH: u32 = 1280;

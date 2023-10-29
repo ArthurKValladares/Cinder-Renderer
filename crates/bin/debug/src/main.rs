@@ -3,14 +3,14 @@ use std::path::PathBuf;
 use anyhow::Result;
 use bumpalo::Bump;
 use cinder::{
-    App, AttachmentStoreOp, BindGroup, BindGroupBindInfo, BindGroupWriteData, Buffer,
-    BufferDescription, BufferUsage, Cinder, ClearValue, Format, GraphicsPipeline,
-    GraphicsPipelineDescription, Image, ImageDescription, ImageUsage, Layout, RenderAttachmentDesc,
-    Renderer, ResourceId, SamplerDescription, ShaderDesc,
+    App, BindGroup, BindGroupBindInfo, BindGroupWriteData, Buffer,
+    BufferDescription, BufferUsage, Cinder, GraphicsPipeline,
+    GraphicsPipelineDescription, ImageDescription, Layout,
+    Renderer, SamplerDescription, ShaderDesc,
 };
 use math::size::Size2D;
 use render_graph::{AttachmentType, RenderGraph, RenderPass};
-use sdl2::{event::Event, keyboard::Keycode, video::Window};
+
 use util::{SdlContext, WindowDescription};
 
 pub const WINDOW_WIDTH: u32 = 1280;

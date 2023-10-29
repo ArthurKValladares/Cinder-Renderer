@@ -9,7 +9,7 @@ use cinder::{
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use render_graph::{AttachmentType, RenderGraph, RenderPass};
 use scene::{ObjMesh, Scene, Vertex};
-use sdl2::{event::Event, keyboard::Keycode, video::Window};
+
 use std::path::PathBuf;
 use util::{SdlContext, WindowDescription};
 

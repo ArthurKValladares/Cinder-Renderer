@@ -4,17 +4,16 @@ use camera::{
     Camera, CameraDescription,
 };
 use cinder::{
-    AddressMode, App, AttachmentLoadOp, AttachmentStoreOp, AttachmentType, BindGroup,
-    BindGroupBindInfo, BindGroupData, BindGroupWriteData, BorderColor, Buffer, BufferDescription,
+    App, AttachmentStoreOp, AttachmentType, BindGroup,
+    BindGroupBindInfo, BindGroupWriteData, Buffer, BufferDescription,
     BufferUsage, Bump, Cinder, ClearValue, Format, GraphicsPipeline, GraphicsPipelineDescription,
-    Image, ImageDescription, ImageUsage, Layout, MipmapMode, RenderAttachmentDesc, RenderGraph,
-    RenderPass, Renderer, ResourceId, Sampler, SamplerDescription, VertexAttributeDescription,
-    VertexBindingDesc, VertexDescription, VertexInputRate,
+    Image, ImageDescription, ImageUsage, Layout, RenderAttachmentDesc, RenderGraph,
+    RenderPass, Renderer, ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use rayon::iter::*;
 use scene::{ObjMesh, Scene, Vertex};
-use sdl2::{event::Event, keyboard::Keycode, video::Window};
+use sdl2::{event::Event};
 use std::path::PathBuf;
 use util::{SdlContext, WindowDescription};
 

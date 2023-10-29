@@ -10,7 +10,7 @@ use cinder::{
 };
 use math::{mat::Mat4, point::Point2D, size::Size2D, vec::Vec3};
 use render_graph::{AttachmentType, RenderGraph, RenderPass, RenderPassResource};
-use sdl2::{event::Event, keyboard::Keycode, video::Window};
+
 use util::{SdlContext, WindowDescription};
 
 pub const WINDOW_WIDTH: u32 = 1280;

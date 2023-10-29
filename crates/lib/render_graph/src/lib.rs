@@ -191,7 +191,7 @@ impl<'a> RenderGraph<'a> {
 
     fn compile_nodes<'b>(&self, bump: &'b Bump) -> BumpVec<RenderGraphNode<'b>> {
         let mut nodes = BumpVec::with_capacity_in(self.passes.len(), bump);
-        for (idx, pass) in self.passes.iter().enumerate() {
+        for (_idx, pass) in self.passes.iter().enumerate() {
             let mut node = RenderGraphNode::new(bump);
 
             // If an input of this node is used as an output by another node, then

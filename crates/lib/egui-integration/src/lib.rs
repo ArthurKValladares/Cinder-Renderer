@@ -5,7 +5,7 @@ use anyhow::Result;
 use core::panic;
 use egui::{
     epaint::{ImageDelta, Primitive},
-    ClippedPrimitive, Context, ImageData, Mesh, TextureId, TexturesDelta,
+    ClippedPrimitive, ImageData, Mesh, TextureId, TexturesDelta,
 };
 use math::{point::Point2D, rect::Rect2D, size::Size2D};
 use renderer::{
