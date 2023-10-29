@@ -125,5 +125,5 @@ fn main() {
     )
     .unwrap();
     let mut cinder = Cinder::<HelloTriangle>::new(&sdl.window).unwrap();
-    cinder.run_game_loop(&mut sdl);
+    cinder.run_game_loop(&mut sdl).unwrap();
 }
