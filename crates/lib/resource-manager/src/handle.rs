@@ -21,10 +21,6 @@ impl<T> ResourceId<T> {
     pub fn id(&self) -> usize {
         self.id
     }
-
-    pub fn as_unit(&self) -> ResourceId<()> {
-        ResourceId::<()>::from_index(self.id())
-    }
 }
 
 impl<T> Debug for ResourceId<T> {
