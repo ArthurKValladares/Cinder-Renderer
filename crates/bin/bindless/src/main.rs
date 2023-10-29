@@ -4,12 +4,12 @@ use camera::{
     Camera, CameraDescription,
 };
 use cinder::{
-    AddressMode, App, AttachmentLoadOp, AttachmentStoreOp, BindGroup, BindGroupBindInfo,
-    BindGroupData, BindGroupWriteData, BorderColor, Buffer, BufferDescription, BufferUsage,
-    ClearValue, Format, GraphicsPipeline, GraphicsPipelineDescription, Image, ImageDescription,
-    ImageUsage, Layout, MipmapMode, RenderAttachmentDesc, Renderer, ResourceId, Sampler,
-    SamplerDescription, VertexAttributeDescription, VertexBindingDesc, VertexDescription,
-    VertexInputRate, Bump, RenderGraph, AttachmentType, RenderPass, Cinder,
+    AddressMode, App, AttachmentLoadOp, AttachmentStoreOp, AttachmentType, BindGroup,
+    BindGroupBindInfo, BindGroupData, BindGroupWriteData, BorderColor, Buffer, BufferDescription,
+    BufferUsage, Bump, Cinder, ClearValue, Format, GraphicsPipeline, GraphicsPipelineDescription,
+    Image, ImageDescription, ImageUsage, Layout, MipmapMode, RenderAttachmentDesc, RenderGraph,
+    RenderPass, Renderer, ResourceId, Sampler, SamplerDescription, VertexAttributeDescription,
+    VertexBindingDesc, VertexDescription, VertexInputRate,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use rayon::iter::*;
@@ -373,8 +373,7 @@ impl App for BindlessSample {
             .images
             .get_mut(self.depth_image_handle)
             .unwrap();
-        depth_image
-            .resize(&renderer.device, Size2D::new(width, height))?;
+        depth_image.resize(&renderer.device, Size2D::new(width, height))?;
         Ok(())
     }
 

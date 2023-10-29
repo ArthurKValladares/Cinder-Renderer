@@ -37,11 +37,15 @@ pub trait App: Sized {
 
     fn draw_debug_ui(&mut self, _context: &DebugUiContext) {}
 
-    fn on_frame_start(&mut self) -> anyhow::Result<()> {Ok(())}
+    fn on_frame_start(&mut self) -> anyhow::Result<()> {
+        Ok(())
+    }
     fn update(&mut self, _renderer: &mut Renderer) -> anyhow::Result<()> {
         Ok(())
     }
-    fn on_event(&mut self, _event: &Event) -> anyhow::Result<()> {Ok(())}
+    fn on_event(&mut self, _event: &Event) -> anyhow::Result<()> {
+        Ok(())
+    }
     fn resize(
         &mut self,
         _renderer: &mut Renderer,
@@ -135,7 +139,7 @@ where
             self.renderer.start_frame()?;
 
             self.app.on_frame_start()?;
-            
+
             for event in sdl.event_pump.poll_iter() {
                 self.app.on_event(&event)?;
                 let response = self.egui.on_event(&event);
