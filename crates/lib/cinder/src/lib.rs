@@ -4,7 +4,7 @@ use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::SdlContext;
 
 pub use egui_integration::egui::Context as DebugUiContext;
-pub use render_graph::{AttachmentType, RenderGraph, RenderPass};
+pub use render_graph::{AttachmentType, RenderGraph, RenderPass, RenderPassResource};
 pub use renderer::{
     command_queue::{AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderAttachmentDesc},
     resources::{

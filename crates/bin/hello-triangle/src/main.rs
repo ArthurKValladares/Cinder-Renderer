@@ -1,10 +1,8 @@
-
-use bumpalo::Bump;
-use cinder::{App, Buffer, BufferDescription, BufferUsage, Cinder, GraphicsPipeline, Renderer};
+use cinder::{
+    App, AttachmentType, Buffer, BufferDescription, BufferUsage, Bump, Cinder, GraphicsPipeline,
+    RenderGraph, RenderPass, Renderer,
+};
 use math::{mat::Mat4, vec::Vec3};
-use render_graph::{AttachmentType, RenderGraph, RenderPass};
-
-
 use util::{SdlContext, WindowDescription};
 
 pub const WINDOW_WIDTH: u32 = 1280;

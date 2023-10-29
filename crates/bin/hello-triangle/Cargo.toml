@@ -6,7 +6,6 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1"
-bumpalo = {git = "https://github.com/ArthurKValladares/bumpalo", features = ["collections", "allocator_api", "allocator-api2"]}
 cinder = { path = "../../lib/cinder" }
 image = "0.24.3"
 math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
@@ -18,7 +17,6 @@ sdl2 = { git = "https://github.com/Rust-SDL2/rust-sdl2", features = [
     "raw-window-handle",
 ] }
 util = { path = "../../lib/util" }
-render_graph = { path = "../../lib/render_graph" }
 tracking_allocator = {path = "../../lib/tracking_allocator"}
 
 [build-dependencies]

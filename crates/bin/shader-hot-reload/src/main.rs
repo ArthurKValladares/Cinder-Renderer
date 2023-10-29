@@ -2,10 +2,9 @@ use std::path::Path;
 
 use anyhow::Result;
 use cinder::{
-    App, AttachmentType, BindGroup, BindGroupBindInfo,
-    BindGroupWriteData, Buffer, BufferDescription, BufferUsage, Bump, Cinder,
-    GraphicsPipeline, Layout,
-    PipelineError, RenderGraph, RenderPass, Renderer, ResourceId,
+    App, AttachmentType, BindGroup, BindGroupBindInfo, BindGroupWriteData, Buffer,
+    BufferDescription, BufferUsage, Bump, Cinder, GraphicsPipeline, Layout, PipelineError,
+    RenderGraph, RenderPass, Renderer, ResourceId,
 };
 use math::size::Size2D;
 

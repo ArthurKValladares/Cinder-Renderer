@@ -380,12 +380,10 @@ name = "debug"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "cinder",
  "home",
  "image",
  "math",
- "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",
@@ -400,13 +398,11 @@ name = "depth-image"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "camera",
  "cinder",
  "home",
  "image",
  "math",
- "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",
@@ -621,13 +617,11 @@ name = "hello-cube"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "camera",
  "cinder",
  "home",
  "image",
  "math",
- "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",
@@ -641,12 +635,10 @@ name = "hello-triangle"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "cinder",
  "home",
  "image",
  "math",
- "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",
@@ -832,13 +824,11 @@ name = "mesh"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "camera",
  "cinder",
  "home",
  "image",
  "math",
- "render_graph",
  "rust-shader-tools",
  "scene",
  "sdl2",
@@ -1417,14 +1407,12 @@ name = "simple-light"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "camera",
  "cinder",
  "geometry",
  "home",
  "image",
  "math",
- "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",
@@ -1510,11 +1498,9 @@ name = "texture"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "cinder",
  "home",
  "math",
- "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",
@@ -1626,14 +1612,12 @@ name = "ui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "camera",
  "cinder",
  "egui-integration",
  "home",
  "image",
  "math",
- "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",

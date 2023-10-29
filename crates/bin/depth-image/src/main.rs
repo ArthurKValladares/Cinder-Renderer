@@ -1,14 +1,12 @@
 use anyhow::Result;
-use bumpalo::Bump;
 use cinder::{
-    App, AttachmentLoadOp, AttachmentStoreOp, BindGroup, BindGroupBindInfo, BindGroupWriteData,
-    Buffer, BufferDescription, BufferUsage, Cinder, ClearValue, Format, GraphicsPipeline,
-    GraphicsPipelineDescription, Image, ImageDescription, ImageUsage, Layout, RenderAttachmentDesc,
-    Renderer, ResourceId, Sampler,
+    App, AttachmentLoadOp, AttachmentStoreOp, AttachmentType, BindGroup, BindGroupBindInfo,
+    BindGroupWriteData, Buffer, BufferDescription, BufferUsage, Bump, Cinder, ClearValue, Format,
+    GraphicsPipeline, GraphicsPipelineDescription, Image, ImageDescription, ImageUsage, Layout,
+    RenderAttachmentDesc, RenderGraph, RenderPass, RenderPassResource, Renderer, ResourceId,
+    Sampler,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
-use render_graph::{AttachmentType, RenderGraph, RenderPass, RenderPassResource};
-
 use util::{SdlContext, WindowDescription};
 
 pub const WINDOW_WIDTH: u32 = 1280;
