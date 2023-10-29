@@ -156,7 +156,6 @@ impl App for ShaderHotReloadSample {
             RenderPass::new(allocator)
                 .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
                 .set_callback(allocator, |renderer, cmd_list| {
-                    // TODO: convert to error
                     let pipeline = renderer
                         .resource_manager
                         .graphics_pipelines
