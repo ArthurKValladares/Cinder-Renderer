@@ -9,7 +9,10 @@ pub struct SharedEguiMenu {
 
 impl Default for SharedEguiMenu {
     fn default() -> Self {
-        Self { pixels_per_point: DEFAULT_PPP, should_set_ppp: false }
+        Self {
+            pixels_per_point: DEFAULT_PPP,
+            should_set_ppp: false,
+        }
     }
 }
 

@@ -1,18 +1,12 @@
 use anyhow::Result;
 use bumpalo::Bump;
 use cinder::{
-    command_queue::{AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderAttachmentDesc},
-    resources::{
-        bind_group::{BindGroup, BindGroupBindInfo, BindGroupData, BindGroupWriteData},
-        buffer::{Buffer, BufferDescription, BufferUsage},
-        image::{Format, Image, ImageDescription, ImageUsage, Layout},
-        pipeline::graphics::{
-            GraphicsPipeline, GraphicsPipelineDescription, VertexAttributeDescription,
-            VertexBindingDesc, VertexDescription, VertexInputRate,
-        },
-        sampler::{AddressMode, BorderColor, MipmapMode, Sampler, SamplerDescription},
-    },
-    Renderer, ResourceId,
+    AddressMode, App, AttachmentLoadOp, AttachmentStoreOp, BindGroup, BindGroupBindInfo,
+    BindGroupData, BindGroupWriteData, BorderColor, Buffer, BufferDescription, BufferUsage, Cinder,
+    ClearValue, Format, GraphicsPipeline, GraphicsPipelineDescription, Image, ImageDescription,
+    ImageUsage, Layout, MipmapMode, RenderAttachmentDesc, Renderer, ResourceId, Sampler,
+    SamplerDescription, VertexAttributeDescription, VertexBindingDesc, VertexDescription,
+    VertexInputRate,
 };
 use math::{mat::Mat4, point::Point2D, size::Size2D, vec::Vec3};
 use render_graph::{AttachmentType, RenderGraph, RenderPass, RenderPassResource};
@@ -46,12 +40,12 @@ struct TexturedQuadData {
 
 impl TexturedQuadData {
     pub fn new(
-        cinder: &Renderer,
+        renderer: &Renderer,
         bind_group: BindGroup,
         image: &Image,
         sampler: &Sampler,
     ) -> Result<Self> {
-        let vertex_buffer = cinder.device.create_buffer_with_data(
+        let vertex_buffer = renderer.device.create_buffer_with_data(
             &[
                 ShadowMapQuadVertex {
                     i_pos: [-1.0, -1.0],
@@ -75,7 +69,7 @@ impl TexturedQuadData {
                 ..Default::default()
             },
         )?;
-        let index_buffer = cinder.device.create_buffer_with_data(
+        let index_buffer = renderer.device.create_buffer_with_data(
             &[0, 1, 2, 2, 3, 0],
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -83,7 +77,7 @@ impl TexturedQuadData {
             },
         )?;
 
-        cinder.device.write_bind_group(&[BindGroupBindInfo {
+        renderer.device.write_bind_group(&[BindGroupBindInfo {
             group: bind_group,
             dst_binding: 0,
             data: BindGroupWriteData::SampledImage(image.bind_info(
@@ -99,9 +93,9 @@ impl TexturedQuadData {
         })
     }
 
-    pub fn cleanup(&self, cinder: &Renderer) {
-        self.index_buffer.destroy(&cinder.device);
-        self.vertex_buffer.destroy(&cinder.device);
+    pub fn cleanup(&self, renderer: &Renderer) {
+        self.index_buffer.destroy(&renderer.device);
+        self.vertex_buffer.destroy(&renderer.device);
     }
 }
 
@@ -115,21 +109,21 @@ struct MeshData {
 
 impl MeshData {
     pub fn new<T: Copy>(
-        cinder: &Renderer,
+        renderer: &Renderer,
         pipeline: &GraphicsPipeline,
         shadow_texture: &Image,
         sampler: &Sampler,
         vertex_buffer_data: &[T],
         index_buffer_data: &[u32],
     ) -> Result<Self> {
-        let vertex_buffer = cinder.device.create_buffer_with_data(
+        let vertex_buffer = renderer.device.create_buffer_with_data(
             vertex_buffer_data,
             BufferDescription {
                 usage: BufferUsage::VERTEX,
                 ..Default::default()
             },
         )?;
-        let index_buffer = cinder.device.create_buffer_with_data(
+        let index_buffer = renderer.device.create_buffer_with_data(
             index_buffer_data,
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -138,11 +132,11 @@ impl MeshData {
         )?;
 
         let model_bind_group =
-            BindGroup::new(&cinder.device, pipeline.bind_group_data(1).unwrap())?;
+            BindGroup::new(&renderer.device, pipeline.bind_group_data(1).unwrap())?;
         let shadow_texture_bind_group =
-            BindGroup::new(&cinder.device, pipeline.bind_group_data(2).unwrap())?;
+            BindGroup::new(&renderer.device, pipeline.bind_group_data(2).unwrap())?;
 
-        let model_transform_buffer = cinder.device.create_buffer(
+        let model_transform_buffer = renderer.device.create_buffer(
             std::mem::size_of::<LitMeshModelUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
@@ -150,12 +144,12 @@ impl MeshData {
             },
         )?;
         model_transform_buffer.mem_copy(0, &[Mat4::identity()])?;
-        cinder.device.write_bind_group(&[BindGroupBindInfo {
+        renderer.device.write_bind_group(&[BindGroupBindInfo {
             group: model_bind_group,
             dst_binding: 0,
             data: BindGroupWriteData::Uniform(model_transform_buffer.bind_info()),
         }])?;
-        cinder.device.write_bind_group(&[BindGroupBindInfo {
+        renderer.device.write_bind_group(&[BindGroupBindInfo {
             group: shadow_texture_bind_group,
             dst_binding: 0,
             data: BindGroupWriteData::SampledImage(shadow_texture.bind_info(
@@ -176,11 +170,11 @@ impl MeshData {
 
     pub fn resize(
         &self,
-        cinder: &Renderer,
+        renderer: &Renderer,
         shadow_texture: &Image,
         sampler: &Sampler,
     ) -> Result<()> {
-        cinder.device.write_bind_group(&[BindGroupBindInfo {
+        renderer.device.write_bind_group(&[BindGroupBindInfo {
             group: self.shadow_texture_bind_group,
             dst_binding: 0,
             data: BindGroupWriteData::SampledImage(shadow_texture.bind_info(
@@ -192,10 +186,10 @@ impl MeshData {
         Ok(())
     }
 
-    pub fn cleanup(&self, cinder: &Renderer) {
-        self.index_buffer.destroy(&cinder.device);
-        self.vertex_buffer.destroy(&cinder.device);
-        self.model_transform_buffer.destroy(&cinder.device);
+    pub fn cleanup(&self, renderer: &Renderer) {
+        self.index_buffer.destroy(&renderer.device);
+        self.vertex_buffer.destroy(&renderer.device);
+        self.model_transform_buffer.destroy(&renderer.device);
     }
 }
 
@@ -222,16 +216,16 @@ struct FlashligthMesh {
 }
 
 impl FlashligthMesh {
-    fn new(cinder: &Renderer) -> Result<Self> {
+    fn new(renderer: &Renderer) -> Result<Self> {
         let cylinder = geometry::SurfaceMesh::cylinder::<30>(0.3, 0.05);
-        let cylinder_vb = cinder.device.create_buffer_with_data(
+        let cylinder_vb = renderer.device.create_buffer_with_data(
             &cylinder.vertices,
             BufferDescription {
                 usage: BufferUsage::VERTEX,
                 ..Default::default()
             },
         )?;
-        let cylinder_ib = cinder.device.create_buffer_with_data(
+        let cylinder_ib = renderer.device.create_buffer_with_data(
             &cylinder.indices,
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -240,14 +234,14 @@ impl FlashligthMesh {
         )?;
 
         let cone = geometry::SurfaceMesh::cone::<30>(0.125, 0.1);
-        let cone_vb = cinder.device.create_buffer_with_data(
+        let cone_vb = renderer.device.create_buffer_with_data(
             &cone.vertices,
             BufferDescription {
                 usage: BufferUsage::VERTEX,
                 ..Default::default()
             },
         )?;
-        let cone_ib = cinder.device.create_buffer_with_data(
+        let cone_ib = renderer.device.create_buffer_with_data(
             &cone.indices,
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -263,12 +257,12 @@ impl FlashligthMesh {
         })
     }
 
-    fn cleanup(&self, cinder: &Renderer) {
-        self.cylinder_vb.destroy(&cinder.device);
-        self.cylinder_ib.destroy(&cinder.device);
+    fn cleanup(&self, renderer: &Renderer) {
+        self.cylinder_vb.destroy(&renderer.device);
+        self.cylinder_ib.destroy(&renderer.device);
 
-        self.cone_vb.destroy(&cinder.device);
-        self.cone_ib.destroy(&cinder.device);
+        self.cone_vb.destroy(&renderer.device);
+        self.cone_ib.destroy(&renderer.device);
     }
 }
 
@@ -281,8 +275,8 @@ pub struct LightData {
 }
 
 impl LightData {
-    fn new(cinder: &Renderer, position: Vec3, look_at: Vec3, aspect_ratio: f32) -> Result<Self> {
-        let data_buffer = cinder.device.create_buffer_with_data(
+    fn new(renderer: &Renderer, position: Vec3, look_at: Vec3, aspect_ratio: f32) -> Result<Self> {
+        let data_buffer = renderer.device.create_buffer_with_data(
             &[LitMeshGlobalLightData {
                 view: camera::look_to(
                     position,
@@ -300,7 +294,7 @@ impl LightData {
             },
         )?;
 
-        let flashlight = FlashligthMesh::new(cinder)?;
+        let flashlight = FlashligthMesh::new(renderer)?;
 
         Ok(Self {
             start_position: position,
@@ -336,9 +330,9 @@ impl LightData {
         Ok(())
     }
 
-    pub fn cleanup(&self, cinder: &Renderer) {
-        self.flashlight.cleanup(cinder);
-        self.data_buffer.destroy(&cinder.device);
+    pub fn cleanup(&self, renderer: &Renderer) {
+        self.flashlight.cleanup(renderer);
+        self.data_buffer.destroy(&renderer.device);
     }
 }
 
@@ -349,15 +343,15 @@ struct CameraData {
 
 impl CameraData {
     pub fn new(
-        cinder: &Renderer,
+        renderer: &Renderer,
         bind_group_data: &BindGroupData,
         pos: Vec3,
         front: Vec3,
         aspect_ratio: f32,
         light_data: Option<&LightData>,
     ) -> Result<Self> {
-        let bind_group = BindGroup::new(&cinder.device, bind_group_data)?;
-        let transforms_buffer = cinder.device.create_buffer_with_data(
+        let bind_group = BindGroup::new(&renderer.device, bind_group_data)?;
+        let transforms_buffer = renderer.device.create_buffer_with_data(
             &[LitMeshCameraUniformBufferObject {
                 view: camera::look_to(pos, front, Vec3::new(0.0, 1.0, 0.0)).into(),
                 proj: camera::new_infinite_perspective_proj(aspect_ratio, 30.0, 1.0).into(),
@@ -367,14 +361,14 @@ impl CameraData {
                 ..Default::default()
             },
         )?;
-        cinder.device.write_bind_group(&[BindGroupBindInfo {
+        renderer.device.write_bind_group(&[BindGroupBindInfo {
             group: bind_group,
             dst_binding: 0,
             data: BindGroupWriteData::Uniform(transforms_buffer.bind_info()),
         }])?;
 
         if let Some(light_data) = light_data {
-            cinder.device.write_bind_group(&[BindGroupBindInfo {
+            renderer.device.write_bind_group(&[BindGroupBindInfo {
                 group: bind_group,
                 dst_binding: 1,
                 data: BindGroupWriteData::Uniform(light_data.data_buffer.bind_info()),
@@ -387,8 +381,8 @@ impl CameraData {
         })
     }
 
-    pub fn cleanup(&self, cinder: &Renderer) {
-        self.transforms_buffer.destroy(&cinder.device);
+    pub fn cleanup(&self, renderer: &Renderer) {
+        self.transforms_buffer.destroy(&renderer.device);
     }
 }
 
@@ -400,15 +394,14 @@ struct Pipelines {
 }
 
 impl Pipelines {
-    pub fn cleanup(&self, cinder: &Renderer) {
-        self.lit_mesh.destroy(&cinder.device);
-        self.light_caster.destroy(&cinder.device);
-        self.shadow_map_depth.destroy(&cinder.device);
-        self.shadow_map_quad.destroy(&cinder.device);
+    pub fn cleanup(&self, renderer: &Renderer) {
+        self.lit_mesh.destroy(&renderer.device);
+        self.light_caster.destroy(&renderer.device);
+        self.shadow_map_depth.destroy(&renderer.device);
+        self.shadow_map_quad.destroy(&renderer.device);
     }
 }
-pub struct HelloCube {
-    cinder: Renderer,
+pub struct SimpleLightSample {
     pipelines: Pipelines,
     sampler: Sampler,
     shadow_map_sampler: Sampler,
@@ -423,53 +416,46 @@ pub struct HelloCube {
     cube_mesh_data: MeshData,
     plane_mesh_data: MeshData,
     show_shadow_map_image: bool,
-    allocator: Bump,
 }
 
-impl HelloCube {
-    pub fn new(window: &Window) -> Result<Self> {
-        //
-        // Create Base Resources
-        //
-        let (width, height) = window.drawable_size();
-        let mut cinder = Renderer::new(window, width, height)?;
-
+impl App for SimpleLightSample {
+    fn new(renderer: &mut Renderer, _width: u32, _height: u32) -> Result<Self> {
         //
         // Create Shaders and Pipelines
         //
-        let light_vs = cinder.device.create_shader(
+        let light_vs = renderer.device.create_shader(
             include_bytes!("../shaders/spv/light.vert.spv"),
             Default::default(),
         )?;
-        let light_fs = cinder.device.create_shader(
+        let light_fs = renderer.device.create_shader(
             include_bytes!("../shaders/spv/light.frag.spv"),
             Default::default(),
         )?;
 
-        let lit_mesh_vs = cinder.device.create_shader(
+        let lit_mesh_vs = renderer.device.create_shader(
             include_bytes!("../shaders/spv/lit_mesh.vert.spv"),
             Default::default(),
         )?;
-        let lit_mesh_fs = cinder.device.create_shader(
+        let lit_mesh_fs = renderer.device.create_shader(
             include_bytes!("../shaders/spv/lit_mesh.frag.spv"),
             Default::default(),
         )?;
 
-        let shadow_map_vs = cinder.device.create_shader(
+        let shadow_map_vs = renderer.device.create_shader(
             include_bytes!("../shaders/spv/shadow_map.vert.spv"),
             Default::default(),
         )?;
 
-        let shadow_map_quad_vs = cinder.device.create_shader(
+        let shadow_map_quad_vs = renderer.device.create_shader(
             include_bytes!("../shaders/spv/shadow_map_quad.vert.spv"),
             Default::default(),
         )?;
-        let shadow_map_quad_fs = cinder.device.create_shader(
+        let shadow_map_quad_fs = renderer.device.create_shader(
             include_bytes!("../shaders/spv/shadow_map_quad.frag.spv"),
             Default::default(),
         )?;
 
-        let lit_mesh_pipeline = cinder.device.create_graphics_pipeline(
+        let lit_mesh_pipeline = renderer.device.create_graphics_pipeline(
             &lit_mesh_vs,
             Some(&lit_mesh_fs),
             GraphicsPipelineDescription {
@@ -478,7 +464,7 @@ impl HelloCube {
             },
         )?;
 
-        let light_caster_pipeline = cinder.device.create_graphics_pipeline(
+        let light_caster_pipeline = renderer.device.create_graphics_pipeline(
             &light_vs,
             Some(&light_fs),
             GraphicsPipelineDescription {
@@ -487,7 +473,7 @@ impl HelloCube {
             },
         )?;
 
-        let shadow_map_depth_pipeline = cinder.device.create_graphics_pipeline(
+        let shadow_map_depth_pipeline = renderer.device.create_graphics_pipeline(
             &shadow_map_vs,
             None,
             GraphicsPipelineDescription {
@@ -510,7 +496,7 @@ impl HelloCube {
             },
         )?;
 
-        let shadow_map_quad_pipeline = cinder.device.create_graphics_pipeline(
+        let shadow_map_quad_pipeline = renderer.device.create_graphics_pipeline(
             &shadow_map_quad_vs,
             Some(&shadow_map_quad_fs),
             Default::default(),
@@ -526,26 +512,26 @@ impl HelloCube {
         //
         // Create Cameras
         //
-        let surface_rect = cinder.device.surface_rect();
-        let aspect_ratio = cinder.device.surface_aspect_ratio();
+        let surface_rect = renderer.device.surface_rect();
+        let aspect_ratio = renderer.device.surface_aspect_ratio();
 
         let light_pos = Vec3::new(3.0, 2.0, 0.0);
         let light_look_at = Vec3::zero();
         let light_front = (light_look_at - light_pos).normalized();
         let light_camera = CameraData::new(
-            &cinder,
+            &renderer,
             pipelines.shadow_map_depth.bind_group_data(0).unwrap(),
             light_pos,
             light_front,
             aspect_ratio,
             None,
         )?;
-        let light_data = LightData::new(&cinder, light_pos, light_look_at, aspect_ratio)?;
+        let light_data = LightData::new(&renderer, light_pos, light_look_at, aspect_ratio)?;
 
         let eye_pos = Vec3::new(4.0, 4.0, 0.0);
         let eye_front = (Vec3::zero() - eye_pos).normalized();
         let eye_camera = CameraData::new(
-            &cinder,
+            &renderer,
             pipelines.lit_mesh.bind_group_data(0).unwrap(),
             eye_pos,
             eye_front,
@@ -557,22 +543,22 @@ impl HelloCube {
         // Create Bind Groups
         //
         let texture_bind_group = BindGroup::new(
-            &cinder.device,
+            &renderer.device,
             pipelines.shadow_map_quad.bind_group_data(0).unwrap(),
         )?;
 
         //
         // Create Images
         //
-        let sampler = cinder.device.create_sampler(Default::default())?;
-        let shadow_map_sampler = cinder.device.create_sampler(SamplerDescription {
+        let sampler = renderer.device.create_sampler(Default::default())?;
+        let shadow_map_sampler = renderer.device.create_sampler(SamplerDescription {
             address_mode: AddressMode::ClampToEdge,
             mipmap_mode: MipmapMode::Nearest,
             border_color: BorderColor::White,
             ..Default::default()
         })?;
 
-        let depth_image = cinder.device.create_image(
+        let depth_image = renderer.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFLOAT,
@@ -580,7 +566,7 @@ impl HelloCube {
                 ..Default::default()
             },
         )?;
-        let shadow_map_image = cinder.device.create_image(
+        let shadow_map_image = renderer.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFLOAT,
@@ -588,8 +574,8 @@ impl HelloCube {
                 ..Default::default()
             },
         )?;
-        cinder.command_queue.transition_image(
-            &cinder.device,
+        renderer.command_queue.transition_image(
+            &renderer.device,
             &shadow_map_image,
             ImageUsage::Depth,
             Layout::Undefined,
@@ -601,10 +587,10 @@ impl HelloCube {
         //
 
         let quad_data =
-            TexturedQuadData::new(&cinder, texture_bind_group, &shadow_map_image, &sampler)?;
+            TexturedQuadData::new(&renderer, texture_bind_group, &shadow_map_image, &sampler)?;
 
         let cube_mesh_data = MeshData::new(
-            &cinder,
+            &renderer,
             &pipelines.lit_mesh,
             &shadow_map_image,
             &shadow_map_sampler,
@@ -723,7 +709,7 @@ impl HelloCube {
         )?;
 
         let plane_mesh_data = MeshData::new(
-            &cinder,
+            &renderer,
             &pipelines.lit_mesh,
             &shadow_map_image,
             &shadow_map_sampler,
@@ -751,19 +737,18 @@ impl HelloCube {
         //
         // Cleanup
         //
-        lit_mesh_vs.destroy(&cinder.device);
-        lit_mesh_fs.destroy(&cinder.device);
-        light_vs.destroy(&cinder.device);
-        light_fs.destroy(&cinder.device);
-        shadow_map_vs.destroy(&cinder.device);
-        shadow_map_quad_vs.destroy(&cinder.device);
-        shadow_map_quad_fs.destroy(&cinder.device);
+        lit_mesh_vs.destroy(&renderer.device);
+        lit_mesh_fs.destroy(&renderer.device);
+        light_vs.destroy(&renderer.device);
+        light_fs.destroy(&renderer.device);
+        shadow_map_vs.destroy(&renderer.device);
+        shadow_map_quad_vs.destroy(&renderer.device);
+        shadow_map_quad_fs.destroy(&renderer.device);
 
-        let depth_image_handle = cinder.resource_manager.insert_image(depth_image);
-        let shadow_map_image_handle = cinder.resource_manager.insert_image(shadow_map_image);
+        let depth_image_handle = renderer.resource_manager.insert_image(depth_image);
+        let shadow_map_image_handle = renderer.resource_manager.insert_image(shadow_map_image);
 
         Ok(Self {
-            cinder,
             pipelines,
             sampler,
             shadow_map_sampler,
@@ -778,19 +763,18 @@ impl HelloCube {
             cube_mesh_data,
             plane_mesh_data,
             show_shadow_map_image: false,
-            allocator: Bump::new(),
         })
     }
 
-    pub fn update(&mut self) -> Result<()> {
-        let elapsed = self.cinder.init_time().elapsed().as_secs_f32();
+    fn update(&mut self, renderer: &mut Renderer) -> Result<()> {
+        let elapsed = renderer.init_time().elapsed().as_secs_f32();
         let scale = (elapsed / 2.5) * (2.0 * std::f32::consts::PI);
 
         self.cube_mesh_data
             .model_transform_buffer
             .mem_copy(0, &[Mat4::rotate(scale, Vec3::new(0.0, 1.0, 0.0))])?;
 
-        let aspect_ratio = self.cinder.device.surface_aspect_ratio();
+        let aspect_ratio = renderer.device.surface_aspect_ratio();
         self.light_data.update(elapsed, aspect_ratio)?;
         self.light_camera.transforms_buffer.mem_copy(
             0,
@@ -808,12 +792,14 @@ impl HelloCube {
         Ok(())
     }
 
-    pub fn draw(&mut self) -> Result<bool> {
-        let mut graph = RenderGraph::new(&self.allocator);
-
+    fn draw<'a>(
+        &'a mut self,
+        allocator: &'a Bump,
+        graph: &mut RenderGraph<'a>,
+    ) -> anyhow::Result<()> {
         graph.add_pass(
-            &self.allocator,
-            RenderPass::new(&self.allocator)
+            &allocator,
+            RenderPass::new(&allocator)
                 .set_depth_attachment(
                     AttachmentType::Reference(self.shadow_map_image_handle),
                     RenderAttachmentDesc {
@@ -825,27 +811,28 @@ impl HelloCube {
                 )
                 .add_output(RenderPassResource::Image(self.shadow_map_image_handle))
                 .with_flipped_viewport(false)
-                .set_callback(&self.allocator, |cinder, cmd_list| {
+                .set_callback(&allocator, |renderer, cmd_list| {
                     cmd_list.bind_descriptor_sets(
-                        &cinder.device,
+                        &renderer.device,
                         &self.pipelines.shadow_map_depth,
                         0,
                         &[self.light_camera.bind_group],
                     );
                     cmd_list
-                        .bind_graphics_pipeline(&cinder.device, &self.pipelines.shadow_map_depth);
+                        .bind_graphics_pipeline(&renderer.device, &self.pipelines.shadow_map_depth);
 
                     // Draw Cube
                     cmd_list.bind_descriptor_sets(
-                        &cinder.device,
+                        &renderer.device,
                         &self.pipelines.shadow_map_depth,
                         1,
                         &[self.cube_mesh_data.model_bind_group],
                     );
-                    cmd_list.bind_index_buffer(&cinder.device, &self.cube_mesh_data.index_buffer);
-                    cmd_list.bind_vertex_buffer(&cinder.device, &self.cube_mesh_data.vertex_buffer);
+                    cmd_list.bind_index_buffer(&renderer.device, &self.cube_mesh_data.index_buffer);
+                    cmd_list
+                        .bind_vertex_buffer(&renderer.device, &self.cube_mesh_data.vertex_buffer);
                     cmd_list.draw_offset(
-                        &cinder.device,
+                        &renderer.device,
                         self.cube_mesh_data.index_buffer.num_elements().unwrap(),
                         0,
                         0,
@@ -853,16 +840,17 @@ impl HelloCube {
 
                     // Draw Plane
                     cmd_list.bind_descriptor_sets(
-                        &cinder.device,
+                        &renderer.device,
                         &self.pipelines.shadow_map_depth,
                         1,
                         &[self.plane_mesh_data.model_bind_group],
                     );
-                    cmd_list.bind_index_buffer(&cinder.device, &self.plane_mesh_data.index_buffer);
                     cmd_list
-                        .bind_vertex_buffer(&cinder.device, &self.plane_mesh_data.vertex_buffer);
+                        .bind_index_buffer(&renderer.device, &self.plane_mesh_data.index_buffer);
+                    cmd_list
+                        .bind_vertex_buffer(&renderer.device, &self.plane_mesh_data.vertex_buffer);
                     cmd_list.draw_offset(
-                        &cinder.device,
+                        &renderer.device,
                         self.plane_mesh_data.index_buffer.num_elements().unwrap(),
                         0,
                         0,
@@ -873,8 +861,8 @@ impl HelloCube {
         );
 
         graph.add_pass(
-            &self.allocator,
-            RenderPass::new(&self.allocator)
+            &allocator,
+            RenderPass::new(&allocator)
                 .add_color_attachment(
                     AttachmentType::SwapchainImage,
                     RenderAttachmentDesc {
@@ -896,17 +884,17 @@ impl HelloCube {
                 .add_input(RenderPassResource::Image(self.shadow_map_image_handle))
                 .add_output(RenderPassResource::SwapchainImage)
                 .with_flipped_viewport(false)
-                .set_callback(&self.allocator, |cinder, cmd_list| {
+                .set_callback(allocator, |renderer, cmd_list| {
                     // Bind Mesh Data
                     cmd_list.bind_descriptor_sets(
-                        &cinder.device,
+                        &renderer.device,
                         &self.pipelines.lit_mesh,
                         0,
                         &[self.eye_camera.bind_group],
                     );
-                    cmd_list.bind_graphics_pipeline(&cinder.device, &self.pipelines.lit_mesh);
+                    cmd_list.bind_graphics_pipeline(&renderer.device, &self.pipelines.lit_mesh);
 
-                    let scale = (cinder.init_time().elapsed().as_secs_f32() / 5.0)
+                    let scale = (renderer.init_time().elapsed().as_secs_f32() / 5.0)
                         * (2.0 * std::f32::consts::PI);
                     let light_color = [
                         (scale.sin() + 1.0) / 2.0,
@@ -916,7 +904,7 @@ impl HelloCube {
 
                     // Draw Cube
                     cmd_list.bind_descriptor_sets(
-                        &cinder.device,
+                        &renderer.device,
                         &self.pipelines.lit_mesh,
                         1,
                         &[
@@ -924,10 +912,11 @@ impl HelloCube {
                             self.cube_mesh_data.shadow_texture_bind_group,
                         ],
                     );
-                    cmd_list.bind_index_buffer(&cinder.device, &self.cube_mesh_data.index_buffer);
-                    cmd_list.bind_vertex_buffer(&cinder.device, &self.cube_mesh_data.vertex_buffer);
+                    cmd_list.bind_index_buffer(&renderer.device, &self.cube_mesh_data.index_buffer);
+                    cmd_list
+                        .bind_vertex_buffer(&renderer.device, &self.cube_mesh_data.vertex_buffer);
                     cmd_list.set_vertex_bytes(
-                        &cinder.device,
+                        &renderer.device,
                         &self.pipelines.lit_mesh,
                         &[LitMeshConstants {
                             color: [161.0 / 255.0, 29.0 / 255.0, 194.0 / 255.0, 0.0],
@@ -937,7 +926,7 @@ impl HelloCube {
                         0,
                     )?;
                     cmd_list.draw_offset(
-                        &cinder.device,
+                        &renderer.device,
                         self.cube_mesh_data.index_buffer.num_elements().unwrap(),
                         0,
                         0,
@@ -945,7 +934,7 @@ impl HelloCube {
 
                     // Draw Plane
                     cmd_list.bind_descriptor_sets(
-                        &cinder.device,
+                        &renderer.device,
                         &self.pipelines.lit_mesh,
                         1,
                         &[
@@ -954,11 +943,12 @@ impl HelloCube {
                         ],
                     );
 
-                    cmd_list.bind_index_buffer(&cinder.device, &self.plane_mesh_data.index_buffer);
                     cmd_list
-                        .bind_vertex_buffer(&cinder.device, &self.plane_mesh_data.vertex_buffer);
+                        .bind_index_buffer(&renderer.device, &self.plane_mesh_data.index_buffer);
+                    cmd_list
+                        .bind_vertex_buffer(&renderer.device, &self.plane_mesh_data.vertex_buffer);
                     cmd_list.set_vertex_bytes(
-                        &cinder.device,
+                        &renderer.device,
                         &self.pipelines.lit_mesh,
                         &[LitMeshConstants {
                             color: [201.0 / 255.0, 114.0 / 255.0, 38.0 / 255.0, 0.0],
@@ -968,7 +958,7 @@ impl HelloCube {
                         0,
                     )?;
                     cmd_list.draw_offset(
-                        &cinder.device,
+                        &renderer.device,
                         self.plane_mesh_data.index_buffer.num_elements().unwrap(),
                         0,
                         0,
@@ -976,27 +966,29 @@ impl HelloCube {
 
                     // Draw Light
                     cmd_list.bind_descriptor_sets(
-                        &cinder.device,
+                        &renderer.device,
                         &self.pipelines.light_caster,
                         0,
                         &[self.eye_camera.bind_group],
                     );
-                    cmd_list.bind_graphics_pipeline(&cinder.device, &self.pipelines.light_caster);
+                    cmd_list.bind_graphics_pipeline(&renderer.device, &self.pipelines.light_caster);
                     cmd_list.set_vertex_bytes(
-                        &cinder.device,
+                        &renderer.device,
                         &self.pipelines.light_caster,
                         &light_color,
                         0,
                     )?;
 
-                    cmd_list
-                        .bind_index_buffer(&cinder.device, &self.light_data.flashlight.cylinder_ib);
+                    cmd_list.bind_index_buffer(
+                        &renderer.device,
+                        &self.light_data.flashlight.cylinder_ib,
+                    );
                     cmd_list.bind_vertex_buffer(
-                        &cinder.device,
+                        &renderer.device,
                         &self.light_data.flashlight.cylinder_vb,
                     );
                     cmd_list.draw_offset(
-                        &cinder.device,
+                        &renderer.device,
                         self.light_data
                             .flashlight
                             .cylinder_ib
@@ -1006,11 +998,12 @@ impl HelloCube {
                         0,
                     );
 
-                    cmd_list.bind_index_buffer(&cinder.device, &self.light_data.flashlight.cone_ib);
                     cmd_list
-                        .bind_vertex_buffer(&cinder.device, &self.light_data.flashlight.cone_vb);
+                        .bind_index_buffer(&renderer.device, &self.light_data.flashlight.cone_ib);
+                    cmd_list
+                        .bind_vertex_buffer(&renderer.device, &self.light_data.flashlight.cone_vb);
                     cmd_list.draw_offset(
-                        &cinder.device,
+                        &renderer.device,
                         self.light_data.flashlight.cone_ib.num_elements().unwrap(),
                         0,
                         0,
@@ -1022,8 +1015,8 @@ impl HelloCube {
 
         if self.show_shadow_map_image {
             graph.add_pass(
-                &self.allocator,
-                RenderPass::new(&self.allocator)
+                &allocator,
+                RenderPass::new(&allocator)
                     .add_color_attachment(
                         AttachmentType::SwapchainImage,
                         RenderAttachmentDesc {
@@ -1034,21 +1027,22 @@ impl HelloCube {
                     .add_input(RenderPassResource::Image(self.shadow_map_image_handle))
                     .add_input(RenderPassResource::SwapchainImage)
                     .with_flipped_viewport(false)
-                    .set_callback(&self.allocator, |cinder, cmd_list| {
+                    .set_callback(allocator, |renderer, cmd_list| {
                         cmd_list.bind_graphics_pipeline(
-                            &cinder.device,
+                            &renderer.device,
                             &self.pipelines.shadow_map_quad,
                         );
                         cmd_list.bind_descriptor_sets(
-                            &cinder.device,
+                            &renderer.device,
                             &self.pipelines.shadow_map_quad,
                             0,
                             &[self.texture_bind_group],
                         );
-                        cmd_list.bind_index_buffer(&cinder.device, &self.quad_data.index_buffer);
-                        cmd_list.bind_vertex_buffer(&cinder.device, &self.quad_data.vertex_buffer);
+                        cmd_list.bind_index_buffer(&renderer.device, &self.quad_data.index_buffer);
+                        cmd_list
+                            .bind_vertex_buffer(&renderer.device, &self.quad_data.vertex_buffer);
                         cmd_list.draw_offset(
-                            &cinder.device,
+                            &renderer.device,
                             self.quad_data.index_buffer.num_elements().unwrap(),
                             0,
                             0,
@@ -1058,42 +1052,36 @@ impl HelloCube {
                     }),
             );
         }
-
-        graph
-            .run(&self.allocator, &mut self.cinder)?
-            .present(&mut self.cinder)
+        Ok(())
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
-        self.cinder.resize(width, height)?;
-
-        self.cinder
+    fn resize(&mut self, renderer: &mut Renderer, width: u32, height: u32) -> Result<()> {
+        renderer
             .resource_manager
             .images
             .get_mut(self.depth_image_handle)
             .unwrap()
-            .resize(&self.cinder.device, Size2D::new(width, height))?;
-        self.cinder
+            .resize(&renderer.device, Size2D::new(width, height))?;
+        renderer
             .resource_manager
             .images
             .get_mut(self.shadow_map_image_handle)
             .unwrap()
-            .resize(&self.cinder.device, Size2D::new(width, height))?;
+            .resize(&renderer.device, Size2D::new(width, height))?;
 
-        let shadow_map_image = self
-            .cinder
+        let shadow_map_image = renderer
             .resource_manager
             .images
             .get(self.shadow_map_image_handle)
             .unwrap();
-        self.cinder.command_queue.transition_image(
-            &self.cinder.device,
+        renderer.command_queue.transition_image(
+            &renderer.device,
             shadow_map_image,
             ImageUsage::Depth,
             Layout::Undefined,
             Layout::DepthStencilReadOnly,
         )?;
-        self.cinder.device.write_bind_group(&[BindGroupBindInfo {
+        renderer.device.write_bind_group(&[BindGroupBindInfo {
             group: self.texture_bind_group,
             dst_binding: 0,
             data: BindGroupWriteData::SampledImage(shadow_map_image.bind_info(
@@ -1104,25 +1092,23 @@ impl HelloCube {
         }])?;
 
         self.cube_mesh_data
-            .resize(&self.cinder, shadow_map_image, &self.shadow_map_sampler)?;
+            .resize(&renderer, shadow_map_image, &self.shadow_map_sampler)?;
         self.plane_mesh_data
-            .resize(&self.cinder, shadow_map_image, &self.shadow_map_sampler)?;
+            .resize(&renderer, shadow_map_image, &self.shadow_map_sampler)?;
         Ok(())
     }
-}
 
-impl Drop for HelloCube {
-    fn drop(&mut self) {
-        self.cinder.device.wait_idle().ok();
-        self.cube_mesh_data.cleanup(&self.cinder);
-        self.plane_mesh_data.cleanup(&self.cinder);
-        self.light_data.cleanup(&self.cinder);
-        self.quad_data.cleanup(&self.cinder);
-        self.eye_camera.cleanup(&self.cinder);
-        self.light_camera.cleanup(&self.cinder);
-        self.sampler.destroy(&self.cinder.device);
-        self.shadow_map_sampler.destroy(&self.cinder.device);
-        self.pipelines.cleanup(&self.cinder);
+    fn cleanup(&mut self, renderer: &mut Renderer) -> anyhow::Result<()> {
+        self.cube_mesh_data.cleanup(&renderer);
+        self.plane_mesh_data.cleanup(&renderer);
+        self.light_data.cleanup(&renderer);
+        self.quad_data.cleanup(&renderer);
+        self.eye_camera.cleanup(&renderer);
+        self.light_camera.cleanup(&renderer);
+        self.sampler.destroy(&renderer.device);
+        self.shadow_map_sampler.destroy(&renderer.device);
+        self.pipelines.cleanup(&renderer);
+        Ok(())
     }
 }
 
@@ -1136,41 +1122,6 @@ fn main() {
         },
     )
     .unwrap();
-
-    let mut renderer = HelloCube::new(&sdl.window).unwrap();
-
-    'running: loop {
-        renderer.allocator.reset();
-        renderer.cinder.start_frame().unwrap();
-
-        for event in sdl.event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => {
-                    break 'running;
-                }
-                Event::KeyDown {
-                    keycode: Some(Keycode::S),
-                    ..
-                } => {
-                    renderer.show_shadow_map_image = !renderer.show_shadow_map_image;
-                }
-                Event::Window {
-                    win_event: sdl2::event::WindowEvent::SizeChanged(width, height),
-                    ..
-                } => {
-                    renderer.resize(width as u32, height as u32).unwrap();
-                }
-                _ => {}
-            }
-        }
-
-        renderer.update().unwrap();
-        renderer.draw().unwrap();
-
-        renderer.cinder.end_frame();
-    }
+    let mut cinder = Cinder::<SimpleLightSample>::new(&sdl.window).unwrap();
+    cinder.run_game_loop(&mut sdl).unwrap();
 }

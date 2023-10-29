@@ -1,20 +1,30 @@
-use bumpalo::Bump;
 use egui_integration::{EguiIntegration, SharedEguiMenu};
-use render_graph::{PresentContext, RenderGraph};
+use render_graph::PresentContext;
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::SdlContext;
 
 pub use egui_integration::egui::Context as DebugUiContext;
+pub use render_graph::{AttachmentType, RenderGraph, RenderPass};
 pub use renderer::{
     command_queue::{AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderAttachmentDesc},
     resources::{
-        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
+        bind_group::{BindGroup, BindGroupBindInfo, BindGroupData, BindGroupWriteData},
         buffer::{Buffer, BufferDescription, BufferUsage},
         image::{Format, Image, ImageDescription, ImageUsage, Layout},
-        pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
+        pipeline::{
+            graphics::{
+                GraphicsPipeline, GraphicsPipelineDescription, VertexAttributeDescription,
+                VertexBindingDesc, VertexDescription, VertexInputRate,
+            },
+            PipelineError,
+        },
+        sampler::{AddressMode, BorderColor, MipmapMode, Sampler, SamplerDescription},
+        shader::ShaderDesc,
     },
     Renderer, ResourceId,
 };
+// TODO: Wrap
+pub use bumpalo::Bump;
 
 pub trait App: Sized {
     // TODO: Explicit error type
@@ -27,9 +37,11 @@ pub trait App: Sized {
 
     fn draw_debug_ui(&mut self, _context: &DebugUiContext) {}
 
+    fn on_frame_start(&mut self) -> anyhow::Result<()> {Ok(())}
     fn update(&mut self, _renderer: &mut Renderer) -> anyhow::Result<()> {
         Ok(())
     }
+    fn on_event(&mut self, _event: &Event) -> anyhow::Result<()> {Ok(())}
     fn resize(
         &mut self,
         _renderer: &mut Renderer,
@@ -122,7 +134,10 @@ where
             self.allocator.reset();
             self.renderer.start_frame()?;
 
+            self.app.on_frame_start()?;
+            
             for event in sdl.event_pump.poll_iter() {
+                self.app.on_event(&event)?;
                 let response = self.egui.on_event(&event);
                 if !response.consumed {
                     match event {
