@@ -1,6 +1,5 @@
 use crate::{
-    command_queue::CommandQueue, device::Device, resources::ResourceManager,
-    shader_hot_reloader::HotReloaderState, swapchain::Swapchain,
+    command_queue::CommandQueue, device::Device, resources::ResourceManager, swapchain::Swapchain,
 };
 use anyhow::Result;
 use raw_window_handle::{HasRawDisplayHandle, HasRawWindowHandle};
