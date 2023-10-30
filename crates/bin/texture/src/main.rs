@@ -1,19 +1,13 @@
 use std::path::PathBuf;
 
 use anyhow::Result;
-use bumpalo::Bump;
 use cinder::{
-    cinder::Cinder,
-    resources::{
-        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
-        buffer::{Buffer, BufferDescription, BufferUsage},
-        image::Layout,
-        pipeline::graphics::GraphicsPipeline,
-    },
+    App, AttachmentType, BindGroup, BindGroupBindInfo, BindGroupWriteData, Buffer,
+    BufferDescription, BufferUsage, Bump, Cinder, GraphicsPipeline, Layout, RenderGraph,
+    RenderPass, Renderer,
 };
 use math::size::Size2D;
-use render_graph::{AttachmentType, RenderGraph, RenderPass};
-use sdl2::{event::Event, keyboard::Keycode, video::Window};
+
 use util::{SdlContext, WindowDescription};
 
 pub const WINDOW_WIDTH: u32 = 1280;
@@ -24,41 +18,33 @@ include!(concat!(
     "/gen/texture_shader_structs.rs"
 ));
 
-pub struct Renderer {
-    cinder: Cinder,
+pub struct TextureSample {
     pipeline: GraphicsPipeline,
     bind_group: BindGroup,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
-    allocator: Bump,
 }
 
-impl Renderer {
-    pub fn new(window: &Window) -> Result<Self> {
-        //
-        // Create Base Resources
-        //
-        let (width, height) = window.drawable_size();
-        let mut cinder = Cinder::new(window, width, height)?;
-
+impl App for TextureSample {
+    fn new(renderer: &mut Renderer, _width: u32, _height: u32) -> Result<Self> {
         //
         // Create App Resources
         //
-        let vertex_shader = cinder.device.create_shader(
+        let vertex_shader = renderer.device.create_shader(
             include_bytes!("../shaders/spv/texture.vert.spv"),
             Default::default(),
         )?;
-        let fragment_shader = cinder.device.create_shader(
+        let fragment_shader = renderer.device.create_shader(
             include_bytes!("../shaders/spv/texture.frag.spv"),
             Default::default(),
         )?;
-        let pipeline = cinder.device.create_graphics_pipeline(
+        let pipeline = renderer.device.create_graphics_pipeline(
             &vertex_shader,
             Some(&fragment_shader),
             Default::default(),
         )?;
-        let bind_group = BindGroup::new(&cinder.device, pipeline.bind_group_data(0).unwrap())?;
-        let sampler = cinder.device.create_sampler(Default::default())?;
+        let bind_group = BindGroup::new(&renderer.device, pipeline.bind_group_data(0).unwrap())?;
+        let sampler = renderer.device.create_sampler(Default::default())?;
         let image_data = zero_copy_assets::try_decoded_file::<zero_copy_assets::ImageData>(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("assets")
@@ -69,13 +55,13 @@ impl Renderer {
                 .join("rust.adi"),
         )
         .unwrap();
-        let texture = cinder.device.create_image_with_data_immediate(
+        let texture = renderer.device.create_image_with_data_immediate(
             Size2D::new(image_data.width, image_data.height),
             &image_data.bytes,
-            &cinder.command_queue,
+            &renderer.command_queue,
             Default::default(),
         )?;
-        cinder.device.write_bind_group(&[BindGroupBindInfo {
+        renderer.device.write_bind_group(&[BindGroupBindInfo {
             group: bind_group,
             dst_binding: 0,
             data: BindGroupWriteData::SampledImage(texture.bind_info(
@@ -84,7 +70,7 @@ impl Renderer {
                 None,
             )),
         }])?;
-        let vertex_buffer = cinder.device.create_buffer_with_data(
+        let vertex_buffer = renderer.device.create_buffer_with_data(
             &[
                 // Top-left
                 TextureVertex {
@@ -112,7 +98,7 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
-        let index_buffer = cinder.device.create_buffer_with_data(
+        let index_buffer = renderer.device.create_buffer_with_data(
             &[0, 1, 2, 2, 3, 0],
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -123,63 +109,55 @@ impl Renderer {
         //
         // Add resources to ResourceManager
         //
-        cinder.resource_manager.insert_sampler(sampler);
-        cinder.resource_manager.insert_image(texture);
+        renderer.resource_manager.insert_sampler(sampler);
+        renderer.resource_manager.insert_image(texture);
 
         //
         // Cleanup
         //
-        vertex_shader.destroy(&cinder.device);
-        fragment_shader.destroy(&cinder.device);
+        vertex_shader.destroy(&renderer.device);
+        fragment_shader.destroy(&renderer.device);
 
         Ok(Self {
-            cinder,
             pipeline,
             vertex_buffer,
             index_buffer,
             bind_group,
-            allocator: Bump::new(),
         })
     }
 
-    pub fn draw(&mut self) -> Result<bool> {
-        let mut graph = RenderGraph::new(&self.allocator);
+    fn draw<'a>(
+        &'a mut self,
+        allocator: &'a Bump,
+        graph: &mut RenderGraph<'a>,
+    ) -> anyhow::Result<()> {
         graph.add_pass(
-            &self.allocator,
-            RenderPass::new(&self.allocator)
+            &allocator,
+            RenderPass::new(allocator)
                 .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
-                .set_callback(&self.allocator, |cinder, cmd_list| {
-                    cmd_list.bind_graphics_pipeline(&cinder.device, &self.pipeline);
-                    cmd_list.bind_index_buffer(&cinder.device, &self.index_buffer);
-                    cmd_list.bind_vertex_buffer(&cinder.device, &self.vertex_buffer);
+                .set_callback(allocator, |renderer, cmd_list| {
+                    cmd_list.bind_graphics_pipeline(&renderer.device, &self.pipeline);
+                    cmd_list.bind_index_buffer(&renderer.device, &self.index_buffer);
+                    cmd_list.bind_vertex_buffer(&renderer.device, &self.vertex_buffer);
                     cmd_list.bind_descriptor_sets(
-                        &cinder.device,
+                        &renderer.device,
                         &self.pipeline,
                         0,
                         &[self.bind_group],
                     );
-                    cmd_list.draw_offset(&cinder.device, 6, 0, 0);
+                    cmd_list.draw_offset(&renderer.device, 6, 0, 0);
 
                     Ok(())
                 }),
         );
-
-        graph
-            .run(&self.allocator, &mut self.cinder)?
-            .present(&mut self.cinder)
+        Ok(())
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
-        self.cinder.resize(width, height)
-    }
-}
-
-impl Drop for Renderer {
-    fn drop(&mut self) {
-        self.cinder.device.wait_idle().ok();
-        self.index_buffer.destroy(&self.cinder.device);
-        self.vertex_buffer.destroy(&self.cinder.device);
-        self.pipeline.destroy(&self.cinder.device);
+    fn cleanup(&mut self, renderer: &mut Renderer) -> anyhow::Result<()> {
+        self.index_buffer.destroy(&renderer.device);
+        self.vertex_buffer.destroy(&renderer.device);
+        self.pipeline.destroy(&renderer.device);
+        Ok(())
     }
 }
 
@@ -193,33 +171,6 @@ fn main() {
         },
     )
     .unwrap();
-
-    let mut renderer = Renderer::new(&sdl.window).unwrap();
-
-    'running: loop {
-        renderer.allocator.reset();
-        renderer.cinder.start_frame().unwrap();
-
-        for event in sdl.event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => {
-                    break 'running;
-                }
-                Event::Window {
-                    win_event: sdl2::event::WindowEvent::SizeChanged(width, height),
-                    ..
-                } => {
-                    renderer.resize(width as u32, height as u32).unwrap();
-                }
-                _ => {}
-            }
-        }
-        renderer.draw().unwrap();
-
-        renderer.cinder.end_frame();
-    }
+    let mut cinder = Cinder::<TextureSample>::new(&sdl.window).unwrap();
+    cinder.run_game_loop(&mut sdl).unwrap();
 }

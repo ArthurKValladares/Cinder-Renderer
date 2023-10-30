@@ -1,0 +1,23 @@
+[package]
+name = "renderer"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+anyhow = "1"
+ash = {version = "0.37"}
+ash-window = {version = "0.12.0"}
+thiserror = "1"
+math = { git = "https://github.com/ArthurKValladares/Yet-Another-Math-Lib" }
+util = { path = "../util" }
+resource-manager = { path = "../resource-manager" }
+tracing = "0.1"
+raw-window-handle = "0.5.0"
+rust-shader-tools = { git = "https://github.com/ArthurKValladares/Rust-Shader-Tools" }
+num = "0.4.0"
+bitflags = { version = "2", features = ["serde"] }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1"
+notify-debouncer-mini = "0.3.0"
+take_mut = "0.2.2"

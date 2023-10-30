@@ -223,20 +223,12 @@ name = "cinder"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "ash",
- "ash-window",
- "bitflags 2.4.1",
- "math",
- "notify-debouncer-mini",
- "num",
+ "bumpalo",
+ "egui-integration",
  "raw-window-handle",
- "resource-manager",
- "rust-shader-tools",
- "serde",
- "serde_json",
- "take_mut",
- "thiserror",
- "tracing",
+ "render_graph",
+ "renderer",
+ "sdl2",
  "util",
 ]
 
@@ -388,12 +380,10 @@ name = "debug"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "cinder",
  "home",
  "image",
  "math",
- "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",
@@ -408,13 +398,11 @@ name = "depth-image"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "camera",
  "cinder",
  "home",
  "image",
  "math",
- "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",
@@ -445,9 +433,9 @@ name = "egui-integration"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "cinder",
  "egui",
  "math",
+ "renderer",
  "sdl2",
  "util",
 ]
@@ -629,13 +617,11 @@ name = "hello-cube"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "camera",
  "cinder",
  "home",
  "image",
  "math",
- "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",
@@ -649,12 +635,10 @@ name = "hello-triangle"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "cinder",
  "home",
  "image",
  "math",
- "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",
@@ -840,13 +824,11 @@ name = "mesh"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "camera",
  "cinder",
  "home",
  "image",
  "math",
- "render_graph",
  "rust-shader-tools",
  "scene",
  "sdl2",
@@ -1189,10 +1171,32 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "bumpalo",
- "cinder",
  "hashbrown 0.14.2",
  "math",
+ "renderer",
  "resource-manager",
+]
+
+[[package]]
+name = "renderer"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "ash",
+ "ash-window",
+ "bitflags 2.4.1",
+ "math",
+ "notify-debouncer-mini",
+ "num",
+ "raw-window-handle",
+ "resource-manager",
+ "rust-shader-tools",
+ "serde",
+ "serde_json",
+ "take_mut",
+ "thiserror",
+ "tracing",
+ "util",
 ]
 
 [[package]]
@@ -1403,14 +1407,12 @@ name = "simple-light"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "camera",
  "cinder",
  "geometry",
  "home",
  "image",
  "math",
- "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",
@@ -1496,11 +1498,9 @@ name = "texture"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "cinder",
  "home",
  "math",
- "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",
@@ -1612,14 +1612,12 @@ name = "ui"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "bumpalo",
  "camera",
  "cinder",
  "egui-integration",
  "home",
  "image",
  "math",
- "render_graph",
  "rust-shader-tools",
  "sdl2",
  "serde",

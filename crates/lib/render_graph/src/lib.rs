@@ -2,14 +2,14 @@
 
 use anyhow::{Ok, Result};
 use bumpalo::{collections::Vec as BumpVec, Bump};
-use cinder::{
+use hashbrown::{hash_map::DefaultHashBuilder, HashMap, HashSet};
+use math::rect::Rect2D;
+use renderer::{
     command_queue::{CommandList, RenderAttachment, RenderAttachmentDesc},
     resources::image::Image,
     swapchain::SwapchainImage,
-    Cinder,
+    Renderer,
 };
-use hashbrown::{hash_map::DefaultHashBuilder, HashMap, HashSet};
-use math::rect::Rect2D;
 use resource_manager::ResourceId;
 
 type BumpHashSet<'a, T> = HashSet<T, DefaultHashBuilder, &'a Bump>;
@@ -48,7 +48,7 @@ pub enum AttachmentType {
     Reference(ResourceId<Image>),
 }
 
-type RenderPassCallback<'a> = dyn Fn(&Cinder, &CommandList) -> Result<()> + 'a;
+type RenderPassCallback<'a> = dyn Fn(&Renderer, &CommandList) -> Result<()> + 'a;
 
 pub struct RenderPass<'a> {
     color_attachments: BumpHashMap<'a, AttachmentType, RenderAttachmentDesc>,
@@ -129,7 +129,7 @@ impl<'a> RenderPass<'a> {
 
     pub fn set_callback<F>(mut self, bump: &'a Bump, callback: F) -> Self
     where
-        F: Fn(&Cinder, &CommandList) -> Result<()> + 'a,
+        F: Fn(&Renderer, &CommandList) -> Result<()> + 'a,
     {
         self.callback = Box::new_in(callback, bump);
         self
@@ -144,7 +144,7 @@ pub struct PresentContext {
 }
 
 impl PresentContext {
-    pub fn present(self, cinder: &mut Cinder) -> Result<bool> {
+    pub fn present(self, cinder: &mut Renderer) -> Result<bool> {
         let ret = cinder
             .swapchain
             .present(&cinder.device, self.cmd_list, self.swapchain_image);
@@ -191,7 +191,7 @@ impl<'a> RenderGraph<'a> {
 
     fn compile_nodes<'b>(&self, bump: &'b Bump) -> BumpVec<RenderGraphNode<'b>> {
         let mut nodes = BumpVec::with_capacity_in(self.passes.len(), bump);
-        for (idx, pass) in self.passes.iter().enumerate() {
+        for (_idx, pass) in self.passes.iter().enumerate() {
             let mut node = RenderGraphNode::new(bump);
 
             // If an input of this node is used as an output by another node, then
@@ -261,7 +261,7 @@ impl<'a> RenderGraph<'a> {
         sorted_nodes
     }
 
-    pub fn run(&mut self, bump: &'a Bump, cinder: &mut Cinder) -> Result<PresentContext> {
+    pub fn run(self, bump: &'a Bump, cinder: &mut Renderer) -> Result<PresentContext> {
         // TODO: Label colors, flag to disable it
 
         let nodes = self.compile_nodes(bump);

@@ -1,20 +1,12 @@
 use anyhow::Result;
-use bumpalo::Bump;
 use cinder::{
-    cinder::Cinder,
-    command_queue::{AttachmentLoadOp, AttachmentStoreOp, ClearValue, RenderAttachmentDesc},
-    resources::{
-        bind_group::{BindGroup, BindGroupBindInfo, BindGroupWriteData},
-        buffer::{Buffer, BufferDescription, BufferUsage},
-        image::{Format, Image, ImageDescription, ImageUsage, Layout},
-        pipeline::graphics::{GraphicsPipeline, GraphicsPipelineDescription},
-        sampler::Sampler,
-    },
-    ResourceId,
+    App, AttachmentLoadOp, AttachmentStoreOp, AttachmentType, BindGroup, BindGroupBindInfo,
+    BindGroupWriteData, Buffer, BufferDescription, BufferUsage, Bump, Cinder, ClearValue, Format,
+    GraphicsPipeline, GraphicsPipelineDescription, Image, ImageDescription, ImageUsage, Layout,
+    RenderAttachmentDesc, RenderGraph, RenderPass, RenderPassResource, Renderer, ResourceId,
+    Sampler,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
-use render_graph::{AttachmentType, RenderGraph, RenderPass, RenderPassResource};
-use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::{SdlContext, WindowDescription};
 
 pub const WINDOW_WIDTH: u32 = 1280;
@@ -29,8 +21,7 @@ include!(concat!(
     "/gen/depth_texture_shader_structs.rs"
 ));
 
-pub struct Renderer {
-    cinder: Cinder,
+pub struct DepthImageSample {
     depth_image_handle: ResourceId<Image>,
     mesh_pipeline: GraphicsPipeline,
     mesh_bind_group: BindGroup,
@@ -42,22 +33,15 @@ pub struct Renderer {
     quad_vertex_buffer: Buffer,
     quad_index_buffer: Buffer,
     sampler: Sampler,
-    allocator: Bump,
 }
 
-impl Renderer {
-    pub fn new(window: &Window) -> Result<Self> {
-        //
-        // Create Base Resources
-        //
-        let (width, height) = window.drawable_size();
-        let mut cinder = Cinder::new(window, width, height)?;
-
+impl App for DepthImageSample {
+    fn new(renderer: &mut Renderer, _width: u32, _height: u32) -> Result<Self> {
         //
         // Create App Resources
         //
-        let surface_rect = cinder.device.surface_rect();
-        let depth_image = cinder.device.create_image(
+        let surface_rect = renderer.device.surface_rect();
+        let depth_image = renderer.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFLOAT,
@@ -65,22 +49,22 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
-        cinder.command_queue.transition_image(
-            &cinder.device,
+        renderer.command_queue.transition_image(
+            &renderer.device,
             &depth_image,
             ImageUsage::Depth,
             Layout::Undefined,
             Layout::DepthStencilReadOnly,
         )?;
-        let mesh_vertex_shader = cinder.device.create_shader(
+        let mesh_vertex_shader = renderer.device.create_shader(
             include_bytes!("../shaders/spv/depth_mesh.vert.spv"),
             Default::default(),
         )?;
-        let mesh_fragment_shader = cinder.device.create_shader(
+        let mesh_fragment_shader = renderer.device.create_shader(
             include_bytes!("../shaders/spv/depth_mesh.frag.spv"),
             Default::default(),
         )?;
-        let mesh_pipeline = cinder.device.create_graphics_pipeline(
+        let mesh_pipeline = renderer.device.create_graphics_pipeline(
             &mesh_vertex_shader,
             Some(&mesh_fragment_shader),
             GraphicsPipelineDescription {
@@ -89,25 +73,27 @@ impl Renderer {
             },
         )?;
         let mesh_bind_group =
-            BindGroup::new(&cinder.device, mesh_pipeline.bind_group_data(0).unwrap())?;
+            BindGroup::new(&renderer.device, mesh_pipeline.bind_group_data(0).unwrap())?;
 
-        let texture_vertex_shader = cinder.device.create_shader(
+        let texture_vertex_shader = renderer.device.create_shader(
             include_bytes!("../shaders/spv/depth_texture.vert.spv"),
             Default::default(),
         )?;
-        let texture_fragment_shader = cinder.device.create_shader(
+        let texture_fragment_shader = renderer.device.create_shader(
             include_bytes!("../shaders/spv/depth_texture.frag.spv"),
             Default::default(),
         )?;
-        let texture_pipeline = cinder.device.create_graphics_pipeline(
+        let texture_pipeline = renderer.device.create_graphics_pipeline(
             &texture_vertex_shader,
             Some(&texture_fragment_shader),
             Default::default(),
         )?;
-        let texture_bind_group =
-            BindGroup::new(&cinder.device, texture_pipeline.bind_group_data(0).unwrap())?;
+        let texture_bind_group = BindGroup::new(
+            &renderer.device,
+            texture_pipeline.bind_group_data(0).unwrap(),
+        )?;
 
-        let cube_vertex_buffer = cinder.device.create_buffer_with_data(
+        let cube_vertex_buffer = renderer.device.create_buffer_with_data(
             &[
                 // Plane at z: -0.5
                 DepthMeshVertex {
@@ -217,7 +203,7 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
-        let cube_index_buffer = cinder.device.create_buffer_with_data(
+        let cube_index_buffer = renderer.device.create_buffer_with_data(
             &[
                 0, 1, 2, 2, 1, 3, // First plane
                 4, 5, 6, 6, 5, 7, // Second plane
@@ -232,7 +218,7 @@ impl Renderer {
             },
         )?;
 
-        let ubo_buffer = cinder.device.create_buffer(
+        let ubo_buffer = renderer.device.create_buffer(
             std::mem::size_of::<DepthMeshUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
@@ -255,13 +241,13 @@ impl Renderer {
                     ),
                 ],
             )?;
-            cinder.device.write_bind_group(&[BindGroupBindInfo {
+            renderer.device.write_bind_group(&[BindGroupBindInfo {
                 dst_binding: 0,
                 group: mesh_bind_group,
                 data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
             }])?;
         }
-        let quad_vertex_buffer = cinder.device.create_buffer_with_data(
+        let quad_vertex_buffer = renderer.device.create_buffer_with_data(
             &[
                 DepthTextureVertex {
                     i_pos: [-1.0, -1.0],
@@ -285,7 +271,7 @@ impl Renderer {
                 ..Default::default()
             },
         )?;
-        let quad_index_buffer = cinder.device.create_buffer_with_data(
+        let quad_index_buffer = renderer.device.create_buffer_with_data(
             &[0, 1, 2, 2, 3, 0],
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -293,8 +279,8 @@ impl Renderer {
             },
         )?;
 
-        let sampler = cinder.device.create_sampler(Default::default())?;
-        cinder.device.write_bind_group(&[BindGroupBindInfo {
+        let sampler = renderer.device.create_sampler(Default::default())?;
+        renderer.device.write_bind_group(&[BindGroupBindInfo {
             group: texture_bind_group,
             dst_binding: 0,
             data: BindGroupWriteData::SampledImage(depth_image.bind_info(
@@ -307,15 +293,14 @@ impl Renderer {
         //
         // Cleanup
         //
-        texture_vertex_shader.destroy(&cinder.device);
-        texture_fragment_shader.destroy(&cinder.device);
-        mesh_vertex_shader.destroy(&cinder.device);
-        mesh_fragment_shader.destroy(&cinder.device);
+        texture_vertex_shader.destroy(&renderer.device);
+        texture_fragment_shader.destroy(&renderer.device);
+        mesh_vertex_shader.destroy(&renderer.device);
+        mesh_fragment_shader.destroy(&renderer.device);
 
-        let depth_image_handle = cinder.resource_manager.insert_image(depth_image);
+        let depth_image_handle = renderer.resource_manager.insert_image(depth_image);
 
         Ok(Self {
-            cinder,
             depth_image_handle,
             mesh_pipeline,
             mesh_bind_group,
@@ -327,13 +312,12 @@ impl Renderer {
             quad_vertex_buffer,
             quad_index_buffer,
             sampler,
-            allocator: Bump::new(),
         })
     }
 
-    pub fn update(&mut self) -> Result<()> {
+    fn update(&mut self, renderer: &mut Renderer) -> Result<()> {
         let scale =
-            (self.cinder.init_time().elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
+            (renderer.init_time().elapsed().as_secs_f32() / 5.0) * (2.0 * std::f32::consts::PI);
         self.ubo_buffer.mem_copy(
             util::offset_of!(DepthMeshUniformBufferObject, model) as u64,
             &[Mat4::rotate(scale, Vec3::new(1.0, 1.0, 0.0))],
@@ -341,12 +325,14 @@ impl Renderer {
         Ok(())
     }
 
-    pub fn draw(&mut self) -> Result<bool> {
-        let mut graph = RenderGraph::new(&self.allocator);
-
+    fn draw<'a>(
+        &'a mut self,
+        allocator: &'a Bump,
+        graph: &mut RenderGraph<'a>,
+    ) -> anyhow::Result<()> {
         graph.add_pass(
-            &self.allocator,
-            RenderPass::new(&self.allocator)
+            allocator,
+            RenderPass::new(allocator)
                 .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
                 .set_depth_attachment(
                     AttachmentType::Reference(self.depth_image_handle),
@@ -358,25 +344,25 @@ impl Renderer {
                     },
                 )
                 .add_output(RenderPassResource::Image(self.depth_image_handle))
-                .set_callback(&self.allocator, |cinder, cmd_list| {
-                    cmd_list.bind_graphics_pipeline(&cinder.device, &self.mesh_pipeline);
-                    cmd_list.bind_index_buffer(&cinder.device, &self.cube_index_buffer);
-                    cmd_list.bind_vertex_buffer(&cinder.device, &self.cube_vertex_buffer);
+                .set_callback(allocator, |renderer, cmd_list| {
+                    cmd_list.bind_graphics_pipeline(&renderer.device, &self.mesh_pipeline);
+                    cmd_list.bind_index_buffer(&renderer.device, &self.cube_index_buffer);
+                    cmd_list.bind_vertex_buffer(&renderer.device, &self.cube_vertex_buffer);
                     cmd_list.bind_descriptor_sets(
-                        &cinder.device,
+                        &renderer.device,
                         &self.mesh_pipeline,
                         0,
                         &[self.mesh_bind_group],
                     );
-                    cmd_list.draw_offset(&cinder.device, 36, 0, 0);
+                    cmd_list.draw_offset(&renderer.device, 36, 0, 0);
 
                     Ok(())
                 }),
         );
 
         graph.add_pass(
-            &self.allocator,
-            RenderPass::new(&self.allocator)
+            allocator,
+            RenderPass::new(allocator)
                 .add_color_attachment(
                     AttachmentType::SwapchainImage,
                     RenderAttachmentDesc {
@@ -385,44 +371,40 @@ impl Renderer {
                     },
                 )
                 .add_input(RenderPassResource::Image(self.depth_image_handle))
-                .set_callback(&self.allocator, |cinder, cmd_list| {
-                    cmd_list.bind_graphics_pipeline(&cinder.device, &self.texture_pipeline);
-                    cmd_list.bind_index_buffer(&cinder.device, &self.quad_index_buffer);
-                    cmd_list.bind_vertex_buffer(&cinder.device, &self.quad_vertex_buffer);
+                .set_callback(allocator, |renderer, cmd_list| {
+                    cmd_list.bind_graphics_pipeline(&renderer.device, &self.texture_pipeline);
+                    cmd_list.bind_index_buffer(&renderer.device, &self.quad_index_buffer);
+                    cmd_list.bind_vertex_buffer(&renderer.device, &self.quad_vertex_buffer);
                     cmd_list.bind_descriptor_sets(
-                        &cinder.device,
+                        &renderer.device,
                         &self.texture_pipeline,
                         0,
                         &[self.texture_bind_group],
                     );
-                    cmd_list.draw_offset(&cinder.device, 6, 0, 0);
+                    cmd_list.draw_offset(&renderer.device, 6, 0, 0);
 
                     Ok(())
                 }),
         );
-
-        graph
-            .run(&self.allocator, &mut self.cinder)?
-            .present(&mut self.cinder)
+        Ok(())
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
-        self.cinder.resize(width, height)?;
-        let depth_image = self
-            .cinder
+    fn resize(&mut self, renderer: &mut Renderer, width: u32, height: u32) -> Result<()> {
+        let depth_image = renderer
             .resource_manager
             .images
             .get_mut(self.depth_image_handle)
             .unwrap();
-        depth_image.resize(&self.cinder.device, Size2D::new(width, height))?;
-        self.cinder.command_queue.transition_image(
-            &self.cinder.device,
+        depth_image.resize(&renderer.device, Size2D::new(width, height))?;
+        // TODO: Some of this stuff should be more automated?
+        renderer.command_queue.transition_image(
+            &renderer.device,
             depth_image,
             ImageUsage::Depth,
             Layout::Undefined,
             Layout::DepthStencilReadOnly,
         )?;
-        self.cinder.device.write_bind_group(&[BindGroupBindInfo {
+        renderer.device.write_bind_group(&[BindGroupBindInfo {
             group: self.texture_bind_group,
             dst_binding: 0,
             data: BindGroupWriteData::SampledImage(depth_image.bind_info(
@@ -434,19 +416,17 @@ impl Renderer {
 
         Ok(())
     }
-}
 
-impl Drop for Renderer {
-    fn drop(&mut self) {
-        self.cinder.device.wait_idle().ok();
-        self.mesh_pipeline.destroy(&self.cinder.device);
-        self.texture_pipeline.destroy(&self.cinder.device);
-        self.cube_vertex_buffer.destroy(&self.cinder.device);
-        self.cube_index_buffer.destroy(&self.cinder.device);
-        self.ubo_buffer.destroy(&self.cinder.device);
-        self.quad_vertex_buffer.destroy(&self.cinder.device);
-        self.quad_index_buffer.destroy(&self.cinder.device);
-        self.sampler.destroy(&self.cinder.device);
+    fn cleanup(&mut self, renderer: &mut Renderer) -> anyhow::Result<()> {
+        self.mesh_pipeline.destroy(&renderer.device);
+        self.texture_pipeline.destroy(&renderer.device);
+        self.cube_vertex_buffer.destroy(&renderer.device);
+        self.cube_index_buffer.destroy(&renderer.device);
+        self.ubo_buffer.destroy(&renderer.device);
+        self.quad_vertex_buffer.destroy(&renderer.device);
+        self.quad_index_buffer.destroy(&renderer.device);
+        self.sampler.destroy(&renderer.device);
+        Ok(())
     }
 }
 
@@ -460,35 +440,6 @@ fn main() {
         },
     )
     .unwrap();
-
-    let mut renderer = Renderer::new(&sdl.window).unwrap();
-
-    'running: loop {
-        renderer.allocator.reset();
-        renderer.cinder.start_frame().unwrap();
-
-        for event in sdl.event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => {
-                    break 'running;
-                }
-                Event::Window {
-                    win_event: sdl2::event::WindowEvent::SizeChanged(width, height),
-                    ..
-                } => {
-                    renderer.resize(width as u32, height as u32).unwrap();
-                }
-                _ => {}
-            }
-        }
-
-        renderer.update().unwrap();
-        renderer.draw().unwrap();
-
-        renderer.cinder.end_frame();
-    }
+    let mut cinder = Cinder::<DepthImageSample>::new(&sdl.window).unwrap();
+    cinder.run_game_loop(&mut sdl).unwrap();
 }

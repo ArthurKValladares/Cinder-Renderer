@@ -4,26 +4,27 @@ use std::{
     marker::PhantomData,
 };
 
-#[repr(transparent)]
 pub struct ResourceId<T> {
     id: usize,
+    generation: u32,
     _marker: PhantomData<T>,
 }
 
 impl<T> ResourceId<T> {
-    pub fn from_index(id: usize) -> Self {
+    pub fn new(id: usize, generation: u32) -> Self {
         Self {
             id,
+            generation,
             _marker: Default::default(),
         }
     }
 
-    pub fn id(&self) -> usize {
+    pub(crate) fn id(&self) -> usize {
         self.id
     }
 
-    pub fn as_unit(&self) -> ResourceId<()> {
-        ResourceId::<()>::from_index(self.id())
+    pub(crate) fn generation(&self) -> u32 {
+        self.generation
     }
 }
 
@@ -37,10 +38,12 @@ impl<T> Clone for ResourceId<T> {
     fn clone(&self) -> Self {
         Self {
             id: self.id,
+            generation: self.generation,
             _marker: Default::default(),
         }
     }
 }
+
 impl<T> Copy for ResourceId<T> {}
 
 impl<T> PartialEq for ResourceId<T> {

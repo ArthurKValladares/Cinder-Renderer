@@ -68,7 +68,7 @@ impl SurfaceMesh {
     }
 
     pub fn cone<const N: usize>(height: f32, radius: f32) -> Self {
-        let top_offset = N + 1;
+        let _top_offset = N + 1;
         let mut vertices: Vec<Vertex> = vec![Default::default(); N + 2];
         let mut indices: Vec<u32> = vec![0; N * 6];
 

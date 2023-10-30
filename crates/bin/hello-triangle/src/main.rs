@@ -1,20 +1,9 @@
-use anyhow::Result;
-use bumpalo::Bump;
 use cinder::{
-    resources::{
-        buffer::{Buffer, BufferDescription, BufferUsage},
-        pipeline::graphics::GraphicsPipeline,
-    },
-    Cinder,
+    App, AttachmentType, Buffer, BufferDescription, BufferUsage, Bump, Cinder, GraphicsPipeline,
+    RenderGraph, RenderPass, Renderer,
 };
 use math::{mat::Mat4, vec::Vec3};
-use render_graph::{AttachmentType, RenderGraph, RenderPass};
-use sdl2::{event::Event, keyboard::Keycode, video::Window};
-use tracking_allocator::TrackingAllocator;
 use util::{SdlContext, WindowDescription};
-
-#[global_allocator]
-static A: TrackingAllocator = TrackingAllocator;
 
 pub const WINDOW_WIDTH: u32 = 1280;
 pub const WINDOW_HEIGHT: u32 = 1280;
@@ -24,37 +13,29 @@ include!(concat!(
     "/gen/triangle_shader_structs.rs"
 ));
 
-// TODO: Abstract a lot of this in a `App` trait that will reduce boilerplate
-
-// TODO: a `Cleanup` proc-macro
 pub struct HelloTriangle {
-    cinder: Cinder,
     pipeline: GraphicsPipeline,
     vertex_buffer: Buffer,
     index_buffer: Buffer,
-    allocator: Bump,
 }
 
-impl HelloTriangle {
-    pub fn new(window: &Window) -> Result<Self> {
-        let (width, height) = window.drawable_size();
-        let cinder = Cinder::new(window, width, height)?;
-
-        let vertex_shader = cinder.device.create_shader(
+impl App for HelloTriangle {
+    fn new(renderer: &mut Renderer, _width: u32, _height: u32) -> anyhow::Result<Self> {
+        let vertex_shader = renderer.device.create_shader(
             include_bytes!("../shaders/spv/triangle.vert.spv"),
             Default::default(),
         )?;
-        let fragment_shader = cinder.device.create_shader(
+        let fragment_shader = renderer.device.create_shader(
             include_bytes!("../shaders/spv/triangle.frag.spv"),
             Default::default(),
         )?;
-        let pipeline = cinder.device.create_graphics_pipeline(
+        let pipeline = renderer.device.create_graphics_pipeline(
             &vertex_shader,
             Some(&fragment_shader),
             Default::default(),
         )?;
 
-        let vertex_buffer = cinder.device.create_buffer_with_data(
+        let vertex_buffer = renderer.device.create_buffer_with_data(
             &[
                 TriangleVertex {
                     i_pos: [0.0, 0.5],
@@ -74,7 +55,7 @@ impl HelloTriangle {
                 ..Default::default()
             },
         )?;
-        let index_buffer = cinder.device.create_buffer_with_data(
+        let index_buffer = renderer.device.create_buffer_with_data(
             &[0, 1, 2],
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -82,25 +63,26 @@ impl HelloTriangle {
             },
         )?;
 
-        vertex_shader.destroy(&cinder.device);
-        fragment_shader.destroy(&cinder.device);
+        vertex_shader.destroy(&renderer.device);
+        fragment_shader.destroy(&renderer.device);
 
         Ok(Self {
-            cinder,
             pipeline,
             vertex_buffer,
             index_buffer,
-            allocator: Bump::new(),
         })
     }
 
-    pub fn draw(&mut self) -> Result<bool> {
-        let mut graph = RenderGraph::new(&self.allocator);
+    fn draw<'a>(
+        &'a mut self,
+        allocator: &'a Bump,
+        graph: &mut RenderGraph<'a>,
+    ) -> anyhow::Result<()> {
         graph.add_pass(
-            &self.allocator,
-            RenderPass::new(&self.allocator)
+            allocator,
+            RenderPass::new(allocator)
                 .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
-                .set_callback(&self.allocator, |cinder, cmd_list| {
+                .set_callback(allocator, |cinder, cmd_list| {
                     cmd_list.bind_graphics_pipeline(&cinder.device, &self.pipeline);
                     cmd_list.bind_index_buffer(&cinder.device, &self.index_buffer);
                     cmd_list.bind_vertex_buffer(&cinder.device, &self.vertex_buffer);
@@ -119,23 +101,14 @@ impl HelloTriangle {
                     Ok(())
                 }),
         );
-
-        graph
-            .run(&self.allocator, &mut self.cinder)?
-            .present(&mut self.cinder)
+        Ok(())
     }
 
-    pub fn resize(&mut self, width: u32, height: u32) -> Result<()> {
-        self.cinder.resize(width, height)
-    }
-}
-
-impl Drop for HelloTriangle {
-    fn drop(&mut self) {
-        self.cinder.device.wait_idle().ok();
-        self.index_buffer.destroy(&self.cinder.device);
-        self.vertex_buffer.destroy(&self.cinder.device);
-        self.pipeline.destroy(&self.cinder.device);
+    fn cleanup(&mut self, renderer: &mut Renderer) -> anyhow::Result<()> {
+        self.index_buffer.destroy(&renderer.device);
+        self.vertex_buffer.destroy(&renderer.device);
+        self.pipeline.destroy(&renderer.device);
+        Ok(())
     }
 }
 
@@ -149,35 +122,6 @@ fn main() {
         },
     )
     .unwrap();
-
-    let mut hello_triangle = HelloTriangle::new(&sdl.window).unwrap();
-
-    'running: loop {
-        println!("---");
-        hello_triangle.allocator.reset();
-        hello_triangle.cinder.start_frame().unwrap();
-
-        for event in sdl.event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. }
-                | Event::KeyDown {
-                    keycode: Some(Keycode::Escape),
-                    ..
-                } => {
-                    break 'running;
-                }
-                Event::Window {
-                    win_event: sdl2::event::WindowEvent::SizeChanged(width, height),
-                    ..
-                } => {
-                    hello_triangle.resize(width as u32, height as u32).unwrap();
-                }
-                _ => {}
-            }
-        }
-
-        hello_triangle.draw().unwrap();
-
-        hello_triangle.cinder.end_frame();
-    }
+    let mut cinder = Cinder::<HelloTriangle>::new(&sdl.window).unwrap();
+    cinder.run_game_loop(&mut sdl).unwrap();
 }
