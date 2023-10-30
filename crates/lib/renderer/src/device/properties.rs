@@ -34,6 +34,7 @@ impl DeviceProperties {
         self.p_device_properties
     }
 
+    #[allow(dead_code)]
     pub fn properties2(&self) -> vk::PhysicalDeviceProperties2 {
         self.p_device_properties2
     }
