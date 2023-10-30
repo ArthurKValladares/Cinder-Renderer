@@ -1,6 +1,6 @@
 use cinder::{
     App, AttachmentType, Buffer, BufferDescription, BufferUsage, Bump, Cinder, GraphicsPipeline,
-    RenderGraph, RenderPass, Renderer,
+    InitContext, RenderGraph, RenderPass, Renderer,
 };
 use math::{mat::Mat4, vec::Vec3};
 use util::{SdlContext, WindowDescription};
@@ -20,22 +20,22 @@ pub struct HelloTriangle {
 }
 
 impl App for HelloTriangle {
-    fn new(renderer: &mut Renderer, _width: u32, _height: u32) -> anyhow::Result<Self> {
-        let vertex_shader = renderer.device.create_shader(
+    fn new(context: InitContext<'_>) -> anyhow::Result<Self> {
+        let vertex_shader = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/triangle.vert.spv"),
             Default::default(),
         )?;
-        let fragment_shader = renderer.device.create_shader(
+        let fragment_shader = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/triangle.frag.spv"),
             Default::default(),
         )?;
-        let pipeline = renderer.device.create_graphics_pipeline(
+        let pipeline = context.renderer.device.create_graphics_pipeline(
             &vertex_shader,
             Some(&fragment_shader),
             Default::default(),
         )?;
 
-        let vertex_buffer = renderer.device.create_buffer_with_data(
+        let vertex_buffer = context.renderer.device.create_buffer_with_data(
             &[
                 TriangleVertex {
                     i_pos: [0.0, 0.5],
@@ -55,7 +55,7 @@ impl App for HelloTriangle {
                 ..Default::default()
             },
         )?;
-        let index_buffer = renderer.device.create_buffer_with_data(
+        let index_buffer = context.renderer.device.create_buffer_with_data(
             &[0, 1, 2],
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -63,8 +63,8 @@ impl App for HelloTriangle {
             },
         )?;
 
-        vertex_shader.destroy(&renderer.device);
-        fragment_shader.destroy(&renderer.device);
+        vertex_shader.destroy(&context.renderer.device);
+        fragment_shader.destroy(&context.renderer.device);
 
         Ok(Self {
             pipeline,

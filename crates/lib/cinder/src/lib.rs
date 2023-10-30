@@ -1,5 +1,6 @@
 use egui_integration::{EguiIntegration, SharedEguiMenu};
 use render_graph::PresentContext;
+use renderer::shader_hot_reloader::HotReloaderState;
 use sdl2::{event::Event, keyboard::Keycode, video::Window};
 use util::SdlContext;
 
@@ -26,9 +27,14 @@ pub use renderer::{
 // TODO: Wrap
 pub use bumpalo::Bump;
 
+pub struct InitContext<'a> {
+    pub renderer: &'a mut Renderer,
+    pub shader_hot_reloader: &'a mut HotReloaderState,
+}
+
 pub trait App: Sized {
     // TODO: Explicit error type
-    fn new(renderer: &mut Renderer, width: u32, height: u32) -> anyhow::Result<Self>;
+    fn new(context: InitContext<'_>) -> anyhow::Result<Self>;
     fn draw<'a>(
         &'a mut self,
         allocator: &'a Bump,
@@ -64,6 +70,8 @@ pub struct Cinder<A: App> {
     allocator: Bump,
     egui: EguiIntegration,
     shared_egui_menu: SharedEguiMenu,
+    // TODO: feature flag to disable, off by default in release (i.e. shader-hot-reload and shader-hot-reload-release features)
+    shader_hot_reloader: HotReloaderState,
     app: A,
 }
 
@@ -82,14 +90,20 @@ where
             &renderer.swapchain,
         )?;
         let shared_egui_menu = SharedEguiMenu::default();
+        let mut shader_hot_reloader = HotReloaderState::new()?;
 
-        let app = A::new(&mut renderer, width, height)?;
+        let context = InitContext {
+            renderer: &mut renderer,
+            shader_hot_reloader: &mut shader_hot_reloader,
+        };
+        let app = A::new(context)?;
 
         Ok(Self {
             renderer,
             allocator,
             egui,
             shared_egui_menu,
+            shader_hot_reloader,
             app,
         })
     }
@@ -133,7 +147,37 @@ where
         Ok(())
     }
 
+    fn init_hot_reloader(&mut self) {
+        take_mut::take(&mut self.shader_hot_reloader, |hot_reloader| {
+            hot_reloader.run()
+        });
+    }
+
+    fn update_hot_reloader(&mut self) -> anyhow::Result<()> {
+        for update_data in self.shader_hot_reloader.drain()? {
+            if let Some(pipeline_shader_set) = self
+                .shader_hot_reloader
+                .get_pipeline(update_data.shader_handle)
+            {
+                self.renderer.device.recreate_shader(
+                    &mut self.renderer.resource_manager,
+                    update_data.shader_handle,
+                    &update_data.bytes,
+                )?;
+                self.renderer.device.recreate_graphics_pipeline(
+                    &mut self.renderer.resource_manager,
+                    pipeline_shader_set.pipeline_handle,
+                    pipeline_shader_set.vertex_handle,
+                    Some(pipeline_shader_set.fragment_handle),
+                )?;
+            }
+        }
+        Ok(())
+    }
+
     pub fn run_game_loop(&mut self, sdl: &mut SdlContext) -> anyhow::Result<()> {
+        self.init_hot_reloader();
+
         'running: loop {
             self.allocator.reset();
             self.renderer.start_frame()?;
@@ -163,7 +207,9 @@ where
                 }
             }
 
+            self.update_hot_reloader()?;
             self.update()?;
+
             self.draw()?;
 
             self.renderer.end_frame();

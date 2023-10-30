@@ -3,8 +3,8 @@ use std::path::PathBuf;
 use anyhow::Result;
 use cinder::{
     App, AttachmentType, BindGroup, BindGroupBindInfo, BindGroupWriteData, Buffer,
-    BufferDescription, BufferUsage, Bump, Cinder, GraphicsPipeline, Layout, RenderGraph,
-    RenderPass, Renderer,
+    BufferDescription, BufferUsage, Bump, Cinder, GraphicsPipeline, InitContext, Layout,
+    RenderGraph, RenderPass, Renderer,
 };
 use math::size::Size2D;
 
@@ -26,25 +26,28 @@ pub struct TextureSample {
 }
 
 impl App for TextureSample {
-    fn new(renderer: &mut Renderer, _width: u32, _height: u32) -> Result<Self> {
+    fn new(context: InitContext<'_>) -> Result<Self> {
         //
         // Create App Resources
         //
-        let vertex_shader = renderer.device.create_shader(
+        let vertex_shader = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/texture.vert.spv"),
             Default::default(),
         )?;
-        let fragment_shader = renderer.device.create_shader(
+        let fragment_shader = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/texture.frag.spv"),
             Default::default(),
         )?;
-        let pipeline = renderer.device.create_graphics_pipeline(
+        let pipeline = context.renderer.device.create_graphics_pipeline(
             &vertex_shader,
             Some(&fragment_shader),
             Default::default(),
         )?;
-        let bind_group = BindGroup::new(&renderer.device, pipeline.bind_group_data(0).unwrap())?;
-        let sampler = renderer.device.create_sampler(Default::default())?;
+        let bind_group = BindGroup::new(
+            &context.renderer.device,
+            pipeline.bind_group_data(0).unwrap(),
+        )?;
+        let sampler = context.renderer.device.create_sampler(Default::default())?;
         let image_data = zero_copy_assets::try_decoded_file::<zero_copy_assets::ImageData>(
             PathBuf::from(env!("CARGO_MANIFEST_DIR"))
                 .join("assets")
@@ -55,22 +58,25 @@ impl App for TextureSample {
                 .join("rust.adi"),
         )
         .unwrap();
-        let texture = renderer.device.create_image_with_data_immediate(
+        let texture = context.renderer.device.create_image_with_data_immediate(
             Size2D::new(image_data.width, image_data.height),
             &image_data.bytes,
-            &renderer.command_queue,
+            &context.renderer.command_queue,
             Default::default(),
         )?;
-        renderer.device.write_bind_group(&[BindGroupBindInfo {
-            group: bind_group,
-            dst_binding: 0,
-            data: BindGroupWriteData::SampledImage(texture.bind_info(
-                &sampler,
-                Layout::ShaderReadOnly,
-                None,
-            )),
-        }])?;
-        let vertex_buffer = renderer.device.create_buffer_with_data(
+        context
+            .renderer
+            .device
+            .write_bind_group(&[BindGroupBindInfo {
+                group: bind_group,
+                dst_binding: 0,
+                data: BindGroupWriteData::SampledImage(texture.bind_info(
+                    &sampler,
+                    Layout::ShaderReadOnly,
+                    None,
+                )),
+            }])?;
+        let vertex_buffer = context.renderer.device.create_buffer_with_data(
             &[
                 // Top-left
                 TextureVertex {
@@ -98,7 +104,7 @@ impl App for TextureSample {
                 ..Default::default()
             },
         )?;
-        let index_buffer = renderer.device.create_buffer_with_data(
+        let index_buffer = context.renderer.device.create_buffer_with_data(
             &[0, 1, 2, 2, 3, 0],
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -109,14 +115,14 @@ impl App for TextureSample {
         //
         // Add resources to ResourceManager
         //
-        renderer.resource_manager.insert_sampler(sampler);
-        renderer.resource_manager.insert_image(texture);
+        context.renderer.resource_manager.insert_sampler(sampler);
+        context.renderer.resource_manager.insert_image(texture);
 
         //
         // Cleanup
         //
-        vertex_shader.destroy(&renderer.device);
-        fragment_shader.destroy(&renderer.device);
+        vertex_shader.destroy(&context.renderer.device);
+        fragment_shader.destroy(&context.renderer.device);
 
         Ok(Self {
             pipeline,

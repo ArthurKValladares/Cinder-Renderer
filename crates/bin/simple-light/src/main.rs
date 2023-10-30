@@ -3,8 +3,8 @@ use cinder::{
     AddressMode, App, AttachmentLoadOp, AttachmentStoreOp, AttachmentType, BindGroup,
     BindGroupBindInfo, BindGroupData, BindGroupWriteData, BorderColor, Buffer, BufferDescription,
     BufferUsage, Bump, Cinder, ClearValue, Format, GraphicsPipeline, GraphicsPipelineDescription,
-    Image, ImageDescription, ImageUsage, Layout, MipmapMode, RenderAttachmentDesc, RenderGraph,
-    RenderPass, RenderPassResource, Renderer, ResourceId, Sampler, SamplerDescription,
+    Image, ImageDescription, ImageUsage, InitContext, Layout, MipmapMode, RenderAttachmentDesc,
+    RenderGraph, RenderPass, RenderPassResource, Renderer, ResourceId, Sampler, SamplerDescription,
     VertexAttributeDescription, VertexBindingDesc, VertexDescription, VertexInputRate,
 };
 use math::{mat::Mat4, point::Point2D, size::Size2D, vec::Vec3};
@@ -417,43 +417,43 @@ pub struct SimpleLightSample {
 }
 
 impl App for SimpleLightSample {
-    fn new(renderer: &mut Renderer, _width: u32, _height: u32) -> Result<Self> {
+    fn new(context: InitContext<'_>) -> Result<Self> {
         //
         // Create Shaders and Pipelines
         //
-        let light_vs = renderer.device.create_shader(
+        let light_vs = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/light.vert.spv"),
             Default::default(),
         )?;
-        let light_fs = renderer.device.create_shader(
+        let light_fs = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/light.frag.spv"),
             Default::default(),
         )?;
 
-        let lit_mesh_vs = renderer.device.create_shader(
+        let lit_mesh_vs = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/lit_mesh.vert.spv"),
             Default::default(),
         )?;
-        let lit_mesh_fs = renderer.device.create_shader(
+        let lit_mesh_fs = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/lit_mesh.frag.spv"),
             Default::default(),
         )?;
 
-        let shadow_map_vs = renderer.device.create_shader(
+        let shadow_map_vs = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/shadow_map.vert.spv"),
             Default::default(),
         )?;
 
-        let shadow_map_quad_vs = renderer.device.create_shader(
+        let shadow_map_quad_vs = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/shadow_map_quad.vert.spv"),
             Default::default(),
         )?;
-        let shadow_map_quad_fs = renderer.device.create_shader(
+        let shadow_map_quad_fs = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/shadow_map_quad.frag.spv"),
             Default::default(),
         )?;
 
-        let lit_mesh_pipeline = renderer.device.create_graphics_pipeline(
+        let lit_mesh_pipeline = context.renderer.device.create_graphics_pipeline(
             &lit_mesh_vs,
             Some(&lit_mesh_fs),
             GraphicsPipelineDescription {
@@ -462,7 +462,7 @@ impl App for SimpleLightSample {
             },
         )?;
 
-        let light_caster_pipeline = renderer.device.create_graphics_pipeline(
+        let light_caster_pipeline = context.renderer.device.create_graphics_pipeline(
             &light_vs,
             Some(&light_fs),
             GraphicsPipelineDescription {
@@ -471,7 +471,7 @@ impl App for SimpleLightSample {
             },
         )?;
 
-        let shadow_map_depth_pipeline = renderer.device.create_graphics_pipeline(
+        let shadow_map_depth_pipeline = context.renderer.device.create_graphics_pipeline(
             &shadow_map_vs,
             None,
             GraphicsPipelineDescription {
@@ -494,7 +494,7 @@ impl App for SimpleLightSample {
             },
         )?;
 
-        let shadow_map_quad_pipeline = renderer.device.create_graphics_pipeline(
+        let shadow_map_quad_pipeline = context.renderer.device.create_graphics_pipeline(
             &shadow_map_quad_vs,
             Some(&shadow_map_quad_fs),
             Default::default(),
@@ -510,26 +510,26 @@ impl App for SimpleLightSample {
         //
         // Create Cameras
         //
-        let surface_rect = renderer.device.surface_rect();
-        let aspect_ratio = renderer.device.surface_aspect_ratio();
+        let surface_rect = context.renderer.device.surface_rect();
+        let aspect_ratio = context.renderer.device.surface_aspect_ratio();
 
         let light_pos = Vec3::new(3.0, 2.0, 0.0);
         let light_look_at = Vec3::zero();
         let light_front = (light_look_at - light_pos).normalized();
         let light_camera = CameraData::new(
-            &renderer,
+            &context.renderer,
             pipelines.shadow_map_depth.bind_group_data(0).unwrap(),
             light_pos,
             light_front,
             aspect_ratio,
             None,
         )?;
-        let light_data = LightData::new(&renderer, light_pos, light_look_at, aspect_ratio)?;
+        let light_data = LightData::new(&context.renderer, light_pos, light_look_at, aspect_ratio)?;
 
         let eye_pos = Vec3::new(4.0, 4.0, 0.0);
         let eye_front = (Vec3::zero() - eye_pos).normalized();
         let eye_camera = CameraData::new(
-            &renderer,
+            &context.renderer,
             pipelines.lit_mesh.bind_group_data(0).unwrap(),
             eye_pos,
             eye_front,
@@ -541,22 +541,22 @@ impl App for SimpleLightSample {
         // Create Bind Groups
         //
         let texture_bind_group = BindGroup::new(
-            &renderer.device,
+            &context.renderer.device,
             pipelines.shadow_map_quad.bind_group_data(0).unwrap(),
         )?;
 
         //
         // Create Images
         //
-        let sampler = renderer.device.create_sampler(Default::default())?;
-        let shadow_map_sampler = renderer.device.create_sampler(SamplerDescription {
+        let sampler = context.renderer.device.create_sampler(Default::default())?;
+        let shadow_map_sampler = context.renderer.device.create_sampler(SamplerDescription {
             address_mode: AddressMode::ClampToEdge,
             mipmap_mode: MipmapMode::Nearest,
             border_color: BorderColor::White,
             ..Default::default()
         })?;
 
-        let depth_image = renderer.device.create_image(
+        let depth_image = context.renderer.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFLOAT,
@@ -564,7 +564,7 @@ impl App for SimpleLightSample {
                 ..Default::default()
             },
         )?;
-        let shadow_map_image = renderer.device.create_image(
+        let shadow_map_image = context.renderer.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFLOAT,
@@ -572,8 +572,8 @@ impl App for SimpleLightSample {
                 ..Default::default()
             },
         )?;
-        renderer.command_queue.transition_image(
-            &renderer.device,
+        context.renderer.command_queue.transition_image(
+            &context.renderer.device,
             &shadow_map_image,
             ImageUsage::Depth,
             Layout::Undefined,
@@ -584,11 +584,15 @@ impl App for SimpleLightSample {
         // Create Meshes
         //
 
-        let quad_data =
-            TexturedQuadData::new(&renderer, texture_bind_group, &shadow_map_image, &sampler)?;
+        let quad_data = TexturedQuadData::new(
+            context.renderer,
+            texture_bind_group,
+            &shadow_map_image,
+            &sampler,
+        )?;
 
         let cube_mesh_data = MeshData::new(
-            &renderer,
+            context.renderer,
             &pipelines.lit_mesh,
             &shadow_map_image,
             &shadow_map_sampler,
@@ -707,7 +711,7 @@ impl App for SimpleLightSample {
         )?;
 
         let plane_mesh_data = MeshData::new(
-            &renderer,
+            &context.renderer,
             &pipelines.lit_mesh,
             &shadow_map_image,
             &shadow_map_sampler,
@@ -735,16 +739,19 @@ impl App for SimpleLightSample {
         //
         // Cleanup
         //
-        lit_mesh_vs.destroy(&renderer.device);
-        lit_mesh_fs.destroy(&renderer.device);
-        light_vs.destroy(&renderer.device);
-        light_fs.destroy(&renderer.device);
-        shadow_map_vs.destroy(&renderer.device);
-        shadow_map_quad_vs.destroy(&renderer.device);
-        shadow_map_quad_fs.destroy(&renderer.device);
+        lit_mesh_vs.destroy(&context.renderer.device);
+        lit_mesh_fs.destroy(&context.renderer.device);
+        light_vs.destroy(&context.renderer.device);
+        light_fs.destroy(&context.renderer.device);
+        shadow_map_vs.destroy(&context.renderer.device);
+        shadow_map_quad_vs.destroy(&context.renderer.device);
+        shadow_map_quad_fs.destroy(&context.renderer.device);
 
-        let depth_image_handle = renderer.resource_manager.insert_image(depth_image);
-        let shadow_map_image_handle = renderer.resource_manager.insert_image(shadow_map_image);
+        let depth_image_handle = context.renderer.resource_manager.insert_image(depth_image);
+        let shadow_map_image_handle = context
+            .renderer
+            .resource_manager
+            .insert_image(shadow_map_image);
 
         Ok(Self {
             pipelines,

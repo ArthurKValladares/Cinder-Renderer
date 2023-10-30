@@ -2,8 +2,8 @@ use anyhow::Result;
 use cinder::{
     App, AttachmentStoreOp, AttachmentType, BindGroup, BindGroupBindInfo, BindGroupWriteData,
     Buffer, BufferDescription, BufferUsage, Bump, Cinder, ClearValue, Format, GraphicsPipeline,
-    GraphicsPipelineDescription, Image, ImageDescription, ImageUsage, Layout, RenderAttachmentDesc,
-    RenderGraph, RenderPass, Renderer, ResourceId,
+    GraphicsPipelineDescription, Image, ImageDescription, ImageUsage, InitContext, Layout,
+    RenderAttachmentDesc, RenderGraph, RenderPass, Renderer, ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use scene::{ObjMesh, Scene, Vertex};
@@ -57,12 +57,12 @@ pub struct MeshSample {
 }
 
 impl App for MeshSample {
-    fn new(renderer: &mut Renderer, _width: u32, _height: u32) -> Result<Self> {
+    fn new(context: InitContext<'_>) -> Result<Self> {
         //
         // Create App Resources
         //
-        let surface_rect = renderer.device.surface_rect();
-        let depth_image = renderer.device.create_image(
+        let surface_rect = context.renderer.device.surface_rect();
+        let depth_image = context.renderer.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFLOAT,
@@ -70,15 +70,15 @@ impl App for MeshSample {
                 ..Default::default()
             },
         )?;
-        let vertex_shader = renderer.device.create_shader(
+        let vertex_shader = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/mesh.vert.spv"),
             Default::default(),
         )?;
-        let fragment_shader = renderer.device.create_shader(
+        let fragment_shader = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/mesh.frag.spv"),
             Default::default(),
         )?;
-        let pipeline = renderer.device.create_graphics_pipeline(
+        let pipeline = context.renderer.device.create_graphics_pipeline(
             &vertex_shader,
             Some(&fragment_shader),
             GraphicsPipelineDescription {
@@ -86,9 +86,12 @@ impl App for MeshSample {
                 ..Default::default()
             },
         )?;
-        let bind_group = BindGroup::new(&renderer.device, pipeline.bind_group_data(0).unwrap())?;
+        let bind_group = BindGroup::new(
+            &context.renderer.device,
+            pipeline.bind_group_data(0).unwrap(),
+        )?;
 
-        let ubo_buffer = renderer.device.create_buffer(
+        let ubo_buffer = context.renderer.device.create_buffer(
             std::mem::size_of::<MeshUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
@@ -111,19 +114,19 @@ impl App for MeshSample {
             ],
         )?;
 
-        let sampler = renderer.device.create_sampler(Default::default())?;
+        let sampler = context.renderer.device.create_sampler(Default::default())?;
         let image = image::load_from_memory(include_bytes!("../assets/textures/viking_room.png"))
             .unwrap()
             .to_rgba8();
         let (width, height) = image.dimensions();
         let image_data = image.into_raw();
-        let texture = renderer.device.create_image_with_data_immediate(
+        let texture = context.renderer.device.create_image_with_data_immediate(
             Size2D::new(width, height),
             &image_data,
-            &renderer.command_queue,
+            &context.renderer.command_queue,
             Default::default(),
         )?;
-        renderer.device.write_bind_group(&[
+        context.renderer.device.write_bind_group(&[
             BindGroupBindInfo {
                 group: bind_group,
                 dst_binding: 0,
@@ -147,14 +150,14 @@ impl App for MeshSample {
             "viking_room.obj",
         )?;
         let mesh = scene.meshes.first().unwrap();
-        let vertex_buffer = renderer.device.create_buffer_with_data(
+        let vertex_buffer = context.renderer.device.create_buffer_with_data(
             &mesh.vertices,
             BufferDescription {
                 usage: BufferUsage::VERTEX,
                 ..Default::default()
             },
         )?;
-        let index_buffer = renderer.device.create_buffer_with_data(
+        let index_buffer = context.renderer.device.create_buffer_with_data(
             &mesh.indices,
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -165,16 +168,16 @@ impl App for MeshSample {
         //
         // Add resources to ResourceManager
         //
-        renderer.resource_manager.insert_sampler(sampler);
-        renderer.resource_manager.insert_image(texture);
+        context.renderer.resource_manager.insert_sampler(sampler);
+        context.renderer.resource_manager.insert_image(texture);
 
         //
         // Cleanup
         //
-        vertex_shader.destroy(&renderer.device);
-        fragment_shader.destroy(&renderer.device);
+        vertex_shader.destroy(&context.renderer.device);
+        fragment_shader.destroy(&context.renderer.device);
 
-        let depth_image_handle = renderer.resource_manager.insert_image(depth_image);
+        let depth_image_handle = context.renderer.resource_manager.insert_image(depth_image);
 
         Ok(Self {
             index_count: mesh.indices.len() as u32,

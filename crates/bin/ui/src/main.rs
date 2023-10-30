@@ -2,8 +2,8 @@ use anyhow::Result;
 use cinder::{
     App, AttachmentStoreOp, AttachmentType, BindGroup, BindGroupBindInfo, BindGroupWriteData,
     Buffer, BufferDescription, BufferUsage, Bump, Cinder, ClearValue, DebugUiContext, Format,
-    GraphicsPipeline, GraphicsPipelineDescription, Image, ImageDescription, ImageUsage, Layout,
-    RenderAttachmentDesc, RenderGraph, RenderPass, Renderer, ResourceId,
+    GraphicsPipeline, GraphicsPipelineDescription, Image, ImageDescription, ImageUsage,
+    InitContext, Layout, RenderAttachmentDesc, RenderGraph, RenderPass, Renderer, ResourceId,
 };
 use egui_integration::egui;
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
@@ -43,12 +43,12 @@ pub struct UiSample {
 }
 
 impl App for UiSample {
-    fn new(renderer: &mut Renderer, _width: u32, _height: u32) -> Result<Self> {
+    fn new(context: InitContext<'_>) -> Result<Self> {
         //
         // Create App Resources
         //
-        let surface_rect = renderer.device.surface_rect();
-        let depth_image = renderer.device.create_image(
+        let surface_rect = context.renderer.device.surface_rect();
+        let depth_image = context.renderer.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFLOAT,
@@ -56,15 +56,15 @@ impl App for UiSample {
                 ..Default::default()
             },
         )?;
-        let vertex_shader = renderer.device.create_shader(
+        let vertex_shader = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/ui.vert.spv"),
             Default::default(),
         )?;
-        let fragment_shader = renderer.device.create_shader(
+        let fragment_shader = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/ui.frag.spv"),
             Default::default(),
         )?;
-        let pipeline = renderer.device.create_graphics_pipeline(
+        let pipeline = context.renderer.device.create_graphics_pipeline(
             &vertex_shader,
             Some(&fragment_shader),
             GraphicsPipelineDescription {
@@ -72,8 +72,11 @@ impl App for UiSample {
                 ..Default::default()
             },
         )?;
-        let bind_group = BindGroup::new(&renderer.device, pipeline.bind_group_data(0).unwrap())?;
-        let ubo_buffer = renderer.device.create_buffer(
+        let bind_group = BindGroup::new(
+            &context.renderer.device,
+            pipeline.bind_group_data(0).unwrap(),
+        )?;
+        let ubo_buffer = context.renderer.device.create_buffer(
             std::mem::size_of::<UiUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
@@ -95,12 +98,15 @@ impl App for UiSample {
                 ),
             ],
         )?;
-        renderer.device.write_bind_group(&[BindGroupBindInfo {
-            group: bind_group,
-            dst_binding: 0,
-            data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-        }])?;
-        let vertex_buffer = renderer.device.create_buffer_with_data(
+        context
+            .renderer
+            .device
+            .write_bind_group(&[BindGroupBindInfo {
+                group: bind_group,
+                dst_binding: 0,
+                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+            }])?;
+        let vertex_buffer = context.renderer.device.create_buffer_with_data(
             &[
                 // Plane at z: -0.5
                 UiVertex {
@@ -210,7 +216,7 @@ impl App for UiSample {
                 ..Default::default()
             },
         )?;
-        let index_buffer = renderer.device.create_buffer_with_data(
+        let index_buffer = context.renderer.device.create_buffer_with_data(
             &[
                 0, 1, 2, 2, 1, 3, // First plane
                 4, 5, 6, 6, 5, 7, // Second plane
@@ -228,10 +234,10 @@ impl App for UiSample {
         //
         // Cleanup
         //
-        vertex_shader.destroy(&renderer.device);
-        fragment_shader.destroy(&renderer.device);
+        vertex_shader.destroy(&context.renderer.device);
+        fragment_shader.destroy(&context.renderer.device);
 
-        let depth_image_handle = renderer.resource_manager.insert_image(depth_image);
+        let depth_image_handle = context.renderer.resource_manager.insert_image(depth_image);
 
         Ok(Self {
             depth_image_handle,

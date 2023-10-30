@@ -3,8 +3,8 @@ use std::path::Path;
 use anyhow::Result;
 use cinder::{
     App, AttachmentType, BindGroup, BindGroupBindInfo, BindGroupWriteData, Buffer,
-    BufferDescription, BufferUsage, Bump, Cinder, GraphicsPipeline, Layout, PipelineError,
-    RenderGraph, RenderPass, Renderer, ResourceId,
+    BufferDescription, BufferUsage, Bump, Cinder, GraphicsPipeline, InitContext, Layout,
+    PipelineError, RenderGraph, RenderPass, Renderer, ResourceId,
 };
 use math::size::Size2D;
 
@@ -26,39 +26,45 @@ pub struct ShaderHotReloadSample {
 }
 
 impl App for ShaderHotReloadSample {
-    fn new(renderer: &mut Renderer, _width: u32, _height: u32) -> Result<Self> {
+    fn new(context: InitContext<'_>) -> Result<Self> {
         //
         // Setup Shader Hot-reloading
         //
-        let vertex_shader_handle =
-            renderer
-                .resource_manager
-                .insert_shader(renderer.device.create_shader(
-                    include_bytes!("../shaders/spv/hot_reload.vert.spv"),
-                    Default::default(),
-                )?);
-        let fragment_shader_handle =
-            renderer
-                .resource_manager
-                .insert_shader(renderer.device.create_shader(
-                    include_bytes!("../shaders/spv/hot_reload.frag.spv"),
-                    Default::default(),
-                )?);
-        let pipeline = renderer.device.create_graphics_pipeline(
-            renderer
+        let vertex_shader_handle = context.renderer.resource_manager.insert_shader(
+            context.renderer.device.create_shader(
+                include_bytes!("../shaders/spv/hot_reload.vert.spv"),
+                Default::default(),
+            )?,
+        );
+        let fragment_shader_handle = context.renderer.resource_manager.insert_shader(
+            context.renderer.device.create_shader(
+                include_bytes!("../shaders/spv/hot_reload.frag.spv"),
+                Default::default(),
+            )?,
+        );
+        let pipeline = context.renderer.device.create_graphics_pipeline(
+            context
+                .renderer
                 .resource_manager
                 .shaders
                 .get(vertex_shader_handle)
                 .unwrap(),
-            renderer
+            context
+                .renderer
                 .resource_manager
                 .shaders
                 .get(fragment_shader_handle),
             Default::default(),
         )?;
-        let bind_group = BindGroup::new(&renderer.device, pipeline.bind_group_data(0).unwrap())?;
-        let pipeline_handle = renderer.resource_manager.insert_graphics_pipeline(pipeline);
-        renderer.shader_hot_reloader.set_graphics(
+        let bind_group = BindGroup::new(
+            &context.renderer.device,
+            pipeline.bind_group_data(0).unwrap(),
+        )?;
+        let pipeline_handle = context
+            .renderer
+            .resource_manager
+            .insert_graphics_pipeline(pipeline);
+        context.shader_hot_reloader.set_graphics(
             Path::new(env!("CARGO_MANIFEST_DIR"))
                 .join("shaders")
                 .join("hot_reload.vert")
@@ -72,33 +78,37 @@ impl App for ShaderHotReloadSample {
             pipeline_handle,
         )?;
 
-        let sampler = renderer.device.create_sampler(Default::default())?;
+        let sampler = context.renderer.device.create_sampler(Default::default())?;
         let image = image::load_from_memory(include_bytes!("../assets/rust.png"))
             .unwrap()
             .to_rgba8();
         let (width, height) = image.dimensions();
         let image_data = image.into_raw();
-        let texture = renderer.device.create_image_with_data_immediate(
+        let texture = context.renderer.device.create_image_with_data_immediate(
             Size2D::new(width, height),
             &image_data,
-            &renderer.command_queue,
+            &context.renderer.command_queue,
             Default::default(),
         )?;
-        let _pipeline = renderer
+        let _pipeline = context
+            .renderer
             .resource_manager
             .graphics_pipelines
             .get(pipeline_handle)
             .unwrap();
-        renderer.device.write_bind_group(&[BindGroupBindInfo {
-            group: bind_group,
-            dst_binding: 0,
-            data: BindGroupWriteData::SampledImage(texture.bind_info(
-                &sampler,
-                Layout::ShaderReadOnly,
-                None,
-            )),
-        }])?;
-        let vertex_buffer = renderer.device.create_buffer_with_data(
+        context
+            .renderer
+            .device
+            .write_bind_group(&[BindGroupBindInfo {
+                group: bind_group,
+                dst_binding: 0,
+                data: BindGroupWriteData::SampledImage(texture.bind_info(
+                    &sampler,
+                    Layout::ShaderReadOnly,
+                    None,
+                )),
+            }])?;
+        let vertex_buffer = context.renderer.device.create_buffer_with_data(
             &[
                 HotReloadVertex {
                     i_pos: [-0.5, -0.5],
@@ -122,7 +132,7 @@ impl App for ShaderHotReloadSample {
                 ..Default::default()
             },
         )?;
-        let index_buffer = renderer.device.create_buffer_with_data(
+        let index_buffer = context.renderer.device.create_buffer_with_data(
             &[0, 1, 2, 2, 3, 0],
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -133,10 +143,8 @@ impl App for ShaderHotReloadSample {
         //
         // Add resources to ResourceManager
         //
-        renderer.resource_manager.insert_sampler(sampler);
-        renderer.resource_manager.insert_image(texture);
-
-        renderer.init();
+        context.renderer.resource_manager.insert_sampler(sampler);
+        context.renderer.resource_manager.insert_image(texture);
 
         Ok(Self {
             pipeline_handle,
@@ -175,29 +183,6 @@ impl App for ShaderHotReloadSample {
                     Ok(())
                 }),
         );
-        Ok(())
-    }
-
-    fn update(&mut self, renderer: &mut Renderer) -> Result<()> {
-        // TODO: This should probably also be automated/abstracted into cinder itself
-        for update_data in renderer.shader_hot_reloader.drain()? {
-            if let Some(pipeline_shader_set) = renderer
-                .shader_hot_reloader
-                .get_pipeline(update_data.shader_handle)
-            {
-                renderer.device.recreate_shader(
-                    &mut renderer.resource_manager,
-                    update_data.shader_handle,
-                    &update_data.bytes,
-                )?;
-                renderer.device.recreate_graphics_pipeline(
-                    &mut renderer.resource_manager,
-                    pipeline_shader_set.pipeline_handle,
-                    pipeline_shader_set.vertex_handle,
-                    Some(pipeline_shader_set.fragment_handle),
-                )?;
-            }
-        }
         Ok(())
     }
 

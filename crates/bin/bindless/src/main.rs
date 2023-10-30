@@ -6,8 +6,8 @@ use camera::{
 use cinder::{
     App, AttachmentStoreOp, AttachmentType, BindGroup, BindGroupBindInfo, BindGroupWriteData,
     Buffer, BufferDescription, BufferUsage, Bump, Cinder, ClearValue, Format, GraphicsPipeline,
-    GraphicsPipelineDescription, Image, ImageDescription, ImageUsage, Layout, RenderAttachmentDesc,
-    RenderGraph, RenderPass, Renderer, ResourceId,
+    GraphicsPipelineDescription, Image, ImageDescription, ImageUsage, InitContext, Layout,
+    RenderAttachmentDesc, RenderGraph, RenderPass, Renderer, ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use rayon::iter::*;
@@ -100,12 +100,12 @@ pub struct BindlessSample {
 }
 
 impl App for BindlessSample {
-    fn new(renderer: &mut Renderer, _width: u32, _height: u32) -> Result<Self> {
+    fn new(context: InitContext<'_>) -> Result<Self> {
         //
         // Create App Resources
         //
-        let surface_rect = renderer.device.surface_rect();
-        let depth_image = renderer.device.create_image(
+        let surface_rect = context.renderer.device.surface_rect();
+        let depth_image = context.renderer.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFLOAT,
@@ -113,15 +113,15 @@ impl App for BindlessSample {
                 ..Default::default()
             },
         )?;
-        let vertex_shader = renderer.device.create_shader(
+        let vertex_shader = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/bindless.vert.spv"),
             Default::default(),
         )?;
-        let fragment_shader = renderer.device.create_shader(
+        let fragment_shader = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/bindless.frag.spv"),
             Default::default(),
         )?;
-        let pipeline = renderer.device.create_graphics_pipeline(
+        let pipeline = context.renderer.device.create_graphics_pipeline(
             &vertex_shader,
             Some(&fragment_shader),
             GraphicsPipelineDescription {
@@ -129,7 +129,10 @@ impl App for BindlessSample {
                 ..Default::default()
             },
         )?;
-        let bind_group = BindGroup::new(&renderer.device, pipeline.bind_group_data(0).unwrap())?;
+        let bind_group = BindGroup::new(
+            &context.renderer.device,
+            pipeline.bind_group_data(0).unwrap(),
+        )?;
 
         let init_time = std::time::Instant::now();
         let scene = zero_copy_assets::try_decoded_file::<Scene<BindlessVertex>>(
@@ -174,7 +177,7 @@ impl App for BindlessSample {
                 ..Default::default()
             },
         );
-        let ubo_buffer = renderer.device.create_buffer(
+        let ubo_buffer = context.renderer.device.create_buffer(
             std::mem::size_of::<BindlessUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
@@ -189,21 +192,21 @@ impl App for BindlessSample {
                 camera.projection(surface_rect.width() as f32, surface_rect.height() as f32),
             ],
         )?;
-        let index_buffer = renderer.device.create_buffer_with_data(
+        let index_buffer = context.renderer.device.create_buffer_with_data(
             &indices,
             BufferDescription {
                 usage: BufferUsage::INDEX,
                 ..Default::default()
             },
         )?;
-        let vertex_buffer = renderer.device.create_buffer_with_data(
+        let vertex_buffer = context.renderer.device.create_buffer_with_data(
             &vertices,
             BufferDescription {
                 usage: BufferUsage::STORAGE | BufferUsage::TRANSFER_DST,
                 ..Default::default()
             },
         )?;
-        renderer.device.write_bind_group(&[
+        context.renderer.device.write_bind_group(&[
             BindGroupBindInfo {
                 group: bind_group,
                 dst_binding: 0,
@@ -224,21 +227,23 @@ impl App for BindlessSample {
             .map(|(idx, material)| (idx, material.diffuse.as_ref().unwrap()))
             .collect::<Vec<_>>();
 
-        let sampler = renderer.device.create_sampler(Default::default())?;
+        let sampler = context.renderer.device.create_sampler(Default::default())?;
         let images = image_data
             .into_iter()
             .map(|(idx, image_data)| {
-                let texture = renderer
+                let texture = context
+                    .renderer
                     .device
                     .create_image_with_data_immediate(
                         Size2D::new(image_data.width, image_data.height),
                         &image_data.bytes,
-                        &renderer.command_queue,
+                        &context.renderer.command_queue,
                         Default::default(),
                     )
                     .unwrap();
 
-                renderer
+                context
+                    .renderer
                     .device
                     .write_bind_group(&[BindGroupBindInfo {
                         group: bind_group,
@@ -259,18 +264,21 @@ impl App for BindlessSample {
         // Add resources to ResourceManager
         //
         for image in images {
-            renderer.resource_manager.insert_image(image);
+            context.renderer.resource_manager.insert_image(image);
         }
-        renderer.resource_manager.insert_buffer(vertex_buffer);
-        renderer.resource_manager.insert_sampler(sampler);
+        context
+            .renderer
+            .resource_manager
+            .insert_buffer(vertex_buffer);
+        context.renderer.resource_manager.insert_sampler(sampler);
 
         //
         // Cleanup
         //
-        vertex_shader.destroy(&renderer.device);
-        fragment_shader.destroy(&renderer.device);
+        vertex_shader.destroy(&context.renderer.device);
+        fragment_shader.destroy(&context.renderer.device);
 
-        let depth_image_handle = renderer.resource_manager.insert_image(depth_image);
+        let depth_image_handle = context.renderer.resource_manager.insert_image(depth_image);
 
         Ok(Self {
             camera,

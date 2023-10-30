@@ -2,9 +2,9 @@ use anyhow::Result;
 use cinder::{
     App, AttachmentLoadOp, AttachmentStoreOp, AttachmentType, BindGroup, BindGroupBindInfo,
     BindGroupWriteData, Buffer, BufferDescription, BufferUsage, Bump, Cinder, ClearValue, Format,
-    GraphicsPipeline, GraphicsPipelineDescription, Image, ImageDescription, ImageUsage, Layout,
-    RenderAttachmentDesc, RenderGraph, RenderPass, RenderPassResource, Renderer, ResourceId,
-    Sampler,
+    GraphicsPipeline, GraphicsPipelineDescription, Image, ImageDescription, ImageUsage,
+    InitContext, Layout, RenderAttachmentDesc, RenderGraph, RenderPass, RenderPassResource,
+    Renderer, ResourceId, Sampler,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use util::{SdlContext, WindowDescription};
@@ -36,12 +36,12 @@ pub struct DepthImageSample {
 }
 
 impl App for DepthImageSample {
-    fn new(renderer: &mut Renderer, _width: u32, _height: u32) -> Result<Self> {
+    fn new(context: InitContext<'_>) -> Result<Self> {
         //
         // Create App Resources
         //
-        let surface_rect = renderer.device.surface_rect();
-        let depth_image = renderer.device.create_image(
+        let surface_rect = context.renderer.device.surface_rect();
+        let depth_image = context.renderer.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFLOAT,
@@ -49,22 +49,22 @@ impl App for DepthImageSample {
                 ..Default::default()
             },
         )?;
-        renderer.command_queue.transition_image(
-            &renderer.device,
+        context.renderer.command_queue.transition_image(
+            &context.renderer.device,
             &depth_image,
             ImageUsage::Depth,
             Layout::Undefined,
             Layout::DepthStencilReadOnly,
         )?;
-        let mesh_vertex_shader = renderer.device.create_shader(
+        let mesh_vertex_shader = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/depth_mesh.vert.spv"),
             Default::default(),
         )?;
-        let mesh_fragment_shader = renderer.device.create_shader(
+        let mesh_fragment_shader = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/depth_mesh.frag.spv"),
             Default::default(),
         )?;
-        let mesh_pipeline = renderer.device.create_graphics_pipeline(
+        let mesh_pipeline = context.renderer.device.create_graphics_pipeline(
             &mesh_vertex_shader,
             Some(&mesh_fragment_shader),
             GraphicsPipelineDescription {
@@ -72,28 +72,30 @@ impl App for DepthImageSample {
                 ..Default::default()
             },
         )?;
-        let mesh_bind_group =
-            BindGroup::new(&renderer.device, mesh_pipeline.bind_group_data(0).unwrap())?;
+        let mesh_bind_group = BindGroup::new(
+            &context.renderer.device,
+            mesh_pipeline.bind_group_data(0).unwrap(),
+        )?;
 
-        let texture_vertex_shader = renderer.device.create_shader(
+        let texture_vertex_shader = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/depth_texture.vert.spv"),
             Default::default(),
         )?;
-        let texture_fragment_shader = renderer.device.create_shader(
+        let texture_fragment_shader = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/depth_texture.frag.spv"),
             Default::default(),
         )?;
-        let texture_pipeline = renderer.device.create_graphics_pipeline(
+        let texture_pipeline = context.renderer.device.create_graphics_pipeline(
             &texture_vertex_shader,
             Some(&texture_fragment_shader),
             Default::default(),
         )?;
         let texture_bind_group = BindGroup::new(
-            &renderer.device,
+            &context.renderer.device,
             texture_pipeline.bind_group_data(0).unwrap(),
         )?;
 
-        let cube_vertex_buffer = renderer.device.create_buffer_with_data(
+        let cube_vertex_buffer = context.renderer.device.create_buffer_with_data(
             &[
                 // Plane at z: -0.5
                 DepthMeshVertex {
@@ -203,7 +205,7 @@ impl App for DepthImageSample {
                 ..Default::default()
             },
         )?;
-        let cube_index_buffer = renderer.device.create_buffer_with_data(
+        let cube_index_buffer = context.renderer.device.create_buffer_with_data(
             &[
                 0, 1, 2, 2, 1, 3, // First plane
                 4, 5, 6, 6, 5, 7, // Second plane
@@ -218,7 +220,7 @@ impl App for DepthImageSample {
             },
         )?;
 
-        let ubo_buffer = renderer.device.create_buffer(
+        let ubo_buffer = context.renderer.device.create_buffer(
             std::mem::size_of::<DepthMeshUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
@@ -241,13 +243,16 @@ impl App for DepthImageSample {
                     ),
                 ],
             )?;
-            renderer.device.write_bind_group(&[BindGroupBindInfo {
-                dst_binding: 0,
-                group: mesh_bind_group,
-                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-            }])?;
+            context
+                .renderer
+                .device
+                .write_bind_group(&[BindGroupBindInfo {
+                    dst_binding: 0,
+                    group: mesh_bind_group,
+                    data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+                }])?;
         }
-        let quad_vertex_buffer = renderer.device.create_buffer_with_data(
+        let quad_vertex_buffer = context.renderer.device.create_buffer_with_data(
             &[
                 DepthTextureVertex {
                     i_pos: [-1.0, -1.0],
@@ -271,7 +276,7 @@ impl App for DepthImageSample {
                 ..Default::default()
             },
         )?;
-        let quad_index_buffer = renderer.device.create_buffer_with_data(
+        let quad_index_buffer = context.renderer.device.create_buffer_with_data(
             &[0, 1, 2, 2, 3, 0],
             BufferDescription {
                 usage: BufferUsage::INDEX,
@@ -279,26 +284,29 @@ impl App for DepthImageSample {
             },
         )?;
 
-        let sampler = renderer.device.create_sampler(Default::default())?;
-        renderer.device.write_bind_group(&[BindGroupBindInfo {
-            group: texture_bind_group,
-            dst_binding: 0,
-            data: BindGroupWriteData::SampledImage(depth_image.bind_info(
-                &sampler,
-                Layout::DepthStencilReadOnly,
-                None,
-            )),
-        }])?;
+        let sampler = context.renderer.device.create_sampler(Default::default())?;
+        context
+            .renderer
+            .device
+            .write_bind_group(&[BindGroupBindInfo {
+                group: texture_bind_group,
+                dst_binding: 0,
+                data: BindGroupWriteData::SampledImage(depth_image.bind_info(
+                    &sampler,
+                    Layout::DepthStencilReadOnly,
+                    None,
+                )),
+            }])?;
 
         //
         // Cleanup
         //
-        texture_vertex_shader.destroy(&renderer.device);
-        texture_fragment_shader.destroy(&renderer.device);
-        mesh_vertex_shader.destroy(&renderer.device);
-        mesh_fragment_shader.destroy(&renderer.device);
+        texture_vertex_shader.destroy(&context.renderer.device);
+        texture_fragment_shader.destroy(&context.renderer.device);
+        mesh_vertex_shader.destroy(&context.renderer.device);
+        mesh_fragment_shader.destroy(&context.renderer.device);
 
-        let depth_image_handle = renderer.resource_manager.insert_image(depth_image);
+        let depth_image_handle = context.renderer.resource_manager.insert_image(depth_image);
 
         Ok(Self {
             depth_image_handle,

@@ -229,6 +229,7 @@ dependencies = [
  "render_graph",
  "renderer",
  "sdl2",
+ "take_mut",
  "util",
 ]
 
@@ -1193,7 +1194,6 @@ dependencies = [
  "rust-shader-tools",
  "serde",
  "serde_json",
- "take_mut",
  "thiserror",
  "tracing",
  "util",

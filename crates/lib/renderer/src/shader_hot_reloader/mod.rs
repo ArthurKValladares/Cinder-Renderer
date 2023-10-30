@@ -44,7 +44,6 @@ impl UpdateList {
 pub struct ShaderHotReloader {
     _watcher: Debouncer<RecommendedWatcher>,
     program_map: HashMap<ResourceId<Shader>, PipelineShaderIdSet>,
-    // TODO: If I make the Device thread-safe, I don't need this
     to_be_updated: Arc<Mutex<UpdateList>>,
 }
 

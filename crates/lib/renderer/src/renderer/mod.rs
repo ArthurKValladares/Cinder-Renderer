@@ -26,7 +26,6 @@ pub struct Renderer {
     pub swapchain: Swapchain,
     pub command_queue: CommandQueue,
     pub resource_manager: ResourceManager,
-    pub shader_hot_reloader: HotReloaderState,
     init_time: Instant,
     frame_state: FrameState,
     last_dt: Option<u128>,
@@ -41,7 +40,6 @@ impl Renderer {
         let command_queue = CommandQueue::new(&device)?;
         let swapchain = Swapchain::new(&device)?;
         let resource_manager = ResourceManager::default();
-        let shader_hot_reloader = HotReloaderState::new()?;
 
         let init_time = Instant::now();
 
@@ -50,17 +48,10 @@ impl Renderer {
             swapchain,
             command_queue,
             resource_manager,
-            shader_hot_reloader,
             init_time,
             frame_state: FrameState::NotRunning,
             last_dt: None,
         })
-    }
-
-    pub fn init(&mut self) {
-        take_mut::take(&mut self.shader_hot_reloader, |hot_reloader| {
-            hot_reloader.run()
-        });
     }
 
     pub fn init_time(&self) -> Instant {

@@ -2,8 +2,8 @@ use anyhow::Result;
 use cinder::{
     App, AttachmentStoreOp, AttachmentType, BindGroup, BindGroupBindInfo, BindGroupWriteData,
     Buffer, BufferDescription, BufferUsage, Bump, Cinder, ClearValue, Format, GraphicsPipeline,
-    GraphicsPipelineDescription, Image, ImageDescription, ImageUsage, Layout, RenderAttachmentDesc,
-    RenderGraph, RenderPass, Renderer, ResourceId,
+    GraphicsPipelineDescription, Image, ImageDescription, ImageUsage, InitContext, Layout,
+    RenderAttachmentDesc, RenderGraph, RenderPass, Renderer, ResourceId,
 };
 use math::{mat::Mat4, size::Size2D, vec::Vec3};
 use util::{SdlContext, WindowDescription};
@@ -26,12 +26,12 @@ pub struct HelloCube {
 }
 
 impl App for HelloCube {
-    fn new(renderer: &mut Renderer, _width: u32, _height: u32) -> Result<Self> {
+    fn new(context: InitContext<'_>) -> Result<Self> {
         //
         // Create App Resources
         //
-        let surface_rect = renderer.device.surface_rect();
-        let depth_image = renderer.device.create_image(
+        let surface_rect = context.renderer.device.surface_rect();
+        let depth_image = context.renderer.device.create_image(
             Size2D::new(surface_rect.width(), surface_rect.height()),
             ImageDescription {
                 format: Format::D32_SFLOAT,
@@ -40,15 +40,15 @@ impl App for HelloCube {
             },
         )?;
 
-        let vertex_shader = renderer.device.create_shader(
+        let vertex_shader = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/cube.vert.spv"),
             Default::default(),
         )?;
-        let fragment_shader = renderer.device.create_shader(
+        let fragment_shader = context.renderer.device.create_shader(
             include_bytes!("../shaders/spv/cube.frag.spv"),
             Default::default(),
         )?;
-        let pipeline = renderer.device.create_graphics_pipeline(
+        let pipeline = context.renderer.device.create_graphics_pipeline(
             &vertex_shader,
             Some(&fragment_shader),
             GraphicsPipelineDescription {
@@ -56,9 +56,12 @@ impl App for HelloCube {
                 ..Default::default()
             },
         )?;
-        let bind_group = BindGroup::new(&renderer.device, pipeline.bind_group_data(0).unwrap())?;
+        let bind_group = BindGroup::new(
+            &context.renderer.device,
+            pipeline.bind_group_data(0).unwrap(),
+        )?;
 
-        let ubo_buffer = renderer.device.create_buffer(
+        let ubo_buffer = context.renderer.device.create_buffer(
             std::mem::size_of::<CubeUniformBufferObject>() as u64,
             BufferDescription {
                 usage: BufferUsage::UNIFORM,
@@ -80,13 +83,16 @@ impl App for HelloCube {
                 ),
             ],
         )?;
-        renderer.device.write_bind_group(&[BindGroupBindInfo {
-            group: bind_group,
-            dst_binding: 0,
-            data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
-        }])?;
+        context
+            .renderer
+            .device
+            .write_bind_group(&[BindGroupBindInfo {
+                group: bind_group,
+                dst_binding: 0,
+                data: BindGroupWriteData::Uniform(ubo_buffer.bind_info()),
+            }])?;
 
-        let vertex_buffer = renderer.device.create_buffer_with_data(
+        let vertex_buffer = context.renderer.device.create_buffer_with_data(
             &[
                 // Plane at z: -0.5
                 CubeVertex {
@@ -196,7 +202,7 @@ impl App for HelloCube {
                 ..Default::default()
             },
         )?;
-        let index_buffer = renderer.device.create_buffer_with_data(
+        let index_buffer = context.renderer.device.create_buffer_with_data(
             &[
                 0, 1, 2, 2, 1, 3, // First plane
                 4, 5, 6, 6, 5, 7, // Second plane
@@ -211,10 +217,10 @@ impl App for HelloCube {
             },
         )?;
 
-        vertex_shader.destroy(&renderer.device);
-        fragment_shader.destroy(&renderer.device);
+        vertex_shader.destroy(&context.renderer.device);
+        fragment_shader.destroy(&context.renderer.device);
 
-        let depth_image_handle = renderer.resource_manager.insert_image(depth_image);
+        let depth_image_handle = context.renderer.resource_manager.insert_image(depth_image);
 
         Ok(Self {
             depth_image_handle,
