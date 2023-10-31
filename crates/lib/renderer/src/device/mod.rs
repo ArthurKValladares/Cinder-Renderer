@@ -286,14 +286,8 @@ impl Device {
     pub fn new_frame(&mut self) -> Result<()> {
         let render_complete_fence = self.command_buffer_executed_fence();
         unsafe {
-            match self.device.get_fence_status(render_complete_fence) {
-                Ok(false) | Err(_) => {
-                    self.device
-                        .wait_for_fences(&[render_complete_fence], true, std::u64::MAX)?;
-                }
-                _ => {}
-            }
-
+            self.device
+                .wait_for_fences(&[render_complete_fence], true, std::u64::MAX)?;
             self.device.reset_fences(&[render_complete_fence])?;
         }
 
