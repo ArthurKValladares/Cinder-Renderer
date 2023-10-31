@@ -56,8 +56,8 @@ pub struct Device {
     pub(crate) bind_group_pool: BindGroupPool,
     pub(crate) surface_data: SurfaceData,
     extensions: DeviceExtensions,
+    image_acquired_semaphores: [vk::Semaphore; MAX_FRAMES_IN_FLIGHT],
     render_complete_semaphores: [vk::Semaphore; MAX_FRAMES_IN_FLIGHT],
-    image_acquired_semaphore: vk::Semaphore,
     command_buffer_executed_fences: [vk::Fence; MAX_FRAMES_IN_FLIGHT],
     frame_index: usize,
 }
@@ -233,15 +233,21 @@ impl Device {
             semaphores
         };
 
-        let image_acquired_semaphore =
-            unsafe { device.create_semaphore(&semaphore_create_info, None) }?;
-        instance::debug::set_object_name(
-            instance.debug(),
-            device.handle(),
-            vk::ObjectType::SEMAPHORE,
-            image_acquired_semaphore,
-            "Image Acquired Semaphore",
-        );
+        let image_acquired_semaphores = {
+            let mut semaphores = [vk::Semaphore::null(); MAX_FRAMES_IN_FLIGHT];
+            for idx in 0..MAX_FRAMES_IN_FLIGHT {
+                let semaphore = unsafe { device.create_semaphore(&semaphore_create_info, None) }?;
+                instance::debug::set_object_name(
+                    instance.debug(),
+                    device.handle(),
+                    vk::ObjectType::SEMAPHORE,
+                    semaphore,
+                    &format!("Image Acquired Semaphore {idx}"),
+                );
+                semaphores[idx] = semaphore;
+            }
+            semaphores
+        };
 
         let fence_create_info = vk::FenceCreateInfo {
             flags: vk::FenceCreateFlags::SIGNALED,
@@ -277,7 +283,7 @@ impl Device {
             bind_group_pool,
             extensions,
             render_complete_semaphores,
-            image_acquired_semaphore,
+            image_acquired_semaphores,
             command_buffer_executed_fences,
             frame_index: 0,
         })
@@ -618,7 +624,7 @@ impl Device {
     }
 
     pub(crate) fn image_acquired_semaphore(&self) -> vk::Semaphore {
-        self.image_acquired_semaphore
+        self.image_acquired_semaphores[self.current_frame_in_flight()]
     }
 
     pub(crate) fn command_buffer_executed_fence(&self) -> vk::Fence {
@@ -651,10 +657,9 @@ impl Drop for Device {
             for semaphore in &self.render_complete_semaphores {
                 self.device.destroy_semaphore(*semaphore, None);
             }
-
-            self.device
-                .destroy_semaphore(self.image_acquired_semaphore, None);
-
+            for semaphore in &self.image_acquired_semaphores {
+                self.device.destroy_semaphore(*semaphore, None);
+            }
             // MUST BE DESTROYED LAST!
             self.device.destroy_device(None);
         }

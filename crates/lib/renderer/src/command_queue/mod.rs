@@ -197,9 +197,15 @@ impl CommandList {
     }
 
     pub fn begin(&self, device: &Device) -> Result<()> {
+        unsafe {
+            device.raw().reset_command_buffer(
+                self.command_buffer,
+                vk::CommandBufferResetFlags::RELEASE_RESOURCES,
+            )?
+        };
+
         let command_buffer_begin_info = vk::CommandBufferBeginInfo::builder()
             .flags(vk::CommandBufferUsageFlags::ONE_TIME_SUBMIT);
-
         unsafe {
             device
                 .raw()
