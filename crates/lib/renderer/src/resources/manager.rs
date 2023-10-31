@@ -59,7 +59,6 @@ pub struct ResourceManager {
     pub buffers: ResourcePool<Buffer>,
     pub samplers: ResourcePool<Sampler>,
     to_consume: [DeleteQueue; MAX_FRAMES_IN_FLIGHT],
-    consume_index: usize,
 }
 
 impl ResourceManager {
@@ -86,8 +85,8 @@ impl ResourceManager {
     }
 
     pub fn consume(&mut self, device: &Device) {
-        self.consume_index = (self.consume_index + 1) % MAX_FRAMES_IN_FLIGHT;
-        for res in &mut self.to_consume[self.consume_index] {
+        let consume_index = device.current_frame_in_flight();
+        for res in &mut self.to_consume[consume_index] {
             match res {
                 Resource::GraphicsPipeline(pipeline) => pipeline.destroy(device),
                 Resource::RawPipeline(pipeline) => unsafe {
@@ -99,7 +98,7 @@ impl ResourceManager {
                 Resource::Sampler(sampler) => sampler.destroy(device),
             }
         }
-        self.to_consume[self.consume_index].clear();
+        self.to_consume[consume_index].clear();
     }
 
     pub fn replace_shader(

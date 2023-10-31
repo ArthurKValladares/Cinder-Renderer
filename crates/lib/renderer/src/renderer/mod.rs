@@ -75,6 +75,7 @@ impl Renderer {
         self.frame_state = FrameState::Running(Instant::now());
 
         self.device.new_frame()?;
+        self.resource_manager.consume(&self.device);
         Ok(())
     }
 
@@ -91,7 +92,6 @@ impl Renderer {
         }
         self.frame_state = FrameState::NotRunning;
 
-        self.resource_manager.consume(&self.device);
         self.device.bump_frame();
     }
 }
