@@ -126,7 +126,7 @@ impl Camera {
             );
 
             let right = self.front.cross(&self.world_up).normalized();
-            let up = self.front.cross(&right).normalized();
+            let down = self.front.cross(&right).normalized();
 
             let disp = {
                 let mut disp = Vec3::zero();
@@ -146,10 +146,10 @@ impl Camera {
                 }
 
                 if keyboard_state.is_down(Keycode::Space) {
-                    disp += up;
+                    disp -= down;
                 }
                 if keyboard_state.is_down(Keycode::LShift) {
-                    disp -= up;
+                    disp += down;
                 }
 
                 let dt_scale = dt as f32 / 1000.0;

@@ -332,6 +332,7 @@ impl App for BindlessSample {
         graph.add_pass(
             allocator,
             RenderPass::new(allocator)
+                .with_flipped_viewport(false)
                 .add_color_attachment(AttachmentType::SwapchainImage, Default::default())
                 .set_depth_attachment(
                     AttachmentType::Reference(self.depth_image_handle),

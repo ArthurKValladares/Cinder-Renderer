@@ -98,7 +98,7 @@ impl EguiIntegration {
                         VertexAttributeDescription {
                             location: 2,
                             binding: 0,
-                            format: Format::R8G8B8A8_SRGB.into(),
+                            format: Format::R8G8B8A8_UNORM.into(),
                             offset: util::offset_of!(egui::epaint::Vertex, color) as u32,
                         },
                     ],
